@@ -5,6 +5,7 @@ import { Splash } from './screens/Splash'
 import { Onboarding } from './screens/Onboarding'
 import { Goal } from './screens/Goal'
 import { Account } from './screens/Account'
+import { Login } from './screens/Login'
 import { Import } from './screens/Import'
 import { Home } from './screens/Home'
 import { Diario } from './screens/Diario'
@@ -112,6 +113,7 @@ function Root() {
     's-onboarding': Onboarding,
     's-goal': Goal,
     's-account': Account,
+    's-login': Login,
     's-import': Import,
   }
   const Flow = FLOW[screen]

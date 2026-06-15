@@ -7,7 +7,7 @@ import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, dayLabel, fmtTime, startOfDay, weekStrip } from './cadence'
 
 export type ScreenId =
-  | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-import' | 's-app'
+  | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-login' | 's-import' | 's-app'
 export type TabId = 'inicio' | 'diario' | 'protocolo' | 'ajustes'
 export type SheetId =
   | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../lib/store'
 import { IcDrop, IcShield } from '../components/icons'
-import { BiohackmxFlask } from '../components/BiohackmxFlask'
+import { BiohackmxConnect } from '../components/BiohackmxConnect'
 import { Disclaimer } from '../components/controls'
 
 // SVG logos para proveedores OAuth (sin imágenes externas)
@@ -34,10 +34,6 @@ export function Account() {
     e.preventDefault()
     dispatch({ t: 'tab', tab: 'inicio' })
     dispatch({ t: 'go', screen: 's-app' })
-  }
-
-  function handleBiohack() {
-    dispatch({ t: 'go', screen: 's-import' })
   }
 
   return (
@@ -93,71 +89,9 @@ export function Account() {
         Crea tu cuenta
       </h2>
 
-      {/* Card destacada BiohackMX */}
-      <div
-        className="card"
-        style={{
-          border: '1px solid var(--brand-700)',
-          borderRadius: 20,
-          padding: 0,
-          marginBottom: 24,
-          overflow: 'hidden',
-          boxShadow: '0 4px 16px rgba(11,18,32,.08)',
-        }}
-      >
-        {/* Barra de acento superior (mint gradient) */}
-        <div
-          style={{
-            height: 4,
-            background: 'linear-gradient(90deg, var(--brand-700) 0%, #5eead4 100%)',
-          }}
-          aria-hidden="true"
-        />
-
-        <div style={{ padding: 24 }}>
-          {/* Encabezado de la card */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
-            <div
-              aria-hidden="true"
-              style={{
-                background: 'rgba(94,234,212,.16)',
-                borderRadius: 12,
-                padding: 8,
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <BiohackmxFlask size={26} />
-            </div>
-            <div>
-              <p
-                className="body"
-                style={{
-                  fontWeight: 600,
-                  fontSize: 18,
-                  color: 'var(--ink-900)',
-                  margin: '0 0 4px',
-                }}
-              >
-                Únete con BiohackMX
-              </p>
-              <p className="sm" style={{ color: 'var(--ink-700)', margin: 0 }}>
-                Inicias sesión en su sitio; nosotros nunca vemos tu contraseña.
-              </p>
-            </div>
-          </div>
-
-          <button
-            className="btn btn-brand"
-            style={{ width: '100%', height: 52, borderRadius: 16, fontSize: 16, gap: 10 }}
-            onClick={handleBiohack}
-          >
-            <BiohackmxFlask size={20} style={{ filter: 'brightness(0) invert(1)' }} />
-            Conectar con BiohackMX
-          </button>
-        </div>
+      {/* Conexión con BiohackMX — opción principal */}
+      <div style={{ marginBottom: 24 }}>
+        <BiohackmxConnect />
       </div>
 
       {/* Divider */}
@@ -314,7 +248,7 @@ export function Account() {
           type="button"
           className="btn btn-ghost"
           style={{ fontSize: 15, color: 'var(--brand-700)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          onClick={() => dispatch({ t: 'go', screen: 's-app' })}
+          onClick={() => dispatch({ t: 'go', screen: 's-login' })}
         >
           Ya tengo cuenta · Iniciar sesión
         </button>

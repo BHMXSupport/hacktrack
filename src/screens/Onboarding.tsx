@@ -26,7 +26,7 @@ export function Onboarding() {
         <div className="display-l" style={{ margin: '0 0 8px' }}>No vuelvas a fallar tu dosis</div>
         <div className="body" style={{ marginBottom: 18 }}>Recordatorios a tu ritmo y un registro de un toque. Tu progreso, claro y tuyo.</div>
         <button className="btn btn-ember" onClick={onDone}>Crear cuenta</button>
-        <button className="btn btn-ghost" style={{ marginTop: 4 }} onClick={onDone}>Ya tengo cuenta</button>
+        <button className="btn btn-ghost" style={{ marginTop: 4 }} onClick={() => dispatch({ t: 'go', screen: 's-login' })}>Ya tengo cuenta</button>
       </motion.div>
     </div>
   )
