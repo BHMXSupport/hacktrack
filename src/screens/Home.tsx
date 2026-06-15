@@ -8,6 +8,9 @@ import { Disclaimer } from '../components/controls'
 import { Sparkline } from '../components/charts'
 import { Glyph } from '../components/glyphs'
 import { UserAvatar, TrustChip } from '../components/identity'
+import { TodayDoses } from '../components/TodayDoses'
+import { dayProducts } from '../lib/calendar'
+import { startOfDay } from '../lib/cadence'
 import { staggerParent, staggerItem } from '../lib/motion'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -72,6 +75,8 @@ export function Home() {
   // Color de categoría activa
   const catColor = state.curGoal ? CATEGORY_COLOR[state.curGoal] : 'var(--brand-700)'
 
+  // ¿hay dosis programadas hoy? → muestra el checklist "hecho hoy" en vez del countdown
+  const hasDosesToday = dayProducts(state, startOfDay(now)).length > 0
   // Próxima toma con cuenta regresiva real
   const at = nextDoseAt(state, now)
   const countdownText = at ? fmtCountdown(at, now) : null
@@ -128,6 +133,9 @@ export function Home() {
           {/* Avatar */}
           <UserAvatar size={48} tone="filled" />
         </motion.section>
+
+        {/* ── 1b. Checklist "Tus dosis de hoy" (1-tap, sin escribir) ──── */}
+        <TodayDoses />
 
         {/* ── 2. HÉROE: próxima toma con cuenta regresiva real ────────── */}
         {!state.logged && !hasProtocol && (
@@ -212,8 +220,8 @@ export function Home() {
           </motion.div>
         )}
 
-        {/* Protocolo activo → tarjeta dominante con cuenta regresiva */}
-        {hasProtocol && (
+        {/* Protocolo activo SIN dosis hoy → cuenta regresiva (si hay dosis hoy, manda el checklist) */}
+        {hasProtocol && !hasDosesToday && (
           <motion.div
             variants={staggerItem}
             className="card"

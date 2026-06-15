@@ -10,7 +10,7 @@ import { TimeWheel } from '../components/TimeWheel'
 import { spring, ease } from '../lib/motion'
 import { useApp } from '../lib/store'
 import { PEPTIDES, WDS } from '../lib/catalog'
-import { presetCad } from '../lib/cadence'
+import { presetCad, cadenceLabel } from '../lib/cadence'
 import type { UserCadence, CadMode } from '../lib/types'
 
 // Unidades disponibles (el usuario elige — NUNCA precargamos dosis)
@@ -57,6 +57,8 @@ export function RegistrarSheet() {
   const defaultProduct = state.protocol?.product ?? state.importedProducts[0] ?? ''
 
   const [product, setProduct] = useState<string>(defaultProduct)
+  // cadencia adaptativa: si el producto YA tiene protocolo, no re-pedirla (chip de solo-lectura)
+  const cadenceLocked = !!product && state.protocol?.product === product
   const [showPicker, setShowPicker] = useState(!defaultProduct) // abre el picker si no hay producto
   const [customProduct, setCustomProduct] = useState('')
   const [pickingCustom, setPickingCustom] = useState(false)
@@ -252,7 +254,19 @@ export function RegistrarSheet() {
           )}
         </div>
 
-        {/* ── Cadencia ── */}
+        {/* ── Cadencia: solo al ESTABLECER el producto. Si ya tiene protocolo → chip de solo-lectura. ── */}
+        {cadenceLocked ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span className="sm" style={{ color: 'var(--ink-400)' }}>Cadencia</span>
+              <span className="body" style={{ fontWeight: 600 }}>{cadenceLabel(localCad)}</span>
+            </div>
+            <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px' }}
+              onClick={() => dispatch({ t: 'sheet', sheet: 'protocolo-edit' })}>
+              Editar
+            </button>
+          </div>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <span className="sm" style={{ color: 'var(--ink-400)' }}>Cadencia</span>
           <Segmented
@@ -333,6 +347,7 @@ export function RegistrarSheet() {
             </p>
           )}
         </div>
+        )}
 
         {/* ── Dosis (el usuario teclea — NUNCA precargado) ── */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>

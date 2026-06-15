@@ -30,6 +30,7 @@ export interface AppState {
   profile: Profile
   measureValues: Record<string, number>
   history: Record<string, MeasureSample[]>   // serie temporal por KPI/medida (dashboard)
+  productDoses: Record<string, { value: number; unit: string }>  // dosis recordada por producto (para "hecho hoy")
   settings: UserSettings
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
@@ -52,6 +53,7 @@ export const initialState: AppState = {
   profile: { name: null, peso: null, est: null, grasa: null, musculo: null, bmi: null },
   measureValues: {},
   history: {},
+  productDoses: {},
   settings: {
     pinEnabled: false,
     darkMode: false,
@@ -224,7 +226,15 @@ export function reducer(s: AppState, a: Action): AppState {
         ts: now.getTime(),
         product: a.product,
       }
-      return { ...s, log: prependToLog(s.log, item), logged: true, sheet: null, toast: 'Registro guardado' }
+      return {
+        ...s,
+        log: prependToLog(s.log, item),
+        // recuerda la dosis tecleada por producto (alimenta "tus dosis de hoy")
+        productDoses: a.value != null ? { ...s.productDoses, [a.product]: { value: a.value, unit: a.unit } } : s.productDoses,
+        logged: true,
+        sheet: null,
+        toast: 'Registro guardado',
+      }
     }
 
     // P0-1 + P1-5: las medidas también entran al diario y activan el dashboard
@@ -402,6 +412,16 @@ export function nextDoseAt(s: AppState, now: Date): Date | null {
     d = new Date(d.getTime() + 86400000)
   }
   return null
+}
+
+// dosis a usar para un producto en "hecho hoy": la de la fase activa, o la recordada del último registro
+export function doseForProduct(s: AppState, product: string): { value: number; unit: string } | null {
+  const p = s.protocol
+  if (p && p.product === product && p.progOn) {
+    const phaseDose = p.phaseDoses?.[p.curPhase]
+    if (phaseDose != null) return { value: phaseDose, unit: 'mg' }
+  }
+  return s.productDoses[product] ?? null
 }
 
 // productos a trackear con su cadencia, para el calendario dinámico:
