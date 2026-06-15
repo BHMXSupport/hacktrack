@@ -141,6 +141,37 @@ export const KPIS: KpiDef[] = [
   { key: 'Efecto secundario',     label: 'Efecto secundario',     icon: 'efecto',       kind: 'scale', color: '#E8A317' },
 ]
 
+// Set por defecto de escalas para el "+" cuando aún no hay objetivo elegido
+const DEFAULT_SCALES = ['Energía', 'Estado de ánimo', 'Sueño', 'Dolor', 'Foco', 'Libido', 'Elasticidad piel', 'Recuperación muscular']
+const KPI_LABEL: Record<string, string> = { 'Elasticidad piel': 'Elasticidad de piel' }
+
+function scaleKpiFor(name: string): KpiDef {
+  return {
+    key: name,
+    label: KPI_LABEL[name] ?? name,
+    icon: MEASURE_ICON[name]?.icon ?? 'medidas',
+    kind: 'scale',
+    color: MEASURE_ICON[name]?.cat ?? '#1B8A7D',
+  }
+}
+
+// KPIs registrables en el "+" — DERIVADOS de tu objetivo (misma fuente que las cards de Inicio):
+// "Cambio de medidas" + las medidas de escala de tu objetivo + "Efecto secundario".
+// Esto evita KPIs huérfanos (cards de Inicio que no se pueden registrar).
+export function loggableKpis(selectedMeasures: string[]): KpiDef[] {
+  const out: KpiDef[] = [KPIS[0]] // 'Cambio de medidas'
+  const seen = new Set<string>()
+  const scales = (selectedMeasures.length ? selectedMeasures : DEFAULT_SCALES).filter(
+    (m) => MEASURE_META[m]?.kind === 'scale',
+  )
+  for (const m of [...scales, 'Efecto secundario']) {
+    if (seen.has(m)) continue
+    seen.add(m)
+    out.push(scaleKpiFor(m))
+  }
+  return out
+}
+
 // Campos objetivos de "Cambio de medidas" (se guardan en el perfil; IMC se deriva)
 export interface MedidaField { key: keyof import('./types').Profile; label: string; unit: string }
 export const MEDIDAS_FIELDS: MedidaField[] = [

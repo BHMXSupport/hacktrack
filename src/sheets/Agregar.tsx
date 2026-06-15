@@ -6,15 +6,17 @@ import { Sheet } from '../components/Sheet'
 import { IcDrop } from '../components/icons'
 import { GlyphCircle } from '../components/glyphs'
 import { useApp } from '../lib/store'
-import { KPIS } from '../lib/catalog'
+import { loggableKpis } from '../lib/catalog'
+import type { KpiDef } from '../lib/catalog'
 
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
 const item = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
 
 export function Agregar() {
-  const { dispatch } = useApp()
+  const { state, dispatch } = useApp()
+  const kpis = loggableKpis(state.selectedMeasures) // mismas medidas que las cards de Inicio (sin huérfanos)
 
-  function handleKpi(k: (typeof KPIS)[number]) {
+  function handleKpi(k: KpiDef) {
     if (k.kind === 'medidas') {
       dispatch({ t: 'sheet', sheet: 'medidas' })
     } else {
@@ -105,7 +107,7 @@ export function Agregar() {
             gap: 12,
           }}
         >
-          {KPIS.map((k) => (
+          {kpis.map((k) => (
             <motion.button
               key={k.key}
               variants={item}
