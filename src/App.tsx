@@ -1,6 +1,6 @@
 import { useReducer, useEffect } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
-import { AppContext, reducer, initialState, useApp, nextDoseAt, isoKey } from './lib/store'
+import { AppContext, reducer, initialState, useApp, nextDoseAt, isoKey, hydrate } from './lib/store'
 import type { AppState } from './lib/store'
 import { startOfDay } from './lib/cadence'
 import { notifPermission, showReminder } from './lib/notifications'
@@ -14,7 +14,8 @@ function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return fresh
     const saved = JSON.parse(raw)
-    return { ...fresh, ...saved, sheet: null, toast: null, todayTs: fresh.todayTs }
+    // hydrate(): migra estado legado (un solo protocol) al mapa multi-protocolo y sincroniza cachés
+    return hydrate({ ...fresh, ...saved, sheet: null, toast: null, todayTs: fresh.todayTs })
   } catch {
     return fresh
   }

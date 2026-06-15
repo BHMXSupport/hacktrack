@@ -58,17 +58,17 @@ export function RegistrarSheet() {
   const defaultProduct = state.sheetArg ?? state.protocol?.product ?? state.importedProducts[0] ?? ''
 
   const [product, setProduct] = useState<string>(defaultProduct)
-  // cadencia adaptativa: si el producto YA tiene protocolo, no re-pedirla (chip de solo-lectura)
-  const cadenceLocked = !!product && state.protocol?.product === product
+  // cadencia adaptativa: si el producto YA tiene protocolo (cualquiera, no solo el activo), no re-pedirla
+  const cadenceLocked = !!product && !!state.protocols[product]
   const [showPicker, setShowPicker] = useState(!defaultProduct) // abre el picker si no hay producto
   const [customProduct, setCustomProduct] = useState('')
   const [pickingCustom, setPickingCustom] = useState(false)
 
   const allProducts = buildProductList(state.importedProducts)
 
-  // ── Cadencia local (semilla: protocol.cadence ?? presetCad del catálogo) ─
+  // ── Cadencia local (semilla: cadencia del protocolo de ESE producto ?? preset del catálogo) ─
   const seedCad: UserCadence =
-    state.protocol?.cadence ?? presetCad(PEPTIDES[product])
+    state.protocols[product]?.cadence ?? presetCad(PEPTIDES[product])
 
   const [localCad, setLocalCad] = useState<UserCadence>(seedCad)
 
@@ -80,11 +80,7 @@ export function RegistrarSheet() {
     setProduct(arg)
     setShowPicker(false)
     setPickingCustom(false)
-    setLocalCad(
-      state.protocol?.product === arg
-        ? state.protocol.cadence
-        : presetCad(PEPTIDES[arg]),
-    )
+    setLocalCad(state.protocols[arg]?.cadence ?? presetCad(PEPTIDES[arg]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.sheetArg])
 
@@ -162,15 +158,19 @@ export function RegistrarSheet() {
     setSaving(true)
     const ts = parseHora(hora, state.todayTs) // respeta la hora elegida en la rueda
     window.setTimeout(() => {
-      // solo persistir la cadencia si el producto ES el del protocolo activo (fix red-team)
-      if (state.protocol && state.protocol.product === finalProduct) {
+      if (state.protocols[finalProduct]) {
+        // ya tiene protocolo: solo re-persistir cadencia si es el activo (el editor estaba visible)
+        if (state.activeProduct === finalProduct) dispatch({ t: 'setCadence', cadence: localCad })
+      } else if (finalProduct in PEPTIDES) {
+        // producto nuevo del catálogo → créalo (lo activa) y aplica la cadencia elegida
+        dispatch({ t: 'setProtocol', product: finalProduct })
         dispatch({ t: 'setCadence', cadence: localCad })
       }
       // Registrar dosis (P0-1: entra al diario + racha + activa dash)
       dispatch({ t: 'logDose', product: finalProduct, value: parseFloat(dose) || null, unit, ts })
       dispatch({ t: 'sheet', sheet: null })
     }, 640)
-  }, [saving, state.protocol, localCad, product, dose, unit, hora, state.todayTs, dispatch])
+  }, [saving, state.protocols, state.activeProduct, localCad, product, dose, unit, hora, state.todayTs, dispatch])
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -279,7 +279,10 @@ export function RegistrarSheet() {
               <span className="body" style={{ fontWeight: 600 }}>{cadenceLabel(localCad)}</span>
             </div>
             <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px' }}
-              onClick={() => dispatch({ t: 'sheet', sheet: 'protocolo-edit' })}>
+              onClick={() => {
+                dispatch({ t: 'setActiveProduct', product })
+                dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
+              }}>
               Editar
             </button>
           </div>

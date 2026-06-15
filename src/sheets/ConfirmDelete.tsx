@@ -12,6 +12,8 @@ export function ConfirmDeleteSheet() {
   const { state, dispatch } = useApp()
   const isAccount = state.sheetArg === '__account'
   const isLogout = state.sheetArg === '__logout'
+  const isProduct = !!state.sheetArg?.startsWith('product:')
+  const productName = isProduct ? state.sheetArg!.slice('product:'.length) : null
 
   const [typed, setTyped] = useState('')
   const confirmed = isAccount ? typed === CONFIRM_WORD : true
@@ -24,10 +26,14 @@ export function ConfirmDeleteSheet() {
     if (!confirmed) return
     if (isAccount) dispatch({ t: 'arcoDelete' })
     else if (isLogout) dispatch({ t: 'reset' })
-    else if (state.sheetArg) dispatch({ t: 'deleteLog', id: state.sheetArg })
+    else if (isProduct && productName) {
+      dispatch({ t: 'deleteProduct', product: productName })
+      dispatch({ t: 'toast', msg: `${productName} quitado del seguimiento` })
+      dispatch({ t: 'sheet', sheet: null })
+    } else if (state.sheetArg) dispatch({ t: 'deleteLog', id: state.sheetArg })
   }
 
-  const title = isAccount ? 'Borrar mi cuenta' : isLogout ? 'Cerrar sesión' : 'Borrar registro'
+  const title = isAccount ? 'Borrar mi cuenta' : isLogout ? 'Cerrar sesión' : isProduct ? `Quitar ${productName}` : 'Borrar registro'
 
   return (
     <Sheet title={title} onClose={handleCancel}>
@@ -49,6 +55,11 @@ export function ConfirmDeleteSheet() {
             <p className="body" style={{ margin: 0, color: 'var(--ink-700)' }}>
               Se cerrará tu sesión y se borrarán los datos guardados en este dispositivo.{' '}
               <strong>No se puede deshacer.</strong>
+            </p>
+          ) : isProduct ? (
+            <p className="body" style={{ margin: 0, color: 'var(--ink-700)' }}>
+              <strong>{productName}</strong> dejará de aparecer en tu calendario y adherencia a futuro.{' '}
+              Tus <strong>registros pasados se conservan</strong> en el diario.
             </p>
           ) : (
             <p className="body" style={{ margin: 0, color: 'var(--ink-700)' }}>
@@ -107,7 +118,7 @@ export function ConfirmDeleteSheet() {
             aria-disabled={!confirmed}
             onClick={handleDelete}
           >
-            {isAccount ? 'Borrar definitivamente' : isLogout ? 'Cerrar sesión' : 'Borrar'}
+            {isAccount ? 'Borrar definitivamente' : isLogout ? 'Cerrar sesión' : isProduct ? 'Quitar producto' : 'Borrar'}
           </button>
 
           <button

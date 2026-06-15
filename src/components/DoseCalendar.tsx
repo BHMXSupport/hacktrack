@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import type { PanInfo } from 'framer-motion'
-import { useApp, isoKey, nextDoseAt, trackedProtocols } from '../lib/store'
+import { useApp, isoKey, trackedProtocols } from '../lib/store'
 import { fmtDate, fmtTime, cadenceLabel } from '../lib/cadence'
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { buildIcs, downloadIcs, upcomingDoses } from '../lib/calendar'
@@ -32,8 +32,10 @@ export function DoseCalendar() {
   const [toast, setToast] = useState(false)
 
   const tracked = trackedProtocols(state)
-  const next = nextDoseAt(state, realNow)
-  const nextProduct = upcomingDoses(state, realNow, 1)[0]?.product ?? tracked[0]?.product ?? ''
+  // próxima toma REAL entre TODOS los productos (fecha y producto de la MISMA fuente, no mezcladas)
+  const nextUpcoming = upcomingDoses(state, realNow, 1)[0]
+  const next = nextUpcoming?.date ?? null
+  const nextProduct = nextUpcoming?.product ?? tracked[0]?.product ?? ''
 
   // ─── Nav helpers ──────────────────────────────────────────────
   const prevMonth = useCallback(() => {

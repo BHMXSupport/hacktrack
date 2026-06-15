@@ -91,7 +91,7 @@ function TitrationPhases() {
     <motion.div variants={item} className="card" style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          Titulación por fases
+          Titulación · {protocol.product}
         </span>
         <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>
           Fase {cur + 1} de {n}
@@ -140,16 +140,16 @@ function TitrationPhases() {
   )
 }
 
-// ── Tarjeta del protocolo ─────────────────────────────────────────────────────
-function ProtocolCard({ pickerOpen, setPickerOpen, ProductPicker }: {
+// ── Lista de productos (cada uno con su protocolo editable + opción de quitar) ──
+function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
   pickerOpen: boolean
   setPickerOpen: (v: boolean | ((prev: boolean) => boolean)) => void
   ProductPicker: React.ReactNode
 }) {
   const { state, dispatch } = useApp()
-  const protocol = state.protocol
+  const products = Object.values(state.protocols)
 
-  if (!protocol) {
+  if (products.length === 0) {
     return (
       <motion.div variants={item} className="card" style={{ marginTop: 16, textAlign: 'center' }}>
         <div className="body" style={{ marginBottom: 12 }}>Aún no tienes un protocolo</div>
@@ -171,52 +171,78 @@ function ProtocolCard({ pickerOpen, setPickerOpen, ProductPicker }: {
     )
   }
 
-  const entry = PEPTIDES[protocol.product]
-  const accentColor = entry ? CATEGORY_COLOR[entry.cat] : 'var(--brand-700)'
-
   return (
-    <motion.div variants={item} className="card" style={{ marginTop: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-        <div>
-          <div className="body" style={{ fontWeight: 600 }}>{protocol.product}</div>
-          <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>
-            {cadenceLabel(protocol.cadence)}
-          </div>
-        </div>
-        {entry && (
-          <span
-            className="sm"
-            style={{
-              background: accentColor + '18',
-              color: accentColor,
-              padding: '2px 10px',
-              borderRadius: 99,
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-              marginLeft: 12,
-            }}
-          >
-            {entry.cat}
-          </span>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-        <button
-          className="btn btn-brand btn-sm"
-          style={{ width: 'auto', padding: '0 14px' }}
-          onClick={() => dispatch({ t: 'sheet', sheet: 'protocolo-edit' })}
-        >
-          Editar protocolo
-        </button>
+    <motion.div variants={item} style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span className="sm" style={{ textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--ink-400)' }}>
+          Tus productos
+        </span>
         <button
           className="btn btn-outline btn-sm"
-          style={{ width: 'auto', padding: '0 14px' }}
+          style={{ width: 'auto', padding: '0 12px' }}
           onClick={() => setPickerOpen((v) => !v)}
         >
-          {pickerOpen ? 'Cerrar' : 'Cambiar producto'}
+          {pickerOpen ? 'Cerrar' : '+ Agregar'}
         </button>
       </div>
+
+      {products.map((p) => {
+        const entry = PEPTIDES[p.product]
+        const accentColor = entry ? CATEGORY_COLOR[entry.cat] : 'var(--brand-700)'
+        const isActive = state.activeProduct === p.product
+        return (
+          <div key={p.product} className="card" style={{ borderLeft: `3px solid ${accentColor}` }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="body" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {p.product}
+                  {isActive && <span className="sm" style={{ color: accentColor, fontWeight: 600 }}>· activo</span>}
+                </div>
+                <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>
+                  {cadenceLabel(p.cadence)}
+                </div>
+              </div>
+              {entry && (
+                <span
+                  className="sm"
+                  style={{ background: accentColor + '18', color: accentColor, padding: '2px 10px', borderRadius: 99, fontWeight: 600, whiteSpace: 'nowrap', marginLeft: 12 }}
+                >
+                  {entry.cat}
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-brand btn-sm"
+                style={{ width: 'auto', padding: '0 14px' }}
+                onClick={() => {
+                  dispatch({ t: 'setActiveProduct', product: p.product })
+                  dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
+                }}
+              >
+                Editar protocolo
+              </button>
+              {!isActive && (
+                <button
+                  className="btn btn-outline btn-sm"
+                  style={{ width: 'auto', padding: '0 12px' }}
+                  onClick={() => dispatch({ t: 'setActiveProduct', product: p.product })}
+                >
+                  Hacer activo
+                </button>
+              )}
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ width: 'auto', padding: '0 12px', marginLeft: 'auto', color: 'var(--error)' }}
+                onClick={() => dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: `product:${p.product}` })}
+              >
+                Quitar
+              </button>
+            </div>
+          </div>
+        )
+      })}
       {ProductPicker}
     </motion.div>
   )
@@ -325,14 +351,14 @@ export function Progreso() {
               {/* Resumen semanal de adherencia */}
               <WeeklySummary />
 
-              {/* Tarjeta del protocolo activo */}
-              <ProtocolCard
+              {/* Lista de productos — cada uno con su protocolo editable */}
+              <ProductsList
                 pickerOpen={pickerOpen}
                 setPickerOpen={setPickerOpen}
                 ProductPicker={ProductPicker}
               />
 
-              {/* Fases de titulación */}
+              {/* Fases de titulación (del producto activo) */}
               {protocol && <TitrationPhases />}
 
               {/* Calculadora de reconstitución — siempre visible */}

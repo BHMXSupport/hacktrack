@@ -23,8 +23,10 @@ export interface AppState {
 
   curGoal: Category | null
   selectedMeasures: string[]
-  protocol: UserProtocol | null
-  importedProducts: string[]
+  protocols: Record<string, UserProtocol>  // FUENTE DE VERDAD: un protocolo editable por producto
+  activeProduct: string | null             // producto "primario" (cuenta regresiva en Inicio, etc.)
+  protocol: UserProtocol | null            // CACHÉ sincronizado = protocols[activeProduct] (no escribir directo)
+  importedProducts: string[]               // CACHÉ = Object.keys(protocols) (lista de productos trackeados)
 
   log: LogGroup[]
   profile: Profile
@@ -47,6 +49,8 @@ export const initialState: AppState = {
   sheetArg: null,
   curGoal: null,
   selectedMeasures: [],
+  protocols: {},
+  activeProduct: null,
   protocol: null,
   importedProducts: [],
   log: [],                     // vacío para usuario nuevo (P0-2: racha honesta)
@@ -77,7 +81,9 @@ export type Action =
   | { t: 'pickGoal'; cat: Category }                                   // P0-4
   | { t: 'setProtocol'; product: string }
   | { t: 'setCadence'; cadence: UserCadence }                          // P0-3
-  | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar protocolo (tunear)
+  | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar el protocolo ACTIVO (tunear)
+  | { t: 'setActiveProduct'; product: string }                        // enfocar un producto (para editarlo)
+  | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number } // P0-1
   | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
@@ -173,6 +179,35 @@ function freshProtocol(product: string, todayTs: number): UserProtocol | null {
   }
 }
 
+// mantiene sincronizados los cachés (protocol = activo, importedProducts = llaves del mapa)
+export function syncActive(s: AppState): AppState {
+  const protocol = s.activeProduct ? (s.protocols[s.activeProduct] ?? null) : null
+  const activeProduct = protocol ? s.activeProduct : (Object.keys(s.protocols)[0] ?? null)
+  return {
+    ...s,
+    activeProduct,
+    protocol: activeProduct ? (s.protocols[activeProduct] ?? null) : null,
+    importedProducts: Object.keys(s.protocols),
+  }
+}
+
+// migra estado legado (un solo `protocol` + `importedProducts`) al mapa multi-protocolo
+export function hydrate(s: AppState): AppState {
+  let protocols = s.protocols ?? {}
+  if (Object.keys(protocols).length === 0 && (s.protocol || (s.importedProducts ?? []).length)) {
+    protocols = {}
+    if (s.protocol) protocols[s.protocol.product] = s.protocol
+    for (const name of s.importedProducts ?? []) {
+      if (!protocols[name]) {
+        const fp = freshProtocol(name, s.todayTs)
+        if (fp) protocols[name] = fp
+      }
+    }
+  }
+  const activeProduct = s.activeProduct ?? s.protocol?.product ?? Object.keys(protocols)[0] ?? null
+  return syncActive({ ...s, protocols, activeProduct })
+}
+
 // ── reducer ──────────────────────────────────────────────────────────────────
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.t) {
@@ -194,23 +229,48 @@ export function reducer(s: AppState, a: Action): AppState {
       }
 
     case 'setProtocol': {
-      const protocol = freshProtocol(a.product, s.todayTs)
-      return protocol ? { ...s, protocol } : s
+      // crea el protocolo del producto si no existe y lo deja como activo
+      const existing = s.protocols[a.product]
+      const fp = existing ?? freshProtocol(a.product, s.todayTs)
+      if (!fp) return s
+      return syncActive({ ...s, protocols: { ...s.protocols, [a.product]: fp }, activeProduct: a.product })
     }
 
-    // P0-3: la cadencia editada por el usuario es la fuente de verdad
-    case 'setCadence':
-      return s.protocol ? { ...s, protocol: { ...s.protocol, cadence: a.cadence } } : s
+    case 'setActiveProduct':
+      return s.protocols[a.product] ? syncActive({ ...s, activeProduct: a.product }) : s
 
-    // tunear el protocolo (cadencia, fases, etc.)
+    case 'deleteProduct': {
+      // quita el producto del seguimiento. NO toca s.log → los registros pasados se conservan.
+      if (!s.protocols[a.product]) return s
+      const protocols = { ...s.protocols }
+      delete protocols[a.product]
+      const activeProduct = s.activeProduct === a.product ? (Object.keys(protocols)[0] ?? null) : s.activeProduct
+      return syncActive({ ...s, protocols, activeProduct })
+    }
+
+    // P0-3: la cadencia editada por el usuario es la fuente de verdad (protocolo activo)
+    case 'setCadence':
+      return s.activeProduct && s.protocols[s.activeProduct]
+        ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], cadence: a.cadence } } })
+        : s
+
+    // tunear el protocolo ACTIVO (cadencia, fases, fechas, etc.)
     case 'updateProtocol':
-      return s.protocol ? { ...s, protocol: { ...s.protocol, ...a.patch } } : s
+      return s.activeProduct && s.protocols[s.activeProduct]
+        ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], ...a.patch } } })
+        : s
 
     case 'importProducts': {
-      // fusiona (no reemplaza) — fix red-team
-      const products = [...new Set([...s.importedProducts, ...a.names.filter((n) => n in PEPTIDES)])]
-      const protocol = s.protocol ?? (products[0] ? freshProtocol(products[0], s.todayTs) : null)
-      return { ...s, importedProducts: products, protocol }
+      // fusiona (no reemplaza) — crea un protocolo por cada producto nuevo del catálogo
+      const protocols = { ...s.protocols }
+      for (const name of a.names.filter((n) => n in PEPTIDES)) {
+        if (!protocols[name]) {
+          const fp = freshProtocol(name, s.todayTs)
+          if (fp) protocols[name] = fp
+        }
+      }
+      const activeProduct = s.activeProduct ?? Object.keys(protocols)[0] ?? null
+      return syncActive({ ...s, protocols, activeProduct })
     }
 
     // P0-1: la dosis tecleada ENTRA al diario; activa dashboard; suma racha. Respeta la hora elegida.
@@ -389,10 +449,6 @@ function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseT
   const tracked = trackedProtocols(s)
   const today = startOfDay(new Date(s.todayTs))
   const todayKey = isoKey(today.getTime())
-  const [hh, mm] = (s.protocol?.reminderTime ?? '08:00').split(':').map(Number)
-  const reminderToday = new Date(today)
-  reminderToday.setHours(hh || 0, mm || 0, 0, 0)
-  const todayPassed = now.getTime() >= reminderToday.getTime()
   const mainProduct = s.protocol?.product
 
   const todayMs = today.getTime()
@@ -403,6 +459,11 @@ function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseT
   for (const t of tracked) {
     const tStart = startOfDay(t.start).getTime()
     const tEnd = t.end != null ? startOfDay(new Date(t.end)).getTime() : null
+    // ¿ya venció la toma de HOY de ESTE producto? (cada producto tiene su propia hora)
+    const [hh, mm] = (t.reminderTime ?? '08:00').split(':').map(Number)
+    const reminderToday = new Date(today)
+    reminderToday.setHours(hh || 0, mm || 0, 0, 0)
+    const todayPassed = now.getTime() >= reminderToday.getTime()
     // iterar por DÍA LOCAL (robusto a horario de verano; no sumar 86_400_000 fijo)
     for (let d = new Date(fromDay); d.getTime() <= toDay; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
       const ms = d.getTime()
@@ -464,34 +525,27 @@ export function nextDoseAt(s: AppState, now: Date): Date | null {
   return null
 }
 
-// dosis a usar para un producto en "hecho hoy": la de la fase activa, o la recordada del último registro
+// dosis a usar para un producto en "hecho hoy": la de su fase activa, o la recordada del último registro
 export function doseForProduct(s: AppState, product: string): { value: number; unit: string } | null {
-  const p = s.protocol
-  if (p && p.product === product && p.progOn) {
+  const p = s.protocols[product]
+  if (p && p.progOn) {
     const phaseDose = p.phaseDoses?.[p.curPhase]
     if (phaseDose != null) return { value: phaseDose, unit: 'mg' }
   }
   return s.productDoses[product] ?? null
 }
 
-// productos a trackear con su cadencia, para el calendario dinámico:
-// el protocolo activo usa la cadencia del usuario; los demás importados usan la del catálogo.
-export interface Tracked { product: string; cadence: UserCadence; start: Date; end: number | null }
+// productos a trackear con su cadencia, para el calendario/adherencia dinámicos.
+// Cada producto tiene su PROPIO protocolo editable (cadencia, inicio/fin, hora, fases).
+export interface Tracked { product: string; cadence: UserCadence; start: Date; end: number | null; reminderTime: string }
 export function trackedProtocols(s: AppState): Tracked[] {
-  const out: Tracked[] = []
-  const seen = new Set<string>()
-  const start = s.protocol ? new Date(s.protocol.startDate) : startOfDay(new Date(s.todayTs))
-  const end = s.protocol?.endDate ?? null
-  if (s.protocol) {
-    out.push({ product: s.protocol.product, cadence: s.protocol.cadence, start, end })
-    seen.add(s.protocol.product)
-  }
-  for (const p of s.importedProducts) {
-    if (seen.has(p) || !(p in PEPTIDES)) continue
-    out.push({ product: p, cadence: presetCad(PEPTIDES[p]), start, end: null })
-    seen.add(p)
-  }
-  return out
+  return Object.values(s.protocols).map((p) => ({
+    product: p.product,
+    cadence: p.cadence,
+    start: new Date(p.startDate),
+    end: p.endDate ?? null,
+    reminderTime: p.reminderTime ?? '08:00',
+  }))
 }
 
 // qué productos tocan un día dado (calendario dinámico) — respeta inicio y fin del protocolo

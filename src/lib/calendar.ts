@@ -22,22 +22,25 @@ export function doseTakenOnProduct(s: AppState, d: Date, product: string): boole
   )
 }
 
-// hora de la toma ese día según reminderTime
-function dueTime(s: AppState, d: Date): Date {
-  const [hh, mm] = (s.protocol?.reminderTime ?? '08:00').split(':').map(Number)
+// hora de la toma ese día según el reminderTime DE ESE producto (cada uno puede tener el suyo)
+function dueTime(s: AppState, d: Date, product?: string): Date {
+  const rt = (product && s.protocols[product]?.reminderTime) || s.protocol?.reminderTime || '08:00'
+  const [hh, mm] = rt.split(':').map(Number)
   const at = startOfDay(d)
   at.setHours(hh || 0, mm || 0, 0, 0)
   return at
 }
 
 // estado agregado del día: 'taken' si TODOS los productos del día están tomados.
+// 'missed' solo si TODOS los pendientes ya vencieron (su propia hora); si alguno aún no vence → 'scheduled'.
 // `now` debe ser la hora REAL (new Date()), no todayTs (medianoche).
 export function dayStatus(s: AppState, d: Date, now: Date): DayState {
   const prods = dayProducts(s, d)
   if (prods.length === 0) return 'none'
-  const taken = prods.filter((p) => doseTakenOnProduct(s, d, p)).length
-  if (taken === prods.length) return 'taken'
-  return now.getTime() > dueTime(s, d).getTime() ? 'missed' : 'scheduled'
+  const unfulfilled = prods.filter((p) => !doseTakenOnProduct(s, d, p))
+  if (unfulfilled.length === 0) return 'taken'
+  const allPast = unfulfilled.every((p) => now.getTime() > dueTime(s, d, p).getTime())
+  return allPast ? 'missed' : 'scheduled'
 }
 
 // items del diario de ese día
@@ -61,10 +64,9 @@ export function weekAdherencePct(s: AppState, weekDays: Date[], now: Date): numb
   let due = 0
   let taken = 0
   for (const d of weekDays) {
-    const past = now.getTime() > dueTime(s, d).getTime()
     for (const p of dayProducts(s, d)) {
       if (doseTakenOnProduct(s, d, p)) { due++; taken++ }
-      else if (past) { due++ }
+      else if (now.getTime() > dueTime(s, d, p).getTime()) { due++ }
     }
   }
   return due === 0 ? null : Math.round((taken / due) * 100)
@@ -80,7 +82,7 @@ export function upcomingDoses(s: AppState, now: Date, n = 30, lookaheadDays = 12
   let d = startOfDay(now)
   for (let i = 0; i < lookaheadDays && out.length < n; i++) {
     for (const p of productsOnDay(d, tracked)) {
-      const at = dueTime(s, d)
+      const at = dueTime(s, d, p)
       if (at.getTime() > now.getTime()) out.push({ date: at, product: p })
     }
     d = nextLocalDay(d)
