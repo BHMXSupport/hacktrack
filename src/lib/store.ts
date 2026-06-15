@@ -214,24 +214,24 @@ export function reducer(s: AppState, a: Action): AppState {
         n: 'Dosis registrada',
         u: a.product + (a.value ? ` · ${a.value} ${a.unit}` : ''),
         cat: '#1B8A7D',
-        ic: '💉',
+        ic: 'dose',
         type: 'dose',
         ts: now.getTime(),
       }
-      return { ...s, log: prependToLog(s.log, item), logged: true, sheet: null, toast: 'Registro guardado 🎉' }
+      return { ...s, log: prependToLog(s.log, item), logged: true, sheet: null, toast: 'Registro guardado' }
     }
 
     // P0-1 + P1-5: las medidas también entran al diario y activan el dashboard
     case 'saveMeasure': {
       const now = a.ts ? new Date(a.ts) : new Date()
-      const ic = MEASURE_ICON[a.name] ?? { ic: '•', cat: '#5FC9B8' }
+      const ic = MEASURE_ICON[a.name] ?? { icon: 'medidas', cat: '#5FC9B8' }
       const item: LogItem = {
         id: genId(),
         t: fmtTime(now),
         n: a.name,
         u: fmtMeasureValue(a.name, a.value) + (a.nota ? ' · ' + a.nota : ''),
         cat: ic.cat,
-        ic: ic.ic,
+        ic: ic.icon,
         type: 'medida',
         ts: now.getTime(),
       }
@@ -275,7 +275,7 @@ export function reducer(s: AppState, a: Action): AppState {
 
       const item: LogItem = {
         id: genId(), t: fmtTime(now), n: 'Cambio de medidas', u: parts.join(' · ') || 'actualizado',
-        cat: '#1B8A7D', ic: '📐', type: 'medida', ts,
+        cat: '#1B8A7D', ic: 'medidas', type: 'medida', ts,
       }
       return {
         ...s,

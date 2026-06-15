@@ -4,6 +4,7 @@
 import { motion } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { IcDrop } from '../components/icons'
+import { GlyphCircle } from '../components/glyphs'
 import { useApp } from '../lib/store'
 import { KPIS } from '../lib/catalog'
 
@@ -135,20 +136,8 @@ export function Agregar() {
                 ;(e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
               }}
             >
-              {/* Emoji con círculo de acento */}
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: `${k.color}1A`,   /* 10 % opacidad del color del KPI */
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-                lineHeight: 1,
-              }}>
-                {k.emoji}
-              </div>
+              {/* Glyph con círculo de acento */}
+              <GlyphCircle name={k.icon} color={k.color} size={22} />
               {/* Label */}
               <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600, lineHeight: 1.3 }}>
                 {k.label}

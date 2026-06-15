@@ -2,11 +2,12 @@
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { computeStreak, nextDose, STREAK_GOAL } from '../lib/store'
-import { CATEGORY_COLOR, CATEGORY_EMOJI, MEASURE_META } from '../lib/catalog'
+import { CATEGORY_COLOR, CATEGORY_ICON, MEASURE_ICON, MEASURE_META } from '../lib/catalog'
 import { fmtDate } from '../lib/cadence'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
 import { Sparkline, LineChart } from '../components/charts'
+import { Glyph } from '../components/glyphs'
 
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
 const item = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
@@ -21,7 +22,7 @@ function kpiDisplay(name: string, measureValues: Record<string, number>): string
   if (!meta) return String(v)
   return meta.kind === 'scale'
     ? `${v} / ${meta.max}`
-    : `${v}${meta.unit ? ' ' + meta.unit : ''}`
+    : `${v}${meta.unit ? ' ' + meta.unit : ''}`
 }
 
 /** Extrae la parte numérica hero (antes del espacio o barra) para el número grande. */
@@ -52,7 +53,7 @@ export function Home() {
 
   // Color de categoría activa (o brand por defecto)
   const catColor = state.curGoal ? CATEGORY_COLOR[state.curGoal] : 'var(--brand-700)'
-  const catEmoji = state.curGoal ? CATEGORY_EMOJI[state.curGoal] : null
+  const catIconId = state.curGoal ? CATEGORY_ICON[state.curGoal] : null
   const catLabel = state.curGoal ?? null
 
   // Fecha formateada hoy
@@ -105,20 +106,14 @@ export function Home() {
                   width: 'max-content',
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: catColor,
-                    flexShrink: 0,
-                  }}
-                />
+                {catIconId && (
+                  <Glyph name={catIconId} color={catColor} size={16} />
+                )}
                 <span
                   className="sm"
                   style={{ color: catColor, fontWeight: 600 }}
                 >
-                  {catEmoji ? `${catEmoji} ` : ''}{catLabel}
+                  {catLabel}
                 </span>
               </div>
             )}
@@ -357,6 +352,7 @@ export function Home() {
               const unit = kpiUnit(m, state.measureValues)
               const realSeries = (state.history[m] ?? []).map((s) => s.value)
               const sparkData = realSeries.length >= 2 ? realSeries : null
+              const measureIcon = MEASURE_ICON[m]
 
               return (
                 <div
@@ -371,16 +367,32 @@ export function Home() {
                     overflow: 'hidden',
                   }}
                 >
-                  <p
-                    className="sm"
+                  <div
                     style={{
-                      color: 'var(--ink-400)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                       marginBottom: 8,
-                      fontWeight: 500,
                     }}
                   >
-                    {m}
-                  </p>
+                    {measureIcon && (
+                      <Glyph
+                        name={measureIcon.icon}
+                        color={measureIcon.cat}
+                        size={18}
+                      />
+                    )}
+                    <p
+                      className="sm"
+                      style={{
+                        color: 'var(--ink-400)',
+                        fontWeight: 500,
+                        margin: 0,
+                      }}
+                    >
+                      {m}
+                    </p>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 'auto' }}>
                     <span
                       className="mono"
@@ -421,9 +433,18 @@ export function Home() {
                 marginBottom: 12,
               }}
             >
-              <h3 className="body" style={{ fontWeight: 600, margin: 0, color: 'var(--ink-700)' }}>
-                {numMeasure}
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {MEASURE_ICON[numMeasure] && (
+                  <Glyph
+                    name={MEASURE_ICON[numMeasure].icon}
+                    color={MEASURE_ICON[numMeasure].cat}
+                    size={18}
+                  />
+                )}
+                <h3 className="body" style={{ fontWeight: 600, margin: 0, color: 'var(--ink-700)' }}>
+                  {numMeasure}
+                </h3>
+              </div>
               <span className="sm" style={{ color: 'var(--ink-400)' }}>
                 Tus datos
               </span>

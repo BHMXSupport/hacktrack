@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { GOALS, CATEGORY_COLOR, CATEGORY_EMOJI } from '../lib/catalog'
+import { GOALS, CATEGORY_COLOR, CATEGORY_ICON } from '../lib/catalog'
 import { IcBack } from '../components/icons'
+import { Glyph } from '../components/glyphs'
 
 const stagger = { animate: { transition: { staggerChildren: 0.07 } } }
 const item = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } }
@@ -67,7 +68,7 @@ export function Goal() {
       >
         {GOALS.map((g) => {
           const color = CATEGORY_COLOR[g.cat]
-          const emoji = CATEGORY_EMOJI[g.cat]
+          const icon = CATEGORY_ICON[g.cat]
           const isActive = selected === g.cat
           return (
             <motion.button
@@ -101,9 +102,8 @@ export function Goal() {
                 background: `color-mix(in srgb, ${color} 15%, transparent)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
-                fontSize: 22,
               }}>
-                {emoji}
+                <Glyph name={icon} color={color} size={24} />
               </div>
               {/* Text */}
               <div style={{ flex: 1 }}>

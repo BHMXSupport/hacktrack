@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { Chip, Segmented, Disclaimer } from '../components/controls'
 import { dayLabel } from '../lib/cadence'
-import { MON, WD } from '../lib/catalog'
+import { MON, WD, MEASURE_ICON } from '../lib/catalog'
+import { Glyph } from '../components/glyphs'
 import type { LogItem } from '../lib/types'
 
 // etiqueta humana del grupo a partir de su clave de fecha estable
@@ -39,8 +40,14 @@ function todayLabel(ts: number): string {
   return `${dow}, ${day} de ${mon}`
 }
 
-// ── icono de categoría (compliance: sin jeringas) ────────────────────────────
-function CatCircle({ ic, cat }: { ic: string; cat: string }) {
+// ── icono de categoría (SVG glyph, sin emojis) ───────────────────────────────
+function CatCircle({ item }: { item: LogItem }) {
+  // Deriva el id del glyph: dose → 'dose'; medida conocida → su icon; fallback a ic (glyph id o default).
+  const glyphId: string =
+    item.type === 'dose'
+      ? 'dose'
+      : (MEASURE_ICON[item.n]?.icon ?? item.ic)
+
   return (
     <div
       aria-hidden="true"
@@ -48,23 +55,15 @@ function CatCircle({ ic, cat }: { ic: string; cat: string }) {
         width: 36,
         height: 36,
         borderRadius: '50%',
-        background: cat + '22',  // 13% opacidad del color de acento
-        border: `1.5px solid ${cat}44`,
+        background: item.cat + '22',  // 13% opacidad del color de acento
+        border: `1.5px solid ${item.cat}44`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 18,
         flexShrink: 0,
       }}
     >
-      {/* ic puede ser un emoji de medida (⚖️ ⚡ etc.) o '💉' para dosis.
-          El icono de dosis en el log lo pone el store — no lo elegimos aquí.
-          Compliance: el store ya usa '💉' para dose entries; lo dejamos porque
-          es el emoji que el usuario reconoce ("jeringa" sería el icono prohibido
-          en IMÁGENES; el emoji de jeringa de texto es distinto y no muestra el
-          branding médico — pero para ser totalmente seguros reemplazamos '💉'
-          con IcDrop inline solo para dose items). */}
-      {ic === '💉' ? '💧' : ic}
+      <Glyph name={glyphId} color={item.cat} size={18} />
     </div>
   )
 }
@@ -130,7 +129,7 @@ function TimelineItem({ item, onDelete }: { item: LogItem; onDelete: (id: string
         onClick={() => onDelete(item.id)}
         onKeyDown={(e) => e.key === 'Enter' && onDelete(item.id)}
       >
-        <CatCircle ic={item.ic} cat={item.cat} />
+        <CatCircle item={item} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', fontSize: 14 }}>
@@ -236,7 +235,7 @@ export function Diario() {
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 40 }}>📋</div>
+            <Glyph name="medidas" color="var(--ink-300)" size={40} />
             <p className="body" style={{ color: 'var(--ink-400)', maxWidth: 240 }}>
               {typeFilter === 'todo'
                 ? 'Aún no hay registros. Toca + para empezar.'

@@ -45,16 +45,16 @@ export const CATEGORY_COLOR: Record<Category, string> = {
   'Explorar':     '#6B7A99',
 }
 
-// Emoji por categoría (pantalla de objetivo / chips)
-export const CATEGORY_EMOJI: Record<Category, string> = {
-  'Metabolismo':  '⚖️',
-  'Recuperación': '🩹',
-  'Cognitivo':    '🧠',
-  'Piel':         '✨',
-  'Anti-Aging':   '🧬',
-  'Crecimiento':  '🌱',
-  'Reproductivo': '❤️',
-  'Explorar':     '🧭',
+// Icono (id de glyph) por categoría — ver components/glyphs.tsx
+export const CATEGORY_ICON: Record<Category, string> = {
+  'Metabolismo':  'cat-metabolismo',
+  'Recuperación': 'cat-recuperacion',
+  'Cognitivo':    'cat-cognitivo',
+  'Piel':         'cat-piel',
+  'Anti-Aging':   'cat-antiaging',
+  'Crecimiento':  'cat-crecimiento',
+  'Reproductivo': 'cat-reproductivo',
+  'Explorar':     'cat-explorar',
 }
 
 export const MEASURES_ALL = [
@@ -101,44 +101,44 @@ export const MEASURE_META: Record<string, MeasureMeta> = {
   'Hidratación':  { kind: 'scale', max: 100 },
 }
 
-// Icono/color por medida para el diario
-export const MEASURE_ICON: Record<string, { ic: string; cat: string }> = {
-  'Peso':         { ic: '⚖️', cat: '#7BC96F' },
-  'Energía':      { ic: '⚡', cat: '#FF7A59' },
-  'Sueño':        { ic: '😴', cat: '#5FC9B8' },
-  'Foco':         { ic: '🎯', cat: '#6B7BE8' },
-  'Dolor':        { ic: '🩹', cat: '#2FB57C' },
-  'Movilidad':    { ic: '🤸', cat: '#2FB57C' },
-  'Cintura':      { ic: '📏', cat: '#7BC96F' },
-  '% grasa':      { ic: '📉', cat: '#7BC96F' },
-  'Textura piel': { ic: '✨', cat: '#D17FA0' },
-  'Hidratación':  { ic: '💧', cat: '#D17FA0' },
-  'Apetito':      { ic: '🍽️', cat: '#E85D3A' },
-  'Libido':       { ic: '❤️', cat: '#9B5FC4' },
-  'Estado de ánimo':       { ic: '🙂', cat: '#A8842F' },
-  'Elasticidad piel':      { ic: '✨', cat: '#D17FA0' },
-  'Recuperación muscular': { ic: '🤸', cat: '#2FB57C' },
-  'Efecto secundario':     { ic: '⚠️', cat: '#E8A317' },
-  'Altura':       { ic: '📏', cat: '#7BC96F' },
-  '% músculo':    { ic: '💪', cat: '#1B8A7D' },
-  'IMC':          { ic: '🧮', cat: '#7BC96F' },
-  'Cambio de medidas': { ic: '📐', cat: '#1B8A7D' },
+// Icono (id de glyph) + color por medida para el diario/dashboard
+export const MEASURE_ICON: Record<string, { icon: string; cat: string }> = {
+  'Peso':         { icon: 'peso',        cat: '#7BC96F' },
+  'Energía':      { icon: 'energia',     cat: '#FF7A59' },
+  'Sueño':        { icon: 'sueno',       cat: '#5FC9B8' },
+  'Foco':         { icon: 'foco',        cat: '#6B7BE8' },
+  'Dolor':        { icon: 'dolor',       cat: '#2FB57C' },
+  'Movilidad':    { icon: 'movilidad',   cat: '#2FB57C' },
+  'Cintura':      { icon: 'cintura',     cat: '#7BC96F' },
+  '% grasa':      { icon: 'grasa',       cat: '#7BC96F' },
+  'Textura piel': { icon: 'piel',        cat: '#D17FA0' },
+  'Hidratación':  { icon: 'hidratacion', cat: '#D17FA0' },
+  'Apetito':      { icon: 'apetito',     cat: '#E85D3A' },
+  'Libido':       { icon: 'libido',      cat: '#9B5FC4' },
+  'Estado de ánimo':       { icon: 'animo',        cat: '#A8842F' },
+  'Elasticidad piel':      { icon: 'piel',         cat: '#D17FA0' },
+  'Recuperación muscular': { icon: 'recuperacion', cat: '#2FB57C' },
+  'Efecto secundario':     { icon: 'efecto',       cat: '#E8A317' },
+  'Altura':       { icon: 'altura',  cat: '#7BC96F' },
+  '% músculo':    { icon: 'musculo', cat: '#1B8A7D' },
+  'IMC':          { icon: 'imc',     cat: '#7BC96F' },
+  'Cambio de medidas': { icon: 'medidas', cat: '#1B8A7D' },
 }
 
 // KPIs del registro rápido ("+"): Dosis es el héroe (aparte). Estos son los 10 KPIs.
 export type KpiKind = 'medidas' | 'scale'
-export interface KpiDef { key: string; label: string; emoji: string; kind: KpiKind; color: string }
+export interface KpiDef { key: string; label: string; icon: string; kind: KpiKind; color: string }
 export const KPIS: KpiDef[] = [
-  { key: 'Cambio de medidas',     label: 'Cambio de medidas',     emoji: '📐', kind: 'medidas', color: '#1B8A7D' },
-  { key: 'Energía',               label: 'Energía',               emoji: '⚡', kind: 'scale', color: '#FF7A59' },
-  { key: 'Estado de ánimo',       label: 'Estado de ánimo',       emoji: '🙂', kind: 'scale', color: '#A8842F' },
-  { key: 'Sueño',                 label: 'Sueño',                 emoji: '😴', kind: 'scale', color: '#5FC9B8' },
-  { key: 'Dolor',                 label: 'Dolor',                 emoji: '🩹', kind: 'scale', color: '#2FB57C' },
-  { key: 'Foco',                  label: 'Foco',                  emoji: '🎯', kind: 'scale', color: '#6B7BE8' },
-  { key: 'Libido',                label: 'Libido',                emoji: '❤️', kind: 'scale', color: '#9B5FC4' },
-  { key: 'Elasticidad piel',      label: 'Elasticidad de piel',   emoji: '✨', kind: 'scale', color: '#D17FA0' },
-  { key: 'Recuperación muscular', label: 'Recuperación muscular', emoji: '🤸', kind: 'scale', color: '#2FB57C' },
-  { key: 'Efecto secundario',     label: 'Efecto secundario',     emoji: '⚠️', kind: 'scale', color: '#E8A317' },
+  { key: 'Cambio de medidas',     label: 'Cambio de medidas',     icon: 'medidas',      kind: 'medidas', color: '#1B8A7D' },
+  { key: 'Energía',               label: 'Energía',               icon: 'energia',      kind: 'scale', color: '#FF7A59' },
+  { key: 'Estado de ánimo',       label: 'Estado de ánimo',       icon: 'animo',        kind: 'scale', color: '#A8842F' },
+  { key: 'Sueño',                 label: 'Sueño',                 icon: 'sueno',        kind: 'scale', color: '#5FC9B8' },
+  { key: 'Dolor',                 label: 'Dolor',                 icon: 'dolor',        kind: 'scale', color: '#2FB57C' },
+  { key: 'Foco',                  label: 'Foco',                  icon: 'foco',         kind: 'scale', color: '#6B7BE8' },
+  { key: 'Libido',                label: 'Libido',                icon: 'libido',       kind: 'scale', color: '#9B5FC4' },
+  { key: 'Elasticidad piel',      label: 'Elasticidad de piel',   icon: 'piel',         kind: 'scale', color: '#D17FA0' },
+  { key: 'Recuperación muscular', label: 'Recuperación muscular', icon: 'recuperacion', kind: 'scale', color: '#2FB57C' },
+  { key: 'Efecto secundario',     label: 'Efecto secundario',     icon: 'efecto',       kind: 'scale', color: '#E8A317' },
 ]
 
 // Campos objetivos de "Cambio de medidas" (se guardan en el perfil; IMC se deriva)

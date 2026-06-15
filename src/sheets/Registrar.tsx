@@ -176,7 +176,7 @@ export function RegistrarSheet() {
             </svg>
           </motion.div>
           <motion.div className="h2" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}>
-            Empezaste tu cambio 🎉
+            Empezaste tu cambio
           </motion.div>
         </motion.div>
       )}
@@ -405,7 +405,7 @@ export function RegistrarSheet() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora de registro</span>
-            <Chip label={hora === 'Ahora' ? 'Ahora ✓' : 'Ahora'} active={hora === 'Ahora'} onClick={() => setHora('Ahora')} />
+            <Chip label="Ahora" active={hora === 'Ahora'} onClick={() => setHora('Ahora')} />
           </div>
           <TimeWheel onChange={(label) => setHora(label)} />
         </div>
