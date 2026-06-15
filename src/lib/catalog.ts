@@ -67,11 +67,11 @@ export const MEASURES_ALL = [
 export const MEASURES_BY: Record<string, string[]> = {
   'Metabolismo':  ['Peso', 'Cintura', '% grasa', 'Energía', 'Apetito'],
   'Recuperación': ['Dolor', 'Movilidad', 'Sueño', 'Energía'],
-  'Cognitivo':    ['Foco', 'Ánimo', 'Sueño', 'Energía'],
+  'Cognitivo':    ['Foco', 'Estado de ánimo', 'Sueño', 'Energía'],
   'Piel':         ['Textura piel', 'Hidratación', 'Sueño'],
   'Anti-Aging':   ['Energía', 'Sueño', 'Textura piel'],
   'Crecimiento':  ['Sueño', 'Energía', 'Movilidad'],
-  'Reproductivo': ['Libido', 'Ánimo', 'Energía'],
+  'Reproductivo': ['Libido', 'Estado de ánimo', 'Energía'],
   'Explorar':     ['Peso', 'Energía', 'Sueño'],
 }
 

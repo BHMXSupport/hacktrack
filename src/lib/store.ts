@@ -73,7 +73,7 @@ export type Action =
   | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar protocolo (tunear)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string } // P0-1
-  | { t: 'saveMeasure'; name: string; value: number }                 // P0-1
+  | { t: 'saveMeasure'; name: string; value: number; nota?: string }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>> } // KPI compuesto
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
@@ -132,7 +132,7 @@ export function weekStatus(log: LogGroup[], today: Date): boolean[] {
 export const STREAK_GOAL = 30
 
 function fmtMeasureValue(name: string, v: number): string {
-  const meta = MEASURE_META[name] ?? { kind: 'scale', max: 5 }
+  const meta = MEASURE_META[name] ?? { kind: 'scale' as const, max: 100 }
   return meta.kind === 'scale' ? `${v} / ${meta.max}` : `${v}${meta.unit ? ' ' + meta.unit : ''}`
 }
 
@@ -224,7 +224,7 @@ export function reducer(s: AppState, a: Action): AppState {
         id: genId(),
         t: fmtTime(now),
         n: a.name,
-        u: fmtMeasureValue(a.name, a.value),
+        u: fmtMeasureValue(a.name, a.value) + (a.nota ? ' · ' + a.nota : ''),
         cat: ic.cat,
         ic: ic.ic,
         type: 'medida',

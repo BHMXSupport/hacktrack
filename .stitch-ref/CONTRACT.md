@@ -83,3 +83,34 @@ Respeta `prefers-reduced-motion` (ya cubierto en CSS).
 - HTML de referencia de Stitch: `.stitch-ref/<slug>.html` (layout/visual a traducir).
 - `.stitch-ref/SCREENS-INDEX.md` (estructura + copy es-MX por pantalla).
 - `.stitch-ref/LOGIC-SPEC.md` (modelo de datos + los fixes P0 — respétalos).
+
+---
+
+## ACTUALIZACIÓN v2 — sección "Progreso" + KPIs del "+" (léela)
+
+### Flujo del "+" (FAB) → hoja `agregar`
+El FAB ahora abre `sheet:'agregar'` (chooser). **Dosis es el HÉROE** (grande, mint, arriba) → abre `sheet:'registrar'`. Debajo, grilla de KPIs (de `KPIS`): los `kind:'scale'` → `dispatch({t:'sheet',sheet:'medida',arg:k.key})`; "Cambio de medidas" (`kind:'medidas'`) → `dispatch({t:'sheet',sheet:'medidas'})`.
+
+### Catálogo nuevo — `from '../lib/catalog'`
+- `KPIS: KpiDef[]` — `{key,label,emoji,kind:'medidas'|'scale',color}` (los 10 KPIs del "+").
+- `MEDIDAS_FIELDS: {key:keyof Profile,label,unit}[]` — peso/est(altura)/grasa/musculo del KPI "Cambio de medidas".
+- `MEASURE_META` ahora: medidas objetivas `num` (Peso/Altura/Cintura/% grasa/% músculo/IMC → algunas con `prof`), subjetivas `scale` con **`max:100`** (Energía, Estado de ánimo, Sueño, Dolor, Foco, Libido, Elasticidad piel, Recuperación muscular, Efecto secundario).
+- `MOCK_BIOHACKMX_PURCHASES`, `CATEGORY_COLOR`, `MEASURE_ICON`.
+
+### Store nuevo — `from '../lib/store'`
+- `state.history: Record<string, MeasureSample[]>` — serie temporal `{ts,value}` por KPI/medida (para el dashboard). `state.profile` ahora tiene `musculo`.
+- Acciones: `{t:'saveMedidas', values:{peso?,est?,grasa?,musculo?}}` (guarda perfil + IMC derivado + diario + history); `{t:'saveMeasure',name,value}` (escala 1–100; ya mete history); `{t:'updateProtocol',patch}`.
+- Derivados: `trackedProtocols(state): Tracked[]` (`{product,cadence,start}`), `productsOnDay(d, tracked): string[]` (calendario dinámico), `nextDose(state)`, `computeStreak`, `weekStatus`.
+
+### Cadencia — `from '../lib/cadence'`
+- `monthMatrix(year, month): (Date|null)[][]` — semanas L→D para el calendario. `weekStrip(today)`.
+
+### Componentes a CREAR (rutas/exports exactos)
+- `src/components/DoseCalendar.tsx` → export `DoseCalendar` (sin props, usa useApp): calendario MENSUAL dinámico. Usa `monthMatrix` + `trackedProtocols(state)` + `productsOnDay(d, tracked)`. Navegación mes±, hoy resaltado, puntos por producto con `CATEGORY_COLOR`, leyenda. NADA hardcodeado.
+- `src/components/ProgressDashboard.tsx` → export `ProgressDashboard` (sin props, usa useApp): dashboard de progreso desde `state.history`. `LineChart`/`Sparkline` por KPI con datos (medidas: Peso/IMC/% grasa/% músculo; escalas: Energía/ánimo/etc.). Etiqueta "tus datos". Estado vacío si no hay history. NADA sintético.
+- `src/screens/Progreso.tsx` → export `Progreso`: `<Segmented>` [Calendario | Avances]. Calendario = `<DoseCalendar/>` + card resumen del protocolo con botón "Editar" (`sheet:'protocolo-edit'`). Avances = `<ProgressDashboard/>`.
+
+### Reglas extra
+- Escalas: slider/control **1–100** (lee `MEASURE_META[name].max`). "Efecto secundario" = severidad 1–100 + campo de nota opcional.
+- "Cambio de medidas" (`sheets/Medidas.tsx`): 4 campos numéricos (MEDIDAS_FIELDS) + **preview de IMC en vivo** (`bmiCalc(peso, altura)`) → `saveMedidas`.
+- El calendario y el dashboard deben usar **datos reales del store** (cadencia + history), nunca placeholders.

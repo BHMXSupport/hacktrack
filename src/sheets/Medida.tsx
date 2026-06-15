@@ -1,199 +1,205 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
-import { Chip, Disclaimer } from '../components/controls'
-import { IcDrop } from '../components/icons'
+import { Disclaimer } from '../components/controls'
 import { useApp } from '../lib/store'
-import { MEASURES_BY, MEASURE_META } from '../lib/catalog'
+import { KPIS, MEASURE_META } from '../lib/catalog'
+
+// Primer KPI de tipo scale como fallback canónico
+const FIRST_SCALE_KEY = KPIS.find((k) => k.kind === 'scale')?.key ?? 'Energía'
+
+function qualLabel(value: number): string {
+  if (value <= 33) return 'bajo'
+  if (value <= 66) return 'medio'
+  return 'alto'
+}
 
 export function MedidaSheet() {
   const { state, dispatch } = useApp()
 
-  // Medidas disponibles: las seleccionadas por el usuario; fallback al preset del objetivo activo o Explorar
-  const available: string[] =
-    state.selectedMeasures.length > 0
-      ? state.selectedMeasures
-      : MEASURES_BY[state.curGoal ?? 'Explorar'] ?? MEASURES_BY['Explorar']
+  const name: string = state.sheetArg ?? FIRST_SCALE_KEY
+  const isEfecto = name === 'Efecto secundario'
+  const maxVal = MEASURE_META[name]?.max ?? 100
 
-  const [name, setName] = useState<string>(available[0] ?? '')
-  const [numVal, setNumVal] = useState<string>('')
-  const [scaleVal, setScaleVal] = useState<number | null>(null)
+  const [value, setValue] = useState<number>(Math.round(maxVal / 2))
+  const [nota, setNota] = useState<string>('')
+  const [touched, setTouched] = useState(false) // sin precarga implícita: exige elección explícita
 
-  const meta = name ? (MEASURE_META[name] ?? null) : null
+  const qual = qualLabel(value)
 
-  // Cuando cambia la medida seleccionada, reinicia los controles de valor
-  function pickMeasure(n: string) {
-    setName(n)
-    setNumVal('')
-    setScaleVal(null)
+  // Color del track fill proporcional al valor
+  const fillPct = ((value - 1) / (maxVal - 1)) * 100
+
+  // Etiqueta contextual del slider
+  const scaleLabel = isEfecto ? 'Severidad' : 'Nivel'
+
+  function onSlide(v: number) {
+    setValue(v)
+    setTouched(true)
   }
 
   function handleSave() {
-    if (!name) return
-    if (!meta) return
-    const v =
-      meta.kind === 'num'
-        ? parseFloat(numVal)
-        : scaleVal
-    if (v == null || isNaN(v as number)) return
-    dispatch({ t: 'saveMeasure', name, value: v as number })
-  }
-
-  const canSave =
-    !!name &&
-    !!meta &&
-    (meta.kind === 'num'
-      ? numVal.trim() !== '' && !isNaN(parseFloat(numVal))
-      : scaleVal !== null)
-
-  // Etiqueta de escala según max
-  function scaleGuide(max: number) {
-    return max === 10
-      ? 'Del 0 (nada) al 10 (máximo)'
-      : 'Del 1 (bajo) al 5 (alto)'
+    dispatch({ t: 'saveMeasure', name, value, nota: isEfecto && nota.trim() ? nota.trim() : undefined })
+    dispatch({ t: 'sheet', sheet: null })
   }
 
   return (
     <Sheet
-      title="Registrar medida"
+      title={name}
       onClose={() => dispatch({ t: 'sheet', sheet: null })}
     >
-      <div style={{ padding: '0 20px 24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div
+        style={{
+          padding: '0 20px 32px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 28,
+        }}
+      >
+        {/* Valor actual + etiqueta cualitativa */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22 }}
+          style={{ textAlign: 'center', paddingTop: 8 }}
+        >
+          <span
+            className="mono"
+            style={{
+              fontSize: 72,
+              fontWeight: 700,
+              lineHeight: 1,
+              color: 'var(--brand-700)',
+              display: 'block',
+            }}
+          >
+            {value}
+          </span>
+          <span
+            className="sm"
+            style={{
+              display: 'inline-block',
+              marginTop: 6,
+              padding: '3px 12px',
+              borderRadius: 99,
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+              color: 'var(--ink-700)',
+              fontWeight: 500,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {qual}
+          </span>
+        </motion.div>
 
-        {/* Selector de medida */}
+        {/* Slider principal */}
         <section>
-          <p className="label" style={{ marginBottom: 10 }}>¿Qué quieres registrar?</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {available.map((m) => (
-              <Chip
-                key={m}
-                label={m}
-                active={name === m}
-                onClick={() => pickMeasure(m)}
-              />
-            ))}
+          <p
+            className="label"
+            style={{ marginBottom: 12, textAlign: 'center', color: 'var(--ink-400)' }}
+          >
+            {scaleLabel} · <span className="mono">1</span> — <span className="mono">{maxVal}</span>
+          </p>
+
+          {/* Wrapper para el track de color personalizado */}
+          <div style={{ position: 'relative' }}>
+            {/* Track background (simulado debajo del range nativo) */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: 0,
+                right: 0,
+                transform: 'translateY(-50%)',
+                height: 10,
+                borderRadius: 5,
+                background: `linear-gradient(to right, var(--brand-700) ${fillPct}%, var(--ink-100) ${fillPct}%)`,
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="range"
+              min={1}
+              max={maxVal}
+              step={1}
+              value={value}
+              onChange={(e) => onSlide(Number(e.target.value))}
+              aria-label={`${scaleLabel} de ${name}, valor ${value}`}
+              style={{
+                WebkitAppearance: 'none',
+                appearance: 'none',
+                width: '100%',
+                height: 44,
+                background: 'transparent',
+                cursor: 'pointer',
+                position: 'relative',
+                zIndex: 1,
+                /* thumb */
+                /* CSS nativo no admite ::-webkit-slider-thumb inline, se cubre con style global si existe */
+              }}
+            />
+          </div>
+
+          {/* Extremos de escala */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginTop: 4,
+            }}
+          >
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>
+              {isEfecto ? 'Leve' : 'Bajo'}
+            </span>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>
+              {isEfecto ? 'Severo' : 'Alto'}
+            </span>
           </div>
         </section>
 
-        {/* Entrada de valor */}
-        {meta && (
+        {/* Nota opcional — solo para "Efecto secundario" */}
+        {isEfecto && (
           <section>
-            {meta.kind === 'num' && (
-              <>
-                <p className="label" style={{ marginBottom: 10 }}>
-                  Valor
-                  {meta.unit && (
-                    <span
-                      style={{
-                        marginLeft: 6,
-                        color: 'var(--ink-400)',
-                        fontWeight: 400,
-                      }}
-                    >
-                      ({meta.unit})
-                    </span>
-                  )}
-                </p>
-                <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <IcDrop size={20} style={{ color: 'var(--brand-700)', flexShrink: 0 }} />
-                  <input
-                    className="field mono"
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="any"
-                    placeholder="0"
-                    value={numVal}
-                    onChange={(e) => setNumVal(e.target.value)}
-                    style={{
-                      flex: 1,
-                      fontSize: 28,
-                      fontWeight: 700,
-                      border: 'none',
-                      outline: 'none',
-                      background: 'transparent',
-                      padding: 0,
-                      width: '100%',
-                    }}
-                    aria-label={`Valor de ${name}${meta.unit ? ' en ' + meta.unit : ''}`}
-                  />
-                  {meta.unit && (
-                    <span
-                      className="sm"
-                      style={{
-                        color: 'var(--ink-400)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {meta.unit}
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
-
-            {meta.kind === 'scale' && meta.max != null && (
-              <>
-                <p className="label" style={{ marginBottom: 4 }}>Valor</p>
-                <p className="sm" style={{ color: 'var(--ink-400)', marginBottom: 12 }}>
-                  {scaleGuide(meta.max)}
-                </p>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 8,
-                  }}
-                  role="group"
-                  aria-label={`Escala de 0 a ${meta.max}`}
-                >
-                  {Array.from(
-                    { length: meta.max === 10 ? 11 : meta.max },
-                    (_, i) => (meta.max === 10 ? i : i + 1)
-                  ).map((n) => {
-                    const active = scaleVal === n
-                    return (
-                      <button
-                        key={n}
-                        aria-pressed={active}
-                        onClick={() => setScaleVal(n)}
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 10,
-                          border: active
-                            ? '2px solid var(--brand-700)'
-                            : '1.5px solid var(--border)',
-                          background: active ? 'var(--brand-700)' : 'var(--card)',
-                          color: active ? '#fff' : 'var(--ink-700)',
-                          fontFamily: 'JetBrains Mono, monospace',
-                          fontSize: 16,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'background 120ms, border-color 120ms, color 120ms',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {n}
-                      </button>
-                    )
-                  })}
-                </div>
-              </>
-            )}
+            <p className="label" style={{ marginBottom: 8 }}>
+              Nota (opcional)
+            </p>
+            <textarea
+              className="field"
+              rows={3}
+              placeholder="Describe el efecto secundario observado…"
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+              style={{
+                width: '100%',
+                resize: 'vertical',
+                fontFamily: 'DM Sans, sans-serif',
+                fontSize: 15,
+                borderRadius: 10,
+                padding: '10px 14px',
+                background: 'var(--card)',
+                border: '1.5px solid var(--border)',
+                color: 'var(--ink-900)',
+                boxSizing: 'border-box',
+              }}
+              aria-label="Nota sobre el efecto secundario"
+            />
           </section>
         )}
 
         {/* CTA */}
         <button
           className="btn btn-brand"
-          disabled={!canSave}
           onClick={handleSave}
-          style={{ opacity: canSave ? 1 : 0.45 }}
+          disabled={!touched}
+          style={{ marginTop: 4, opacity: touched ? 1 : 0.45, cursor: touched ? 'pointer' : 'not-allowed' }}
         >
-          Guardar registro
+          {touched ? 'Guardar' : 'Mueve para elegir tu valor'}
         </button>
 
-        {/* Disclaimer — siempre visible (audit guardrail: no reducir instancias) */}
+        {/* Disclaimer — siempre visible (no reducir instancias) */}
         <Disclaimer kind="measure" />
       </div>
     </Sheet>
