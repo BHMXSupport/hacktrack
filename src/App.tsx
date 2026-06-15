@@ -1,6 +1,7 @@
 import { useReducer, useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { AppContext, reducer, initialState, useApp } from './lib/store'
+import { sharedAxisX, spring } from './lib/motion'
 import { Splash } from './screens/Splash'
 import { Onboarding } from './screens/Onboarding'
 import { Goal } from './screens/Goal'
@@ -23,11 +24,7 @@ import { ProtocoloEdit } from './sheets/ProtocoloEdit'
 import { Agregar } from './sheets/Agregar'
 import { Medidas } from './sheets/Medidas'
 
-const fade = {
-  initial: { opacity: 0, x: 18 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -18 },
-}
+const fade = sharedAxisX
 
 function Toast() {
   const { state, dispatch } = useApp()
@@ -43,6 +40,7 @@ function Toast() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
+          transition={spring.sheet}
           style={{
             position: 'absolute', left: 18, right: 18, bottom: 96, zIndex: 60,
             background: 'var(--ink-900)', color: '#fff', borderRadius: 14, padding: '13px 16px',
@@ -85,7 +83,7 @@ function AppShell() {
     <>
       <AnimatePresence mode="wait">
         <motion.div key={state.tab} variants={fade} initial="initial" animate="animate" exit="exit"
-          transition={{ duration: 0.24 }} style={{ position: 'absolute', inset: 0 }}>
+          style={{ position: 'absolute', inset: 0 }}>
           <Tab />
         </motion.div>
       </AnimatePresence>
@@ -120,7 +118,7 @@ function Root() {
   return (
     <AnimatePresence mode="wait">
       <motion.div key={screen} variants={fade} initial="initial" animate="animate" exit="exit"
-        transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }} style={{ position: 'absolute', inset: 0 }}>
+        style={{ position: 'absolute', inset: 0 }}>
         {screen === 's-app' ? <AppShell /> : Flow ? <Flow /> : <Splash />}
       </motion.div>
     </AnimatePresence>
@@ -131,11 +129,13 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
   return (
     <AppContext.Provider value={{ state, dispatch }}>
-      <div className="app-root">
-        <div className="phone">
-          <Root />
+      <MotionConfig reducedMotion="user">
+        <div className="app-root">
+          <div className="phone">
+            <Root />
+          </div>
         </div>
-      </div>
+      </MotionConfig>
     </AppContext.Provider>
   )
 }

@@ -1,5 +1,7 @@
 // Controles compartidos: Segmented, Chip, Toggle, Stepper, Disclaimer.
+import { motion } from 'framer-motion'
 import { DISCLAIMER } from '../lib/catalog'
+import { spring } from '../lib/motion'
 
 export function Segmented<T extends string | number>({
   options,
@@ -40,14 +42,17 @@ export function Chip({
 }) {
   const style = color && !active ? ({ ['--c' as string]: color } as React.CSSProperties) : undefined
   return (
-    <button
+    <motion.button
       className={'chip' + (active ? ' active' : color ? ' chip-cat' : '')}
       style={style}
       aria-pressed={!!active}
       onClick={onClick}
+      whileTap={{ scale: 0.95 }}
+      animate={active ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+      transition={spring.ui}
     >
       {label}
-    </button>
+    </motion.button>
   )
 }
 
@@ -78,9 +83,11 @@ export function Stepper({
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-      <button className="stepbtn" aria-label="Restar" onClick={() => onChange(Math.max(min, value - step))}>−</button>
-      <div className="mono" style={{ fontSize: 30, fontWeight: 700, minWidth: 64, textAlign: 'center' }}>{value}</div>
-      <button className="stepbtn" aria-label="Sumar" onClick={() => onChange(Math.min(max, value + step))}>+</button>
+      <motion.button className="stepbtn" aria-label="Restar" whileTap={{ scale: 0.9 }} transition={spring.ui} onClick={() => onChange(Math.max(min, value - step))}>−</motion.button>
+      <div className="mono" style={{ fontSize: 30, fontWeight: 700, minWidth: 64, textAlign: 'center', overflow: 'hidden' }}>
+        <motion.div key={value} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={spring.ui}>{value}</motion.div>
+      </div>
+      <motion.button className="stepbtn" aria-label="Sumar" whileTap={{ scale: 0.9 }} transition={spring.ui} onClick={() => onChange(Math.min(max, value + step))}>+</motion.button>
     </div>
   )
 }

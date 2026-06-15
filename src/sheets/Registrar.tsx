@@ -2,10 +2,12 @@
 // Compliance: sin jeringas (IcDrop/IcLeaf), el usuario teclea su dosis,
 // calculadora solo convierte, sin venta in-app, disclaimers presentes.
 import { useState, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
 import { IcDrop } from '../components/icons'
 import { TimeWheel } from '../components/TimeWheel'
+import { spring, ease } from '../lib/motion'
 import { useApp } from '../lib/store'
 import { PEPTIDES, WDS } from '../lib/catalog'
 import { presetCad } from '../lib/cadence'
@@ -115,26 +117,49 @@ export function RegistrarSheet() {
     setLocalCad(presetCad(undefined))
   }
 
-  // ── Guardar ───────────────────────────────────────────────────────────────
+  // ── Guardar (con checkmark de confirmación — momento de conversión) ─────────
+  const [saving, setSaving] = useState(false)
   const handleSave = useCallback(() => {
+    if (saving) return
+    setSaving(true)
     const finalProduct = product || 'Mi producto'
-    // Persistir cadencia si hay protocolo activo
-    if (state.protocol) {
-      dispatch({ t: 'setCadence', cadence: localCad })
-    }
-    // Registrar dosis (P0-1: entra al diario + racha + activa dash)
-    dispatch({
-      t: 'logDose',
-      product: finalProduct,
-      value: parseFloat(dose) || null,
-      unit,
-    })
-    dispatch({ t: 'sheet', sheet: null })
-  }, [state.protocol, localCad, product, dose, unit, dispatch])
+    window.setTimeout(() => {
+      if (state.protocol) dispatch({ t: 'setCadence', cadence: localCad })
+      // Registrar dosis (P0-1: entra al diario + racha + activa dash)
+      dispatch({ t: 'logDose', product: finalProduct, value: parseFloat(dose) || null, unit })
+      dispatch({ t: 'sheet', sheet: null })
+    }, 640)
+  }, [saving, state.protocol, localCad, product, dose, unit, dispatch])
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Sheet title="Registrar" onClose={() => dispatch({ t: 'sheet', sheet: null })}>
+
+      {/* Confirmación — checkmark draw-on (momento de conversión, celebra el PROGRESO) */}
+      {saving && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 10, background: 'var(--surface)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.6 }}
+            animate={{ scale: 1 }}
+            transition={spring.celebrate}
+            style={{ width: 88, height: 88, borderRadius: 999, background: 'var(--brand-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <motion.path d="M5 12l5 5L20 6" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.5, ease: ease.decelerate, delay: 0.12 }} />
+            </svg>
+          </motion.div>
+          <motion.div className="h2" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}>
+            Empezaste tu cambio 🎉
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 120px', display: 'flex', flexDirection: 'column', gap: 24 }}>
