@@ -54,7 +54,8 @@ export function RegistrarSheet() {
 
   // ── Producto ──────────────────────────────────────────────────────────────
   // sin protocolo/importados → vacío: el usuario elige (no precargamos un producto del catálogo)
-  const defaultProduct = state.protocol?.product ?? state.importedProducts[0] ?? ''
+  // sheetArg (cuando se abre desde "Tus dosis de hoy") manda: respeta la fila que tocó el usuario.
+  const defaultProduct = state.sheetArg ?? state.protocol?.product ?? state.importedProducts[0] ?? ''
 
   const [product, setProduct] = useState<string>(defaultProduct)
   // cadencia adaptativa: si el producto YA tiene protocolo, no re-pedirla (chip de solo-lectura)
@@ -70,6 +71,22 @@ export function RegistrarSheet() {
     state.protocol?.cadence ?? presetCad(PEPTIDES[product])
 
   const [localCad, setLocalCad] = useState<UserCadence>(seedCad)
+
+  // Si se reabre el sheet apuntando a otro producto (p.ej. tocaste BPC en "Tus dosis de hoy")
+  // y el componente sigue montado (key estable), sincroniza producto + cadencia con el arg.
+  useEffect(() => {
+    const arg = state.sheetArg
+    if (!arg || arg === product) return
+    setProduct(arg)
+    setShowPicker(false)
+    setPickingCustom(false)
+    setLocalCad(
+      state.protocol?.product === arg
+        ? state.protocol.cadence
+        : presetCad(PEPTIDES[arg]),
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sheetArg])
 
   // Cuando la cadencia es 'cadaN' o 'ciclo' (venida del catálogo),
   // la UI la muestra como modo informativo (no editable en la segmentada de 4),

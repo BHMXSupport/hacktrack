@@ -22,7 +22,7 @@ export function TodayDoses() {
   function markDone(product: string) {
     const dose = doseForProduct(state, product)
     if (dose) dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts })
-    else dispatch({ t: 'sheet', sheet: 'registrar' }) // sin dosis aún → establécela una vez
+    else dispatch({ t: 'sheet', sheet: 'registrar', arg: product }) // sin dosis aún → abre en ESE producto
   }
   function undo(product: string) {
     const item = loggedItemsForDay(state, today).find((it) => it.type === 'dose' && (it.product === product || it.product == null))
