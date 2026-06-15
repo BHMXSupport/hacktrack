@@ -13,10 +13,13 @@ export function dayProducts(s: AppState, d: Date): string[] {
   return productsOnDay(d, trackedProtocols(s))
 }
 
-// ¿se registró una dosis de ESTE producto ese día? (legado sin producto cuenta)
+// ¿se registró una dosis de ESTE producto ese día?
+// La dosis legado (sin producto) solo cuenta para el producto principal — no para todos (evita doble conteo).
 export function doseTakenOnProduct(s: AppState, d: Date, product: string): boolean {
   const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
-  return !!g?.items.some((it) => it.type === 'dose' && (it.product == null || it.product === product))
+  return !!g?.items.some(
+    (it) => it.type === 'dose' && (it.product === product || (it.product == null && product === s.protocol?.product)),
+  )
 }
 
 // hora de la toma ese día según reminderTime

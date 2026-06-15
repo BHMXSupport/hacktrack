@@ -25,7 +25,9 @@ export function TodayDoses() {
     else dispatch({ t: 'sheet', sheet: 'registrar', arg: product }) // sin dosis aún → abre en ESE producto
   }
   function undo(product: string) {
-    const item = loggedItemsForDay(state, today).find((it) => it.type === 'dose' && (it.product === product || it.product == null))
+    const item = loggedItemsForDay(state, today).find(
+      (it) => it.type === 'dose' && (it.product === product || (it.product == null && product === state.protocol?.product)),
+    )
     if (item) dispatch({ t: 'deleteLog', id: item.id })
   }
 

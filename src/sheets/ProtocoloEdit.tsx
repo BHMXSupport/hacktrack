@@ -6,10 +6,22 @@ import { PEPTIDES, WDS } from '../lib/catalog'
 import { rhythmLabel } from '../lib/cadence'
 import type { CadMode, UserCadence } from '../lib/types'
 
+// epoch ms ⇄ 'YYYY-MM-DD' (hora local) para <input type="date">
+const toInputDate = (ms: number) => {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const fromInputDate = (v: string) => {
+  const [y, m, d] = v.split('-').map(Number)
+  return new Date(y, m - 1, d).getTime()
+}
+
 // Editar (tunear) el protocolo: cadencia + titulación. Da el recomendado pero deja editar (punto 4).
 export function ProtocoloEdit() {
   const { state, dispatch } = useApp()
   const p = state.protocol
+  const [startStr, setStartStr] = useState(toInputDate(p?.startDate ?? state.todayTs))
+  const [endStr, setEndStr] = useState(p?.endDate ? toInputDate(p.endDate) : '')
   const [cad, setCad] = useState<UserCadence>(
     p?.cadence ?? { mode: 'dia', days: [true, true, true, true, true, true, true], every: 1, semDays: [true, false, false, false, false, false, false] },
   )
@@ -50,7 +62,13 @@ export function ProtocoloEdit() {
       const n = parseFloat(phaseDoses[i] ?? '')
       return isNaN(n) ? null : n
     })
-    dispatch({ t: 'updateProtocol', patch: { cadence: cad, progOn, progN, phaseDoses: progOn ? doses : undefined } })
+    const startDate = startStr ? fromInputDate(startStr) : p!.startDate
+    const endDate = endStr ? fromInputDate(endStr) : null
+    if (endDate != null && endDate < startDate) {
+      dispatch({ t: 'toast', msg: 'La fecha de fin no puede ser antes del inicio' })
+      return
+    }
+    dispatch({ t: 'updateProtocol', patch: { cadence: cad, progOn, progN, phaseDoses: progOn ? doses : undefined, startDate, endDate } })
     dispatch({ t: 'toast', msg: 'Protocolo actualizado' })
     dispatch({ t: 'sheet', sheet: null })
   }
@@ -99,6 +117,41 @@ export function ProtocoloEdit() {
       )}
       {displayMode === 'uso' && (
         <p className="sm" style={{ marginTop: 14 }}>Sin horario fijo. Lo registras cuando lo usas — no programamos días.</p>
+      )}
+
+      {/* Vigencia: inicio / fin */}
+      <div className="label" style={{ marginTop: 18 }}>Vigencia</div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="sm" style={{ color: 'var(--ink-400)' }}>Empieza</span>
+          <input
+            className="field"
+            type="date"
+            aria-label="Fecha de inicio del protocolo"
+            value={startStr}
+            onChange={(e) => setStartStr(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="sm" style={{ color: 'var(--ink-400)' }}>Termina <span style={{ color: 'var(--ink-300)' }}>(opcional)</span></span>
+          <input
+            className="field"
+            type="date"
+            aria-label="Fecha de fin del protocolo"
+            min={startStr}
+            value={endStr}
+            onChange={(e) => setEndStr(e.target.value)}
+          />
+        </div>
+      </div>
+      {endStr && (
+        <button
+          className="btn btn-ghost btn-sm"
+          style={{ width: 'auto', marginTop: 8, padding: '0 12px', alignSelf: 'flex-start' }}
+          onClick={() => setEndStr('')}
+        >
+          Quitar fecha de fin
+        </button>
       )}
 
       {/* Titulación / fases */}

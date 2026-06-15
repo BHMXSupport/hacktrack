@@ -96,7 +96,8 @@ export interface UserProtocol {
   progN: number
   curPhase: number
   phaseDoses?: (number | null)[]  // mg por fase de titulación (el usuario la define; la app no prescribe)
-  startDate: number    // epoch ms
+  startDate: number    // epoch ms — cuándo empieza el protocolo
+  endDate?: number | null // epoch ms — cuándo termina (opcional; null = indefinido)
   reminderTime: string // 'HH:MM' hora del recordatorio/toma (para cuenta regresiva)
 }
 

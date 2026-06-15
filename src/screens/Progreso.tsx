@@ -47,7 +47,7 @@ function WeeklySummary() {
         </span>
       </div>
       <div className="body" style={{ fontWeight: 600 }}>
-        {adh.taken} / {adh.scheduled} dosis registradas
+        {adh.taken} / {adh.due} dosis cumplidas
       </div>
       <AdherenceBar pct={adh.pct} />
     </motion.div>

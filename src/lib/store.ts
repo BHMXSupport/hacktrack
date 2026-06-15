@@ -168,6 +168,7 @@ function freshProtocol(product: string, todayTs: number): UserProtocol | null {
     progN: entry.phases ?? 2,
     curPhase: 0,
     startDate: startOfDay(new Date(todayTs)).getTime(),
+    endDate: null,
     reminderTime: '08:00',
   }
 }
@@ -367,34 +368,83 @@ export function nextDose(s: AppState): Date | null {
   return null
 }
 
-// adherencia REAL = dosis registradas (de ESTE producto) / dosis programadas en la ventana.
-// No penaliza el día de hoy si aún no llega su hora de toma (fix red-team).
-export function adherence(s: AppState, days = 30, now: Date = new Date()): { pct: number; taken: number; scheduled: number } | null {
-  if (!s.protocol) return null
-  const product = s.protocol.product
-  const start = new Date(s.protocol.startDate)
-  const startDay = startOfDay(start).getTime()
+// adherencia REAL, MULTI-PRODUCTO. Recorre TODOS los productos trackeados (protocolo + importados),
+// cuenta cada dosis que tocaría según su cadencia y respeta fecha de inicio/fin de cada uno.
+// Clasifica cada dosis programada en: tomada / perdida (ya venció, sin registro) / próxima (futura).
+// El % se calcula solo sobre las vencidas (no penaliza futuras) — fix red-team.
+export interface AdherenceStat {
+  pct: number       // taken / due (cumplimiento de lo que ya venció)
+  taken: number     // dosis registradas
+  missed: number    // vencidas sin registrar
+  upcoming: number  // futuras (aún no vencen)
+  due: number       // taken + missed (vencidas)
+  scheduled: number // total programado en la ventana (due + upcoming)
+  // compat: algunos consumidores leían .scheduled como denominador "registrado"
+}
+
+interface DoseTally { taken: number; missed: number; upcoming: number }
+
+// núcleo: cuenta dosis de todos los productos en [fromMs, toMs] (días, inclusive)
+function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseTally {
+  const tracked = trackedProtocols(s)
   const today = startOfDay(new Date(s.todayTs))
   const todayKey = isoKey(today.getTime())
-  const [hh, mm] = (s.protocol.reminderTime ?? '08:00').split(':').map(Number)
-  let scheduled = 0
-  let taken = 0
-  for (let i = 0; i < days; i++) {
-    const d = new Date(today.getTime() - i * 86400000)
-    if (d.getTime() < startDay) break
-    if (!diaTocaCadence(d, s.protocol.cadence, start)) continue
-    const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
-    const took = !!g?.items.some((it) => it.type === 'dose' && (it.product == null || it.product === product))
-    if (isoKey(d.getTime()) === todayKey && !took) {
-      const due = new Date(today)
-      due.setHours(hh || 0, mm || 0, 0, 0)
-      if (now.getTime() < due.getTime()) continue // todavía no es hora: no la cuentes como perdida
+  const [hh, mm] = (s.protocol?.reminderTime ?? '08:00').split(':').map(Number)
+  const reminderToday = new Date(today)
+  reminderToday.setHours(hh || 0, mm || 0, 0, 0)
+  const todayPassed = now.getTime() >= reminderToday.getTime()
+  const mainProduct = s.protocol?.product
+
+  const todayMs = today.getTime()
+  const fromDay = startOfDay(new Date(fromMs)).getTime()
+  const toDay = startOfDay(new Date(toMs)).getTime()
+
+  let taken = 0, missed = 0, upcoming = 0
+  for (const t of tracked) {
+    const tStart = startOfDay(t.start).getTime()
+    const tEnd = t.end != null ? startOfDay(new Date(t.end)).getTime() : null
+    // iterar por DÍA LOCAL (robusto a horario de verano; no sumar 86_400_000 fijo)
+    for (let d = new Date(fromDay); d.getTime() <= toDay; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      const ms = d.getTime()
+      if (ms < tStart) continue
+      if (tEnd != null && ms > tEnd) continue // fin INCLUSIVE (último día cuenta)
+      if (!diaTocaCadence(d, t.cadence, new Date(tStart))) continue
+      const dKey = isoKey(ms)
+      const g = s.log.find((x) => x.dateKey === dKey)
+      // dosis null (legado) solo cuenta para el producto principal, no para todos
+      const took = !!g?.items.some(
+        (it) => it.type === 'dose' && (it.product === t.product || (it.product == null && t.product === mainProduct)),
+      )
+      const past = dKey === todayKey ? todayPassed : ms < todayMs
+      if (took) taken++
+      else if (past) missed++
+      else upcoming++
     }
-    scheduled++
-    if (took) taken++
   }
+  return { taken, missed, upcoming }
+}
+
+function toStat(t: DoseTally): AdherenceStat | null {
+  const due = t.taken + t.missed
+  const scheduled = due + t.upcoming
   if (scheduled === 0) return null
-  return { pct: Math.round((taken / scheduled) * 100), taken, scheduled }
+  return { pct: due === 0 ? 100 : Math.round((t.taken / due) * 100), taken: t.taken, missed: t.missed, upcoming: t.upcoming, due, scheduled }
+}
+
+// ventana rodante de N días terminando hoy (para Progreso)
+export function adherence(s: AppState, days = 30, now: Date = new Date()): AdherenceStat | null {
+  if (!s.protocol) return null
+  const today = startOfDay(new Date(s.todayTs)).getTime()
+  return toStat(tallyDoses(s, today - (days - 1) * 86400000, today, now))
+}
+
+// mes calendario actual: TODAS las dosis que tocarían en el mes (incl. futuras) — para Inicio
+export function adherenceMonth(s: AppState, now: Date = new Date()): AdherenceStat | null {
+  if (!s.protocol) return null
+  const today = startOfDay(new Date(s.todayTs))
+  const from = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
+  const to = new Date(today.getFullYear(), today.getMonth() + 1, 0).getTime()
+  return toStat(tallyDoses(s, from, to, now))
 }
 
 // próxima toma como fecha+hora (usa reminderTime); requiere el "ahora" real para la cuenta regresiva
@@ -426,26 +476,32 @@ export function doseForProduct(s: AppState, product: string): { value: number; u
 
 // productos a trackear con su cadencia, para el calendario dinámico:
 // el protocolo activo usa la cadencia del usuario; los demás importados usan la del catálogo.
-export interface Tracked { product: string; cadence: UserCadence; start: Date }
+export interface Tracked { product: string; cadence: UserCadence; start: Date; end: number | null }
 export function trackedProtocols(s: AppState): Tracked[] {
   const out: Tracked[] = []
   const seen = new Set<string>()
   const start = s.protocol ? new Date(s.protocol.startDate) : startOfDay(new Date(s.todayTs))
+  const end = s.protocol?.endDate ?? null
   if (s.protocol) {
-    out.push({ product: s.protocol.product, cadence: s.protocol.cadence, start })
+    out.push({ product: s.protocol.product, cadence: s.protocol.cadence, start, end })
     seen.add(s.protocol.product)
   }
   for (const p of s.importedProducts) {
     if (seen.has(p) || !(p in PEPTIDES)) continue
-    out.push({ product: p, cadence: presetCad(PEPTIDES[p]), start })
+    out.push({ product: p, cadence: presetCad(PEPTIDES[p]), start, end: null })
     seen.add(p)
   }
   return out
 }
 
-// qué productos tocan un día dado (calendario dinámico)
+// qué productos tocan un día dado (calendario dinámico) — respeta inicio y fin del protocolo
 export function productsOnDay(d: Date, tracked: Tracked[]): string[] {
-  return tracked.filter((t) => diaTocaCadence(d, t.cadence, t.start)).map((t) => t.product)
+  const dayMs = startOfDay(d).getTime()
+  return tracked
+    .filter((t) => dayMs >= startOfDay(t.start).getTime())
+    .filter((t) => t.end == null || dayMs <= startOfDay(new Date(t.end)).getTime())
+    .filter((t) => diaTocaCadence(d, t.cadence, t.start))
+    .map((t) => t.product)
 }
 
 // ── Context ──────────────────────────────────────────────────────────────────

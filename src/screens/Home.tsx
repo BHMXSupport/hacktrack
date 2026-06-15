@@ -1,7 +1,7 @@
 // Tab 'inicio' — dashboard de wellness premium "Quiet Signal".
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useApp, adherence, nextDoseAt, weekStatus, computeStreak, STREAK_GOAL } from '../lib/store'
+import { useApp, adherenceMonth, nextDoseAt, weekStatus, computeStreak, STREAK_GOAL } from '../lib/store'
 import { CATEGORY_COLOR, CATEGORY_ICON, MEASURE_ICON, MEASURE_META, WDS } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
@@ -82,8 +82,8 @@ export function Home() {
   const countdownText = at ? fmtCountdown(at, now) : null
   const isNow = at ? diffMinutes(at, now) <= 0 : false
 
-  // Adherencia real 30 días
-  const adh = adherence(state, 30)
+  // Adherencia real del MES (multi-producto: todas las dosis que tocarían este mes)
+  const adh = adherenceMonth(state, now)
 
   // Tira semanal (L Ma Mi J V S D)
   const weekBits = weekStatus(state.log, today, true)
@@ -319,10 +319,23 @@ export function Home() {
             className="body"
             style={{ fontWeight: 600, color: 'var(--ink-700)', marginBottom: 20, textAlign: 'center' }}
           >
-            Adherencia · 30 días
+            Adherencia · este mes
           </h2>
 
-          {adh ? (
+          {adh && adh.due === 0 ? (
+            // Todavía no vence ninguna dosis este mes → estado neutral (no es 100%)
+            <div
+              style={{
+                width: 152, height: 152, borderRadius: '50%', border: '11px solid var(--ink-100)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center',
+              }}
+            >
+              <span className="h2" style={{ margin: 0 }}>{adh.scheduled}</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', maxWidth: 110, lineHeight: 1.3 }}>
+                dosis este mes · aún sin vencer
+              </span>
+            </div>
+          ) : adh ? (
             <>
               <AdherenceRing
                 value={adh.pct}
@@ -336,8 +349,24 @@ export function Home() {
                 className="sm"
                 style={{ color: 'var(--ink-400)', textAlign: 'center', marginTop: 10 }}
               >
-                {adh.taken} / {adh.scheduled} dosis · 30 días
+                {adh.taken} de {adh.due} tomadas · {adh.scheduled} este mes
               </p>
+              {(adh.missed > 0 || adh.upcoming > 0) && (
+                <div style={{ display: 'flex', gap: 14, marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {adh.missed > 0 && (
+                    <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--error)' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--error)' }} />
+                      {adh.missed} perdida{adh.missed === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  {adh.upcoming > 0 && (
+                    <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--ink-400)' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ink-300)' }} />
+                      {adh.upcoming} próxima{adh.upcoming === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <div
