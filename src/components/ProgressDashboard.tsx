@@ -90,8 +90,8 @@ function SectionHeader({ glyphId, title, count }: SectionHeaderProps) {
         borderBottom: '1px solid var(--ink-100, rgba(0,0,0,0.08))',
       }}
     >
-      <Glyph name={glyphId} size={16} color="var(--ink-500)" />
-      <span className="sm" style={{ color: 'var(--ink-600)', fontWeight: 600, flex: 1 }}>
+      <Glyph name={glyphId} size={16} color="var(--ink-400)" />
+      <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600, flex: 1 }}>
         {title}
       </span>
       <span className="sm" style={{ color: 'var(--ink-400)' }}>{count}</span>

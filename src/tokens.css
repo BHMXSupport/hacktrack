@@ -3,7 +3,7 @@
   --brand-900:#063B36; --brand-700:#0E5A52; --brand-500:#1B8A7D; --brand-300:#5FC9B8; --brand-100:#D6F2EC;
   --lime:#B6F09C; --lime-deep:#7BC96F; --ember:#FF7A59; --ember-deep:#E85D3A;
   --success:#2FB57C; --warning:#E8A317; --error:#E4564B;
-  --ink-900:#0B1220; --ink-700:#1B2740; --ink-400:#6B7A99; --ink-300:#9AA6BF; --ink-200:#D7DEEC; --ink-100:#EEF2F8; --ink-0:#FFF;
+  --ink-900:#0B1220; --ink-700:#1B2740; --ink-400:#586781; --ink-300:#7E8BA6; --ink-200:#D7DEEC; --ink-100:#EEF2F8; --ink-0:#FFF;
   --bg:#F7F9FC; --surface:#FFFFFF; --card:#FFFFFF; --border:#E9EDF4;
   --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px;
   --e1:0 1px 2px rgba(11,18,32,.05); --e2:0 4px 16px rgba(11,18,32,.07); --e3:0 14px 36px rgba(11,18,32,.13);
@@ -15,6 +15,9 @@
   --e2:0 4px 16px rgba(0,0,0,.35); --e3:0 14px 36px rgba(0,0,0,.5);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Accesibilidad: foco visible solo por teclado */
+:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; border-radius: 4px; }
+button:focus:not(:focus-visible) { outline: none; }
 html, body, #root { margin:0; height:100%; }
 body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(--ink-900); }
 

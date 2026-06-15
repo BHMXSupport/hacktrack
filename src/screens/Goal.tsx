@@ -4,6 +4,7 @@ import { useApp } from '../lib/store'
 import { GOALS, CATEGORY_COLOR, CATEGORY_ICON } from '../lib/catalog'
 import { IcBack } from '../components/icons'
 import { Glyph } from '../components/glyphs'
+import { Disclaimer } from '../components/controls'
 
 const stagger = { animate: { transition: { staggerChildren: 0.07 } } }
 const item = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } }
@@ -155,6 +156,7 @@ export function Goal() {
         <p className="sm" style={{ marginTop: 14, color: 'var(--ink-400)' }}>
           Podrás ajustar esto más adelante.
         </p>
+        <Disclaimer kind="general" />
       </div>
     </div>
   )

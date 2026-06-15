@@ -40,6 +40,7 @@ export interface MeasureMeta {
 }
 
 export interface Profile {
+  name: string | null      // nombre del usuario (personalización)
   peso: number | null
   est: number | null       // altura cm
   grasa: number | null     // % grasa
@@ -61,9 +62,10 @@ export interface LogItem {
   n: string        // nombre: 'Dosis registrada' | nombre de la medida
   u: string        // valor: 'Retatrutide · 2 mg' | '82.4 kg' | '4 / 5'
   cat: string      // color hex del icono
-  ic: string       // emoji
+  ic: string       // id del glyph
   type: LogItemType
   ts: number       // timestamp epoch (ms) del registro real
+  product?: string // producto de la dosis (para adherencia por producto)
 }
 
 export interface LogGroup {
@@ -94,6 +96,7 @@ export interface UserProtocol {
   progN: number
   curPhase: number
   startDate: number    // epoch ms
+  reminderTime: string // 'HH:MM' hora del recordatorio/toma (para cuenta regresiva)
 }
 
 export type SyringeScale = 40 | 50 | 100
@@ -101,6 +104,7 @@ export type SyringeScale = 40 | 50 | 100
 export interface UserSettings {
   pinEnabled: boolean
   darkMode: boolean
+  remindersEnabled: boolean   // recordatorios locales de toma (Notification API)
   weeklySummary: boolean
   emailNotices: boolean
   consentVersion: string

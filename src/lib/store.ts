@@ -49,12 +49,13 @@ export const initialState: AppState = {
   protocol: null,
   importedProducts: [],
   log: [],                     // vacío para usuario nuevo (P0-2: racha honesta)
-  profile: { peso: null, est: null, grasa: null, musculo: null, bmi: null },
+  profile: { name: null, peso: null, est: null, grasa: null, musculo: null, bmi: null },
   measureValues: {},
   history: {},
   settings: {
     pinEnabled: false,
     darkMode: false,
+    remindersEnabled: false,
     weeklySummary: true,
     emailNotices: false,
     consentVersion: 'v1.0',
@@ -81,6 +82,8 @@ export type Action =
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
+  | { t: 'setName'; name: string }
+  | { t: 'setReminderTime'; time: string }
   | { t: 'setScale'; scale: SyringeScale }
   | { t: 'setDraftDose'; draft: { value: number; unit: string } | null }
   | { t: 'arcoDelete' }                                               // P0-5
@@ -137,11 +140,12 @@ export function computeStreak(log: LogGroup[], today: Date): number {
   return count
 }
 
-// estado on/off de la tira semanal (cualquier registro ese día) — por clave de fecha
-export function weekStatus(log: LogGroup[], today: Date): boolean[] {
+// estado on/off de la tira semanal por clave de fecha. doseOnly = solo días con dosis (adherencia).
+export function weekStatus(log: LogGroup[], today: Date, doseOnly = false): boolean[] {
   return weekStrip(today).map((d) => {
     const g = log.find((x) => x.dateKey === isoKey(d.getTime()))
-    return !!g && g.items.length > 0
+    if (!g) return false
+    return doseOnly ? g.items.some((it) => it.type === 'dose') : g.items.length > 0
   })
 }
 
@@ -162,6 +166,7 @@ function freshProtocol(product: string, todayTs: number): UserProtocol | null {
     progN: entry.phases ?? 2,
     curPhase: 0,
     startDate: startOfDay(new Date(todayTs)).getTime(),
+    reminderTime: '08:00',
   }
 }
 
@@ -217,6 +222,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ic: 'dose',
         type: 'dose',
         ts: now.getTime(),
+        product: a.product,
       }
       return { ...s, log: prependToLog(s.log, item), logged: true, sheet: null, toast: 'Registro guardado' }
     }
@@ -306,6 +312,12 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'setSetting':
       return { ...s, settings: { ...s.settings, [a.key]: a.value } }
+    case 'setName':
+      return { ...s, profile: { ...s.profile, name: a.name.trim() || null } }
+    case 'setReminderTime':
+      return s.protocol && /^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)
+        ? { ...s, protocol: { ...s.protocol, reminderTime: a.time } }
+        : s
     case 'setScale':
       return { ...s, scale: a.scale }
     case 'setDraftDose':
@@ -340,6 +352,53 @@ export function nextDose(s: AppState): Date | null {
   let d = startOfDay(new Date(s.todayTs))
   for (let i = 0; i < 60; i++) {
     if (diaTocaCadence(d, s.protocol.cadence, start)) return d
+    d = new Date(d.getTime() + 86400000)
+  }
+  return null
+}
+
+// adherencia REAL = dosis registradas (de ESTE producto) / dosis programadas en la ventana.
+// No penaliza el día de hoy si aún no llega su hora de toma (fix red-team).
+export function adherence(s: AppState, days = 30, now: Date = new Date()): { pct: number; taken: number; scheduled: number } | null {
+  if (!s.protocol) return null
+  const product = s.protocol.product
+  const start = new Date(s.protocol.startDate)
+  const startDay = startOfDay(start).getTime()
+  const today = startOfDay(new Date(s.todayTs))
+  const todayKey = isoKey(today.getTime())
+  const [hh, mm] = (s.protocol.reminderTime ?? '08:00').split(':').map(Number)
+  let scheduled = 0
+  let taken = 0
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today.getTime() - i * 86400000)
+    if (d.getTime() < startDay) break
+    if (!diaTocaCadence(d, s.protocol.cadence, start)) continue
+    const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
+    const took = !!g?.items.some((it) => it.type === 'dose' && (it.product == null || it.product === product))
+    if (isoKey(d.getTime()) === todayKey && !took) {
+      const due = new Date(today)
+      due.setHours(hh || 0, mm || 0, 0, 0)
+      if (now.getTime() < due.getTime()) continue // todavía no es hora: no la cuentes como perdida
+    }
+    scheduled++
+    if (took) taken++
+  }
+  if (scheduled === 0) return null
+  return { pct: Math.round((taken / scheduled) * 100), taken, scheduled }
+}
+
+// próxima toma como fecha+hora (usa reminderTime); requiere el "ahora" real para la cuenta regresiva
+export function nextDoseAt(s: AppState, now: Date): Date | null {
+  if (!s.protocol) return null
+  const start = new Date(s.protocol.startDate)
+  const [hh, mm] = (s.protocol.reminderTime ?? '08:00').split(':').map(Number)
+  let d = startOfDay(now)
+  for (let i = 0; i < 60; i++) {
+    if (diaTocaCadence(d, s.protocol.cadence, start)) {
+      const at = new Date(d)
+      at.setHours(hh || 0, mm || 0, 0, 0)
+      if (at.getTime() > now.getTime()) return at
+    }
     d = new Date(d.getTime() + 86400000)
   }
   return null

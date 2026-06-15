@@ -27,11 +27,15 @@ function GoogleLogo() {
 export function Account() {
   const { dispatch } = useApp()
   const [showPw, setShowPw] = useState(false)
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (name.trim()) {
+      dispatch({ t: 'setName', name: name.trim() })
+    }
     dispatch({ t: 'tab', tab: 'inicio' })
     dispatch({ t: 'go', screen: 's-app' })
   }
@@ -156,6 +160,22 @@ export function Account() {
         onSubmit={handleCreate}
         style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}
       >
+        {/* Campo nombre (opcional) */}
+        <div>
+          <label className="label" htmlFor="ht-name">
+            ¿Cómo te llamas?
+          </label>
+          <input
+            id="ht-name"
+            className="field"
+            type="text"
+            autoComplete="given-name"
+            placeholder="Opcional"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
         {/* Campo correo */}
         <div>
           <label className="label" htmlFor="ht-email">
