@@ -1,0 +1,140 @@
+// Hacktrack — helpers del calendario (estados por día, fases, adherencia semanal, agenda, export .ics).
+import type { AppState } from './store'
+import { trackedProtocols, productsOnDay, isoKey } from './store'
+import { startOfDay, dayDiff } from './cadence'
+import { PEPTIDES } from './catalog'
+
+export type DayState = 'taken' | 'missed' | 'scheduled' | 'none'
+
+const nextLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+
+// productos programados ese día
+export function dayProducts(s: AppState, d: Date): string[] {
+  return productsOnDay(d, trackedProtocols(s))
+}
+
+// ¿se registró una dosis de ESTE producto ese día? (legado sin producto cuenta)
+export function doseTakenOnProduct(s: AppState, d: Date, product: string): boolean {
+  const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
+  return !!g?.items.some((it) => it.type === 'dose' && (it.product == null || it.product === product))
+}
+
+// hora de la toma ese día según reminderTime
+function dueTime(s: AppState, d: Date): Date {
+  const [hh, mm] = (s.protocol?.reminderTime ?? '08:00').split(':').map(Number)
+  const at = startOfDay(d)
+  at.setHours(hh || 0, mm || 0, 0, 0)
+  return at
+}
+
+// estado agregado del día: 'taken' si TODOS los productos del día están tomados.
+// `now` debe ser la hora REAL (new Date()), no todayTs (medianoche).
+export function dayStatus(s: AppState, d: Date, now: Date): DayState {
+  const prods = dayProducts(s, d)
+  if (prods.length === 0) return 'none'
+  const taken = prods.filter((p) => doseTakenOnProduct(s, d, p)).length
+  if (taken === prods.length) return 'taken'
+  return now.getTime() > dueTime(s, d).getTime() ? 'missed' : 'scheduled'
+}
+
+// items del diario de ese día
+export function loggedItemsForDay(s: AppState, d: Date) {
+  return s.log.find((x) => x.dateKey === isoKey(d.getTime()))?.items ?? []
+}
+
+// fase de titulación a la que cae una fecha (null si no aplica) — por días de calendario (DST-safe)
+export function phaseForDate(s: AppState, d: Date): number | null {
+  const p = s.protocol
+  if (!p?.progOn) return null
+  const phaseWeeks = PEPTIDES[p.product]?.phaseWeeks
+  if (!phaseWeeks) return null
+  const weeks = Math.floor(dayDiff(startOfDay(d), startOfDay(new Date(p.startDate))) / 7)
+  if (weeks < 0) return null
+  return Math.min((p.progN ?? 1) - 1, Math.max(0, Math.floor(weeks / phaseWeeks)))
+}
+
+// adherencia de una semana (7 fechas L→D) — POR PRODUCTO programado. `now` = hora real.
+export function weekAdherencePct(s: AppState, weekDays: Date[], now: Date): number | null {
+  let due = 0
+  let taken = 0
+  for (const d of weekDays) {
+    const past = now.getTime() > dueTime(s, d).getTime()
+    for (const p of dayProducts(s, d)) {
+      if (doseTakenOnProduct(s, d, p)) { due++; taken++ }
+      else if (past) { due++ }
+    }
+  }
+  return due === 0 ? null : Math.round((taken / due) * 100)
+}
+
+export interface UpcomingDose { date: Date; product: string }
+
+// próximas tomas (vista agenda): cada producto-día con su hora, desde `now`
+export function upcomingDoses(s: AppState, now: Date, n = 30, lookaheadDays = 120): UpcomingDose[] {
+  const tracked = trackedProtocols(s)
+  if (!tracked.length) return []
+  const out: UpcomingDose[] = []
+  let d = startOfDay(now)
+  for (let i = 0; i < lookaheadDays && out.length < n; i++) {
+    for (const p of productsOnDay(d, tracked)) {
+      const at = dueTime(s, d)
+      if (at.getTime() > now.getTime()) out.push({ date: at, product: p })
+    }
+    d = nextLocalDay(d)
+  }
+  return out.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, n)
+}
+
+// ── Export .ics (calendario del sistema) ─────────────────────────────────────
+function icsStamp(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+}
+function icsEsc(t: string): string {
+  return t.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
+}
+// plegado de líneas a 75 octetos (RFC 5545): continuación con CRLF + espacio
+function icsFold(line: string): string {
+  if (line.length <= 74) return line
+  const parts: string[] = [line.slice(0, 74)]
+  let i = 74
+  while (i < line.length) { parts.push(' ' + line.slice(i, i + 73)); i += 73 }
+  return parts.join('\r\n')
+}
+
+export function buildIcs(s: AppState, now: Date): string {
+  const events = upcomingDoses(s, now, 60, 120)
+  const raw = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hacktrack//ES//', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH']
+  for (const e of events) {
+    const end = new Date(e.date.getTime() + 30 * 60000)
+    const slug = e.product.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    raw.push(
+      'BEGIN:VEVENT',
+      `UID:hacktrack-${slug}-${icsStamp(e.date)}@hacktrack.app`,
+      `DTSTAMP:${icsStamp(now)}`,
+      `DTSTART:${icsStamp(e.date)}`,
+      `DTEND:${icsStamp(end)}`,
+      `SUMMARY:Hacktrack · ${icsEsc(e.product)}`,
+      'DESCRIPTION:Es hora de tu registro de hoy.',
+      'BEGIN:VALARM',
+      'TRIGGER:-PT0M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Es hora de tu registro de hoy.',
+      'END:VALARM',
+      'END:VEVENT',
+    )
+  }
+  raw.push('END:VCALENDAR')
+  return raw.map(icsFold).join('\r\n')
+}
+
+// dispara la descarga del .ics (cliente)
+export function downloadIcs(content: string): void {
+  if (typeof document === 'undefined') return
+  const blob = new Blob([content], { type: 'text/calendar' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'hacktrack-calendario.ics'
+  a.click()
+  URL.revokeObjectURL(url)
+}

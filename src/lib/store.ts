@@ -11,7 +11,7 @@ export type ScreenId =
   | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-login' | 's-import' | 's-app'
 export type TabId = 'inicio' | 'diario' | 'protocolo' | 'ajustes'
 export type SheetId =
-  | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar'
+  | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail'
   | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit'
 
 export interface AppState {

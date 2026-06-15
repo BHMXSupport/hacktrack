@@ -40,6 +40,7 @@ import { ConfirmDeleteSheet } from './sheets/ConfirmDelete'
 import { ProtocoloEdit } from './sheets/ProtocoloEdit'
 import { Agregar } from './sheets/Agregar'
 import { Medidas } from './sheets/Medidas'
+import { DayDetail } from './sheets/DayDetail'
 
 const fade = sharedAxisX
 
@@ -77,6 +78,7 @@ const SHEETS = {
   calc: CalcSheet,
   medida: MedidaSheet,
   medidas: Medidas,
+  'day-detail': DayDetail,
   arco: ArcoSheet,
   'confirm-delete': ConfirmDeleteSheet,
   'protocolo-edit': ProtocoloEdit,

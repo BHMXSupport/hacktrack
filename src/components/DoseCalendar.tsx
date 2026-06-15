@@ -1,252 +1,295 @@
-// Hacktrack — calendario mensual de dosis (componente sin props, usa useApp)
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useApp, trackedProtocols, productsOnDay } from '../lib/store'
-import { monthMatrix, cadenceLabel } from '../lib/cadence'
-import { PEPTIDES, CATEGORY_COLOR, WDS } from '../lib/catalog'
-import { IcBack, IcChevron } from '../components/icons'
+// Hacktrack — orquestador del calendario de dosis (sin props, usa useApp)
+import { useState, useCallback } from 'react'
+import { motion } from 'framer-motion'
+import type { PanInfo } from 'framer-motion'
+import { useApp, isoKey, nextDoseAt, trackedProtocols } from '../lib/store'
+import { fmtDate, fmtTime, cadenceLabel } from '../lib/cadence'
+import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
+import { buildIcs, downloadIcs, upcomingDoses } from '../lib/calendar'
+import { Segmented } from './controls'
+import { IcBack, IcChevron, IcBell } from './icons'
+import { CalendarMonth } from './CalendarMonth'
+import { CalendarAgenda } from './CalendarAgenda'
 
-const stagger = { animate: { transition: { staggerChildren: 0.04 } } }
-const item = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } }
+type View = 'mes' | 'agenda'
 
-function monthName(month: number): string {
-  const names = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-  ]
-  return names[month] ?? ''
-}
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
 
 export function DoseCalendar() {
   const { state } = useApp()
-  const today = new Date(state.todayTs)
+  const now = new Date(state.todayTs)   // identidad del día (hoy)
+  const realNow = new Date()            // hora real (próxima toma / export)
+  const todayYear = now.getFullYear()
+  const todayMonth = now.getMonth()
 
-  const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth())
-
-  function prevMonth() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11) }
-    else setMonth(m => m - 1)
-  }
-  function nextMonth() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0) }
-    else setMonth(m => m + 1)
-  }
+  const [year, setYear] = useState(todayYear)
+  const [month, setMonth] = useState(todayMonth)
+  const [view, setView] = useState<View>('mes')
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
+  const [toast, setToast] = useState(false)
 
   const tracked = trackedProtocols(state)
-  const matrix = monthMatrix(year, month)
+  const next = nextDoseAt(state, realNow)
+  const nextProduct = upcomingDoses(state, realNow, 1)[0]?.product ?? tracked[0]?.product ?? ''
 
-  const todayNorm = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  // ─── Nav helpers ──────────────────────────────────────────────
+  const prevMonth = useCallback(() => {
+    setYear(y => month === 0 ? y - 1 : y)
+    setMonth(m => m === 0 ? 11 : m - 1)
+  }, [month])
+
+  const nextMonth = useCallback(() => {
+    setYear(y => month === 11 ? y + 1 : y)
+    setMonth(m => m === 11 ? 0 : m + 1)
+  }, [month])
+
+  const goToday = useCallback(() => {
+    setYear(todayYear)
+    setMonth(todayMonth)
+  }, [todayYear, todayMonth])
+
+  const handleDragEnd = useCallback((_: unknown, info: PanInfo) => {
+    if (info.offset.x < -60) nextMonth()
+    else if (info.offset.x > 60) prevMonth()
+  }, [nextMonth, prevMonth])
+
+  // ─── Legend toggle ─────────────────────────────────────────────
+  const toggleHidden = useCallback((product: string) => {
+    setHidden(prev => {
+      const next = new Set(prev)
+      if (next.has(product)) next.delete(product)
+      else next.add(product)
+      return next
+    })
+  }, [])
+
+  // ─── ICS export ────────────────────────────────────────────────
+  const handleExport = useCallback(() => {
+    downloadIcs(buildIcs(state, realNow))
+    setToast(true)
+    setTimeout(() => setToast(false), 2600)
+  }, [state, now])
+
+  // ─── Estado vacío ──────────────────────────────────────────────
+  if (tracked.length === 0) {
+    return (
+      <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+        <p className="body" style={{ color: 'var(--ink-400)', margin: 0 }}>
+          Agrega un producto en Progreso para ver tu calendario.
+        </p>
+      </div>
+    )
+  }
+
+  const isCurrentMonth = year === todayYear && month === todayMonth
 
   return (
-    <div style={{ padding: '0 0 16px' }}>
-      {/* Cabecera: mes/año + navegación */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+      {/* ── (#5) HEADER PEGAJOSO ─────────────────────────────────── */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--ink-100)',
           padding: '12px 16px 8px',
         }}
       >
-        <button
-          className="iconbtn"
-          onClick={prevMonth}
-          aria-label="Mes anterior"
-          style={{ color: 'var(--ink-700)' }}
-        >
-          <IcBack size={20} />
-        </button>
-        <span className="h2" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>
-          {monthName(month)} {year}
-        </span>
-        <button
-          className="iconbtn"
-          onClick={nextMonth}
-          aria-label="Mes siguiente"
-          style={{ color: 'var(--ink-700)' }}
-        >
-          <IcChevron size={20} />
-        </button>
+        {/* Hoy + próxima toma */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span className="h2" style={{ color: 'var(--ink-900)', fontWeight: 700 }}>
+            Hoy{' '}
+            <span className="body" style={{ color: 'var(--ink-400)', fontWeight: 400 }}>
+              {fmtDate(now, now)}
+            </span>
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <IcBell size={14} style={{ color: next ? 'var(--brand-700)' : 'var(--ink-300)', flexShrink: 0 }} />
+          {next ? (
+            <span className="sm" style={{ color: 'var(--brand-700)' }}>
+              Próxima:{' '}
+              <strong style={{ fontWeight: 600 }}>{nextProduct}</strong>
+              {' · '}
+              {fmtDate(next, now)} {fmtTime(next)}
+            </span>
+          ) : (
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>Sin próxima toma</span>
+          )}
+        </div>
       </div>
 
-      {/* Fila de iniciales de día */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          padding: '0 12px',
-          marginBottom: 4,
-        }}
-      >
-        {WDS.map(([label]) => (
-          <div
-            key={label}
-            className="sm"
-            style={{
-              textAlign: 'center',
-              color: 'var(--ink-400)',
-              fontWeight: 600,
-              padding: '4px 0',
-            }}
-          >
-            {label}
-          </div>
-        ))}
+      <div style={{ padding: '12px 16px 0' }}>
+
+        {/* ── (#4) SEGMENTED ──────────────────────────────────────── */}
+        <Segmented<View>
+          options={[
+            { value: 'mes', label: 'Mes' },
+            { value: 'agenda', label: 'Agenda' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
       </div>
 
-      {/* Grilla del mes */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={`${year}-${month}`}
-          variants={stagger}
-          initial="initial"
-          animate="animate"
-          style={{ padding: '0 12px' }}
-        >
-          {matrix.map((week, wi) => (
-            <div
-              key={wi}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}
-            >
-              {week.map((d, di) => {
-                if (!d) {
-                  return (
-                    <motion.div
-                      key={`empty-${wi}-${di}`}
-                      variants={item}
-                      style={{ minHeight: 52 }}
-                    />
-                  )
-                }
-                const dNorm = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-                const isToday = dNorm === todayNorm
-                const prods = productsOnDay(d, tracked)
-                const visible = prods.slice(0, 3)
-                const extra = prods.length - visible.length
-
-                return (
-                  <motion.div
-                    key={d.getTime()}
-                    variants={item}
-                    style={{
-                      minHeight: 52,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      paddingTop: 6,
-                      paddingBottom: 4,
-                      borderRadius: 8,
-                      border: isToday
-                        ? '2px solid var(--brand-700)'
-                        : '2px solid transparent',
-                      background: isToday ? 'rgba(14,90,82,0.07)' : 'transparent',
-                    }}
-                  >
-                    <span
-                      className="sm mono"
-                      style={{
-                        fontWeight: isToday ? 700 : 400,
-                        color: isToday ? 'var(--brand-700)' : 'var(--ink-700)',
-                        lineHeight: 1,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {d.getDate()}
-                    </span>
-
-                    {/* Puntos de productos */}
-                    {prods.length > 0 && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          justifyContent: 'center',
-                          gap: 2,
-                          maxWidth: 36,
-                        }}
-                      >
-                        {visible.map(p => (
-                          <span
-                            key={p}
-                            title={p}
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: '50%',
-                              background: CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'],
-                              flexShrink: 0,
-                            }}
-                          />
-                        ))}
-                        {extra > 0 && (
-                          <span
-                            className="sm"
-                            style={{
-                              fontSize: 8,
-                              lineHeight: '10px',
-                              color: 'var(--ink-400)',
-                            }}
-                          >
-                            +{extra}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )
-              })}
-            </div>
-          ))}
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Leyenda o estado vacío */}
-      {tracked.length === 0 ? (
+      {/* ── (#10) NAV RÁPIDA (solo en vista Mes) ───────────────────── */}
+      {view === 'mes' && (
         <div
-          className="card"
           style={{
-            margin: '16px 16px 0',
-            padding: '20px 16px',
-            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 16px 4px',
           }}
         >
-          <p className="body" style={{ color: 'var(--ink-400)', margin: 0 }}>
-            Agrega un producto en Progreso para ver tu calendario.
-          </p>
-        </div>
-      ) : (
-        <div style={{ margin: '16px 16px 0' }}>
-          <p className="sm" style={{ color: 'var(--ink-400)', marginBottom: 8 }}>
-            Leyenda
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {tracked.map(t => {
-              const entry = PEPTIDES[t.product]
-              const color = entry ? CATEGORY_COLOR[entry.cat] : 'var(--ink-300)'
-              const rhythm = cadenceLabel(t.cadence)
-              return (
-                <div key={t.product} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: color,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span className="body" style={{ color: 'var(--ink-900)', flex: 1 }}>
-                    {t.product}
-                  </span>
-                  <span className="sm" style={{ color: 'var(--ink-400)' }}>
-                    {rhythm}
-                  </span>
-                </div>
-              )
-            })}
+          <button
+            className="iconbtn"
+            onClick={prevMonth}
+            aria-label="Mes anterior"
+            style={{ color: 'var(--ink-700)' }}
+          >
+            <IcBack size={20} />
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="h2" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>
+              {MONTH_NAMES[month]} {year}
+            </span>
+            {!isCurrentMonth && (
+              <button
+                className="chip"
+                onClick={goToday}
+                style={{ fontSize: 12, padding: '2px 10px', cursor: 'pointer' }}
+              >
+                Hoy
+              </button>
+            )}
           </div>
+
+          <button
+            className="iconbtn"
+            onClick={nextMonth}
+            aria-label="Mes siguiente"
+            style={{ color: 'var(--ink-700)' }}
+          >
+            <IcChevron size={20} />
+          </button>
         </div>
+      )}
+
+      {/* ── GRILLA (con swipe) / AGENDA ─────────────────────────── */}
+      {view === 'mes' ? (
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.18}
+          onDragEnd={handleDragEnd}
+          style={{ touchAction: 'pan-y' }}
+        >
+          <CalendarMonth year={year} month={month} hidden={hidden} />
+        </motion.div>
+      ) : (
+        <CalendarAgenda />
+      )}
+
+      {/* ── (#6) LEYENDA INTERACTIVA ─────────────────────────────── */}
+      <div style={{ padding: '0 16px 8px' }}>
+        <p className="sm" style={{ color: 'var(--ink-400)', marginBottom: 8, marginTop: 12 }}>
+          Leyenda
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {tracked.map(t => {
+            const entry = PEPTIDES[t.product]
+            const color = entry ? CATEGORY_COLOR[entry.cat] : 'var(--ink-300)'
+            const rhythm = cadenceLabel(t.cadence)
+            const isHidden = hidden.has(t.product)
+            return (
+              <button
+                key={t.product}
+                onClick={() => toggleHidden(t.product)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  background: 'none',
+                  border: 'none',
+                  padding: '2px 0',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  opacity: isHidden ? 0.38 : 1,
+                  transition: 'opacity 0.18s',
+                }}
+                aria-pressed={isHidden}
+                aria-label={`${isHidden ? 'Mostrar' : 'Ocultar'} ${t.product}`}
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: color,
+                    flexShrink: 0,
+                  }}
+                />
+                <span className="body" style={{ color: 'var(--ink-900)', flex: 1 }}>
+                  {t.product}
+                </span>
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>
+                  {rhythm}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── (#9) EXPORTAR A CALENDARIO ───────────────────────────── */}
+      <div style={{ padding: '4px 16px 20px' }}>
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={handleExport}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+          }}
+        >
+          <IcBell size={16} />
+          Agregar a mi calendario
+        </button>
+      </div>
+
+      {/* ── TOAST ────────────────────────────────────────────────── */}
+      {toast && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          style={{
+            position: 'fixed',
+            bottom: 88,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--ink-900)',
+            color: 'var(--surface)',
+            borderRadius: 10,
+            padding: '8px 18px',
+            fontSize: 13,
+            fontWeight: 500,
+            zIndex: 200,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Calendario exportado
+        </motion.div>
       )}
     </div>
   )
