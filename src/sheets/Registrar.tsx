@@ -53,14 +53,11 @@ export function RegistrarSheet() {
   const { state, dispatch } = useApp()
 
   // ── Producto ──────────────────────────────────────────────────────────────
-  const defaultProduct =
-    state.protocol?.product ??
-    state.importedProducts[0] ??
-    Object.keys(PEPTIDES)[0] ??
-    ''
+  // sin protocolo/importados → vacío: el usuario elige (no precargamos un producto del catálogo)
+  const defaultProduct = state.protocol?.product ?? state.importedProducts[0] ?? ''
 
   const [product, setProduct] = useState<string>(defaultProduct)
-  const [showPicker, setShowPicker] = useState(false)
+  const [showPicker, setShowPicker] = useState(!defaultProduct) // abre el picker si no hay producto
   const [customProduct, setCustomProduct] = useState('')
   const [pickingCustom, setPickingCustom] = useState(false)
 
@@ -137,8 +134,13 @@ export function RegistrarSheet() {
   const [saving, setSaving] = useState(false)
   const handleSave = useCallback(() => {
     if (saving) return
+    const finalProduct = product.trim()
+    if (!finalProduct) {
+      dispatch({ t: 'toast', msg: 'Elige un producto primero' })
+      setShowPicker(true)
+      return
+    }
     setSaving(true)
-    const finalProduct = product || 'Mi producto'
     const ts = parseHora(hora, state.todayTs) // respeta la hora elegida en la rueda
     window.setTimeout(() => {
       // solo persistir la cadencia si el producto ES el del protocolo activo (fix red-team)

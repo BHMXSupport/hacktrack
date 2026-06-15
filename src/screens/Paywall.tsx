@@ -19,6 +19,10 @@ const PLAN_OPTIONS: { value: Plan; label: string }[] = [
   { value: 'anual', label: 'Anual' },
 ]
 
+// Precios (fuente única) — el ahorro anual se DERIVA, no se hardcodea
+const PRICE_MXN = { mensual: 99, anual: 799 } as const
+const SAVE_PCT = Math.round((1 - PRICE_MXN.anual / (PRICE_MXN.mensual * 12)) * 100) // ≈ 33
+
 export function Paywall() {
   const { dispatch } = useApp()
   const [plan, setPlan] = useState<Plan>('mensual')
@@ -27,7 +31,7 @@ export function Paywall() {
     dispatch({ t: 'sheet', sheet: null })
   }
 
-  const price = plan === 'mensual' ? '$99' : '$799'
+  const price = `$${PRICE_MXN[plan]}`
   const period = plan === 'mensual' ? '/mes' : '/año'
 
   return (
@@ -130,7 +134,7 @@ export function Paywall() {
               value={plan}
               onChange={setPlan}
             />
-            {/* Badge "Ahorra 20%" sobre el botón Anual */}
+            {/* Badge "Ahorra {SAVE_PCT}%" sobre el botón Anual */}
             <span
               className="badge badge-mint"
               style={{
@@ -143,7 +147,7 @@ export function Paywall() {
                 whiteSpace: 'nowrap',
               }}
             >
-              Ahorra 20%
+              Ahorra {SAVE_PCT}%
             </span>
           </div>
 

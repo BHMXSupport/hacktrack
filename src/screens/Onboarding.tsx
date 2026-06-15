@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { Glyph } from '../components/glyphs'
-import { IcShield } from '../components/icons'
-import { dur, ease, sharedAxisX } from '../lib/motion'
+import { dur, ease } from '../lib/motion'
+import { CATEGORY_COLOR, CATEGORY_ICON } from '../lib/catalog'
+import type { Category } from '../lib/types'
+import { TrustBadge } from '../components/identity'
 
 // ─── Ilustraciones abstractas SVG ────────────────────────────────────────────
 
@@ -113,23 +115,14 @@ function IllustrationPrivacidad() {
 
 // ─── Config de slides ─────────────────────────────────────────────────────────
 
-const CATEGORY_GLYPHS = [
-  'cat-metabolismo',
-  'cat-recuperacion',
-  'cat-cognitivo',
-  'cat-piel',
-  'cat-antiaging',
-  'cat-crecimiento',
-] as const
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'cat-metabolismo': '#E85D3A',
-  'cat-recuperacion': '#2FB57C',
-  'cat-cognitivo': '#6B7BE8',
-  'cat-piel': '#D17FA0',
-  'cat-antiaging': '#A8842F',
-  'cat-crecimiento': '#1B8A7D',
-}
+const CATEGORY_LIST: Category[] = [
+  'Metabolismo',
+  'Recuperación',
+  'Cognitivo',
+  'Piel',
+  'Anti-Aging',
+  'Crecimiento',
+]
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -340,21 +333,21 @@ export function Onboarding() {
                   flexWrap: 'wrap',
                 }}
               >
-                {CATEGORY_GLYPHS.map((name) => (
+                {CATEGORY_LIST.map((cat) => (
                   <div
-                    key={name}
+                    key={cat}
                     style={{
                       width: 40,
                       height: 40,
                       borderRadius: '50%',
-                      background: `color-mix(in srgb, ${CATEGORY_COLORS[name]} 13%, var(--bg))`,
+                      background: `color-mix(in srgb, ${CATEGORY_COLOR[cat]} 13%, var(--bg))`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}
                   >
-                    <Glyph name={name} size={20} color={CATEGORY_COLORS[name]} />
+                    <Glyph name={CATEGORY_ICON[cat]} size={20} color={CATEGORY_COLOR[cat]} />
                   </div>
                 ))}
               </div>
@@ -377,23 +370,7 @@ export function Onboarding() {
                 Sin servidores externos, sin venta de información.
               </p>
               {/* Badge de confianza */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 14px',
-                  borderRadius: 999,
-                  background: 'var(--brand-100)',
-                  color: 'var(--brand-900)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: 'Inter, sans-serif',
-                }}
-              >
-                <IcShield size={16} style={{ color: 'var(--brand-700)', flexShrink: 0 }} />
-                Hecho en México · Cumple LFPDPPP
-              </div>
+              <TrustBadge />
             </motion.div>
           )}
         </AnimatePresence>

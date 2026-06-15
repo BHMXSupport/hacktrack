@@ -2,12 +2,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, adherence, nextDoseAt, weekStatus, computeStreak, STREAK_GOAL } from '../lib/store'
-import { CATEGORY_COLOR, CATEGORY_ICON, MEASURE_ICON, MEASURE_META } from '../lib/catalog'
+import { CATEGORY_COLOR, CATEGORY_ICON, MEASURE_ICON, MEASURE_META, WDS } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
 import { Sparkline } from '../components/charts'
 import { Glyph } from '../components/glyphs'
-import { IcShield } from '../components/icons'
+import { UserAvatar, TrustChip } from '../components/identity'
 import { staggerParent, staggerItem } from '../lib/motion'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -58,10 +58,9 @@ export function Home() {
 
   const today = new Date(state.todayTs)
 
-  // Nombre y avatar
+  // Saludo
   const name = state.profile.name
   const greeting = name ? `Hola, ${name}` : 'Hola'
-  const initial = name ? name.charAt(0).toUpperCase() : 'T'
 
   // Fecha formateada
   const todayStr = today.toLocaleDateString('es-MX', {
@@ -83,7 +82,7 @@ export function Home() {
 
   // Tira semanal (L Ma Mi J V S D)
   const weekBits = weekStatus(state.log, today, true)
-  const weekLabels = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D']
+  const weekLabels = WDS.map(([l]) => l)
   // índice del día de hoy en WDS (L=0..D=6); getDay: 0=Dom → índice 6
   const todayWdsIdx = [1, 2, 3, 4, 5, 6, 0][today.getDay()]
 
@@ -121,49 +120,13 @@ export function Home() {
               {greeting}
             </h1>
             {/* Micro-chip de confianza */}
-            <button
-              className="chip"
-              onClick={() => dispatch({ t: 'sheet', sheet: 'perfil' })}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                marginTop: 8,
-                width: 'max-content',
-                background: 'var(--card)',
-                border: '1px solid var(--ink-100)',
-                borderRadius: 999,
-                padding: '4px 10px',
-                cursor: 'pointer',
-              }}
-            >
-              <IcShield size={12} style={{ color: 'var(--ink-400)', flexShrink: 0 }} />
-              <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 11, fontWeight: 500 }}>
-                Tus datos son tuyos
-              </span>
-            </button>
+            <div style={{ marginTop: 8 }}>
+              <TrustChip onClick={() => dispatch({ t: 'sheet', sheet: 'perfil' })} />
+            </div>
           </div>
 
-          {/* Avatar con inicial */}
-          <div
-            aria-hidden="true"
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              background: 'var(--brand-700)',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 20,
-              flexShrink: 0,
-              letterSpacing: -0.5,
-            }}
-          >
-            {initial}
-          </div>
+          {/* Avatar */}
+          <UserAvatar size={48} tone="filled" />
         </motion.section>
 
         {/* ── 2. HÉROE: próxima toma con cuenta regresiva real ────────── */}

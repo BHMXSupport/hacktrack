@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { IcBack, IcShield, IcCheck, IcChevron } from '../components/icons'
+import { UserAvatar, TrustBadge } from '../components/identity'
 
 export function Perfil() {
   const { state, dispatch } = useApp()
@@ -51,26 +52,7 @@ export function Perfil() {
         <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 32 }}>
           {/* Avatar + nombre */}
           <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            <div
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                background: 'var(--card)',
-                border: '3px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 32,
-                color: 'var(--brand-700)',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Avatar: inicial del nombre, o escudo si no hay nombre (sin imágenes remotas) */}
-              {state.profile.name
-                ? <span style={{ fontWeight: 700, fontSize: 32, color: 'var(--brand-700)' }}>{state.profile.name.trim().charAt(0).toUpperCase()}</span>
-                : <IcShield size={36} style={{ color: 'var(--brand-700)' }} />}
-            </div>
+            <UserAvatar size={80} tone="soft" />
             <div className="h1" style={{ margin: 0, textAlign: 'center' }}>
               {state.profile.name ?? 'Tu perfil'}
             </div>
@@ -244,13 +226,7 @@ export function Perfil() {
               paddingBottom: 32,
             }}
           >
-            <div
-              className="badge badge-mint"
-              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              <IcShield size={14} />
-              <span className="mono">Hecho en México · Cumple con LFPDPPP</span>
-            </div>
+            <TrustBadge />
 
             <button
               className="row danger"
