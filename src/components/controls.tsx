@@ -1,7 +1,7 @@
 // Controles compartidos: Segmented, Chip, Toggle, Stepper, Disclaimer.
 import { DISCLAIMER } from '../lib/catalog'
 
-export function Segmented<T extends string>({
+export function Segmented<T extends string | number>({
   options,
   value,
   onChange,

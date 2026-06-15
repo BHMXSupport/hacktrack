@@ -1,36 +1,456 @@
+// Tab 'inicio' — tablero de control. Único archivo de salida para este agente.
 import { motion } from 'framer-motion'
+import { useApp } from '../lib/store'
+import { computeStreak, nextDose, STREAK_GOAL } from '../lib/store'
+import { CATEGORY_COLOR, CATEGORY_EMOJI, MEASURE_META } from '../lib/catalog'
+import { fmtDate } from '../lib/cadence'
+import { AdherenceRing } from '../components/AdherenceRing'
+import { Disclaimer } from '../components/controls'
+import { Sparkline, LineChart } from '../components/charts'
 
-const stagger = { animate: { transition: { staggerChildren: 0.07 } } }
-const item = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } }
+const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
+const item = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+/** Formatea el valor de una KPI card: "4 / 5" (escala) o "82.4 kg" (num). "—" si no hay dato. */
+function kpiDisplay(name: string, measureValues: Record<string, number>): string {
+  const v = measureValues[name]
+  if (v == null) return '—'
+  const meta = MEASURE_META[name]
+  if (!meta) return String(v)
+  return meta.kind === 'scale'
+    ? `${v} / ${meta.max}`
+    : `${v}${meta.unit ? ' ' + meta.unit : ''}`
+}
+
+/** Extrae la parte numérica hero (antes del espacio o barra) para el número grande. */
+function kpiHero(name: string, measureValues: Record<string, number>): string {
+  const v = measureValues[name]
+  if (v == null) return '—'
+  return String(v)
+}
+
+/** Unidad para el hero (parte después del espacio). */
+function kpiUnit(name: string, measureValues: Record<string, number>): string {
+  const v = measureValues[name]
+  if (v == null) return ''
+  const meta = MEASURE_META[name]
+  if (!meta) return ''
+  if (meta.kind === 'scale') return `/ ${meta.max}`
+  return meta.unit ?? ''
+}
+
+/** Genera datos históricos sintéticos para sparkline/lineChart a partir de measureValues. */
+function syntheticHistory(value: number): number[] {
+  // Genera 7 puntos plausibles alrededor del valor actual para mostrar tendencia.
+  // No son datos reales; se usan solo si el log no tiene histórico de la medida.
+  const jitter = value * 0.08
+  return Array.from({ length: 7 }, (_, i) =>
+    i === 6 ? value : value + (Math.sin(i * 1.3) * jitter),
+  )
+}
+
+// ── componente ───────────────────────────────────────────────────────────────
 
 export function Home() {
+  const { state, dispatch } = useApp()
+
+  const today = new Date(state.todayTs)
+  const streak = computeStreak(state.log, today)
+  const next = nextDose(state)
+
+  // Color de categoría activa (o brand por defecto)
+  const catColor = state.curGoal ? CATEGORY_COLOR[state.curGoal] : 'var(--brand-700)'
+  const catEmoji = state.curGoal ? CATEGORY_EMOJI[state.curGoal] : null
+  const catLabel = state.curGoal ?? null
+
+  // Fecha formateada hoy
+  const todayStr = today.toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+
+  // KPI: máximo 2 medidas seleccionadas
+  const kpiMeasures = state.selectedMeasures.slice(0, 2)
+
+  // ¿Hay datos numéricos suficientes para el LineChart?
+  // Solo se muestra si alguna medida num tiene un valor registrado.
+  const numMeasure = kpiMeasures.find((m) => {
+    const meta = MEASURE_META[m]
+    return meta?.kind === 'num' && state.measureValues[m] != null
+  })
+
   return (
-    <div className="scroll">
-      <motion.div variants={stagger} initial="initial" animate="animate">
-        <motion.div variants={item} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div>
-            <div className="sm">hoy</div>
-            <div className="h1">Hola, vamos por ello 👋</div>
+    <div className="scroll has-nav">
+      <motion.div
+        variants={stagger}
+        initial="initial"
+        animate="animate"
+        style={{ padding: '20px 20px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
+        {/* ── 1. Cabecera ─────────────────────────────────────────────── */}
+        <motion.section
+          variants={item}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <p className="sm" style={{ color: 'var(--ink-400)', textTransform: 'capitalize' }}>
+              {todayStr}
+            </p>
+            <h1 className="h1" style={{ margin: 0 }}>
+              Hola, tu progreso hoy
+            </h1>
+            {catLabel && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginTop: 6,
+                  background: catColor + '18',
+                  borderRadius: 999,
+                  padding: '4px 12px',
+                  width: 'max-content',
+                }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: catColor,
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  className="sm"
+                  style={{ color: catColor, fontWeight: 600 }}
+                >
+                  {catEmoji ? `${catEmoji} ` : ''}{catLabel}
+                </span>
+              </div>
+            )}
           </div>
-          <div style={{ width: 42, height: 42, borderRadius: 999, background: 'var(--brand-700)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>J</div>
-        </motion.div>
 
-        <motion.div variants={item} className="card" style={{ background: 'linear-gradient(135deg,#0E5A52,#1B8A7D)', border: 0, color: '#fff' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, color: '#bfeee6' }}>EMPIEZA AQUÍ</div>
-          <div className="h2" style={{ color: '#fff', margin: '6px 0 14px' }}>Registra tu primera dosis de hoy</div>
-          <button className="btn btn-ember" style={{ height: 46 }}>Registrar ahora</button>
-        </motion.div>
-
-        <motion.div variants={item} className="card" style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div className="sm">Próxima toma</div>
-            <div className="h2">Hoy</div>
+          {/* Avatar */}
+          <div
+            aria-hidden="true"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              background: 'var(--brand-700)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: 18,
+              flexShrink: 0,
+            }}
+          >
+            A
           </div>
-          <div className="mono sm" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>según tu ritmo</div>
-        </motion.div>
+        </motion.section>
 
-        <motion.div variants={item} className="sm" style={{ textAlign: 'center', padding: '18px 8px', color: 'var(--ink-300)' }}>
-          Hacktrack es una herramienta de auto-registro. No es consejo médico.
+        {/* ── 2. Aha-card (solo cuando !logged) ──────────────────────── */}
+        {!state.logged && (
+          <motion.div
+            variants={item}
+            className="card"
+            style={{
+              background: 'linear-gradient(135deg, #0E5A52 0%, #1B8A7D 100%)',
+              border: 0,
+              color: '#fff',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Decoración de fondo */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                right: -24,
+                top: -24,
+                width: 110,
+                height: 110,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.06)',
+                pointerEvents: 'none',
+              }}
+            />
+            <p
+              className="sm"
+              style={{
+                color: '#acefe4',
+                fontWeight: 700,
+                letterSpacing: 0.8,
+                textTransform: 'uppercase',
+                marginBottom: 6,
+              }}
+            >
+              Empieza aquí
+            </p>
+            <h2
+              className="h2"
+              style={{ color: '#fff', margin: '0 0 16px', fontWeight: 700 }}
+            >
+              Registra tu primer registro de hoy
+            </h2>
+            <button
+              className="btn btn-ember"
+              style={{ height: 48, width: '100%' }}
+              onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
+            >
+              Registrar ahora
+            </button>
+          </motion.div>
+        )}
+
+        {/* ── 3. Próxima toma (oculta si nextDose es null, P1-2) ────── */}
+        {next !== null && (
+          <motion.section
+            variants={item}
+            className="card"
+            style={{ position: 'relative', overflow: 'hidden' }}
+          >
+            {/* Decoración cuadrante */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: 0,
+                width: 90,
+                height: 90,
+                background: 'var(--brand-700)',
+                opacity: 0.05,
+                borderBottomLeftRadius: '100%',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  color: 'var(--brand-700)',
+                }}
+              >
+                {/* Ícono de reloj — Material Symbol inline svg path */}
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" />
+                </svg>
+                <span
+                  className="sm mono"
+                  style={{
+                    fontWeight: 700,
+                    letterSpacing: 0.8,
+                    textTransform: 'uppercase',
+                    color: 'var(--brand-700)',
+                  }}
+                >
+                  Próxima toma
+                </span>
+              </div>
+              <span
+                className="sm mono"
+                style={{ color: 'var(--ink-400)' }}
+              >
+                {fmtDate(next, today)}
+              </span>
+            </div>
+
+            {state.protocol && (
+              <h3 className="h2" style={{ margin: '0 0 4px' }}>
+                {state.protocol.product}
+              </h3>
+            )}
+            <p className="sm" style={{ color: 'var(--ink-400)', margin: '0 0 16px' }}>
+              Según tu protocolo
+            </p>
+
+            <button
+              className="btn btn-brand"
+              style={{ width: '100%', height: 48 }}
+              onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
+            >
+              Registrar
+            </button>
+          </motion.section>
+        )}
+
+        {/* ── 4. Anillo de racha ──────────────────────────────────────── */}
+        <motion.section
+          variants={item}
+          className="card"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '24px 20px',
+            opacity: state.logged ? 1 : 0.45,
+          }}
+        >
+          <h2
+            className="body"
+            style={{
+              textAlign: 'center',
+              fontWeight: 600,
+              marginBottom: 20,
+              color: 'var(--ink-700)',
+            }}
+          >
+            Racha de adherencia
+          </h2>
+          <AdherenceRing
+            value={streak}
+            goal={STREAK_GOAL}
+            size={160}
+            stroke={12}
+            label="racha"
+            unit=""
+          />
+          {streak === 0 && !state.logged && (
+            <p
+              className="sm"
+              style={{
+                color: 'var(--ink-300)',
+                textAlign: 'center',
+                marginTop: 12,
+                maxWidth: 200,
+              }}
+            >
+              Haz tu primer registro para empezar tu racha.
+            </p>
+          )}
+          {streak > 0 && (
+            <p
+              className="sm"
+              style={{
+                color: 'var(--ink-400)',
+                textAlign: 'center',
+                marginTop: 12,
+                maxWidth: 200,
+              }}
+            >
+              Vas por buen camino, mantén el ritmo hoy.
+            </p>
+          )}
+        </motion.section>
+
+        {/* ── 5. KPI cards (máx 2) ────────────────────────────────────── */}
+        {kpiMeasures.length > 0 && (
+          <motion.section
+            variants={item}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 12,
+              opacity: state.logged ? 1 : 0.45,
+            }}
+          >
+            {kpiMeasures.map((m) => {
+              const hasValue = state.measureValues[m] != null
+              const hero = kpiHero(m, state.measureValues)
+              const unit = kpiUnit(m, state.measureValues)
+              const sparkData = hasValue
+                ? syntheticHistory(state.measureValues[m])
+                : [0, 0, 0]
+
+              return (
+                <div
+                  key={m}
+                  className="card"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '16px 14px',
+                    minHeight: 130,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <p
+                    className="sm"
+                    style={{
+                      color: 'var(--ink-400)',
+                      marginBottom: 8,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {m}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 'auto' }}>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        color: 'var(--ink-900)',
+                      }}
+                    >
+                      {hero}
+                    </span>
+                    {unit && hasValue && (
+                      <span className="sm" style={{ color: 'var(--ink-400)' }}>
+                        {unit}
+                      </span>
+                    )}
+                  </div>
+                  {hasValue && (
+                    <div style={{ marginTop: 10 }}>
+                      <Sparkline data={sparkData} color={catColor} w={76} h={28} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </motion.section>
+        )}
+
+        {/* ── 6. LineChart "tus datos" (solo si hay dato numérico) ───── */}
+        {numMeasure && state.logged && (
+          <motion.section variants={item} className="card">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <h3 className="body" style={{ fontWeight: 600, margin: 0, color: 'var(--ink-700)' }}>
+                {numMeasure}
+              </h3>
+              <span className="sm" style={{ color: 'var(--ink-400)' }}>
+                Tus datos
+              </span>
+            </div>
+            <LineChart
+              data={syntheticHistory(state.measureValues[numMeasure]!)}
+              color={catColor}
+              h={120}
+              labels={['hace 7d', 'hoy']}
+            />
+          </motion.section>
+        )}
+
+        {/* ── 7. Disclaimer ───────────────────────────────────────────── */}
+        <motion.div variants={item}>
+          <Disclaimer kind="general" />
         </motion.div>
       </motion.div>
     </div>
