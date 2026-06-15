@@ -2,9 +2,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, trackedProtocols, productsOnDay } from '../lib/store'
-import { monthMatrix } from '../lib/cadence'
+import { monthMatrix, cadenceLabel } from '../lib/cadence'
 import { PEPTIDES, CATEGORY_COLOR, WDS } from '../lib/catalog'
-import { rhythmLabel } from '../lib/cadence'
 import { IcBack, IcChevron } from '../components/icons'
 
 const stagger = { animate: { transition: { staggerChildren: 0.04 } } }
@@ -225,7 +224,7 @@ export function DoseCalendar() {
             {tracked.map(t => {
               const entry = PEPTIDES[t.product]
               const color = entry ? CATEGORY_COLOR[entry.cat] : 'var(--ink-300)'
-              const rhythm = entry ? rhythmLabel(entry) : '—'
+              const rhythm = cadenceLabel(t.cadence)
               return (
                 <div key={t.product} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span

@@ -34,31 +34,62 @@ export function diaTocaCatalog(d: Date, p: PeptideEntry, start: Date): boolean {
 
 // ── Cadencia del usuario (fuente de verdad real, P0-3) ─────────────────────────
 export function diaTocaCadence(d: Date, cad: UserCadence, start: Date): boolean {
+  const day = dayDiff(d, start)
+  if (day < 0) return false // no marcar días antes de iniciar el protocolo (fix red-team)
   const i = wdsIndex(d)
   switch (cad.mode) {
     case 'dia':
       return !!cad.days[i]
     case 'sem': {
-      const weeks = Math.floor(dayDiff(d, start) / 7)
+      const weeks = Math.floor(day / 7)
       return weeks % Math.max(1, cad.every) === 0 && !!cad.semDays[i]
     }
     case 'mes': {
       const months =
         (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth())
-      return months >= 0 && months % Math.max(1, cad.every) === 0 && d.getDate() === start.getDate()
+      // mes corto: si el día de inicio no existe (p.ej. 31), cae al último del mes
+      const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+      const targetDay = Math.min(start.getDate(), dim)
+      return months >= 0 && months % Math.max(1, cad.every) === 0 && d.getDate() === targetDay
     }
-    case 'cadaN': {
-      const day = dayDiff(d, start)
-      return day >= 0 && day % Math.max(1, cad.n ?? 1) === 0
-    }
+    case 'cadaN':
+      return day % Math.max(1, cad.n ?? 1) === 0
     case 'ciclo': {
       const m = (cad.on ?? 1) + (cad.off ?? 0)
-      const day = dayDiff(d, start)
-      const pos = ((day % m) + m) % m
+      const pos = day % m // day>=0 garantizado
       return pos < (cad.on ?? 1)
     }
     default:
       return false // 'uso'
+  }
+}
+
+// etiqueta legible de la cadencia REAL del usuario (no la del catálogo) — fix red-team #3
+export function cadenceLabel(cad: UserCadence): string {
+  switch (cad.mode) {
+    case 'uso':
+      return 'Por uso'
+    case 'cadaN':
+      return `Cada ${cad.n} días`
+    case 'ciclo':
+      return `${cad.on} on / ${cad.off} off`
+    case 'mes':
+      return cad.every > 1 ? `Cada ${cad.every} meses` : 'Cada mes'
+    case 'sem': {
+      const days = WDS.filter((_, i) => cad.semDays[i]).map(([l]) => l).join(' ')
+      const w = cad.every > 1 ? `Cada ${cad.every} sem` : 'Cada semana'
+      return days ? `${w} · ${days}` : w
+    }
+    case 'dia': {
+      const on = cad.days.filter(Boolean).length
+      if (on === 7) return 'Cada día'
+      const lv = cad.days[0] && cad.days[1] && cad.days[2] && cad.days[3] && cad.days[4] && !cad.days[5] && !cad.days[6]
+      if (lv) return 'Lun a Vie'
+      const days = WDS.filter((_, i) => cad.days[i]).map(([l]) => l).join(' ')
+      return days || 'Sin días'
+    }
+    default:
+      return 'Por uso'
   }
 }
 
