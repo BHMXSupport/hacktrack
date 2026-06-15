@@ -5,7 +5,7 @@ import { IcHome, IcDiary, IcProto, IcGear } from './icons'
 const TABS: [TabId, string, (p: { className?: string }) => JSX.Element][] = [
   ['inicio', 'Inicio', IcHome],
   ['diario', 'Diario', IcDiary],
-  ['protocolo', 'Protocolo', IcProto],
+  ['protocolo', 'Progreso', IcProto],
   ['ajustes', 'Ajustes', IcGear],
 ]
 
@@ -24,7 +24,7 @@ export function BottomNav() {
   )
   return (
     <nav className="bottomnav">
-      <button className="navfab" aria-label="Registrar dosis" onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}>
+      <button className="navfab" aria-label="Agregar registro" onClick={() => dispatch({ t: 'sheet', sheet: 'agregar' })}>
         +
       </button>
       {TABS.slice(0, 2).map(Tab)}

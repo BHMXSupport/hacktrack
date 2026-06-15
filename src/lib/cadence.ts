@@ -157,6 +157,20 @@ export function presetCad(p?: PeptideEntry): UserCadence {
   }
 }
 
+// matriz mensual (semanas L→D) para el calendario de dosis. null = celda de relleno.
+export function monthMatrix(year: number, month: number): (Date | null)[][] {
+  const first = new Date(year, month, 1)
+  const lead = (first.getDay() + 6) % 7 // 0=L … 6=D
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const cells: (Date | null)[] = []
+  for (let i = 0; i < lead; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d))
+  while (cells.length % 7 !== 0) cells.push(null)
+  const weeks: (Date | null)[][] = []
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+  return weeks
+}
+
 // tira de la semana actual (lunes ISO → domingo)
 export function weekStrip(today: Date): Date[] {
   const monday = startOfDay(today)

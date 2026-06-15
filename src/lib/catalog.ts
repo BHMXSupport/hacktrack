@@ -75,20 +75,31 @@ export const MEASURES_BY: Record<string, string[]> = {
   'Explorar':     ['Peso', 'Energía', 'Sueño'],
 }
 
+// Escalas subjetivas: 1–100 (decisión de Jan). Medidas objetivas: num → perfil.
 export const MEASURE_META: Record<string, MeasureMeta> = {
+  // objetivas (van al perfil; se capturan en "Cambio de medidas")
   'Peso':         { kind: 'num',   unit: 'kg', prof: 'peso' },
+  'Altura':       { kind: 'num',   unit: 'cm', prof: 'est' },
   'Cintura':      { kind: 'num',   unit: 'cm' },
   '% grasa':      { kind: 'num',   unit: '%',  prof: 'grasa' },
-  'Sueño':        { kind: 'num',   unit: 'h' },
-  'Dolor':        { kind: 'scale', max: 10 },
-  'Energía':      { kind: 'scale', max: 5 },
-  'Apetito':      { kind: 'scale', max: 5 },
-  'Movilidad':    { kind: 'scale', max: 5 },
-  'Foco':         { kind: 'scale', max: 5 },
-  'Ánimo':        { kind: 'scale', max: 5 },
-  'Textura piel': { kind: 'scale', max: 5 },
-  'Hidratación':  { kind: 'scale', max: 5 },
-  'Libido':       { kind: 'scale', max: 5 },
+  '% músculo':    { kind: 'num',   unit: '%',  prof: 'musculo' },
+  'IMC':          { kind: 'num' },
+  // subjetivas 1–100
+  'Energía':            { kind: 'scale', max: 100 },
+  'Estado de ánimo':    { kind: 'scale', max: 100 },
+  'Sueño':              { kind: 'scale', max: 100 },
+  'Dolor':              { kind: 'scale', max: 100 },
+  'Foco':               { kind: 'scale', max: 100 },
+  'Libido':             { kind: 'scale', max: 100 },
+  'Elasticidad piel':   { kind: 'scale', max: 100 },
+  'Recuperación muscular': { kind: 'scale', max: 100 },
+  'Efecto secundario':  { kind: 'scale', max: 100 },
+  // otras (compatibilidad)
+  'Apetito':      { kind: 'scale', max: 100 },
+  'Movilidad':    { kind: 'scale', max: 100 },
+  'Ánimo':        { kind: 'scale', max: 100 },
+  'Textura piel': { kind: 'scale', max: 100 },
+  'Hidratación':  { kind: 'scale', max: 100 },
 }
 
 // Icono/color por medida para el diario
@@ -106,7 +117,40 @@ export const MEASURE_ICON: Record<string, { ic: string; cat: string }> = {
   'Hidratación':  { ic: '💧', cat: '#D17FA0' },
   'Apetito':      { ic: '🍽️', cat: '#E85D3A' },
   'Libido':       { ic: '❤️', cat: '#9B5FC4' },
+  'Estado de ánimo':       { ic: '🙂', cat: '#A8842F' },
+  'Elasticidad piel':      { ic: '✨', cat: '#D17FA0' },
+  'Recuperación muscular': { ic: '🤸', cat: '#2FB57C' },
+  'Efecto secundario':     { ic: '⚠️', cat: '#E8A317' },
+  'Altura':       { ic: '📏', cat: '#7BC96F' },
+  '% músculo':    { ic: '💪', cat: '#1B8A7D' },
+  'IMC':          { ic: '🧮', cat: '#7BC96F' },
+  'Cambio de medidas': { ic: '📐', cat: '#1B8A7D' },
 }
+
+// KPIs del registro rápido ("+"): Dosis es el héroe (aparte). Estos son los 10 KPIs.
+export type KpiKind = 'medidas' | 'scale'
+export interface KpiDef { key: string; label: string; emoji: string; kind: KpiKind; color: string }
+export const KPIS: KpiDef[] = [
+  { key: 'Cambio de medidas',     label: 'Cambio de medidas',     emoji: '📐', kind: 'medidas', color: '#1B8A7D' },
+  { key: 'Energía',               label: 'Energía',               emoji: '⚡', kind: 'scale', color: '#FF7A59' },
+  { key: 'Estado de ánimo',       label: 'Estado de ánimo',       emoji: '🙂', kind: 'scale', color: '#A8842F' },
+  { key: 'Sueño',                 label: 'Sueño',                 emoji: '😴', kind: 'scale', color: '#5FC9B8' },
+  { key: 'Dolor',                 label: 'Dolor',                 emoji: '🩹', kind: 'scale', color: '#2FB57C' },
+  { key: 'Foco',                  label: 'Foco',                  emoji: '🎯', kind: 'scale', color: '#6B7BE8' },
+  { key: 'Libido',                label: 'Libido',                emoji: '❤️', kind: 'scale', color: '#9B5FC4' },
+  { key: 'Elasticidad piel',      label: 'Elasticidad de piel',   emoji: '✨', kind: 'scale', color: '#D17FA0' },
+  { key: 'Recuperación muscular', label: 'Recuperación muscular', emoji: '🤸', kind: 'scale', color: '#2FB57C' },
+  { key: 'Efecto secundario',     label: 'Efecto secundario',     emoji: '⚠️', kind: 'scale', color: '#E8A317' },
+]
+
+// Campos objetivos de "Cambio de medidas" (se guardan en el perfil; IMC se deriva)
+export interface MedidaField { key: keyof import('./types').Profile; label: string; unit: string }
+export const MEDIDAS_FIELDS: MedidaField[] = [
+  { key: 'peso',    label: 'Peso',                   unit: 'kg' },
+  { key: 'est',     label: 'Altura',                 unit: 'cm' },
+  { key: 'grasa',   label: '% grasa',                unit: '%' },
+  { key: 'musculo', label: '% masa musculoesquelética', unit: '%' },
+]
 
 // Tablas de días — iniciales canónicas (audit P2): L Ma Mi J V S D
 export const WDS: [string, number][] = [

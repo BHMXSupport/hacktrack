@@ -1,7 +1,7 @@
 // Hacktrack — store central (Context + reducer). Implementa los fixes P0 del audit.
 import { createContext, useContext } from 'react'
 import type {
-  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale,
+  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample,
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, dayLabel, fmtTime, startOfDay, weekStrip } from './cadence'
@@ -10,7 +10,8 @@ export type ScreenId =
   | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-import' | 's-app'
 export type TabId = 'inicio' | 'diario' | 'protocolo' | 'ajustes'
 export type SheetId =
-  | 'registrar' | 'calc' | 'medida' | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit'
+  | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar'
+  | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit'
 
 export interface AppState {
   todayTs: number
@@ -27,6 +28,7 @@ export interface AppState {
   log: LogGroup[]
   profile: Profile
   measureValues: Record<string, number>
+  history: Record<string, MeasureSample[]>   // serie temporal por KPI/medida (dashboard)
   settings: UserSettings
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
@@ -45,8 +47,9 @@ export const initialState: AppState = {
   protocol: null,
   importedProducts: [],
   log: [],                     // vacío para usuario nuevo (P0-2: racha honesta)
-  profile: { peso: null, est: null, grasa: null, bmi: null },
+  profile: { peso: null, est: null, grasa: null, musculo: null, bmi: null },
   measureValues: {},
+  history: {},
   settings: {
     pinEnabled: false,
     darkMode: false,
@@ -71,6 +74,7 @@ export type Action =
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string } // P0-1
   | { t: 'saveMeasure'; name: string; value: number }                 // P0-1
+  | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>> } // KPI compuesto
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
   | { t: 'setScale'; scale: SyringeScale }
@@ -87,6 +91,17 @@ function prependToLog(log: LogGroup[], label: string, range: number, item: LogIt
   if (idx === -1) return [{ day: label, range, items: [item] }, ...log]
   const next = log.slice()
   next[idx] = { ...next[idx], items: [item, ...next[idx].items] }
+  return next
+}
+
+function pushHistory(
+  hist: Record<string, MeasureSample[]>,
+  entries: { name: string; value: number; ts: number }[],
+): Record<string, MeasureSample[]> {
+  const next = { ...hist }
+  for (const e of entries) {
+    next[e.name] = [...(next[e.name] ?? []), { ts: e.ts, value: e.value }]
+  }
   return next
 }
 
@@ -229,10 +244,61 @@ export function reducer(s: AppState, a: Action): AppState {
         ...s,
         log: prependToLog(s.log, 'Hoy', 7, item),
         measureValues: { ...s.measureValues, [a.name]: a.value },
+        history: pushHistory(s.history, [{ name: a.name, value: a.value, ts: now.getTime() }]),
         profile,
         logged: true,
         sheet: null,
         toast: 'Medida registrada',
+      }
+    }
+
+    // KPI "Cambio de medidas": guarda peso/altura/grasa/músculo en el perfil + IMC, historial y diario
+    case 'saveMedidas': {
+      const now = new Date()
+      const profile = { ...s.profile, ...a.values }
+      // recalcula IMC si hay peso y altura
+      if (profile.peso != null && profile.est != null) {
+        const m = profile.est > 3 ? profile.est / 100 : profile.est
+        const v = profile.peso / (m * m)
+        profile.bmi = v > 0 && v < 150 ? Math.round(v * 10) / 10 : null
+      }
+      const ts = now.getTime()
+      const samples: { name: string; value: number; ts: number }[] = []
+      if (a.values.peso != null) samples.push({ name: 'Peso', value: a.values.peso, ts })
+      if (a.values.est != null) samples.push({ name: 'Altura', value: a.values.est, ts })
+      if (a.values.grasa != null) samples.push({ name: '% grasa', value: a.values.grasa, ts })
+      if (a.values.musculo != null) samples.push({ name: '% músculo', value: a.values.musculo, ts })
+      if (profile.bmi != null) samples.push({ name: 'IMC', value: profile.bmi, ts })
+
+      const parts: string[] = []
+      if (a.values.peso != null) parts.push(`${a.values.peso} kg`)
+      if (profile.bmi != null) parts.push(`IMC ${profile.bmi}`)
+      if (a.values.grasa != null) parts.push(`${a.values.grasa}% grasa`)
+      if (a.values.musculo != null) parts.push(`${a.values.musculo}% músculo`)
+
+      const item: LogItem = {
+        id: genId(),
+        t: fmtTime(now),
+        n: 'Cambio de medidas',
+        u: parts.join(' · ') || 'actualizado',
+        cat: '#1B8A7D',
+        ic: '📐',
+        type: 'medida',
+        ts,
+      }
+      return {
+        ...s,
+        log: prependToLog(s.log, 'Hoy', 7, item),
+        history: pushHistory(s.history, samples),
+        measureValues: {
+          ...s.measureValues,
+          ...(a.values.peso != null ? { Peso: a.values.peso } : {}),
+          ...(profile.bmi != null ? { IMC: profile.bmi } : {}),
+        },
+        profile,
+        logged: true,
+        sheet: null,
+        toast: 'Medidas actualizadas',
       }
     }
 
@@ -281,6 +347,30 @@ export function nextDose(s: AppState): Date | null {
     d = new Date(d.getTime() + 86400000)
   }
   return null
+}
+
+// productos a trackear con su cadencia, para el calendario dinámico:
+// el protocolo activo usa la cadencia del usuario; los demás importados usan la del catálogo.
+export interface Tracked { product: string; cadence: UserCadence; start: Date }
+export function trackedProtocols(s: AppState): Tracked[] {
+  const out: Tracked[] = []
+  const seen = new Set<string>()
+  const start = s.protocol ? new Date(s.protocol.startDate) : startOfDay(new Date(s.todayTs))
+  if (s.protocol) {
+    out.push({ product: s.protocol.product, cadence: s.protocol.cadence, start })
+    seen.add(s.protocol.product)
+  }
+  for (const p of s.importedProducts) {
+    if (seen.has(p) || !(p in PEPTIDES)) continue
+    out.push({ product: p, cadence: presetCad(PEPTIDES[p]), start })
+    seen.add(p)
+  }
+  return out
+}
+
+// qué productos tocan un día dado (calendario dinámico)
+export function productsOnDay(d: Date, tracked: Tracked[]): string[] {
+  return tracked.filter((t) => diaTocaCadence(d, t.cadence, t.start)).map((t) => t.product)
 }
 
 // ── Context ──────────────────────────────────────────────────────────────────

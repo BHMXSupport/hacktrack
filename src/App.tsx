@@ -8,7 +8,7 @@ import { Account } from './screens/Account'
 import { Import } from './screens/Import'
 import { Home } from './screens/Home'
 import { Diario } from './screens/Diario'
-import { Protocolo } from './screens/Protocolo'
+import { Progreso } from './screens/Progreso'
 import { Ajustes } from './screens/Ajustes'
 import { Perfil } from './screens/Perfil'
 import { Paywall } from './screens/Paywall'
@@ -19,6 +19,8 @@ import { MedidaSheet } from './sheets/Medida'
 import { ArcoSheet } from './sheets/Arco'
 import { ConfirmDeleteSheet } from './sheets/ConfirmDelete'
 import { ProtocoloEdit } from './sheets/ProtocoloEdit'
+import { Agregar } from './sheets/Agregar'
+import { Medidas } from './sheets/Medidas'
 
 const fade = {
   initial: { opacity: 0, x: 18 },
@@ -54,9 +56,11 @@ function Toast() {
 }
 
 const SHEETS = {
+  agregar: Agregar,
   registrar: RegistrarSheet,
   calc: CalcSheet,
   medida: MedidaSheet,
+  medidas: Medidas,
   arco: ArcoSheet,
   'confirm-delete': ConfirmDeleteSheet,
   'protocolo-edit': ProtocoloEdit,
@@ -69,7 +73,7 @@ function SheetHost() {
   return <AnimatePresence>{Comp && <Comp key={id} />}</AnimatePresence>
 }
 
-const TAB_SCREENS = { inicio: Home, diario: Diario, protocolo: Protocolo, ajustes: Ajustes }
+const TAB_SCREENS = { inicio: Home, diario: Diario, protocolo: Progreso, ajustes: Ajustes }
 
 function AppShell() {
   const { state } = useApp()

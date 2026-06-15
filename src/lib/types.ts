@@ -41,9 +41,16 @@ export interface MeasureMeta {
 
 export interface Profile {
   peso: number | null
-  est: number | null       // cm
-  grasa: number | null
+  est: number | null       // altura cm
+  grasa: number | null     // % grasa
+  musculo: number | null   // % masa musculoesquelética
   bmi: number | null       // derivado, nunca tecleado
+}
+
+// muestra histórica de una medida/KPI (para el dashboard de progreso)
+export interface MeasureSample {
+  ts: number
+  value: number
 }
 
 export type LogItemType = 'dose' | 'medida' | 'none'
