@@ -476,12 +476,12 @@ export function Ajustes() {
               </span>
             </div>
 
-            {/* Cerrar sesión — acción destructiva */}
+            {/* Cerrar sesión — vuelve a Iniciar sesión (conserva tus datos) */}
             <button
               className="row danger"
               style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
               aria-label="Cerrar sesión"
-              onClick={() => dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: '__logout' })}
+              onClick={() => dispatch({ t: 'go', screen: 's-login' })}
             >
               <RowIcon>
                 <svg

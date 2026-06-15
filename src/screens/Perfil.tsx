@@ -213,6 +213,23 @@ export function Perfil() {
                   <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
                 </span>
               </button>
+
+              {/* Cerrar sesión — vuelve a Iniciar sesión (conserva tus datos) */}
+              <button className="row" aria-label="Cerrar sesión" onClick={() => dispatch({ t: 'go', screen: 's-login' })}>
+                <span className="row-ic">
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="var(--brand-700)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </span>
+                <span className="row-main">
+                  <span className="row-label">Cerrar sesión</span>
+                </span>
+                <span className="row-end">
+                  <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
+                </span>
+              </button>
             </div>
           </section>
 

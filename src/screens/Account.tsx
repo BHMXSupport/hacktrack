@@ -15,9 +15,8 @@ export function Account() {
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (name.trim()) {
-      dispatch({ t: 'setName', name: name.trim() })
-    }
+    if (!name.trim()) return // el nombre es necesario para que quede en tu perfil
+    dispatch({ t: 'setName', name: name.trim() })
     dispatch({ t: 'tab', tab: 'inicio' })
     dispatch({ t: 'go', screen: 's-app' })
   }
@@ -152,7 +151,7 @@ export function Account() {
             className="field"
             type="text"
             autoComplete="given-name"
-            placeholder="Opcional"
+            placeholder="Tu nombre"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -228,7 +227,8 @@ export function Account() {
         <button
           type="submit"
           className="btn btn-brand"
-          style={{ height: 52, borderRadius: 16, fontSize: 16, marginTop: 4 }}
+          disabled={!name.trim()}
+          style={{ height: 52, borderRadius: 16, fontSize: 16, marginTop: 4, opacity: name.trim() ? 1 : 0.5, cursor: name.trim() ? 'pointer' : 'not-allowed' }}
         >
           Crear cuenta
         </button>
