@@ -1,7 +1,7 @@
 // Registrar dosis — bottom-sheet. Un solo archivo, sin props, usa useApp().
 // Compliance: sin jeringas (IcDrop/IcLeaf), el usuario teclea su dosis,
 // calculadora solo convierte, sin venta in-app, disclaimers presentes.
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
@@ -35,6 +35,18 @@ function buildProductList(importedProducts: string[]): string[] {
   const catalog = Object.keys(PEPTIDES)
   const all = [...new Set([...importedProducts, ...catalog])]
   return all
+}
+
+// parsea la etiqueta de la rueda ("9:05 AM") a un timestamp de hoy; 'Ahora' → undefined (usa now)
+function parseHora(label: string, todayTs: number): number | undefined {
+  if (label === 'Ahora') return undefined
+  const m = label.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!m) return undefined
+  let h = parseInt(m[1], 10) % 12
+  if (/pm/i.test(m[3])) h += 12
+  const d = new Date(todayTs)
+  d.setHours(h, parseInt(m[2], 10), 0, 0)
+  return d.getTime()
 }
 
 export function RegistrarSheet() {
@@ -86,9 +98,13 @@ export function RegistrarSheet() {
     })
   }
 
-  // ── Dosis — campo controlado, NUNCA precargado ────────────────────────────
-  const [dose, setDose] = useState('')
-  const [unit, setUnit] = useState<DoseUnit>('mg')
+  // ── Dosis — campo controlado. Solo se precarga desde la calculadora del usuario (su propio cálculo) ──
+  const [dose, setDose] = useState(() => (state.draftDose ? String(state.draftDose.value) : ''))
+  const [unit, setUnit] = useState<DoseUnit>(() => (state.draftDose?.unit as DoseUnit) ?? 'mg')
+  useEffect(() => {
+    if (state.draftDose) dispatch({ t: 'setDraftDose', draft: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function stepDose(delta: number) {
     const current = parseFloat(dose) || 0
@@ -123,13 +139,17 @@ export function RegistrarSheet() {
     if (saving) return
     setSaving(true)
     const finalProduct = product || 'Mi producto'
+    const ts = parseHora(hora, state.todayTs) // respeta la hora elegida en la rueda
     window.setTimeout(() => {
-      if (state.protocol) dispatch({ t: 'setCadence', cadence: localCad })
+      // solo persistir la cadencia si el producto ES el del protocolo activo (fix red-team)
+      if (state.protocol && state.protocol.product === finalProduct) {
+        dispatch({ t: 'setCadence', cadence: localCad })
+      }
       // Registrar dosis (P0-1: entra al diario + racha + activa dash)
-      dispatch({ t: 'logDose', product: finalProduct, value: parseFloat(dose) || null, unit })
+      dispatch({ t: 'logDose', product: finalProduct, value: parseFloat(dose) || null, unit, ts })
       dispatch({ t: 'sheet', sheet: null })
     }, 640)
-  }, [saving, state.protocol, localCad, product, dose, unit, dispatch])
+  }, [saving, state.protocol, localCad, product, dose, unit, hora, state.todayTs, dispatch])
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (

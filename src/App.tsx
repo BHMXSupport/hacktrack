@@ -1,7 +1,23 @@
 import { useReducer, useEffect } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { AppContext, reducer, initialState, useApp } from './lib/store'
+import type { AppState } from './lib/store'
+import { startOfDay } from './lib/cadence'
 import { sharedAxisX, spring } from './lib/motion'
+
+// ── persistencia local (PWA: no perder datos al refrescar) ──
+const STORAGE_KEY = 'hacktrack:v1'
+function loadState(): AppState {
+  const fresh = { ...initialState, todayTs: startOfDay(new Date()).getTime() }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return fresh
+    const saved = JSON.parse(raw)
+    return { ...fresh, ...saved, sheet: null, toast: null, todayTs: fresh.todayTs }
+  } catch {
+    return fresh
+  }
+}
 import { Splash } from './screens/Splash'
 import { Onboarding } from './screens/Onboarding'
 import { Goal } from './screens/Goal'
@@ -126,7 +142,33 @@ function Root() {
 }
 
 export function App() {
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [state, dispatch] = useReducer(reducer, initialState, loadState)
+
+  // persistir estado (excepto efímeros) en cada cambio
+  useEffect(() => {
+    try {
+      const { sheet: _s, toast: _t, ...persist } = state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persist))
+    } catch { /* almacenamiento lleno o no disponible */ }
+  }, [state])
+
+  // refrescar "hoy" al cruzar medianoche (sesiones largas)
+  useEffect(() => {
+    let timer: number
+    const schedule = () => {
+      const now = new Date()
+      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5).getTime()
+      timer = window.setTimeout(() => { dispatch({ t: 'tick' }); schedule() }, next - now.getTime())
+    }
+    schedule()
+    return () => clearTimeout(timer)
+  }, [])
+
+  // tema claro/oscuro real
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', state.settings.darkMode ? 'dark' : 'light')
+  }, [state.settings.darkMode])
+
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       <MotionConfig reducedMotion="user">

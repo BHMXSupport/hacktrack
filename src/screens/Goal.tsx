@@ -51,7 +51,7 @@ export function Goal() {
         style={{ textAlign: 'center', padding: '28px 18px 20px' }}
       >
         <div className="h1" style={{ color: 'var(--brand-700)', marginBottom: 8 }}>
-          ¿Que quieres lograr?
+          ¿Qué quieres lograr?
         </div>
         <div className="body" style={{ color: 'var(--ink-400)', maxWidth: 340, margin: '0 auto' }}>
           Elige tu enfoque principal para personalizar tu experiencia.
@@ -153,7 +153,7 @@ export function Goal() {
           Continuar
         </button>
         <p className="sm" style={{ marginTop: 14, color: 'var(--ink-400)' }}>
-          Podras ajustar esto mas adelante.
+          Podrás ajustar esto más adelante.
         </p>
       </div>
     </div>

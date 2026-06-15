@@ -224,7 +224,7 @@ export function Ajustes() {
               className="row danger"
               style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
               aria-label="Cerrar sesión"
-              onClick={() => dispatch({ t: 'reset' })}
+              onClick={() => dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: '__logout' })}
             >
               <span className="row-ic">
                 <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

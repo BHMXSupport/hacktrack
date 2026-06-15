@@ -1,10 +1,11 @@
-// Hacktrack — store central (Context + reducer). Implementa los fixes P0 del audit.
+// Hacktrack — store central (Context + reducer). Implementa los fixes P0 + endurecimiento del audit.
 import { createContext, useContext } from 'react'
 import type {
   Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample,
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
-import { presetCad, diaTocaCadence, dayLabel, fmtTime, startOfDay, weekStrip } from './cadence'
+import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
+import { bmiCalc } from './bmi'
 
 export type ScreenId =
   | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-login' | 's-import' | 's-app'
@@ -33,6 +34,7 @@ export interface AppState {
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
   scale: SyringeScale          // escala de jeringa de la calculadora (P0-6)
+  draftDose: { value: number; unit: string } | null  // "copiar a mi registro" desde la calc
   toast: string | null
 }
 
@@ -60,6 +62,7 @@ export const initialState: AppState = {
   },
   logged: false,
   scale: 100,
+  draftDose: null,
   toast: null,
 }
 
@@ -67,17 +70,19 @@ export type Action =
   | { t: 'go'; screen: ScreenId }
   | { t: 'tab'; tab: TabId }
   | { t: 'sheet'; sheet: SheetId | null; arg?: string | null }
+  | { t: 'tick' }                                                     // refresca todayTs (medianoche)
   | { t: 'pickGoal'; cat: Category }                                   // P0-4
   | { t: 'setProtocol'; product: string }
   | { t: 'setCadence'; cadence: UserCadence }                          // P0-3
   | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar protocolo (tunear)
   | { t: 'importProducts'; names: string[] }
-  | { t: 'logDose'; product: string; value: number | null; unit: string } // P0-1
-  | { t: 'saveMeasure'; name: string; value: number; nota?: string }  // P0-1
-  | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>> } // KPI compuesto
+  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number } // P0-1
+  | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
+  | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
   | { t: 'setScale'; scale: SyringeScale }
+  | { t: 'setDraftDose'; draft: { value: number; unit: string } | null }
   | { t: 'arcoDelete' }                                               // P0-5
   | { t: 'reset' }                                                    // P1-7
   | { t: 'toast'; msg: string | null }
@@ -86,12 +91,25 @@ export type Action =
 let _seq = 0
 const genId = () => `it_${Date.now().toString(36)}_${_seq++}`
 
-function prependToLog(log: LogGroup[], label: string, range: number, item: LogItem): LogGroup[] {
-  const idx = log.findIndex((g) => g.day === label)
-  if (idx === -1) return [{ day: label, range, items: [item] }, ...log]
-  const next = log.slice()
-  next[idx] = { ...next[idx], items: [item, ...next[idx].items] }
-  return next
+// clave de fecha local estable 'YYYY-MM-DD' (identidad del grupo del diario)
+export function isoKey(ts: number): string {
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const HISTORY_CAP = 365
+
+function prependToLog(log: LogGroup[], item: LogItem): LogGroup[] {
+  const key = isoKey(item.ts)
+  const idx = log.findIndex((g) => g.dateKey === key)
+  let next: LogGroup[]
+  if (idx === -1) {
+    next = [...log, { dateKey: key, items: [item] }]
+  } else {
+    next = log.slice()
+    next[idx] = { ...next[idx], items: [item, ...next[idx].items].sort((a, b) => b.ts - a.ts) }
+  }
+  return next.sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1)) // más reciente primero
 }
 
 function pushHistory(
@@ -100,32 +118,30 @@ function pushHistory(
 ): Record<string, MeasureSample[]> {
   const next = { ...hist }
   for (const e of entries) {
-    next[e.name] = [...(next[e.name] ?? []), { ts: e.ts, value: e.value }]
+    const arr = [...(next[e.name] ?? []), { ts: e.ts, value: e.value }].sort((a, b) => a.ts - b.ts)
+    next[e.name] = arr.length > HISTORY_CAP ? arr.slice(arr.length - HISTORY_CAP) : arr
   }
   return next
 }
 
-// P0-2: racha = días consecutivos (desde hoy hacia atrás) con al menos una dosis registrada
+// P0-2: racha = días consecutivos (desde hoy hacia atrás) con ≥1 dosis — por clave de fecha estable
 export function computeStreak(log: LogGroup[], today: Date): number {
   let count = 0
   let d = startOfDay(today)
   for (;;) {
-    const label = dayLabel(d, today)
-    const group = log.find((g) => g.day === label)
-    const hasDose = group?.items.some((it) => it.type === 'dose')
-    if (!hasDose) break
+    const g = log.find((x) => x.dateKey === isoKey(d.getTime()))
+    if (!g?.items.some((it) => it.type === 'dose')) break
     count++
     d = new Date(d.getTime() - 86400000)
   }
   return count
 }
 
-// estado on/off de la tira semanal (cualquier registro ese día)
+// estado on/off de la tira semanal (cualquier registro ese día) — por clave de fecha
 export function weekStatus(log: LogGroup[], today: Date): boolean[] {
   return weekStrip(today).map((d) => {
-    const label = dayLabel(d, today)
-    const group = log.find((g) => g.day === label)
-    return !!group && group.items.length > 0
+    const g = log.find((x) => x.dateKey === isoKey(d.getTime()))
+    return !!g && g.items.length > 0
   })
 }
 
@@ -134,6 +150,19 @@ export const STREAK_GOAL = 30
 function fmtMeasureValue(name: string, v: number): string {
   const meta = MEASURE_META[name] ?? { kind: 'scale' as const, max: 100 }
   return meta.kind === 'scale' ? `${v} / ${meta.max}` : `${v}${meta.unit ? ' ' + meta.unit : ''}`
+}
+
+function freshProtocol(product: string, todayTs: number): UserProtocol | null {
+  const entry = PEPTIDES[product]
+  if (!entry) return null
+  return {
+    product,
+    cadence: presetCad(entry),
+    progOn: false,
+    progN: entry.phases ?? 2,
+    curPhase: 0,
+    startDate: startOfDay(new Date(todayTs)).getTime(),
+  }
 }
 
 // ── reducer ──────────────────────────────────────────────────────────────────
@@ -145,6 +174,8 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, tab: a.tab, sheet: null }
     case 'sheet':
       return { ...s, sheet: a.sheet, sheetArg: a.arg ?? null }
+    case 'tick':
+      return { ...s, todayTs: startOfDay(new Date()).getTime() }
 
     // P0-4: el objetivo configura SOLO las medidas; nunca precarga un producto
     case 'pickGoal':
@@ -155,48 +186,28 @@ export function reducer(s: AppState, a: Action): AppState {
       }
 
     case 'setProtocol': {
-      const entry = PEPTIDES[a.product]
-      if (!entry) return s
-      const protocol: UserProtocol = {
-        product: a.product,
-        cadence: presetCad(entry),
-        progOn: false,
-        progN: entry.phases ?? 2,
-        curPhase: 0,
-        startDate: startOfDay(new Date(s.todayTs)).getTime(),
-      }
-      // el producto puede afinar las medidas mostradas, pero no cambia el objetivo del usuario
-      return { ...s, protocol }
+      const protocol = freshProtocol(a.product, s.todayTs)
+      return protocol ? { ...s, protocol } : s
     }
 
     // P0-3: la cadencia editada por el usuario es la fuente de verdad
     case 'setCadence':
       return s.protocol ? { ...s, protocol: { ...s.protocol, cadence: a.cadence } } : s
 
-    // tunear el protocolo (cadencia, fases, etc.) — punto 4
+    // tunear el protocolo (cadencia, fases, etc.)
     case 'updateProtocol':
       return s.protocol ? { ...s, protocol: { ...s.protocol, ...a.patch } } : s
 
     case 'importProducts': {
-      const products = a.names.filter((n) => n in PEPTIDES)
-      const first = products[0]
-      let protocol = s.protocol
-      if (!protocol && first) {
-        protocol = {
-          product: first,
-          cadence: presetCad(PEPTIDES[first]),
-          progOn: false,
-          progN: PEPTIDES[first].phases ?? 2,
-          curPhase: 0,
-          startDate: startOfDay(new Date(s.todayTs)).getTime(),
-        }
-      }
+      // fusiona (no reemplaza) — fix red-team
+      const products = [...new Set([...s.importedProducts, ...a.names.filter((n) => n in PEPTIDES)])]
+      const protocol = s.protocol ?? (products[0] ? freshProtocol(products[0], s.todayTs) : null)
       return { ...s, importedProducts: products, protocol }
     }
 
-    // P0-1: la dosis tecleada ENTRA al diario; activa dashboard; suma racha
+    // P0-1: la dosis tecleada ENTRA al diario; activa dashboard; suma racha. Respeta la hora elegida.
     case 'logDose': {
-      const now = new Date()
+      const now = a.ts ? new Date(a.ts) : new Date()
       const item: LogItem = {
         id: genId(),
         t: fmtTime(now),
@@ -207,18 +218,12 @@ export function reducer(s: AppState, a: Action): AppState {
         type: 'dose',
         ts: now.getTime(),
       }
-      return {
-        ...s,
-        log: prependToLog(s.log, 'Hoy', 7, item),
-        logged: true,
-        sheet: null,
-        toast: 'Registro guardado 🎉',
-      }
+      return { ...s, log: prependToLog(s.log, item), logged: true, sheet: null, toast: 'Registro guardado 🎉' }
     }
 
     // P0-1 + P1-5: las medidas también entran al diario y activan el dashboard
     case 'saveMeasure': {
-      const now = new Date()
+      const now = a.ts ? new Date(a.ts) : new Date()
       const ic = MEASURE_ICON[a.name] ?? { ic: '•', cat: '#5FC9B8' }
       const item: LogItem = {
         id: genId(),
@@ -234,15 +239,11 @@ export function reducer(s: AppState, a: Action): AppState {
       const profile = { ...s.profile }
       if (meta?.prof) {
         profile[meta.prof] = a.value as never
-        if (profile.peso != null && profile.est != null) {
-          const m = profile.est > 3 ? profile.est / 100 : profile.est
-          const v = profile.peso / (m * m)
-          profile.bmi = v > 0 && v < 150 ? Math.round(v * 10) / 10 : null
-        }
+        if (profile.peso != null && profile.est != null) profile.bmi = bmiCalc(profile.peso, profile.est)
       }
       return {
         ...s,
-        log: prependToLog(s.log, 'Hoy', 7, item),
+        log: prependToLog(s.log, item),
         measureValues: { ...s.measureValues, [a.name]: a.value },
         history: pushHistory(s.history, [{ name: a.name, value: a.value, ts: now.getTime() }]),
         profile,
@@ -254,21 +255,17 @@ export function reducer(s: AppState, a: Action): AppState {
 
     // KPI "Cambio de medidas": guarda peso/altura/grasa/músculo en el perfil + IMC, historial y diario
     case 'saveMedidas': {
-      const now = new Date()
+      const now = a.ts ? new Date(a.ts) : new Date()
       const profile = { ...s.profile, ...a.values }
-      // recalcula IMC si hay peso y altura
-      if (profile.peso != null && profile.est != null) {
-        const m = profile.est > 3 ? profile.est / 100 : profile.est
-        const v = profile.peso / (m * m)
-        profile.bmi = v > 0 && v < 150 ? Math.round(v * 10) / 10 : null
-      }
+      if (profile.peso != null && profile.est != null) profile.bmi = bmiCalc(profile.peso, profile.est)
       const ts = now.getTime()
       const samples: { name: string; value: number; ts: number }[] = []
-      if (a.values.peso != null) samples.push({ name: 'Peso', value: a.values.peso, ts })
-      if (a.values.est != null) samples.push({ name: 'Altura', value: a.values.est, ts })
-      if (a.values.grasa != null) samples.push({ name: '% grasa', value: a.values.grasa, ts })
-      if (a.values.musculo != null) samples.push({ name: '% músculo', value: a.values.musculo, ts })
-      if (profile.bmi != null) samples.push({ name: 'IMC', value: profile.bmi, ts })
+      const mv: Record<string, number> = { ...s.measureValues }
+      if (a.values.peso != null) { samples.push({ name: 'Peso', value: a.values.peso, ts }); mv['Peso'] = a.values.peso }
+      if (a.values.est != null) { samples.push({ name: 'Altura', value: a.values.est, ts }); mv['Altura'] = a.values.est }
+      if (a.values.grasa != null) { samples.push({ name: '% grasa', value: a.values.grasa, ts }); mv['% grasa'] = a.values.grasa }
+      if (a.values.musculo != null) { samples.push({ name: '% músculo', value: a.values.musculo, ts }); mv['% músculo'] = a.values.musculo }
+      if (profile.bmi != null) { samples.push({ name: 'IMC', value: profile.bmi, ts }); mv['IMC'] = profile.bmi }
 
       const parts: string[] = []
       if (a.values.peso != null) parts.push(`${a.values.peso} kg`)
@@ -277,24 +274,14 @@ export function reducer(s: AppState, a: Action): AppState {
       if (a.values.musculo != null) parts.push(`${a.values.musculo}% músculo`)
 
       const item: LogItem = {
-        id: genId(),
-        t: fmtTime(now),
-        n: 'Cambio de medidas',
-        u: parts.join(' · ') || 'actualizado',
-        cat: '#1B8A7D',
-        ic: '📐',
-        type: 'medida',
-        ts,
+        id: genId(), t: fmtTime(now), n: 'Cambio de medidas', u: parts.join(' · ') || 'actualizado',
+        cat: '#1B8A7D', ic: '📐', type: 'medida', ts,
       }
       return {
         ...s,
-        log: prependToLog(s.log, 'Hoy', 7, item),
+        log: prependToLog(s.log, item),
         history: pushHistory(s.history, samples),
-        measureValues: {
-          ...s.measureValues,
-          ...(a.values.peso != null ? { Peso: a.values.peso } : {}),
-          ...(profile.bmi != null ? { IMC: profile.bmi } : {}),
-        },
+        measureValues: mv,
         profile,
         logged: true,
         sheet: null,
@@ -302,24 +289,33 @@ export function reducer(s: AppState, a: Action): AppState {
       }
     }
 
-    // P1-1: borrar un registro de verdad
+    // P1-1: borrar un registro de verdad + reconciliar history/measureValues
     case 'deleteLog': {
+      let deleted: LogItem | undefined
+      for (const g of s.log) { const it = g.items.find((i) => i.id === a.id); if (it) { deleted = it; break } }
       const log = s.log
         .map((g) => ({ ...g, items: g.items.filter((it) => it.id !== a.id) }))
         .filter((g) => g.items.length > 0)
-      return { ...s, log, sheet: null }
+      let history = s.history
+      if (deleted?.type === 'medida') {
+        history = {}
+        for (const k of Object.keys(s.history)) history[k] = s.history[k].filter((sm) => sm.ts !== deleted!.ts)
+      }
+      return { ...s, log, history, logged: log.length > 0, sheet: null }
     }
 
     case 'setSetting':
       return { ...s, settings: { ...s.settings, [a.key]: a.value } }
     case 'setScale':
       return { ...s, scale: a.scale }
+    case 'setDraftDose':
+      return { ...s, draftDose: a.draft }
 
     // P0-5: Cancelación ARCO / borrar cuenta — borra datos de verdad y reinicia
     case 'arcoDelete':
       return {
         ...initialState,
-        todayTs: s.todayTs,
+        todayTs: startOfDay(new Date()).getTime(),
         screen: 's-onboarding',
         settings: { ...initialState.settings, consentActive: false },
         toast: 'Tus datos fueron borrados.',
@@ -327,7 +323,7 @@ export function reducer(s: AppState, a: Action): AppState {
 
     // P1-7: reinicio total de estado (logout / rehacer onboarding)
     case 'reset':
-      return { ...initialState, todayTs: s.todayTs, screen: 's-onboarding' }
+      return { ...initialState, todayTs: startOfDay(new Date()).getTime(), screen: 's-onboarding' }
 
     case 'toast':
       return { ...s, toast: a.msg }

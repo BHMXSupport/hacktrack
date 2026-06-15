@@ -47,7 +47,7 @@ export function ArcoSheet() {
         <button
           className="row"
           style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}
-          onClick={() => dispatch({ t: 'sheet', sheet: 'medida' })}
+          onClick={() => dispatch({ t: 'sheet', sheet: 'medidas' })}
         >
           <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
             <IcShield size={20} />

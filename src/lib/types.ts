@@ -67,8 +67,7 @@ export interface LogItem {
 }
 
 export interface LogGroup {
-  day: string      // 'Hoy' | 'Ayer' | 'Vie 12 jun'
-  range: number    // 7 | 30 (bucket de filtro)
+  dateKey: string  // 'YYYY-MM-DD' local — identidad ESTABLE (no la etiqueta relativa, fix red-team)
   items: LogItem[]
 }
 

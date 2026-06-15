@@ -177,7 +177,7 @@ export function Perfil() {
               </button>
 
               {/* Aviso de privacidad */}
-              <button className="row">
+              <button className="row" onClick={() => dispatch({ t: 'toast', msg: 'Aviso de privacidad — próximamente' })}>
                 <span className="row-ic">
                   <IcShield size={18} style={{ color: 'var(--brand-700)' }} />
                 </span>
@@ -205,7 +205,7 @@ export function Perfil() {
             </div>
             <div className="rowlist">
               {/* Información personal */}
-              <button className="row">
+              <button className="row" onClick={() => dispatch({ t: 'sheet', sheet: 'medidas' })}>
                 <span className="row-ic">
                   <IcShield size={18} style={{ color: 'var(--brand-700)' }} />
                 </span>
@@ -218,7 +218,7 @@ export function Perfil() {
               </button>
 
               {/* Seguridad y contraseña */}
-              <button className="row">
+              <button className="row" onClick={() => dispatch({ t: 'toast', msg: 'Seguridad y contraseña — próximamente' })}>
                 <span className="row-ic">
                   <IcShield size={18} style={{ color: 'var(--brand-700)' }} />
                 </span>

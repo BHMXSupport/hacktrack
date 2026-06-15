@@ -34,6 +34,7 @@ export function CalcSheet() {
 
   function handleCopy() {
     if (!r) return
+    dispatch({ t: 'setDraftDose', draft: { value: r.ui, unit: 'UI' } }) // precarga la dosis en Registrar
     dispatch({ t: 'toast', msg: copyToRegisterToast(r) })
     dispatch({ t: 'sheet', sheet: 'registrar' })
   }

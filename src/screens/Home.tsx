@@ -41,16 +41,6 @@ function kpiUnit(name: string, measureValues: Record<string, number>): string {
   return meta.unit ?? ''
 }
 
-/** Genera datos históricos sintéticos para sparkline/lineChart a partir de measureValues. */
-function syntheticHistory(value: number): number[] {
-  // Genera 7 puntos plausibles alrededor del valor actual para mostrar tendencia.
-  // No son datos reales; se usan solo si el log no tiene histórico de la medida.
-  const jitter = value * 0.08
-  return Array.from({ length: 7 }, (_, i) =>
-    i === 6 ? value : value + (Math.sin(i * 1.3) * jitter),
-  )
-}
-
 // ── componente ───────────────────────────────────────────────────────────────
 
 export function Home() {
@@ -365,9 +355,8 @@ export function Home() {
               const hasValue = state.measureValues[m] != null
               const hero = kpiHero(m, state.measureValues)
               const unit = kpiUnit(m, state.measureValues)
-              const sparkData = hasValue
-                ? syntheticHistory(state.measureValues[m])
-                : [0, 0, 0]
+              const realSeries = (state.history[m] ?? []).map((s) => s.value)
+              const sparkData = realSeries.length >= 2 ? realSeries : null
 
               return (
                 <div
@@ -410,7 +399,7 @@ export function Home() {
                       </span>
                     )}
                   </div>
-                  {hasValue && (
+                  {sparkData && (
                     <div style={{ marginTop: 10 }}>
                       <Sparkline data={sparkData} color={catColor} w={76} h={28} />
                     </div>
@@ -421,8 +410,8 @@ export function Home() {
           </motion.section>
         )}
 
-        {/* ── 6. LineChart "tus datos" (solo si hay dato numérico) ───── */}
-        {numMeasure && state.logged && (
+        {/* ── 6. LineChart "tus datos" (SOLO datos reales, ≥2 muestras) ───── */}
+        {numMeasure && (state.history[numMeasure]?.length ?? 0) >= 2 && (
           <motion.section variants={item} className="card">
             <div
               style={{
@@ -440,10 +429,9 @@ export function Home() {
               </span>
             </div>
             <LineChart
-              data={syntheticHistory(state.measureValues[numMeasure]!)}
+              data={(state.history[numMeasure] ?? []).map((s) => s.value)}
               color={catColor}
               h={120}
-              labels={['hace 7d', 'hoy']}
             />
           </motion.section>
         )}

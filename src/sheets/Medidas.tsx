@@ -22,12 +22,15 @@ export function Medidas() {
     setVals((prev) => ({ ...prev, [key]: value }))
   }
 
+  const values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>> = {}
+  for (const f of MEDIDAS_FIELDS) {
+    const n = parseFloat(vals[f.key as string] ?? '')
+    if (!isNaN(n)) (values as Record<string, number>)[f.key as string] = n
+  }
+  const hasAny = Object.keys(values).length > 0
+
   function handleSave() {
-    const values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>> = {}
-    for (const f of MEDIDAS_FIELDS) {
-      const n = parseFloat(vals[f.key as string] ?? '')
-      if (!isNaN(n)) (values as Record<string, number>)[f.key as string] = n
-    }
+    if (!hasAny) return // no guardar entradas vacías (fix red-team)
     dispatch({ t: 'saveMedidas', values })
   }
 
@@ -103,7 +106,8 @@ export function Medidas() {
         <button
           className="btn btn-brand"
           onClick={handleSave}
-          style={{ marginTop: 4 }}
+          disabled={!hasAny}
+          style={{ marginTop: 4, opacity: hasAny ? 1 : 0.45, cursor: hasAny ? 'pointer' : 'not-allowed' }}
         >
           Guardar medidas
         </button>

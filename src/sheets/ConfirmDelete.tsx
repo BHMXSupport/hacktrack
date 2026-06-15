@@ -11,27 +11,23 @@ const CONFIRM_WORD = 'BORRAR'
 export function ConfirmDeleteSheet() {
   const { state, dispatch } = useApp()
   const isAccount = state.sheetArg === '__account'
+  const isLogout = state.sheetArg === '__logout'
 
   const [typed, setTyped] = useState('')
   const confirmed = isAccount ? typed === CONFIRM_WORD : true
 
   function handleCancel() {
-    dispatch({
-      t: 'sheet',
-      sheet: isAccount ? 'perfil' : null,
-    })
+    dispatch({ t: 'sheet', sheet: isAccount ? 'perfil' : null })
   }
 
   function handleDelete() {
     if (!confirmed) return
-    if (isAccount) {
-      dispatch({ t: 'arcoDelete' })
-    } else if (state.sheetArg) {
-      dispatch({ t: 'deleteLog', id: state.sheetArg })
-    }
+    if (isAccount) dispatch({ t: 'arcoDelete' })
+    else if (isLogout) dispatch({ t: 'reset' })
+    else if (state.sheetArg) dispatch({ t: 'deleteLog', id: state.sheetArg })
   }
 
-  const title = isAccount ? 'Borrar mi cuenta' : 'Borrar registro'
+  const title = isAccount ? 'Borrar mi cuenta' : isLogout ? 'Cerrar sesión' : 'Borrar registro'
 
   return (
     <Sheet title={title} onClose={handleCancel}>
@@ -47,6 +43,11 @@ export function ConfirmDeleteSheet() {
           {isAccount ? (
             <p className="body" style={{ margin: 0, color: 'var(--ink-700)' }}>
               Esta acción eliminará todos tus datos de forma permanente: registros, protocolo, perfil y configuración.{' '}
+              <strong>No se puede deshacer.</strong>
+            </p>
+          ) : isLogout ? (
+            <p className="body" style={{ margin: 0, color: 'var(--ink-700)' }}>
+              Se cerrará tu sesión y se borrarán los datos guardados en este dispositivo.{' '}
               <strong>No se puede deshacer.</strong>
             </p>
           ) : (
@@ -106,7 +107,7 @@ export function ConfirmDeleteSheet() {
             aria-disabled={!confirmed}
             onClick={handleDelete}
           >
-            {isAccount ? 'Borrar definitivamente' : 'Borrar'}
+            {isAccount ? 'Borrar definitivamente' : isLogout ? 'Cerrar sesión' : 'Borrar'}
           </button>
 
           <button

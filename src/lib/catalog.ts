@@ -59,7 +59,7 @@ export const CATEGORY_EMOJI: Record<Category, string> = {
 
 export const MEASURES_ALL = [
   'Peso', 'Cintura', '% grasa', 'Energía', 'Apetito',
-  'Dolor', 'Movilidad', 'Sueño', 'Foco', 'Ánimo',
+  'Dolor', 'Movilidad', 'Sueño', 'Foco', 'Estado de ánimo',
   'Textura piel', 'Hidratación', 'Libido',
 ] as const
 
@@ -97,7 +97,6 @@ export const MEASURE_META: Record<string, MeasureMeta> = {
   // otras (compatibilidad)
   'Apetito':      { kind: 'scale', max: 100 },
   'Movilidad':    { kind: 'scale', max: 100 },
-  'Ánimo':        { kind: 'scale', max: 100 },
   'Textura piel': { kind: 'scale', max: 100 },
   'Hidratación':  { kind: 'scale', max: 100 },
 }
@@ -108,7 +107,6 @@ export const MEASURE_ICON: Record<string, { ic: string; cat: string }> = {
   'Energía':      { ic: '⚡', cat: '#FF7A59' },
   'Sueño':        { ic: '😴', cat: '#5FC9B8' },
   'Foco':         { ic: '🎯', cat: '#6B7BE8' },
-  'Ánimo':        { ic: '🙂', cat: '#A8842F' },
   'Dolor':        { ic: '🩹', cat: '#2FB57C' },
   'Movilidad':    { ic: '🤸', cat: '#2FB57C' },
   'Cintura':      { ic: '📏', cat: '#7BC96F' },

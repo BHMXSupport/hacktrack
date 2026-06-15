@@ -2,8 +2,14 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { Chip, Segmented, Disclaimer } from '../components/controls'
+import { dayLabel } from '../lib/cadence'
 import { MON, WD } from '../lib/catalog'
 import type { LogItem } from '../lib/types'
+
+// etiqueta humana del grupo a partir de su clave de fecha estable
+function groupLabel(dateKey: string, todayTs: number): string {
+  return dayLabel(new Date(dateKey + 'T00:00:00'), new Date(todayTs))
+}
 
 // ── animación stagger ────────────────────────────────────────────────────────
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
@@ -145,12 +151,13 @@ export function Diario() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todo')
   const [rangeFilter, setRangeFilter] = useState<RangeFilter>(7)
 
-  // filtrado: rango primero, luego tipo
+  // filtrado por FECHA real (item.ts) dentro del rango, luego por tipo
+  const cutoff = state.todayTs - rangeFilter * 86400000
   const filtered = state.log
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
-        if (g.range > rangeFilter) return false
+        if (it.ts < cutoff) return false
         if (typeFilter === 'todo') return true
         return it.type === typeFilter
       }),
@@ -262,7 +269,7 @@ export function Diario() {
             />
 
             {filtered.map((group) => (
-              <motion.div key={group.day} variants={itemAnim} style={{ marginBottom: 24 }}>
+              <motion.div key={group.dateKey} variants={itemAnim} style={{ marginBottom: 24 }}>
                 {/* cabecera del grupo */}
                 <div
                   className="sm"
@@ -276,7 +283,7 @@ export function Diario() {
                     fontSize: 11,
                   }}
                 >
-                  {group.day}
+                  {groupLabel(group.dateKey, state.todayTs)}
                 </div>
 
                 {/* items del grupo */}
