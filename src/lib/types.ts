@@ -1,0 +1,102 @@
+// Hacktrack — tipos centrales (port del prototipo, con los fixes del audit)
+
+export type Category =
+  | 'Metabolismo'
+  | 'Recuperación'
+  | 'Cognitivo'
+  | 'Piel'
+  | 'Anti-Aging'
+  | 'Crecimiento'
+  | 'Reproductivo'
+  | 'Explorar'
+
+export type CadenceType =
+  | 'diaria'        // cada día
+  | 'lv'            // lunes a viernes
+  | 'semanal'       // una vez por semana, día fijo
+  | 'cadaN'         // cada N días
+  | 'ciclo'         // on/off
+  | 'por-demanda'   // por uso, sin días fijos
+
+export interface PeptideEntry {
+  cat: Category
+  type: CadenceType
+  weekday?: number    // 0=Dom…6=Sáb (solo 'semanal')
+  n?: number          // intervalo (solo 'cadaN')
+  on?: number         // días on (solo 'ciclo')
+  off?: number        // días off (solo 'ciclo')
+  phases?: number     // nº de fases de titulación (2–5)
+  phaseWeeks?: number // semanas por fase
+  howto?: string
+}
+
+export type MeasureKind = 'num' | 'scale'
+
+export interface MeasureMeta {
+  kind: MeasureKind
+  unit?: string            // para kind='num'
+  max?: number             // para kind='scale'
+  prof?: keyof Profile     // enlaza a campo de perfil
+}
+
+export interface Profile {
+  peso: number | null
+  est: number | null       // cm
+  grasa: number | null
+  bmi: number | null       // derivado, nunca tecleado
+}
+
+export type LogItemType = 'dose' | 'medida' | 'none'
+
+export interface LogItem {
+  id: string
+  t: string        // hora, ej. '9:00 PM'
+  n: string        // nombre: 'Dosis registrada' | nombre de la medida
+  u: string        // valor: 'Retatrutide · 2 mg' | '82.4 kg' | '4 / 5'
+  cat: string      // color hex del icono
+  ic: string       // emoji
+  type: LogItemType
+  ts: number       // timestamp epoch (ms) del registro real
+}
+
+export interface LogGroup {
+  day: string      // 'Hoy' | 'Ayer' | 'Vie 12 jun'
+  range: number    // 7 | 30 (bucket de filtro)
+  items: LogItem[]
+}
+
+// P0-3: la cadencia es la única fuente de verdad, persistida en el protocolo del usuario.
+// Modos editables en la hoja de dosis: dia | sem | mes | uso.
+// cadaN | ciclo provienen del preset del catálogo y diaToca() los respeta sin degradar a "diario".
+export type CadMode = 'dia' | 'sem' | 'mes' | 'uso'
+export type CadenceMode = CadMode | 'cadaN' | 'ciclo'
+
+export interface UserCadence {
+  mode: CadenceMode
+  days: boolean[]      // 7 elementos (mode='dia'), orden WDS: L Ma Mi J V S D
+  every: number        // mode='sem'|'mes'
+  semDays: boolean[]   // 7 elementos (mode='sem')
+  n?: number           // mode='cadaN'
+  on?: number          // mode='ciclo'
+  off?: number         // mode='ciclo'
+}
+
+export interface UserProtocol {
+  product: string
+  cadence: UserCadence
+  progOn: boolean
+  progN: number
+  curPhase: number
+  startDate: number    // epoch ms
+}
+
+export type SyringeScale = 40 | 50 | 100
+
+export interface UserSettings {
+  pinEnabled: boolean
+  darkMode: boolean
+  weeklySummary: boolean
+  emailNotices: boolean
+  consentVersion: string
+  consentActive: boolean
+}

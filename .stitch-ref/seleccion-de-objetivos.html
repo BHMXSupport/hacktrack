@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es-MX"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hacktrack - ¿Qué quieres lograr?</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Inter:wght@400..700&amp;family=JetBrains+Mono:wght@400..500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-bright": "#f7f9fc",
+                      "primary-fixed-dim": "#91d3c8",
+                      "on-tertiary-fixed-variant": "#205110",
+                      "on-primary-container": "#8dcfc4",
+                      "primary": "#00413b",
+                      "error-container": "#ffdad6",
+                      "on-secondary": "#ffffff",
+                      "surface-container-low": "#f2f4f7",
+                      "tertiary-fixed": "#b8f29e",
+                      "on-surface-variant": "#3f4947",
+                      "tertiary-fixed-dim": "#9dd584",
+                      "on-tertiary": "#ffffff",
+                      "tertiary": "#114302",
+                      "surface": "#f7f9fc",
+                      "on-error-container": "#93000a",
+                      "surface-variant": "#e0e3e6",
+                      "surface-dim": "#d8dadd",
+                      "on-secondary-fixed-variant": "#862208",
+                      "primary-fixed": "#acefe4",
+                      "on-error": "#ffffff",
+                      "inverse-surface": "#2d3133",
+                      "secondary-fixed": "#ffdad2",
+                      "secondary-container": "#fd7958",
+                      "tertiary-container": "#2a5b19",
+                      "on-secondary-container": "#6e1500",
+                      "on-primary-fixed": "#00201c",
+                      "on-background": "#191c1e",
+                      "surface-container-high": "#e6e8eb",
+                      "on-secondary-fixed": "#3c0700",
+                      "on-surface": "#191c1e",
+                      "secondary-fixed-dim": "#ffb4a2",
+                      "secondary": "#a7391e",
+                      "on-primary-fixed-variant": "#005049",
+                      "surface-container-lowest": "#ffffff",
+                      "background": "#f7f9fc",
+                      "surface-tint": "#246960",
+                      "on-tertiary-fixed": "#042100",
+                      "primary-container": "#0e5a52",
+                      "error": "#ba1a1a",
+                      "inverse-primary": "#91d3c8",
+                      "surface-container": "#eceef1",
+                      "on-tertiary-container": "#99d281",
+                      "surface-container-highest": "#e0e3e6",
+                      "outline": "#6f7977",
+                      "on-primary": "#ffffff",
+                      "outline-variant": "#bfc9c6",
+                      "inverse-on-surface": "#eff1f4",
+                      "cat-metabolismo": "#fd7958",
+                      "cat-recuperacion": "#9dd584",
+                      "cat-cognitivo": "#5c6bc0",
+                      "cat-piel": "#ec407a",
+                      "cat-longevidad": "#d4af37"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "20": "20px",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-mobile": "20px",
+                      "card-padding": "24px",
+                      "stack-sm": "8px",
+                      "stack-lg": "32px",
+                      "gutter": "16px",
+                      "stack-md": "16px",
+                      "base": "8px"
+              },
+              "fontFamily": {
+                      "headline-sm": [
+                              "Bricolage Grotesque"
+                      ],
+                      "title-lg": [
+                              "Inter"
+                      ],
+                      "display-md": [
+                              "Bricolage Grotesque"
+                      ],
+                      "display-lg-mobile": [
+                              "Bricolage Grotesque"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "display-lg": [
+                              "Bricolage Grotesque"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "headline-sm": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "title-lg": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-md": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "32px",
+                              {
+                                      "lineHeight": "38px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-mono": [
+                              "13px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "40px",
+                              {
+                                      "lineHeight": "48px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-md antialiased min-h-screen pb-24 selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Top App Bar -->
+<header class="w-full top-0 sticky bg-surface dark:bg-surface-dim z-40 flat no shadows">
+<div class="flex justify-between items-center px-margin-mobile py-4 max-w-[800px] mx-auto">
+<button aria-label="Atrás" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-display-md text-display-md text-primary dark:text-primary-fixed font-bold tracking-tight">Hacktrack</h1>
+<div class="w-10 h-10"></div> <!-- Placeholder for balance -->
+</div>
+</header>
+<!-- Main Content -->
+<main class="px-margin-mobile max-w-[800px] mx-auto pt-6">
+<div class="mb-stack-lg text-center">
+<h2 class="font-headline-sm text-headline-sm text-primary mb-stack-sm">¿Qué quieres lograr?</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-sm mx-auto">
+                Elige tu enfoque principal para personalizar tu experiencia Hacktrack.
+            </p>
+</div>
+<!-- Goal Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- Bajar de peso (Metabolismo) -->
+<button class="bg-surface-container-lowest border border-surface-variant rounded-20 p-card-padding flex items-center text-left hover:border-cat-metabolismo/50 hover:shadow-[0_4px_16px_rgba(11,18,32,0.08)] transition-all group w-full relative overflow-hidden">
+<div class="w-12 h-12 rounded-full bg-cat-metabolismo/10 flex items-center justify-center mr-stack-md flex-shrink-0 group-hover:bg-cat-metabolismo/20 transition-colors">
+<span class="material-symbols-outlined text-cat-metabolismo" data-icon="local_fire_department" style="font-variation-settings: 'wght' 300;">local_fire_department</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary mb-1">Bajar de peso</h3>
+<p class="font-body-md text-body-md text-outline">Optimiza tu metabolismo y quema de grasa.</p>
+</div>
+</button>
+<!-- Recuperarme mejor (Recuperación) -->
+<button class="bg-surface-container-lowest border border-surface-variant rounded-20 p-card-padding flex items-center text-left hover:border-cat-recuperacion/50 hover:shadow-[0_4px_16px_rgba(11,18,32,0.08)] transition-all group w-full relative overflow-hidden">
+<div class="w-12 h-12 rounded-full bg-cat-recuperacion/10 flex items-center justify-center mr-stack-md flex-shrink-0 group-hover:bg-cat-recuperacion/20 transition-colors">
+<span class="material-symbols-outlined text-cat-recuperacion" data-icon="bedtime" style="font-variation-settings: 'wght' 300;">bedtime</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary mb-1">Recuperarme mejor</h3>
+<p class="font-body-md text-body-md text-outline">Mejora tu sueño y reduce el estrés físico.</p>
+</div>
+</button>
+<!-- Más energía y foco (Cognitivo) -->
+<button class="bg-surface-container-lowest border border-surface-variant rounded-20 p-card-padding flex items-center text-left hover:border-cat-cognitivo/50 hover:shadow-[0_4px_16px_rgba(11,18,32,0.08)] transition-all group w-full relative overflow-hidden">
+<div class="w-12 h-12 rounded-full bg-cat-cognitivo/10 flex items-center justify-center mr-stack-md flex-shrink-0 group-hover:bg-cat-cognitivo/20 transition-colors">
+<span class="material-symbols-outlined text-cat-cognitivo" data-icon="bolt" style="font-variation-settings: 'wght' 300;">bolt</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary mb-1">Más energía y foco</h3>
+<p class="font-body-md text-body-md text-outline">Claridad mental y rendimiento cognitivo sostenido.</p>
+</div>
+</button>
+<!-- Cuidar mi piel (Piel) -->
+<button class="bg-surface-container-lowest border border-surface-variant rounded-20 p-card-padding flex items-center text-left hover:border-cat-piel/50 hover:shadow-[0_4px_16px_rgba(11,18,32,0.08)] transition-all group w-full relative overflow-hidden">
+<div class="w-12 h-12 rounded-full bg-cat-piel/10 flex items-center justify-center mr-stack-md flex-shrink-0 group-hover:bg-cat-piel/20 transition-colors">
+<span class="material-symbols-outlined text-cat-piel" data-icon="face" style="font-variation-settings: 'wght' 300;">face</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary mb-1">Cuidar mi piel</h3>
+<p class="font-body-md text-body-md text-outline">Salud dermatológica desde adentro hacia afuera.</p>
+</div>
+</button>
+<!-- Longevidad (Anti-Aging) -->
+<button class="bg-surface-container-lowest border border-surface-variant rounded-20 p-card-padding flex items-center text-left hover:border-cat-longevidad/50 hover:shadow-[0_4px_16px_rgba(11,18,32,0.08)] transition-all group w-full md:col-span-2 relative overflow-hidden">
+<div class="w-12 h-12 rounded-full bg-cat-longevidad/10 flex items-center justify-center mr-stack-md flex-shrink-0 group-hover:bg-cat-longevidad/20 transition-colors">
+<span class="material-symbols-outlined text-cat-longevidad" data-icon="spa" style="font-variation-settings: 'wght' 300;">spa</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary mb-1">Longevidad</h3>
+<p class="font-body-md text-body-md text-outline">Prácticas para una vida más larga y saludable.</p>
+</div>
+</button>
+</div>
+<div class="mt-stack-lg text-center">
+<button class="h-[52px] bg-primary-container text-on-primary px-8 rounded-2xl font-title-lg text-title-lg hover:opacity-90 transition-opacity w-full md:w-auto shadow-sm">
+                Continuar
+             </button>
+<p class="mt-4 font-body-md text-body-md text-outline">Podrás ajustar esto más adelante en tu perfil.</p>
+</div>
+</main>
+<script>
+        // Simple script to handle card selection state visually
+        document.querySelectorAll('button').forEach(button => {
+            if(button.querySelector('h3')) { // Only target the goal cards
+                button.addEventListener('click', function() {
+                    // Remove active state from all
+                    document.querySelectorAll('button h3').forEach(h3 => {
+                        h3.parentElement.parentElement.classList.remove('ring-2', 'ring-primary-fixed', 'bg-surface-bright');
+                    });
+                    // Add active state to clicked
+                    this.classList.add('ring-2', 'ring-primary-fixed', 'bg-surface-bright');
+                });
+            }
+        });
+    </script>
+</body></html>

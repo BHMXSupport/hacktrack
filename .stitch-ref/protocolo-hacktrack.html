@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Protocolo - Hacktrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Inter:wght@400..600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#f7f9fc",
+                        "surface-container-highest": "#e0e3e6",
+                        "outline-variant": "#bfc9c6",
+                        "tertiary-fixed-dim": "#9dd584",
+                        "surface-container": "#eceef1",
+                        "tertiary": "#114302",
+                        "surface": "#f7f9fc",
+                        "primary-container": "#0e5a52",
+                        "on-secondary-fixed-variant": "#862208",
+                        "primary": "#00413b",
+                        "surface-dim": "#d8dadd",
+                        "on-tertiary-fixed-variant": "#205110",
+                        "surface-container-low": "#f2f4f7",
+                        "tertiary-container": "#2a5b19",
+                        "secondary-container": "#fd7958",
+                        "background": "#f7f9fc",
+                        "on-error-container": "#93000a",
+                        "on-background": "#191c1e",
+                        "secondary-fixed": "#ffdad2",
+                        "inverse-surface": "#2d3133",
+                        "outline": "#6f7977",
+                        "on-primary-fixed-variant": "#005049",
+                        "error": "#ba1a1a",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#246960",
+                        "on-surface-variant": "#3f4947",
+                        "primary-fixed": "#acefe4",
+                        "tertiary-fixed": "#b8f29e",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e0e3e6",
+                        "primary-fixed-dim": "#91d3c8",
+                        "on-secondary-container": "#6e1500",
+                        "surface-container-high": "#e6e8eb",
+                        "inverse-on-surface": "#eff1f4",
+                        "secondary": "#a7391e",
+                        "on-primary-container": "#8dcfc4",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#191c1e",
+                        "inverse-primary": "#91d3c8",
+                        "secondary-fixed-dim": "#ffb4a2",
+                        "on-tertiary-fixed": "#042100",
+                        "on-tertiary-container": "#99d281",
+                        "on-secondary-fixed": "#3c0700",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#00201c",
+                        // Custom Brand Colors requested in prompt
+                        "brand-recovery": "#2FB57C",
+                        "brand-metabolism": "#E85D3A",
+                        "brand-cognitive": "#6B7BE8",
+                        "brand-aging": "#A8842F",
+                        "brand-ember": "#FF7A59"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "card": "20px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "stack-sm": "8px",
+                        "stack-md": "16px",
+                        "margin-mobile": "20px",
+                        "card-padding": "24px",
+                        "base": "8px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "display-md": ["Bricolage Grotesque"],
+                        "title-lg": ["Inter"],
+                        "headline-sm": ["Bricolage Grotesque"],
+                        "body-lg": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "display-lg-mobile": ["Bricolage Grotesque"],
+                        "display-lg": ["Bricolage Grotesque"]
+                    },
+                    "fontSize": {
+                        "display-md": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "title-lg": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-sm": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-mono": ["13px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg-mobile": ["32px", { "lineHeight": "38px", "fontWeight": "800" }],
+                        "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800" }]
+                    },
+                    "boxShadow": {
+                        "ambient": "0 4px 16px rgba(11,18,32,.08)",
+                        "modal": "0 12px 32px rgba(11,18,32,.12)"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+        /* Custom styles for the soft line chart to avoid inline complex SVGs where possible, though we'll use a simple SVG path */
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased min-h-screen pb-[100px]">
+<!-- TopAppBar -->
+<header class="flex items-center justify-between px-margin-mobile h-16 w-full max-w-[800px] mx-auto bg-surface border-none sticky top-0 z-40">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-weight="fill">bubble_chart</span>
+<h1 class="font-display-md text-display-md-mobile md:text-display-md font-extrabold tracking-tight text-primary">Hacktrack</h1>
+</div>
+<div class="flex items-center">
+<button class="p-2 rounded-full hover:bg-surface-container-low transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<main class="max-w-[800px] mx-auto px-margin-mobile flex flex-col gap-stack-lg pt-4">
+<!-- Page Title -->
+<div class="flex flex-col gap-stack-sm">
+<h2 class="font-display-md text-display-md-mobile md:text-display-md text-on-background">Protocolo de Bienestar</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Tu estado actual y plan de acción.</p>
+</div>
+<!-- Data Viz: Recovery Soft Line Chart -->
+<section class="bg-surface-container-lowest border border-surface-container-highest rounded-card p-card-padding shadow-ambient flex flex-col gap-stack-md">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-title-lg text-title-lg text-on-background">Recuperación</h3>
+<p class="font-label-mono text-label-mono text-outline">ÚLTIMOS 7 DÍAS</p>
+</div>
+<div class="flex items-center gap-1 text-brand-recovery bg-[#EBF8F2] px-3 py-1 rounded-full">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span class="font-label-mono text-label-mono font-bold">+12%</span>
+</div>
+</div>
+<div class="h-40 w-full relative mt-4">
+<!-- SVG Line Chart with gradient fill -->
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 400 120">
+<defs>
+<lineargradient id="recoveryGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#2FB57C" stop-opacity="0.15"></stop>
+<stop offset="100%" stop-color="#2FB57C" stop-opacity="0.0"></stop>
+</lineargradient>
+</defs>
+<!-- Fill -->
+<path d="M0,100 Q40,80 80,90 T160,60 T240,70 T320,40 T400,20 L400,120 L0,120 Z" fill="url(#recoveryGradient)"></path>
+<!-- Line -->
+<path d="M0,100 Q40,80 80,90 T160,60 T240,70 T320,40 T400,20" fill="none" stroke="#2FB57C" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path>
+<!-- Data Points (Subtle) -->
+<circle cx="80" cy="90" fill="#ffffff" r="4" stroke="#2FB57C" stroke-width="2"></circle>
+<circle cx="160" cy="60" fill="#ffffff" r="4" stroke="#2FB57C" stroke-width="2"></circle>
+<circle cx="240" cy="70" fill="#ffffff" r="4" stroke="#2FB57C" stroke-width="2"></circle>
+<circle cx="320" cy="40" fill="#ffffff" r="4" stroke="#2FB57C" stroke-width="2"></circle>
+<circle cx="400" cy="20" fill="#ffffff" r="4" stroke="#2FB57C" stroke-width="2"></circle>
+</svg>
+<!-- X-Axis Labels -->
+<div class="absolute -bottom-6 left-0 right-0 flex justify-between font-label-mono text-label-mono text-outline text-xs">
+<span>L</span>
+<span>M</span>
+<span>X</span>
+<span>J</span>
+<span>V</span>
+<span>S</span>
+<span>D</span>
+</div>
+</div>
+</section>
+<!-- Category Grid -->
+<section class="flex flex-col gap-stack-md mt-4">
+<h3 class="font-title-lg text-title-lg text-on-background">Áreas de Enfoque</h3>
+<div class="flex flex-wrap gap-3">
+<!-- Metabolismo -->
+<div class="flex items-center gap-2 bg-[#FDF0EC] px-4 py-2 rounded-full border border-[#FADBD2]">
+<div class="w-2 h-2 rounded-full bg-brand-metabolism"></div>
+<span class="font-body-md text-body-md font-medium text-brand-metabolism">Metabolismo</span>
+</div>
+<!-- Cognitivo -->
+<div class="flex items-center gap-2 bg-[#F1F3FD] px-4 py-2 rounded-full border border-[#E1E5F9]">
+<div class="w-2 h-2 rounded-full bg-brand-cognitive"></div>
+<span class="font-body-md text-body-md font-medium text-brand-cognitive">Cognitivo</span>
+</div>
+<!-- Anti-Aging -->
+<div class="flex items-center gap-2 bg-[#F8F5EE] px-4 py-2 rounded-full border border-[#EFE8D6]">
+<div class="w-2 h-2 rounded-full bg-brand-aging"></div>
+<span class="font-body-md text-body-md font-medium text-brand-aging">Anti-Aging</span>
+</div>
+<!-- Físico (Generic Primary) -->
+<div class="flex items-center gap-2 bg-primary-fixed px-4 py-2 rounded-full border border-primary-fixed-dim">
+<div class="w-2 h-2 rounded-full bg-primary-container"></div>
+<span class="font-body-md text-body-md font-medium text-primary-container">Físico</span>
+</div>
+</div>
+<!-- Cards for Categories -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter mt-2">
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-card p-card-padding shadow-ambient flex items-start gap-4 hover:bg-surface-bright transition-colors cursor-pointer">
+<div class="p-3 bg-[#FDF0EC] rounded-xl text-brand-metabolism">
+<span class="material-symbols-outlined">local_fire_department</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-lg text-body-lg font-semibold text-on-background">Ayuno Intermitente</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">16:8 Objetivo diario alcanzado.</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant">chevron_right</span>
+</div>
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-card p-card-padding shadow-ambient flex items-start gap-4 hover:bg-surface-bright transition-colors cursor-pointer">
+<div class="p-3 bg-[#F1F3FD] rounded-xl text-brand-cognitive">
+<span class="material-symbols-outlined">psychology</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-lg text-body-lg font-semibold text-on-background">Enfoque Profundo</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">2h 45m registrados hoy.</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant">chevron_right</span>
+</div>
+</div>
+</section>
+<!-- Conversion Action -->
+<section class="mt-8 mb-12 flex justify-center">
+<button class="bg-brand-ember text-[#1A0C09] font-body-lg text-body-lg font-semibold h-[52px] px-8 rounded-2xl w-full md:w-auto shadow-md hover:brightness-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-weight="fill">tune</span>
+                Optimizar protocolo
+            </button>
+</section>
+</main>
+<!-- BottomNavBar (From Shared Components JSON) -->
+<!-- The user intent is Protocolo, so Protocolo is active -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-end px-4 pb-4 pt-2 bg-surface-container-lowest shadow-[0_-4px_16px_rgba(11,18,32,0.08)] rounded-t-xl">
+<!-- Inicio (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low rounded-full p-2 min-w-[64px]" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-body-md text-[10px] mt-1">Inicio</span>
+</a>
+<!-- Diario (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low rounded-full p-2 min-w-[64px]" href="#">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+<span class="font-body-md text-[10px] mt-1">Diario</span>
+</a>
+<!-- Add FAB (Central, breaks plane) -->
+<div class="relative -top-6">
+<button class="bg-primary-container text-on-primary h-14 w-14 rounded-full shadow-modal flex items-center justify-center active:scale-90 transition-transform duration-200">
+<span class="material-symbols-outlined text-3xl" data-icon="add">add</span>
+</button>
+</div>
+<!-- Protocolo (ACTIVE) -->
+<a class="flex flex-col items-center justify-center text-primary font-semibold hover:bg-surface-container-low rounded-full p-2 min-w-[64px] active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring" data-weight="fill">monitoring</span>
+<span class="font-body-md text-[10px] mt-1">Protocolo</span>
+</a>
+<!-- Ajustes (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low rounded-full p-2 min-w-[64px]" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-[10px] mt-1">Ajustes</span>
+</a>
+</nav>
+</body></html>

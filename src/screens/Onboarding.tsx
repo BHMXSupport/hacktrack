@@ -1,9 +1,12 @@
 import { Player } from '@remotion/player'
 import { motion } from 'framer-motion'
 import { Hero } from '../remotion/Hero'
+import { useApp } from '../lib/store'
 
 /** Onboarding con el hero animado de Remotion embebido (Remotion Player) + copy con Motion. */
-export function Onboarding({ onDone }: { onDone: () => void }) {
+export function Onboarding() {
+  const { dispatch } = useApp()
+  const onDone = () => dispatch({ t: 'go', screen: 's-goal' })
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 1, overflow: 'hidden', borderRadius: '0 0 28px 28px' }}>

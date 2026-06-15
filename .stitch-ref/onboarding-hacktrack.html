@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es-MX"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hacktrack - Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Inter:wght@400..700&amp;family=JetBrains+Mono:wght@400..500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary": "#ffffff",
+                      "primary-fixed": "#acefe4",
+                      "tertiary-fixed": "#b8f29e",
+                      "secondary-container": "#fd7958",
+                      "surface": "#f7f9fc",
+                      "on-error-container": "#93000a",
+                      "surface-container-high": "#e6e8eb",
+                      "tertiary": "#114302",
+                      "secondary-fixed": "#ffdad2",
+                      "primary-container": "#0e5a52",
+                      "on-error": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "inverse-primary": "#91d3c8",
+                      "on-secondary-container": "#6e1500",
+                      "on-tertiary-fixed": "#042100",
+                      "tertiary-fixed-dim": "#9dd584",
+                      "primary-fixed-dim": "#91d3c8",
+                      "inverse-surface": "#2d3133",
+                      "surface-container": "#eceef1",
+                      "surface-bright": "#f7f9fc",
+                      "on-primary-fixed-variant": "#005049",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed-variant": "#205110",
+                      "on-secondary-fixed-variant": "#862208",
+                      "surface-container-highest": "#e0e3e6",
+                      "on-background": "#191c1e",
+                      "on-surface-variant": "#3f4947",
+                      "secondary": "#a7391e",
+                      "surface-container-low": "#f2f4f7",
+                      "surface-variant": "#e0e3e6",
+                      "background": "#f7f9fc",
+                      "error-container": "#ffdad6",
+                      "on-surface": "#191c1e",
+                      "inverse-on-surface": "#eff1f4",
+                      "primary": "#00413b",
+                      "on-primary-container": "#8dcfc4",
+                      "on-primary": "#ffffff",
+                      "tertiary-container": "#2a5b19",
+                      "surface-tint": "#246960",
+                      "outline-variant": "#bfc9c6",
+                      "outline": "#6f7977",
+                      "on-secondary-fixed": "#3c0700",
+                      "on-primary-fixed": "#00201c",
+                      "error": "#ba1a1a",
+                      "surface-dim": "#d8dadd",
+                      "secondary-fixed-dim": "#ffb4a2",
+                      "on-tertiary-container": "#99d281"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-md": "16px",
+                      "stack-sm": "8px",
+                      "card-padding": "24px",
+                      "stack-lg": "32px",
+                      "gutter": "16px",
+                      "margin-mobile": "20px",
+                      "base": "8px"
+              },
+              "fontFamily": {
+                      "title-lg": [
+                              "Inter"
+                      ],
+                      "label-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "display-md": [
+                              "Bricolage Grotesque"
+                      ],
+                      "display-lg-mobile": [
+                              "Bricolage Grotesque"
+                      ],
+                      "display-lg": [
+                              "Bricolage Grotesque"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-sm": [
+                              "Bricolage Grotesque"
+                      ]
+              },
+              "fontSize": {
+                      "title-lg": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-mono": [
+                              "13px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-md": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "32px",
+                              {
+                                      "lineHeight": "38px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "display-lg": [
+                              "40px",
+                              {
+                                      "lineHeight": "48px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-sm": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+      </script>
+</head>
+<body class="bg-surface min-h-screen flex flex-col font-body-lg text-on-surface antialiased">
+<!-- Top Navigation Area (Pagination & Skip) -->
+<header class="flex items-center justify-between px-margin-mobile pt-stack-lg pb-stack-md w-full max-w-lg mx-auto shrink-0">
+<!-- 3-dot pagination indicator -->
+<div class="flex items-center gap-base">
+<div class="h-2 w-6 rounded-full bg-primary-container transition-all duration-300"></div>
+<div class="h-2 w-2 rounded-full bg-surface-container-highest transition-all duration-300"></div>
+<div class="h-2 w-2 rounded-full bg-surface-container-highest transition-all duration-300"></div>
+</div>
+<!-- Ghost Button -->
+<button class="font-title-lg text-title-lg text-primary-container hover:opacity-80 transition-opacity bg-transparent px-2 py-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-container/20" type="button">
+            Saltar
+        </button>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 flex flex-col w-full max-w-lg mx-auto">
+<!-- Illustration Container -->
+<div class="flex-1 flex items-center justify-center relative px-margin-mobile">
+<!-- Atmospheric Organic Background Shapes -->
+<div class="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
+<div class="w-72 h-72 rounded-full bg-primary-fixed/20 blur-3xl absolute -ml-16 -mt-10 mix-blend-multiply"></div>
+<div class="w-64 h-64 rounded-full bg-tertiary-fixed/20 blur-3xl absolute ml-20 mt-20 mix-blend-multiply"></div>
+</div>
+<!-- Core Illustration -->
+<div class="relative z-10 w-full max-w-[280px] aspect-square flex items-center justify-center">
+<img alt="" class="w-full h-full object-contain drop-shadow-sm" src="https://lh3.googleusercontent.com/aida/AP1WRLsOo3QRO4OU2w7zmmUq2mfsW8qW6wPLRp5lyQJ8-Anl8W3ODlV672tUJG7yjq_vSeaAoDxsQx0gWLV53i9x_hhDG4JY8F-Od5oEzqR-5WiBJ-V4OmOtP5B2vI2CnjyaHD8uCWooKIcR7qWTyjQlBDKGWktkKvzfmb0zZ22XM5Ptv_RXe53VTPAF7B4pRj-d_dy4kznmrdKC-NKler9pGRVsGKiuiiVWuYZBotfVZeFYdl9RTLTjCKsnNpKt"/>
+</div>
+</div>
+<!-- Content Area -->
+<div class="flex flex-col px-margin-mobile pb-stack-md pt-stack-lg shrink-0 z-20 bg-surface">
+<!-- Typography block -->
+<div class="flex flex-col gap-stack-sm text-center mb-stack-lg">
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-on-surface text-balance">
+                    No vuelvas a fallar tu dosis
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-[320px] mx-auto text-balance">
+                    Seguimiento preciso para optimizar tus resultados.
+                </p>
+</div>
+<!-- Primary Action Button -->
+<button class="w-full h-[52px] bg-primary-container text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center transition-all duration-200 hover:opacity-90 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-primary-container/20 shadow-sm" type="button">
+                Continuar
+            </button>
+</div>
+</main>
+</body></html>

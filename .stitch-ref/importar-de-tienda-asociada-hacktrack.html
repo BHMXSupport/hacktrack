@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html lang="es-MX"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@100..900&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface": "#191c1e",
+                    "surface-bright": "#f7f9fc",
+                    "outline-variant": "#bfc9c6",
+                    "on-error": "#ffffff",
+                    "tertiary-container": "#2a5b19",
+                    "surface-container-highest": "#e0e3e6",
+                    "secondary": "#a7391e",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#eff1f4",
+                    "surface": "#f7f9fc",
+                    "primary": "#00413b",
+                    "error-container": "#ffdad6",
+                    "background": "#f7f9fc",
+                    "tertiary-fixed-dim": "#9dd584",
+                    "primary-fixed": "#acefe4",
+                    "on-tertiary-fixed-variant": "#205110",
+                    "on-primary-fixed": "#00201c",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary-container": "#fd7958",
+                    "on-primary-fixed-variant": "#005049",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed": "#b8f29e",
+                    "surface-tint": "#246960",
+                    "secondary-fixed": "#ffdad2",
+                    "inverse-surface": "#2d3133",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#862208",
+                    "primary-fixed-dim": "#91d3c8",
+                    "surface-container": "#eceef1",
+                    "on-secondary-container": "#6e1500",
+                    "primary-container": "#0e5a52",
+                    "outline": "#6f7977",
+                    "tertiary": "#114302",
+                    "surface-variant": "#e0e3e6",
+                    "error": "#ba1a1a",
+                    "surface-dim": "#d8dadd",
+                    "on-surface-variant": "#3f4947",
+                    "on-primary-container": "#8dcfc4",
+                    "secondary-fixed-dim": "#ffb4a2",
+                    "on-tertiary-fixed": "#042100",
+                    "on-secondary-fixed": "#3c0700",
+                    "on-primary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-container": "#99d281",
+                    "surface-container-low": "#f2f4f7",
+                    "on-background": "#191c1e",
+                    "inverse-primary": "#91d3c8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "20px",
+                    "gutter": "16px",
+                    "card-padding": "24px",
+                    "base": "8px",
+                    "stack-md": "16px",
+                    "stack-lg": "32px",
+                    "stack-sm": "8px"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "title-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-sm": ["Bricolage Grotesque"],
+                    "display-md": ["Bricolage Grotesque"],
+                    "display-lg-mobile": ["Bricolage Grotesque"],
+                    "display-lg": ["Bricolage Grotesque"]
+            },
+            "fontSize": {
+                    "label-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "display-md": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "800"}],
+                    "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F7F9FC;
+            color: #191c1e;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .soft-card-shadow {
+            box-shadow: 0 4px 16px rgba(11, 18, 32, 0.08);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md">
+<!-- TopAppBar -->
+<header class="w-full sticky top-0 z-50 bg-surface flex items-center px-margin-mobile h-16 w-full max-w-[800px] mx-auto">
+<button class="mr-4 text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary">Importar productos</h1>
+</header>
+<main class="max-w-[800px] mx-auto px-margin-mobile pt-4 pb-24 space-y-stack-lg">
+<!-- Explainer Card -->
+<section class="bg-surface-container-lowest rounded-[20px] p-card-padding soft-card-shadow border border-outline-variant/30">
+<div class="flex gap-4 items-start">
+<div class="p-2 bg-primary-fixed-dim/20 rounded-full text-primary">
+<span class="material-symbols-outlined">info</span>
+</div>
+<p class="font-body-lg text-on-surface-variant leading-relaxed">
+                    Puedes importar una orden para precargar tus productos; tú traes tus datos. Este paso es opcional.
+                </p>
+</div>
+</section>
+<!-- Illustration / Mood Image -->
+<div class="w-full rounded-[20px] overflow-hidden aspect-[16/9]">
+<img class="w-full h-full object-cover" data-alt="A clean, minimalist workspace scene featuring a polished wooden desk with a sleek laptop and a high-end smartphone. The lighting is bright and natural, coming from a side window, emphasizing a calm and organized environment. The color palette is composed of soft whites, light greys, and deep teal accents, maintaining a professional and warm coach aesthetic for a data management tool." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6r3YSDVfBWR0V6adFSMqKf_crEqpmm69aMpdjcK5z-GWeZR1snfO2vMsbNa2vCawrqrMekgAMMT4-F7_zVG7mkioWZHmaA0Jaq7R2WvMNQqA7KtHIbpO4cdeWPZstGGVD4X1VcQlYuJpzmPBHlrNcH7zVSsmHASln5iRjMlhWorZt3JJV3pJfxrIpEDzfw1bHqJIqZykyVsMHrR6XkJOX3pJWsWsOUK3vLQqefDi-ylOfWP88lho3cHPgVGOeBs-GDH9LI8-GCj72"/>
+</div>
+<!-- Form Section -->
+<form class="space-y-stack-md" onsubmit="return false;">
+<!-- Email Field -->
+<div class="space-y-2">
+<label class="block font-body-md font-medium text-on-surface" for="email">Correo electrónico</label>
+<input class="w-full h-14 px-4 bg-surface-container-lowest border border-outline-variant rounded-[12px] focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-body-lg" id="email" placeholder="ejemplo@correo.com" type="email"/>
+</div>
+<!-- Order Number Field (With Error) -->
+<div class="space-y-2">
+<label class="block font-body-md font-medium text-on-surface" for="order">Número de orden</label>
+<input class="w-full h-14 px-4 bg-surface-container-lowest border border-error rounded-[12px] focus:ring-2 focus:ring-error focus:border-transparent outline-none transition-all font-body-lg" id="order" type="text" value="HT-99821"/>
+<p class="text-error font-body-md mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">error</span>
+                    Orden no encontrada
+                </p>
+</div>
+<!-- Consent Checkbox -->
+<label class="flex items-start gap-3 pt-2 cursor-pointer group">
+<div class="relative flex items-center">
+<input class="peer h-6 w-6 rounded-[6px] border-outline-variant text-primary focus:ring-primary/20 cursor-pointer" type="checkbox"/>
+</div>
+<span class="font-body-md text-on-surface-variant leading-tight select-none pt-0.5 group-hover:text-on-surface transition-colors">
+                    Doy mi consentimiento para transferir los datos de mi orden de forma segura.
+                </span>
+</label>
+</form>
+<!-- Actions -->
+<div class="space-y-4 pt-4">
+<button class="w-full h-[52px] bg-primary text-white font-semibold rounded-[16px] active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">sync_alt</span>
+                Importar orden
+            </button>
+<button class="w-full h-[52px] bg-transparent border-2 border-primary text-primary font-semibold rounded-[16px] active:scale-95 transition-all flex items-center justify-center">
+                Lo agrego manualmente
+            </button>
+</div>
+</main>
+<!-- Bottom Navigation Shell (Consistent with Shared Components) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-surface-container-lowest shadow-[0_-4px_16px_rgba(11,18,32,0.04)] z-50 md:hidden">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container rounded-full p-2 transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] mt-1">Inicio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container rounded-full p-2 transition-colors" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="text-[10px] mt-1">Diario</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-semibold hover:bg-surface-container rounded-full p-2 transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">assignment</span>
+<span class="text-[10px] mt-1">Protocolo</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container rounded-full p-2 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] mt-1">Ajustes</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for inputs
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.querySelector('label').classList.add('text-primary');
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.querySelector('label').classList.remove('text-primary');
+            });
+        });
+
+        // Toggle state for the error field on input to show dynamic response
+        const orderInput = document.getElementById('order');
+        orderInput.addEventListener('input', (e) => {
+            if(e.target.value !== "HT-99821") {
+                orderInput.classList.remove('border-error');
+                const errorMsg = orderInput.nextElementSibling;
+                if(errorMsg && errorMsg.classList.contains('text-error')) {
+                    errorMsg.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body></html>

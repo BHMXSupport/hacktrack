@@ -32,4 +32,89 @@ body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(-
 .btn-ghost{background:transparent;color:var(--ink-400);height:46px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:var(--e2)}
 .scroll{position:absolute;inset:0;overflow-y:auto;padding:max(22px,env(safe-area-inset-top)) 18px 28px}
+/* deja espacio para la bottom-nav en pantallas con tabs */
+.scroll.has-nav{padding-bottom:96px}
 @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+
+/* Colores de categoría (design system Quiet Signal) */
+:root{
+  --cat-metabolismo:#E85D3A; --cat-recuperacion:#2FB57C; --cat-cognitivo:#6B7BE8;
+  --cat-anti-aging:#A8842F; --cat-piel:#D17FA0; --cat-crecimiento:#1B8A7D; --cat-reproductivo:#9B5FC4;
+}
+
+/* Botón outline/ghost con borde kelp */
+.btn-outline{background:transparent;color:var(--brand-700);border:1.5px solid var(--brand-700)}
+.btn-sm{height:44px;font-size:15px}
+
+/* Bottom nav (4 tabs + FAB central) — fondo sólido, sin blur */
+.bottomnav{position:absolute;left:0;right:0;bottom:0;height:78px;background:var(--surface);
+  border-top:1px solid var(--border);display:flex;align-items:stretch;z-index:30;
+  padding-bottom:env(safe-area-inset-bottom)}
+.navtab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:0;background:transparent;cursor:pointer;color:var(--ink-400);font-size:11px;font-weight:600;font-family:'Inter'}
+.navtab svg{width:24px;height:24px;stroke:currentColor;stroke-width:2;fill:none}
+.navtab.active{color:var(--brand-700)}
+.navfab{position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:58px;height:58px;border-radius:999px;
+  background:var(--brand-700);color:#fff;border:4px solid var(--bg);box-shadow:0 8px 20px rgba(14,90,82,.34);
+  display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;z-index:31}
+
+/* Chips / pills */
+.chip{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;
+  background:var(--ink-100);color:var(--ink-700);font-size:13.5px;font-weight:600;border:0;cursor:pointer;white-space:nowrap}
+.chip.active{background:var(--brand-700);color:#fff}
+.chip-cat{background:color-mix(in srgb, var(--c) 14%, #fff);color:var(--c)}
+
+/* Segmented control */
+.segmented{display:flex;background:var(--ink-100);border-radius:999px;padding:4px;gap:2px}
+.segmented button{flex:1;height:38px;border:0;border-radius:999px;background:transparent;cursor:pointer;
+  font-family:'Inter';font-weight:600;font-size:14px;color:var(--ink-400)}
+.segmented button.active{background:#fff;color:var(--ink-900);box-shadow:var(--e1)}
+
+/* Filas de lista (ajustes / perfil) */
+.rowlist{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--e2)}
+.row{display:flex;align-items:center;gap:12px;min-height:56px;padding:12px 16px;border:0;width:100%;
+  background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.row .row-ic{width:24px;height:24px;color:var(--ink-400);flex:none}
+.row .row-main{flex:1;min-width:0}
+.row .row-label{font-size:15px;font-weight:600;color:var(--ink-900)}
+.row .row-sub{font-size:12.5px;color:var(--ink-400)}
+.row .row-end{color:var(--ink-300);font-size:13px}
+.row.danger .row-label{color:var(--error)}
+
+/* Inputs */
+.field{width:100%;height:52px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 14px;
+  font-family:'Inter';font-size:16px;background:#fff;color:var(--ink-900)}
+.field:focus{outline:none;border-color:var(--brand-500);box-shadow:0 0 0 3px rgba(27,138,125,.15)}
+.field.error{border-color:var(--error)}
+.label{font-size:13.5px;font-weight:600;color:var(--ink-700);margin-bottom:6px;display:block}
+.field-error{color:var(--error);font-size:12.5px;margin-top:6px}
+
+/* Toggle */
+.toggle{width:46px;height:28px;border-radius:999px;background:var(--ink-200);border:0;position:relative;cursor:pointer;flex:none;transition:background .18s}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:var(--e1);transition:transform .18s}
+.toggle.on{background:var(--brand-700)}
+.toggle.on::after{transform:translateX(18px)}
+
+/* Stepper ± */
+.stepbtn{width:48px;height:48px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--ink-900);
+  font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:700;
+  font-family:'JetBrains Mono';background:var(--ink-100);color:var(--ink-700)}
+.badge-mint{background:var(--brand-100);color:var(--brand-900)}
+
+/* Sheet (bottom-sheet sobre overlay) */
+.overlay{position:absolute;inset:0;background:rgba(11,18,32,.42);z-index:40;display:flex;align-items:flex-end}
+.sheet{width:100%;max-height:92%;overflow-y:auto;background:var(--surface);border-radius:24px 24px 0 0;
+  padding:8px 18px max(20px,env(safe-area-inset-bottom));box-shadow:var(--e3)}
+.sheet-handle{width:42px;height:5px;border-radius:999px;background:var(--ink-200);margin:8px auto 6px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin:4px 0 14px}
+.iconbtn{width:36px;height:36px;border-radius:999px;border:0;background:var(--ink-100);color:var(--ink-700);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+
+/* Disclaimer */
+.disclaimer{font-size:12px;line-height:17px;color:var(--ink-300);text-align:center;padding:14px 10px}
+
+/* Ring (anillo de adherencia) */
+.ring-num{font-family:'JetBrains Mono';font-weight:700;font-variant-numeric:tabular-nums}

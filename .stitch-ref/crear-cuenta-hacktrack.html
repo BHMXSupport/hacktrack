@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es-MX"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Crea tu cuenta - Hacktrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-fixed-variant": "#005049",
+                        "tertiary-container": "#2a5b19",
+                        "surface-container-high": "#e6e8eb",
+                        "tertiary-fixed": "#b8f29e",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#862208",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#0e5a52",
+                        "on-secondary-container": "#6e1500",
+                        "secondary-fixed": "#ffdad2",
+                        "outline-variant": "#bfc9c6",
+                        "outline": "#6f7977",
+                        "on-primary-container": "#8dcfc4",
+                        "tertiary-fixed-dim": "#9dd584",
+                        "surface-tint": "#246960",
+                        "surface-container-low": "#f2f4f7",
+                        "secondary-container": "#fd7958",
+                        "on-surface-variant": "#3f4947",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e0e3e6",
+                        "on-surface": "#191c1e",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#114302",
+                        "surface-bright": "#f7f9fc",
+                        "primary-fixed": "#acefe4",
+                        "primary": "#00413b",
+                        "surface-container-highest": "#e0e3e6",
+                        "surface-container": "#eceef1",
+                        "secondary": "#a7391e",
+                        "on-tertiary-fixed-variant": "#205110",
+                        "inverse-surface": "#2d3133",
+                        "inverse-on-surface": "#eff1f4",
+                        "surface": "#f7f9fc",
+                        "secondary-fixed-dim": "#ffb4a2",
+                        "on-secondary-fixed": "#3c0700",
+                        "surface-dim": "#d8dadd",
+                        "on-tertiary-container": "#99d281",
+                        "on-error-container": "#93000a",
+                        "on-background": "#191c1e",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#00201c",
+                        "background": "#f7f9fc",
+                        "inverse-primary": "#91d3c8",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#042100",
+                        "primary-fixed-dim": "#91d3c8"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                    spacing: {
+                        "margin-mobile": "20px",
+                        "stack-md": "16px",
+                        "stack-lg": "32px",
+                        "card-padding": "24px",
+                        "stack-sm": "8px",
+                        "base": "8px",
+                        "gutter": "16px"
+                    },
+                    fontFamily: {
+                        "title-lg": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "display-lg-mobile": ["Bricolage Grotesque"],
+                        "display-lg": ["Bricolage Grotesque"],
+                        "display-md": ["Bricolage Grotesque"],
+                        "body-md": ["Inter"],
+                        "headline-sm": ["Bricolage Grotesque"],
+                        "body-lg": ["Inter"]
+                    },
+                    fontSize: {
+                        "title-lg": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+                        "label-mono": ["13px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "500" }],
+                        "display-lg-mobile": ["32px", { lineHeight: "38px", fontWeight: "800" }],
+                        "display-lg": ["40px", { lineHeight: "48px", letterSpacing: "-0.02em", fontWeight: "800" }],
+                        "display-md": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "700" }],
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "headline-sm": ["24px", { lineHeight: "32px", fontWeight: "700" }],
+                        "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }]
+                    },
+                    boxShadow: {
+                        'level-1': '0 4px 16px rgba(11,18,32,.08)',
+                        'level-2': '0 12px 32px rgba(11,18,32,.12)',
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col justify-center px-margin-mobile py-8 md:max-w-[480px] md:mx-auto">
+<!-- Header / Brand -->
+<header class="w-full flex justify-center mb-stack-lg">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[32px]" data-icon="monitoring" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+<h1 class="font-display-md text-display-md text-primary tracking-tight">Hacktrack</h1>
+</div>
+</header>
+<main class="w-full flex-1 flex flex-col">
+<!-- Title -->
+<h2 class="font-display-lg-mobile text-display-lg-mobile text-on-surface mb-stack-md text-center">
+            Crea tu cuenta
+        </h2>
+<!-- BiohackMX Card (Highlighted) -->
+<div class="bg-surface-container-lowest border border-primary/20 rounded-[20px] p-card-padding shadow-level-1 mb-stack-lg relative overflow-hidden">
+<!-- Subtle gradient accent -->
+<div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-container to-primary-fixed"></div>
+<div class="flex items-start gap-4 mb-4">
+<div class="bg-primary-container/10 p-2 rounded-xl flex-shrink-0">
+<span class="material-symbols-outlined text-primary-container" data-icon="hub" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-on-surface mb-1">Únete con BiohackMX</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                        Trae tus productos comprados de inmediato. Inicias sesión en su sitio, nosotros nunca vemos tu contraseña.
+                    </p>
+</div>
+</div>
+<button class="w-full h-[52px] bg-primary-container hover:bg-on-primary-fixed-variant text-on-primary font-title-lg text-title-lg rounded-[16px] transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="link">link</span>
+                Conectar con BiohackMX
+            </button>
+</div>
+<!-- Divider -->
+<div class="flex items-center mb-stack-lg">
+<div class="flex-1 h-px bg-surface-variant"></div>
+<span class="px-4 font-body-md text-body-md text-outline">o crea tu cuenta en Hacktrack</span>
+<div class="flex-1 h-px bg-surface-variant"></div>
+</div>
+<!-- Social Buttons -->
+<div class="flex gap-4 mb-stack-lg">
+<button class="flex-1 h-[52px] bg-surface-container-lowest border border-[#E6EBF3] hover:bg-surface-container-low text-on-surface font-title-lg text-[16px] rounded-[16px] transition-colors flex items-center justify-center gap-2 shadow-sm">
+<!-- Fallback icon for Apple -->
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24">
+<path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.15 2.95.97 3.63 2.38-3.18 2.05-2.43 6.64.93 7.85-.75 1.58-1.57 3.23-3.21 2.78zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"></path>
+</svg>
+                Apple
+            </button>
+<button class="flex-1 h-[52px] bg-surface-container-lowest border border-[#E6EBF3] hover:bg-surface-container-low text-on-surface font-title-lg text-[16px] rounded-[16px] transition-colors flex items-center justify-center gap-2 shadow-sm">
+<!-- Fallback icon for Google -->
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+                Google
+            </button>
+</div>
+<!-- Local Form -->
+<form class="flex flex-col gap-stack-md mb-stack-lg" onsubmit="event.preventDefault();">
+<div class="flex flex-col gap-1">
+<label class="font-title-lg text-[14px] text-on-surface" for="email">Correo electrónico</label>
+<input class="w-full h-[52px] bg-surface-container-lowest border border-[#E6EBF3] rounded-xl px-4 font-body-lg text-body-lg text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container" id="email" placeholder="tu@correo.com" type="email"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-title-lg text-[14px] text-on-surface" for="password">Contraseña</label>
+<div class="relative">
+<input class="w-full h-[52px] bg-surface-container-lowest border border-[#E6EBF3] rounded-xl pl-4 pr-12 font-body-lg text-body-lg text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container" id="password" placeholder="••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="visibility">visibility</span>
+</button>
+</div>
+</div>
+<button class="w-full h-[52px] mt-2 bg-primary-container hover:bg-on-primary-fixed-variant text-on-primary font-title-lg text-title-lg rounded-[16px] transition-colors flex items-center justify-center" type="submit">
+                Crear cuenta
+            </button>
+</form>
+<!-- Footer / Legal -->
+<div class="mt-auto pt-8 flex flex-col items-center gap-4 text-center">
+<a class="font-title-lg text-[16px] text-primary-container hover:text-on-primary-fixed-variant transition-colors" href="#">
+                ¿Ya tengo cuenta? Iniciar sesión
+            </a>
+<p class="font-body-md text-[12px] leading-relaxed text-on-surface-variant max-w-[90%]">
+                Al crear una cuenta, aceptas nuestra <a class="underline text-on-surface" href="#">Política de Privacidad</a> y confirmas que has leído el <a class="underline text-on-surface" href="#">Aviso de Privacidad (LFPDPPP)</a> para el manejo seguro de tus datos personales en México.
+            </p>
+</div>
+</main>
+</body></html>

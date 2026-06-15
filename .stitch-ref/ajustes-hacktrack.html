@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+
+<html lang="es-MX"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Hacktrack - Ajustes</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#ffb4a2",
+                    "on-secondary-fixed-variant": "#862208",
+                    "tertiary-fixed": "#b8f29e",
+                    "surface-container-highest": "#e0e3e6",
+                    "secondary-container": "#fd7958",
+                    "background": "#f7f9fc",
+                    "on-secondary-fixed": "#3c0700",
+                    "error": "#ba1a1a",
+                    "surface-dim": "#d8dadd",
+                    "surface-tint": "#246960",
+                    "primary": "#00413b",
+                    "error-container": "#ffdad6",
+                    "on-primary-fixed": "#00201c",
+                    "on-error": "#ffffff",
+                    "primary-fixed": "#acefe4",
+                    "surface-variant": "#e0e3e6",
+                    "on-primary-container": "#8dcfc4",
+                    "inverse-primary": "#91d3c8",
+                    "tertiary-container": "#2a5b19",
+                    "on-tertiary-container": "#99d281",
+                    "inverse-surface": "#2d3133",
+                    "tertiary": "#114302",
+                    "secondary-fixed": "#ffdad2",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-background": "#191c1e",
+                    "secondary": "#a7391e",
+                    "outline": "#6f7977",
+                    "surface-container-low": "#f2f4f7",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#eceef1",
+                    "surface": "#f7f9fc",
+                    "primary-fixed-dim": "#91d3c8",
+                    "on-surface": "#191c1e",
+                    "primary-container": "#0e5a52",
+                    "inverse-on-surface": "#eff1f4",
+                    "on-surface-variant": "#3f4947",
+                    "on-tertiary-fixed": "#042100",
+                    "tertiary-fixed-dim": "#9dd584",
+                    "on-tertiary-fixed-variant": "#205110",
+                    "surface-container-high": "#e6e8eb",
+                    "on-primary-fixed-variant": "#005049",
+                    "outline-variant": "#bfc9c6",
+                    "surface-bright": "#f7f9fc",
+                    "on-secondary-container": "#6e1500",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-sm": "8px",
+                    "stack-md": "16px",
+                    "stack-lg": "32px",
+                    "base": "8px",
+                    "margin-mobile": "20px",
+                    "card-padding": "24px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Bricolage Grotesque"],
+                    "display-md": ["Bricolage Grotesque"],
+                    "title-lg": ["Inter"],
+                    "display-lg-mobile": ["Bricolage Grotesque"],
+                    "body-lg": ["Inter"],
+                    "label-mono": ["JetBrains Mono"],
+                    "headline-sm": ["Bricolage Grotesque"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "display-md": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "800"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F7F9FC;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .card-shadow {
+            shadow: 0 4px 16px rgba(11, 18, 32, 0.08);
+        }
+        .safe-pb {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .toggle-teal {
+            width: 44px;
+            height: 24px;
+            background: #E6EBF3;
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+        .toggle-teal.active {
+            background: #0E5A52;
+        }
+        .toggle-dot {
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.2s ease;
+        }
+        .toggle-teal.active .toggle-dot {
+            transform: translateX(20px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-on-surface antialiased">
+<!-- Top Navigation Anchor -->
+<header class="w-full top-0 sticky z-40 bg-surface flex items-center justify-between px-margin-mobile py-4">
+<h1 class="font-display-md text-display-md-mobile font-extrabold text-primary">Ajustes</h1>
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center overflow-hidden border border-outline-variant">
+<img alt="Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWisQcPb-5Lf3w5zcWNbTHEO0nOYZBN8-Nqy914wZrXHQaRdMnDG02_HsoTx7RoTxJumGwpFTByumNVDqHnztigxQWr-8ZNAqrwTAoabKXoO2Jx200nJx7fapWVtwNzyPOMziG6OUChMkAYKTVT97bAjLTZFZpClmpN5gAPutznGOh6b9Vk6wX9saTTd7WFIz9bd3mrBBkkw61cqbZwpBHcaSeWkCunbsW0CdSLVLnTQ1_shVCCr5bhj0x2JdhtNgcg9je_AkERm5T"/>
+</div>
+</div>
+</header>
+<main class="px-margin-mobile pb-32 pt-4 space-y-6 max-w-[800px] mx-auto">
+<!-- Section: Recordatorios -->
+<section>
+<h2 class="font-title-lg text-title-lg text-on-surface-variant mb-4 px-1">Recordatorios</h2>
+<div class="bg-surface-container-lowest rounded-[20px] shadow-[0_4px_16px_rgba(11,18,32,0.08)] border border-[#E6EBF3] overflow-hidden">
+<!-- Reminder Row -->
+<div class="flex items-center justify-between px-card-padding min-h-[72px] border-b border-[#E6EBF3] hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="alarm">alarm</span>
+<div class="flex flex-col">
+<span class="font-body-lg text-body-lg text-on-surface">Recordatorio de registro</span>
+<span class="text-on-surface-variant text-body-md">Es hora de tu registro de hoy</span>
+</div>
+</div>
+<span class="font-label-mono text-label-mono text-primary bg-primary-fixed px-2 py-1 rounded-lg">08:00</span>
+</div>
+<!-- Weekly Summary -->
+<div class="flex items-center justify-between px-card-padding h-[56px] border-b border-[#E6EBF3]">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="auto_graph">auto_graph</span>
+<span class="font-body-lg text-body-lg text-on-surface">Resumen semanal</span>
+</div>
+<div class="toggle-teal active" onclick="this.classList.toggle('active')">
+<div class="toggle-dot"></div>
+</div>
+</div>
+<!-- Email Alerts -->
+<div class="flex items-center justify-between px-card-padding h-[56px]">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="mail">mail</span>
+<span class="font-body-lg text-body-lg text-on-surface">Avisos por correo</span>
+</div>
+<div class="toggle-teal" onclick="this.classList.toggle('active')">
+<div class="toggle-dot"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section: Apariencia -->
+<section>
+<h2 class="font-title-lg text-title-lg text-on-surface-variant mb-4 px-1">Apariencia</h2>
+<div class="bg-surface-container-lowest rounded-[20px] shadow-[0_4px_16px_rgba(11,18,32,0.08)] border border-[#E6EBF3] overflow-hidden">
+<div class="flex items-center justify-between px-card-padding h-[56px] border-b border-[#E6EBF3]">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="dark_mode">dark_mode</span>
+<span class="font-body-lg text-body-lg text-on-surface">Tema oscuro</span>
+</div>
+<div class="toggle-teal" onclick="this.classList.toggle('active')">
+<div class="toggle-dot"></div>
+</div>
+</div>
+<div class="flex items-center justify-between px-card-padding h-[56px] hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="straighten">straighten</span>
+<span class="font-body-lg text-body-lg text-on-surface">Unidades</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</section>
+<!-- Section: Cuenta -->
+<section>
+<h2 class="font-title-lg text-title-lg text-on-surface-variant mb-4 px-1">Cuenta</h2>
+<div class="bg-surface-container-lowest rounded-[20px] shadow-[0_4px_16px_rgba(11,18,32,0.08)] border border-[#E6EBF3] overflow-hidden">
+<div class="flex items-center justify-between px-card-padding h-[56px] border-b border-[#E6EBF3] hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="sync">sync</span>
+<span class="font-body-lg text-body-lg text-on-surface">Importar de tienda asociada</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+<div class="flex items-center justify-between px-card-padding h-[56px] border-b border-[#E6EBF3] hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="lock">lock</span>
+<span class="font-body-lg text-body-lg text-on-surface">Perfil y privacidad</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+<div class="flex items-center justify-between px-card-padding h-[56px] hover:bg-red-50 transition-colors cursor-pointer">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-error" data-icon="logout">logout</span>
+<span class="font-body-lg text-body-lg text-error">Cerrar sesión</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Aesthetic Asset: Warm Coach Illustration -->
+<div class="mt-8 relative h-48 rounded-[20px] overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A serene landscape scene featuring abstract organic shapes in warm earth tones like kelp green and ember orange. The environment is minimalist and tranquil, suggesting growth and balance through layered wave patterns and soft, diffuse natural light. The overall mood is peaceful, empowering, and aligns with a high-end wellness brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBX7AS-8-9Te5XGZaG-0a53xWXHH98sqZrzVLqlk_cjAAQpkoRoVvriSZ9ZX9hJi2Pw3YUC3-0jfIkq7J6EL8ywlRwJa4SB3Rprz9Dfbu-SZud8b1VeSTPEua_MFiBX8OeWazDo5mhnTq-tm2DqMd3h4yrvLw0WwCO6K_4U24jND3v7DTp_i8rYJBPMgN_mHNkBZIoEt2nu2WQ4d7_mg0nm5ZE3mTGaHry8AT8XrFXjW_NfayY6k0mZX5WVWc8DwpNCCYRzprHE_Rei"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent flex flex-col justify-end p-6">
+<p class="font-display-md text-white text-lg">Tu progreso es constante.</p>
+<p class="font-body-md text-primary-fixed text-sm">Continúa optimizando tu rutina día con día.</p>
+</div>
+</div>
+</main>
+<!-- FAB: Central Teal FAB -->
+<div class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+<button class="w-14 h-14 bg-surface-tint text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 active:scale-90 hover:opacity-90">
+<span class="material-symbols-outlined text-[32px]" data-icon="add">add</span>
+</button>
+</div>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 w-full z-40 h-20 bg-surface-container-lowest shadow-[0_-4px_16px_rgba(11,18,32,0.08)] flex justify-around items-center px-4 pb-safe">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-mono text-[10px] mt-1">Inicio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="edit_note">edit_note</span>
+<span class="font-label-mono text-[10px] mt-1">Diario</span>
+</a>
+<!-- Spacer for FAB -->
+<div class="w-14"></div>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-transform duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-label-mono text-[10px] mt-1">Protocolo</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold transition-transform duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined font-variation-fill" data-icon="settings" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-mono text-[10px] mt-1">Ajustes</span>
+</a>
+</nav>
+<script>
+        // Simple micro-interaction for rows
+        document.querySelectorAll('.cursor-pointer').forEach(row => {
+            row.addEventListener('click', () => {
+                row.classList.add('opacity-50');
+                setTimeout(() => row.classList.remove('opacity-50'), 150);
+            });
+        });
+
+        // Toggle logic is handled inline for speed, but could be unified
+    </script>
+</body></html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es-MX"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Registrar Dosis</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#005049",
+                        "tertiary-container": "#2a5b19",
+                        "surface-container-high": "#e6e8eb",
+                        "tertiary-fixed": "#b8f29e",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#862208",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#0e5a52",
+                        "on-secondary-container": "#6e1500",
+                        "secondary-fixed": "#ffdad2",
+                        "outline-variant": "#bfc9c6",
+                        "outline": "#6f7977",
+                        "on-primary-container": "#8dcfc4",
+                        "tertiary-fixed-dim": "#9dd584",
+                        "surface-tint": "#246960",
+                        "surface-container-low": "#f2f4f7",
+                        "secondary-container": "#fd7958",
+                        "on-surface-variant": "#3f4947",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e0e3e6",
+                        "on-surface": "#191c1e",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#114302",
+                        "surface-bright": "#f7f9fc",
+                        "primary-fixed": "#acefe4",
+                        "primary": "#00413b",
+                        "surface-container-highest": "#e0e3e6",
+                        "surface-container": "#eceef1",
+                        "secondary": "#a7391e",
+                        "on-tertiary-fixed-variant": "#205110",
+                        "inverse-surface": "#2d3133",
+                        "inverse-on-surface": "#eff1f4",
+                        "surface": "#f7f9fc",
+                        "secondary-fixed-dim": "#ffb4a2",
+                        "on-secondary-fixed": "#3c0700",
+                        "surface-dim": "#d8dadd",
+                        "on-tertiary-container": "#99d281",
+                        "on-error-container": "#93000a",
+                        "on-background": "#191c1e",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#00201c",
+                        "background": "#f7f9fc",
+                        "inverse-primary": "#91d3c8",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#042100",
+                        "primary-fixed-dim": "#91d3c8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "20px",
+                        "stack-md": "16px",
+                        "stack-lg": "32px",
+                        "card-padding": "24px",
+                        "stack-sm": "8px",
+                        "base": "8px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "title-lg": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "display-lg-mobile": ["Bricolage Grotesque"],
+                        "display-lg": ["Bricolage Grotesque"],
+                        "display-md": ["Bricolage Grotesque"],
+                        "body-md": ["Inter"],
+                        "headline-sm": ["Bricolage Grotesque"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "display-lg-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "800"}],
+                        "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "display-md": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Dimmed Background Overlay -->
+<div aria-hidden="true" class="fixed inset-0 bg-on-surface/40 z-40 transition-opacity"></div>
+<!-- Bottom Sheet Container -->
+<div class="fixed inset-x-0 bottom-0 z-50 flex justify-center">
+<!-- Sheet Content -->
+<div class="w-full max-w-[800px] bg-surface-container-lowest rounded-t-[20px] shadow-[0_-12px_32px_rgba(11,18,32,0.12)] flex flex-col h-[795px] max-h-[800px] transition-transform duration-300 ease-out transform translate-y-0">
+<!-- Handle & Header -->
+<div class="flex-none px-card-padding pt-stack-md pb-stack-sm flex flex-col items-center">
+<!-- Drag Handle (Visual only) -->
+<div class="w-12 h-1.5 bg-outline-variant rounded-full mb-stack-md"></div>
+<div class="w-full flex justify-between items-center">
+<div class="w-10"></div> <!-- Spacer for centering -->
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Registrar</h2>
+<button aria-label="Cerrar" class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">close</span>
+</button>
+</div>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto px-card-padding pb-[100px] flex flex-col gap-stack-lg">
+<!-- Section 1: Pre-selected Product -->
+<div class="flex flex-col gap-stack-sm">
+<span class="font-body-md text-body-md text-on-surface-variant">Producto</span>
+<div class="flex items-center justify-between p-stack-md rounded-[12px] border border-surface-container-high bg-surface-bright">
+<div class="flex items-center gap-stack-md">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">eco</span>
+</div>
+<span class="font-title-lg text-title-lg text-on-surface">Extracto de Melena de León</span>
+</div>
+<button class="text-primary-container hover:text-surface-tint font-body-md text-body-md font-medium transition-colors">
+                            Cambiar
+                        </button>
+</div>
+</div>
+<!-- Section 2: Cadence Selector -->
+<div class="flex flex-col gap-stack-md">
+<div class="flex bg-surface-container-low p-1 rounded-[12px]">
+<button class="flex-1 py-2 px-3 rounded-[8px] bg-surface-container-lowest shadow-sm font-body-md text-body-md font-medium text-on-surface text-center">Por día</button>
+<button class="flex-1 py-2 px-3 rounded-[8px] font-body-md text-body-md text-on-surface-variant hover:bg-surface-variant/50 transition-colors text-center">Semana</button>
+<button class="flex-1 py-2 px-3 rounded-[8px] font-body-md text-body-md text-on-surface-variant hover:bg-surface-variant/50 transition-colors text-center">Mes</button>
+<button class="flex-1 py-2 px-3 rounded-[8px] font-body-md text-body-md text-on-surface-variant hover:bg-surface-variant/50 transition-colors text-center">Por uso</button>
+</div>
+<!-- Weekday Chips -->
+<div class="flex justify-between gap-2 mt-stack-sm">
+<button class="w-10 h-10 rounded-full bg-primary-container text-on-primary font-body-md text-body-md flex items-center justify-center">L</button>
+<button class="w-10 h-10 rounded-full bg-primary-container text-on-primary font-body-md text-body-md flex items-center justify-center">M</button>
+<button class="w-10 h-10 rounded-full bg-primary-container text-on-primary font-body-md text-body-md flex items-center justify-center">X</button>
+<button class="w-10 h-10 rounded-full bg-primary-container text-on-primary font-body-md text-body-md flex items-center justify-center">J</button>
+<button class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant font-body-md text-body-md flex items-center justify-center">V</button>
+<button class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant font-body-md text-body-md flex items-center justify-center">S</button>
+<button class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant font-body-md text-body-md flex items-center justify-center">D</button>
+</div>
+</div>
+<!-- Section 3: Large Number Input -->
+<div class="flex flex-col items-center justify-center py-stack-lg gap-stack-md">
+<div class="flex items-center gap-stack-md">
+<button aria-label="Disminuir dosis" class="w-14 h-14 rounded-full border border-surface-container-high text-on-surface-variant flex items-center justify-center hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">remove</span>
+</button>
+<div class="flex items-baseline gap-2">
+<input aria-label="Cantidad de dosis" class="w-32 bg-transparent border-none p-0 text-center font-display-lg-mobile text-display-lg-mobile text-on-surface focus:ring-0 placeholder-outline" inputmode="numeric" type="text" value="500"/>
+<span class="px-3 py-1 rounded-full bg-surface-container-low font-label-mono text-label-mono text-on-surface-variant">mg</span>
+</div>
+<button aria-label="Aumentar dosis" class="w-14 h-14 rounded-full border border-surface-container-high text-on-surface-variant flex items-center justify-center hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">add</span>
+</button>
+</div>
+</div>
+<!-- Section 4: Unit Calculator Link -->
+<div class="flex justify-center -mt-stack-sm">
+<button class="flex items-center gap-1 text-primary-container hover:text-surface-tint transition-colors group">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">calculate</span>
+<span class="font-body-md text-body-md font-medium">Calculadora de unidades</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-y-0.5 transition-transform" style="font-variation-settings: 'FILL' 0;">expand_more</span>
+</button>
+</div>
+<!-- Section 5: Time Field -->
+<div class="flex flex-col gap-stack-sm">
+<span class="font-body-md text-body-md text-on-surface-variant">Hora de registro</span>
+<div class="relative">
+<input class="w-full h-[52px] px-4 pl-12 rounded-[12px] border border-surface-container-high bg-surface-bright font-body-lg text-body-lg text-on-surface focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-shadow" type="text" value="Ahora"/>
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-variation-settings: 'FILL' 0;">schedule</span>
+</div>
+</div>
+</div>
+<!-- Fixed Bottom Action -->
+<div class="absolute bottom-0 left-0 right-0 p-card-padding bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest to-transparent pb-safe">
+<button class="w-full h-[52px] bg-primary-container hover:bg-surface-tint text-on-primary font-body-lg text-body-lg font-medium rounded-[16px] flex items-center justify-center gap-2 transition-all duration-300" id="save-btn">
+<span class="material-symbols-outlined transition-transform duration-300" id="save-icon" style="font-variation-settings: 'FILL' 0;">check</span>
+<span class="transition-all duration-300 max-w-[200px] opacity-100 overflow-hidden whitespace-nowrap" id="save-text">Guardar registro</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const saveBtn = document.getElementById('save-btn');
+        const saveText = document.getElementById('save-text');
+        const saveIcon = document.getElementById('save-icon');
+
+        saveBtn.addEventListener('click', () => {
+            // Animate text away
+            saveText.classList.remove('max-w-[200px]', 'opacity-100');
+            saveText.classList.add('max-w-0', 'opacity-0');
+            
+            // Remove gap dynamically so icon centers properly
+            saveBtn.classList.remove('gap-2');
+            saveBtn.classList.add('gap-0');
+
+            // Scale up the icon
+            saveIcon.classList.add('scale-150');
+
+            // Reset after animation to allow reuse
+            setTimeout(() => {
+                saveText.classList.remove('max-w-0', 'opacity-0');
+                saveText.classList.add('max-w-[200px]', 'opacity-100');
+                
+                saveBtn.classList.remove('gap-0');
+                saveBtn.classList.add('gap-2');
+
+                saveIcon.classList.remove('scale-150');
+            }, 2000);
+        });
+    });
+</script>
+</body></html>

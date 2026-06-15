@@ -1,0 +1,135 @@
+// Hacktrack — catálogo de péptidos, categorías, medidas y copy legal (port verbatim del prototipo)
+import type { Category, PeptideEntry, MeasureMeta } from './types'
+
+// howto genérico (constante GEN del prototipo)
+export const GEN =
+  'Configura tu ritmo y registra tu dosis. Hacktrack no define la dosis — la pones tú.'
+
+// Catálogo completo (24 entradas, verbatim del prototipo)
+export const PEPTIDES: Record<string, PeptideEntry> = {
+  'Retatrutide':        { cat: 'Metabolismo',  type: 'semanal', weekday: 2, phases: 3, phaseWeeks: 4 },
+  'Tirzepatida':        { cat: 'Metabolismo',  type: 'semanal', weekday: 2, phases: 4, phaseWeeks: 4 },
+  'Semaglutida':        { cat: 'Metabolismo',  type: 'semanal', weekday: 2, phases: 4, phaseWeeks: 4 },
+  'Tesamorelin':        { cat: 'Metabolismo',  type: 'diaria' },
+  'MOTS-c':             { cat: 'Anti-Aging',   type: 'diaria', phases: 5 },
+  '5-Amino-1MQ':        { cat: 'Metabolismo',  type: 'diaria', howto: GEN },
+  'SLU-PP-332':         { cat: 'Metabolismo',  type: 'diaria', howto: GEN },
+  'BPC-157':            { cat: 'Recuperación', type: 'lv' },
+  'TB-500':             { cat: 'Recuperación', type: 'diaria' },
+  'GHK-Cu':             { cat: 'Recuperación', type: 'lv', phases: 3 },
+  'ARA 290':            { cat: 'Recuperación', type: 'diaria', howto: GEN },
+  'GLOW 70':            { cat: 'Piel',         type: 'diaria' },
+  'KLOW 80':            { cat: 'Piel',         type: 'diaria', howto: GEN },
+  'NAD+':               { cat: 'Anti-Aging',   type: 'cadaN', n: 3 },
+  'SS-31':              { cat: 'Anti-Aging',   type: 'diaria', howto: GEN },
+  'L-Glutathione':      { cat: 'Anti-Aging',   type: 'diaria', howto: GEN },
+  'Semax':              { cat: 'Cognitivo',    type: 'ciclo', on: 4, off: 4, phases: 4 },
+  'Selank':             { cat: 'Cognitivo',    type: 'ciclo', on: 4, off: 4, phases: 2 },
+  'DSIP':               { cat: 'Cognitivo',    type: 'diaria', howto: GEN },
+  'Oxytocin':           { cat: 'Cognitivo',    type: 'por-demanda' },
+  'CJC 1295 (No DAC)':  { cat: 'Crecimiento',  type: 'diaria', howto: GEN },
+  'Ipamorelin':         { cat: 'Crecimiento',  type: 'diaria' },
+  'Kisspeptin-10':      { cat: 'Reproductivo', type: 'diaria', phases: 2 },
+  'PT-141':             { cat: 'Reproductivo', type: 'por-demanda' },
+}
+
+// Color de acento por categoría — del design system "Quiet Signal" (Stitch THEME, fuente de la verdad)
+export const CATEGORY_COLOR: Record<Category, string> = {
+  'Metabolismo':  '#E85D3A',
+  'Recuperación': '#2FB57C',
+  'Cognitivo':    '#6B7BE8',
+  'Anti-Aging':   '#A8842F',
+  'Piel':         '#D17FA0',
+  'Crecimiento':  '#1B8A7D',
+  'Reproductivo': '#9B5FC4',
+  'Explorar':     '#6B7A99',
+}
+
+// Emoji por categoría (pantalla de objetivo / chips)
+export const CATEGORY_EMOJI: Record<Category, string> = {
+  'Metabolismo':  '⚖️',
+  'Recuperación': '🩹',
+  'Cognitivo':    '🧠',
+  'Piel':         '✨',
+  'Anti-Aging':   '🧬',
+  'Crecimiento':  '🌱',
+  'Reproductivo': '❤️',
+  'Explorar':     '🧭',
+}
+
+export const MEASURES_ALL = [
+  'Peso', 'Cintura', '% grasa', 'Energía', 'Apetito',
+  'Dolor', 'Movilidad', 'Sueño', 'Foco', 'Ánimo',
+  'Textura piel', 'Hidratación', 'Libido',
+] as const
+
+// MEASURES_BY — Crecimiento y Reproductivo AÑADIDOS (faltaban en el prototipo, audit P2)
+export const MEASURES_BY: Record<string, string[]> = {
+  'Metabolismo':  ['Peso', 'Cintura', '% grasa', 'Energía', 'Apetito'],
+  'Recuperación': ['Dolor', 'Movilidad', 'Sueño', 'Energía'],
+  'Cognitivo':    ['Foco', 'Ánimo', 'Sueño', 'Energía'],
+  'Piel':         ['Textura piel', 'Hidratación', 'Sueño'],
+  'Anti-Aging':   ['Energía', 'Sueño', 'Textura piel'],
+  'Crecimiento':  ['Sueño', 'Energía', 'Movilidad'],
+  'Reproductivo': ['Libido', 'Ánimo', 'Energía'],
+  'Explorar':     ['Peso', 'Energía', 'Sueño'],
+}
+
+export const MEASURE_META: Record<string, MeasureMeta> = {
+  'Peso':         { kind: 'num',   unit: 'kg', prof: 'peso' },
+  'Cintura':      { kind: 'num',   unit: 'cm' },
+  '% grasa':      { kind: 'num',   unit: '%',  prof: 'grasa' },
+  'Sueño':        { kind: 'num',   unit: 'h' },
+  'Dolor':        { kind: 'scale', max: 10 },
+  'Energía':      { kind: 'scale', max: 5 },
+  'Apetito':      { kind: 'scale', max: 5 },
+  'Movilidad':    { kind: 'scale', max: 5 },
+  'Foco':         { kind: 'scale', max: 5 },
+  'Ánimo':        { kind: 'scale', max: 5 },
+  'Textura piel': { kind: 'scale', max: 5 },
+  'Hidratación':  { kind: 'scale', max: 5 },
+  'Libido':       { kind: 'scale', max: 5 },
+}
+
+// Icono/color por medida para el diario
+export const MEASURE_ICON: Record<string, { ic: string; cat: string }> = {
+  'Peso':         { ic: '⚖️', cat: '#7BC96F' },
+  'Energía':      { ic: '⚡', cat: '#FF7A59' },
+  'Sueño':        { ic: '😴', cat: '#5FC9B8' },
+  'Foco':         { ic: '🎯', cat: '#6B7BE8' },
+  'Ánimo':        { ic: '🙂', cat: '#A8842F' },
+  'Dolor':        { ic: '🩹', cat: '#2FB57C' },
+  'Movilidad':    { ic: '🤸', cat: '#2FB57C' },
+  'Cintura':      { ic: '📏', cat: '#7BC96F' },
+  '% grasa':      { ic: '📉', cat: '#7BC96F' },
+  'Textura piel': { ic: '✨', cat: '#D17FA0' },
+  'Hidratación':  { ic: '💧', cat: '#D17FA0' },
+  'Apetito':      { ic: '🍽️', cat: '#E85D3A' },
+  'Libido':       { ic: '❤️', cat: '#9B5FC4' },
+}
+
+// Tablas de días — iniciales canónicas (audit P2): L Ma Mi J V S D
+export const WDS: [string, number][] = [
+  ['L', 1], ['Ma', 2], ['Mi', 3], ['J', 4], ['V', 5], ['S', 6], ['D', 0],
+]
+export const WD = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+export const MON = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+// Disclaimers legales — mantener TODAS las instancias, redacción unificada (audit guardrail)
+export const DISCLAIMER = {
+  dose:    'Tú registras tu propia dosis. Hacktrack no la calcula ni la prescribe.',
+  calc:    'Solo convierte unidades con TU dosis. Hacktrack no decide cuánto debes aplicarte. No es consejo médico.',
+  measure: 'Tú registras cómo te sientes. Son tus datos, no una promesa de resultado.',
+  general: 'Hacktrack es una herramienta de auto-registro. No es consejo médico.',
+  proto:   'Esto describe un ritmo general. Tú confirmas y ajustas lo que TÚ haces. No es consejo médico.',
+} as const
+
+// Objetivos (pantalla de selección) — SIN producto asociado (P0-4)
+export interface GoalOption { label: string; sub: string; cat: Category }
+export const GOALS: GoalOption[] = [
+  { label: 'Bajar de peso',       sub: 'Optimiza tu metabolismo y composición.',        cat: 'Metabolismo' },
+  { label: 'Recuperarme mejor',   sub: 'Mejora tu sueño y reduce el estrés físico.',    cat: 'Recuperación' },
+  { label: 'Más energía y foco',  sub: 'Claridad mental y rendimiento sostenido.',      cat: 'Cognitivo' },
+  { label: 'Cuidar mi piel',      sub: 'Salud dermatológica desde adentro.',            cat: 'Piel' },
+  { label: 'Longevidad',          sub: 'Prácticas para una vida más larga y saludable.', cat: 'Anti-Aging' },
+]
