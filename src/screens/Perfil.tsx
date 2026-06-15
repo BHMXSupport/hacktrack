@@ -66,14 +66,16 @@ export function Perfil() {
                 overflow: 'hidden',
               }}
             >
-              {/* Placeholder de avatar — sin imagen externa (no imágenes de perfil remotas) */}
-              <IcShield size={36} style={{ color: 'var(--brand-700)' }} />
+              {/* Avatar: inicial del nombre, o escudo si no hay nombre (sin imágenes remotas) */}
+              {state.profile.name
+                ? <span style={{ fontWeight: 700, fontSize: 32, color: 'var(--brand-700)' }}>{state.profile.name.trim().charAt(0).toUpperCase()}</span>
+                : <IcShield size={36} style={{ color: 'var(--brand-700)' }} />}
             </div>
             <div className="h1" style={{ margin: 0, textAlign: 'center' }}>
-              Alejandro
+              {state.profile.name ?? 'Tu perfil'}
             </div>
             <div className="sm" style={{ color: 'var(--ink-400)', margin: 0 }}>
-              Miembro desde 2023
+              Tus datos son tuyos
             </div>
           </section>
 
