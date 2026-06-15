@@ -67,6 +67,7 @@ export type Action =
   | { t: 'pickGoal'; cat: Category }                                   // P0-4
   | { t: 'setProtocol'; product: string }
   | { t: 'setCadence'; cadence: UserCadence }                          // P0-3
+  | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar protocolo (tunear)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string } // P0-1
   | { t: 'saveMeasure'; name: string; value: number }                 // P0-1
@@ -156,6 +157,10 @@ export function reducer(s: AppState, a: Action): AppState {
     // P0-3: la cadencia editada por el usuario es la fuente de verdad
     case 'setCadence':
       return s.protocol ? { ...s, protocol: { ...s.protocol, cadence: a.cadence } } : s
+
+    // tunear el protocolo (cadencia, fases, etc.) — punto 4
+    case 'updateProtocol':
+      return s.protocol ? { ...s, protocol: { ...s.protocol, ...a.patch } } : s
 
     case 'importProducts': {
       const products = a.names.filter((n) => n in PEPTIDES)

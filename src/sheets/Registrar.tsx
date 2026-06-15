@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react'
 import { Sheet } from '../components/Sheet'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
 import { IcDrop } from '../components/icons'
+import { TimeWheel } from '../components/TimeWheel'
 import { useApp } from '../lib/store'
 import { PEPTIDES, WDS } from '../lib/catalog'
 import { presetCad } from '../lib/cadence'
@@ -355,18 +356,13 @@ export function RegistrarSheet() {
           </button>
         </div>
 
-        {/* ── Hora de registro ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora de registro</span>
-          <input
-            type="text"
-            className="field body"
-            value={hora}
-            onChange={(e) => setHora(e.target.value)}
-            onFocus={(e) => { if (e.target.value === 'Ahora') setHora('') }}
-            onBlur={(e) => { if (!e.target.value.trim()) setHora('Ahora') }}
-            style={{ width: '100%' }}
-          />
+        {/* ── Hora de registro (rueda tipo scroll) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora de registro</span>
+            <Chip label={hora === 'Ahora' ? 'Ahora ✓' : 'Ahora'} active={hora === 'Ahora'} onClick={() => setHora('Ahora')} />
+          </div>
+          <TimeWheel onChange={(label) => setHora(label)} />
         </div>
 
         {/* ── Disclaimer (dose) — guardrail de compliance ── */}

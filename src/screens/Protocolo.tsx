@@ -11,6 +11,7 @@ import {
 } from '../lib/cadence'
 import { Chip, Disclaimer } from '../components/controls'
 import { IcDrop } from '../components/icons'
+import { BiohackmxFlask } from '../components/BiohackmxFlask'
 
 export function Protocolo() {
   const { state, dispatch } = useApp()
@@ -43,16 +44,18 @@ export function Protocolo() {
               Aun no tienes un protocolo
             </div>
             <div className="sm">
-              Importa tus productos de una tienda asociada o elige uno del catálogo para empezar.
+              Importa tus productos de BiohackMX o elige uno del catálogo para empezar.
             </div>
           </div>
 
-          {/* Btn principal: importar de tienda asociada */}
+          {/* Btn principal: conectar BiohackMX */}
           <button
             className="btn btn-brand"
+            style={{ gap: 10 }}
             onClick={() => dispatch({ t: 'go', screen: 's-import' })}
           >
-            Importar de tienda asociada
+            <BiohackmxFlask size={20} style={{ filter: 'brightness(0) invert(1)' }} />
+            Importar de BiohackMX
           </button>
 
           {/* Btn outline: picker del catálogo */}
@@ -116,8 +119,17 @@ export function Protocolo() {
 
   return (
     <div className="scroll has-nav">
-      {/* Nombre del producto */}
-      <div className="h1" style={{ marginBottom: 6 }}>{product}</div>
+      {/* Nombre del producto + editar */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+        <div className="h1">{product}</div>
+        <button
+          className="btn btn-outline btn-sm"
+          style={{ width: 'auto', padding: '0 14px', flexShrink: 0 }}
+          onClick={() => dispatch({ t: 'sheet', sheet: 'protocolo-edit' })}
+        >
+          Editar
+        </button>
+      </div>
 
       {/* Ritmo — chip de label + badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>

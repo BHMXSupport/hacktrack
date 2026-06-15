@@ -159,11 +159,11 @@ export function Ajustes() {
             Cuenta
           </p>
           <div className="rowlist card">
-            {/* Importar de tienda asociada */}
+            {/* Importar de BiohackMX */}
             <button
               className="row"
               style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-              aria-label="Importar de tienda asociada"
+              aria-label="Importar de BiohackMX"
               onClick={() => dispatch({ t: 'go', screen: 's-import' })}
             >
               <span className="row-ic">
@@ -172,7 +172,7 @@ export function Ajustes() {
                 </svg>
               </span>
               <span className="row-main">
-                <span className="row-label">Importar de tienda asociada</span>
+                <span className="row-label">Importar de BiohackMX</span>
               </span>
               <span className="row-end">
                 <IcChevron size={18} style={{ color: 'var(--ink-300)' }} />

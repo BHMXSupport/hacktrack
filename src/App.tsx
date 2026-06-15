@@ -18,6 +18,7 @@ import { CalcSheet } from './sheets/Calc'
 import { MedidaSheet } from './sheets/Medida'
 import { ArcoSheet } from './sheets/Arco'
 import { ConfirmDeleteSheet } from './sheets/ConfirmDelete'
+import { ProtocoloEdit } from './sheets/ProtocoloEdit'
 
 const fade = {
   initial: { opacity: 0, x: 18 },
@@ -58,6 +59,7 @@ const SHEETS = {
   medida: MedidaSheet,
   arco: ArcoSheet,
   'confirm-delete': ConfirmDeleteSheet,
+  'protocolo-edit': ProtocoloEdit,
 } as const
 
 function SheetHost() {

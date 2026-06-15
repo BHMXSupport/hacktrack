@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../lib/store'
 import { IcDrop, IcShield } from '../components/icons'
+import { BiohackmxFlask } from '../components/BiohackmxFlask'
 import { Disclaimer } from '../components/controls'
 
 // SVG logos para proveedores OAuth (sin imágenes externas)
@@ -119,7 +120,7 @@ export function Account() {
             <div
               aria-hidden="true"
               style={{
-                background: 'rgba(14,90,82,.10)',
+                background: 'rgba(94,234,212,.16)',
                 borderRadius: 12,
                 padding: 8,
                 flexShrink: 0,
@@ -128,7 +129,7 @@ export function Account() {
                 justifyContent: 'center',
               }}
             >
-              <IcLeafFilled size={24} />
+              <BiohackmxFlask size={26} />
             </div>
             <div>
               <p
@@ -150,9 +151,10 @@ export function Account() {
 
           <button
             className="btn btn-brand"
-            style={{ width: '100%', height: 52, borderRadius: 16, fontSize: 16 }}
+            style={{ width: '100%', height: 52, borderRadius: 16, fontSize: 16, gap: 10 }}
             onClick={handleBiohack}
           >
+            <BiohackmxFlask size={20} style={{ filter: 'brightness(0) invert(1)' }} />
             Conectar con BiohackMX
           </button>
         </div>
@@ -357,22 +359,5 @@ export function Account() {
         </div>
       </div>
     </div>
-  )
-}
-
-// Ícono de hoja relleno (sin jeringas — compliance)
-function IcLeafFilled({ size = 24 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="var(--brand-700)"
-      stroke="none"
-      aria-hidden="true"
-    >
-      <path d="M4 20c8 1 14-4 16-16C10 4 5 9 4 20Z" />
-      <path d="M4 20C7 14 11 11 16 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-    </svg>
   )
 }
