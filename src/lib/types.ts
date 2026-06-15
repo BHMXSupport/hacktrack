@@ -95,6 +95,7 @@ export interface UserProtocol {
   progOn: boolean
   progN: number
   curPhase: number
+  phaseDoses?: (number | null)[]  // mg por fase de titulación (el usuario la define; la app no prescribe)
   startDate: number    // epoch ms
   reminderTime: string // 'HH:MM' hora del recordatorio/toma (para cuenta regresiva)
 }

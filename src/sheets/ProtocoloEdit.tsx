@@ -15,6 +15,17 @@ export function ProtocoloEdit() {
   )
   const [progOn, setProgOn] = useState(p?.progOn ?? false)
   const [progN, setProgN] = useState(p?.progN ?? 2)
+  // dosis por fase como strings (para los inputs); se parsean al guardar
+  const [phaseDoses, setPhaseDoses] = useState<string[]>(
+    (p?.phaseDoses ?? []).map((d) => (d == null ? '' : String(d))),
+  )
+  const setPhaseDose = (i: number, v: string) =>
+    setPhaseDoses((arr) => {
+      const next = arr.slice()
+      while (next.length <= i) next.push('')
+      next[i] = v
+      return next
+    })
 
   if (!p) return null
   const entry = PEPTIDES[p.product]
@@ -35,7 +46,11 @@ export function ProtocoloEdit() {
   }
 
   function save() {
-    dispatch({ t: 'updateProtocol', patch: { cadence: cad, progOn, progN } })
+    const doses: (number | null)[] = Array.from({ length: progN }, (_, i) => {
+      const n = parseFloat(phaseDoses[i] ?? '')
+      return isNaN(n) ? null : n
+    })
+    dispatch({ t: 'updateProtocol', patch: { cadence: cad, progOn, progN, phaseDoses: progOn ? doses : undefined } })
     dispatch({ t: 'toast', msg: 'Protocolo actualizado' })
     dispatch({ t: 'sheet', sheet: null })
   }
@@ -102,6 +117,36 @@ export function ProtocoloEdit() {
           </div>
         )}
       </div>
+
+      {/* Dosis por fase — el usuario la define (la app no prescribe) */}
+      {progOn && (
+        <div style={{ marginTop: 14 }}>
+          <div className="label">Dosis por fase</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Array.from({ length: progN }, (_, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="sm" style={{ width: 64, flexShrink: 0 }}>Fase {i + 1}</span>
+                <input
+                  className="field"
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  min={0}
+                  placeholder="—"
+                  aria-label={`Dosis de la fase ${i + 1} en mg`}
+                  value={phaseDoses[i] ?? ''}
+                  onChange={(e) => setPhaseDose(i, e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>mg</span>
+              </div>
+            ))}
+          </div>
+          <p className="sm" style={{ marginTop: 6, color: 'var(--ink-300)' }}>
+            Tú defines la dosis de cada fase. Hacktrack no la prescribe.
+          </p>
+        </div>
+      )}
 
       <button className="btn btn-brand" style={{ marginTop: 18 }} onClick={save}>Guardar cambios</button>
       <Disclaimer kind="proto" />

@@ -100,9 +100,10 @@ function TitrationPhases() {
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
         {Array.from({ length: n }, (_, i) => {
-          const label = phaseWeeks
-            ? `Fase ${i + 1} · sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}`
-            : `Fase ${i + 1}`
+          const dose = protocol.phaseDoses?.[i]
+          const weeksPart = phaseWeeks ? ` · sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}` : ''
+          const dosePart = dose != null ? ` · ${dose} mg` : ''
+          const label = `Fase ${i + 1}${weeksPart}${dosePart}`
           return (
             <Chip
               key={i}
