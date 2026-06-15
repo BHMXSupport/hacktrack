@@ -1,0 +1,35 @@
+/* Hacktrack — "Quiet Signal" design tokens (portado del prototipo) */
+:root {
+  --brand-900:#063B36; --brand-700:#0E5A52; --brand-500:#1B8A7D; --brand-300:#5FC9B8; --brand-100:#D6F2EC;
+  --lime:#B6F09C; --lime-deep:#7BC96F; --ember:#FF7A59; --ember-deep:#E85D3A;
+  --success:#2FB57C; --warning:#E8A317; --error:#E4564B;
+  --ink-900:#0B1220; --ink-700:#1B2740; --ink-400:#6B7A99; --ink-300:#9AA6BF; --ink-200:#D7DEEC; --ink-100:#EEF2F8; --ink-0:#FFF;
+  --bg:#F7F9FC; --surface:#FFFFFF; --card:#FFFFFF; --border:#E9EDF4;
+  --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px;
+  --e1:0 1px 2px rgba(11,18,32,.05); --e2:0 4px 16px rgba(11,18,32,.07); --e3:0 14px 36px rgba(11,18,32,.13);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #root { margin:0; height:100%; }
+body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(--ink-900); }
+
+/* Phone shell (centra en desktop, full en móvil) */
+.phone { position:relative; width:100%; max-width:412px; height:100dvh; max-height:880px; margin:0 auto; background:var(--bg);
+  border-radius:40px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5); border:10px solid #05080f; }
+@media (max-width:430px){ .phone{ max-height:none; height:100dvh; border-radius:0; border:0; } }
+.app-root { display:flex; align-items:center; justify-content:center; min-height:100dvh; }
+
+.display-l{font-family:'Bricolage Grotesque';font-weight:800;font-size:30px;line-height:35px;letter-spacing:-.5px}
+.h1{font-family:'Bricolage Grotesque';font-weight:700;font-size:24px;line-height:30px}
+.h2{font-family:'Bricolage Grotesque';font-weight:700;font-size:19px;line-height:25px}
+.body{font-size:15px;line-height:23px;color:var(--ink-700)}
+.sm{font-size:13.5px;line-height:19px;color:var(--ink-400)}
+.mono{font-family:'JetBrains Mono';font-variant-numeric:tabular-nums}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;border:0;border-radius:var(--r-md);
+  font-family:'Inter';font-weight:600;font-size:16px;cursor:pointer}
+.btn-brand{background:var(--brand-700);color:#fff;box-shadow:0 6px 18px rgba(14,90,82,.28)}
+.btn-ember{background:var(--ember);color:#3a1206;box-shadow:0 8px 22px rgba(255,122,89,.33)}
+.btn-ghost{background:transparent;color:var(--ink-400);height:46px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:var(--e2)}
+.scroll{position:absolute;inset:0;overflow-y:auto;padding:max(22px,env(safe-area-inset-top)) 18px 28px}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
