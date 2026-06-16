@@ -13,12 +13,40 @@ import { staggerParent, staggerItem } from '../lib/motion'
 type Win = '24h' | '72h' | '7d'
 const WIN_MS: Record<Win, number> = { '24h': 24 * 3_600_000, '72h': 72 * 3_600_000, '7d': 7 * 86_400_000 }
 
-// Notas educativas por producto (se muestran SOLO debajo del producto al que aplican y cuando está activo)
-const GLP1 = new Set(['Retatrutide', 'Tirzepatida', 'Semaglutida'])
-const NOTE = {
-  glp1: 'Vida media larga (~varios días): la curva arranca alta y baja lento; sigue presente días después de la inyección.',
-  slu: 'Sin farmacocinética humana publicada — su curva es una estimación de referencia, no un dato clínico.',
-  nohl: 'Sin vida media de eliminación estándar — no se grafica su decaimiento.',
+// Notas educativas por producto (se muestran SOLO debajo del producto al que aplican y cuando está activo).
+// Describen la clase y el comportamiento de su curva (velocidad de eliminación) — estimación educativa, sin claims.
+const PRODUCT_NOTE: Record<string, string> = {
+  'Retatrutide': 'Triple agonista incretina; vida media larga (~6 días): la curva arranca alta y baja lento, sigue presente varios días tras la inyección.',
+  'Tirzepatida': 'Doble agonista GIP/GLP-1; vida media ~5 días: presencia prolongada, la curva desciende de forma gradual.',
+  'Semaglutida': 'Agonista GLP-1; vida media ~7 días: de las curvas más largas, permanece presente casi una semana tras la dosis.',
+  'Tesamorelin': 'Análogo de GHRH; vida media muy corta (~10 min): se elimina del plasma casi de inmediato, la curva cae de golpe.',
+  'MOTS-c': 'Péptido mitocondrial; vida media corta (~1 h): presente solo unas horas. PK extrapolada de modelos animales.',
+  '5-Amino-1MQ': 'Molécula pequeña; vida media corta (~3 h): presencia de pocas horas tras la toma.',
+  'SLU-PP-332': 'Agonista ERR (investigación); sin farmacocinética humana publicada — su curva es una estimación de referencia, no un dato clínico.',
+  'BPC-157': 'Péptido de acción local; vida media plasmática muy corta (minutos–½ h): desaparece rápido de la sangre tras la dosis.',
+  'TB-500': 'Fracción de timosina β4; vida media corta (~1.5 h): se elimina del plasma en pocas horas.',
+  'GHK-Cu': 'Péptido de cobre; vida media muy corta (~45 min): presencia plasmática breve tras la dosis.',
+  'ARA 290': 'Péptido derivado de EPO; vida media muy corta (~45 min): la curva cae en menos de una hora.',
+  'GLOW 70': 'Blend (BPC-157 + TB-500 + GHK-Cu); curva estimada con la vida media del componente más largo (TB-500, ~1.5 h).',
+  'KLOW 80': 'Blend (KPV + BPC-157 + TB-500 + GHK-Cu); curva estimada con la vida media del componente más largo (TB-500, ~1.5 h).',
+  'NAD+': 'Coenzima, no un péptido con eliminación de primer orden: no se grafica su decaimiento plasmático.',
+  'SS-31': 'Péptido mitocondrial (Elamipretida); vida media corta (~2 h): presente unas horas tras la dosis.',
+  'L-Glutathione': 'Antioxidante; vida media plasmática muy corta (~10–15 min, vía parenteral): la curva cae casi de inmediato; la vía oral no es graficable.',
+  'Semax': 'Péptido derivado de ACTH; vida media muy corta (~20 min): presencia plasmática fugaz tras la dosis.',
+  'Selank': 'Péptido análogo de tuftsina; vida media muy corta (~20 min): se elimina del plasma en minutos.',
+  'DSIP': 'Péptido (delta sleep); vida media corta (~45 min): presencia plasmática breve.',
+  'Oxytocin': 'Hormona peptídica; vida media ultracorta (~3 min): la curva cae a cero en minutos; sus efectos centrales pueden durar más que su presencia en sangre.',
+  'CJC 1295 (No DAC)': 'Análogo de GHRH sin DAC; vida media corta (~30 min): pulso breve, la curva desciende rápido.',
+  'Ipamorelin': 'Secretagogo de GH; vida media corta (~2 h): presente unas horas tras la dosis.',
+  'Kisspeptin-10': 'Péptido del eje reproductivo; vida media muy corta (~12 min): la curva cae en minutos.',
+  'PT-141': 'Análogo de melanocortina (Bremelanotida); vida media corta (~2 h): presencia de pocas horas tras la dosis.',
+}
+// fallback por si se agrega un producto sin nota curada
+function fallbackNote(h: number | undefined): string {
+  if (h == null) return 'Sin vida media de eliminación estándar — no se grafica su decaimiento.'
+  if (h < 0.5) return `Vida media muy corta (~${Math.round(h * 60)} min): presencia plasmática fugaz tras la dosis.`
+  if (h < 6) return `Vida media corta (~${h} h): presente unas horas tras la dosis.`
+  return `Vida media larga (~${Math.round(h / 24)} días): la curva baja lento y sigue presente varios días.`
 }
 
 export function PharmaDashboard() {
@@ -47,6 +75,31 @@ export function PharmaDashboard() {
     })
 
   const visible = data.series.filter((s) => !hidden.has(s.product))
+
+  // Notas por producto: solo de los productos ACTIVOS (en la gráfica, consumidos sin t½, o en protocolo)
+  const noteProducts = (() => {
+    const set = new Set<string>()
+    data.series.forEach((s) => set.add(s.product))
+    data.skipped.forEach((p) => set.add(p))
+    Object.keys(state.protocols).forEach((p) => set.add(p))
+    const out: { product: string; color: string; text: string }[] = []
+    for (const p of set) {
+      const text = PRODUCT_NOTE[p] ?? fallbackNote(HALF_LIFE_H[p])
+      const color = data.series.find((s) => s.product === p)?.color ?? CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
+      out.push({ product: p, color, text })
+    }
+    return out
+  })()
+  const notesBlock = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      {noteProducts.map((n) => (
+        <div key={n.product} className="sm" style={{ color: 'var(--ink-400)', lineHeight: 1.4, display: 'flex', gap: 7 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: n.color, flexShrink: 0, marginTop: 5 }} />
+          <span><strong style={{ color: 'var(--ink-700)', fontWeight: 600 }}>{n.product}:</strong> {n.text}</span>
+        </div>
+      ))}
+    </div>
+  )
 
   // ── Eje Y ──
   const yTicks = mode === 'percent' ? [0, 50, 100] : [0, data.domainY[1] / 2, data.domainY[1]]
@@ -92,11 +145,12 @@ export function PharmaDashboard() {
     return (
       <motion.div variants={staggerItem} className="card" style={{ marginTop: 16, padding: 20 }}>
         <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Vida del péptido en el cuerpo</div>
-        <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 8, lineHeight: 1.4 }}>
+        <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 8, marginBottom: 12, lineHeight: 1.4 }}>
           {noHalfLife
-            ? `${data.skipped.join(', ')}: sin vida media de eliminación estándar — no se pueden graficar todavía.`
+            ? 'Estos productos no grafican una curva de decaimiento, pero aquí tienes su contexto:'
             : 'Ningún producto tiene presencia relevante en esta ventana. Amplía el rango o registra una dosis reciente.'}
         </div>
+        {noteProducts.length > 0 && notesBlock}
         {!noHalfLife && win !== '7d' && (
           <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px', marginTop: 12 }} onClick={() => setWin('7d')}>
             Ver 7 días
@@ -108,25 +162,6 @@ export function PharmaDashboard() {
       </motion.div>
     )
   }
-
-  // Notas por producto: solo de los productos ACTIVOS (en la gráfica, consumidos sin t½, o en protocolo)
-  const noteProducts = (() => {
-    const set = new Set<string>()
-    data.series.forEach((s) => set.add(s.product))
-    data.skipped.forEach((p) => set.add(p))
-    Object.keys(state.protocols).forEach((p) => set.add(p))
-    const out: { product: string; color: string; text: string }[] = []
-    for (const p of set) {
-      let text: string | null = null
-      if (HALF_LIFE_H[p] == null) text = NOTE.nohl
-      else if (GLP1.has(p)) text = NOTE.glp1
-      else if (p === 'SLU-PP-332') text = NOTE.slu
-      if (!text) continue
-      const color = data.series.find((s) => s.product === p)?.color ?? CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
-      out.push({ product: p, color, text })
-    }
-    return out
-  })()
 
   return (
     <motion.div variants={staggerParent} initial="initial" animate="animate">
@@ -231,16 +266,7 @@ export function PharmaDashboard() {
         })()}
 
         {/* Notas educativas POR PRODUCTO — solo del producto activo al que aplican */}
-        {noteProducts.length > 0 && (
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {noteProducts.map((n) => (
-              <div key={n.product} className="sm" style={{ color: 'var(--ink-400)', lineHeight: 1.4, display: 'flex', gap: 7 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 999, background: n.color, flexShrink: 0, marginTop: 5 }} />
-                <span><strong style={{ color: 'var(--ink-700)', fontWeight: 600 }}>{n.product}:</strong> {n.text}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        {noteProducts.length > 0 && <div style={{ marginTop: 12 }}>{notesBlock}</div>}
 
         {/* Disclaimer de cumplimiento */}
         <p className="sm" style={{ color: 'var(--ink-300)', marginTop: 14, lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
