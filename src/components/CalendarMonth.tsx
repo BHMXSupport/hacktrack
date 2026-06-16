@@ -1,4 +1,5 @@
 // Hacktrack — CalendarMonth: grilla mensual con estados, fases, adherencia semanal y stagger.
+// Loop 171: whileTap por celda + check 'pop' en días tomados (spring.celebrate)
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey } from '../lib/store'
@@ -6,7 +7,7 @@ import { monthMatrix } from '../lib/cadence'
 import { dayStatus, dayProducts, phaseForDate, weekAdherencePct } from '../lib/calendar'
 import { CATEGORY_COLOR, PEPTIDES, WDS } from '../lib/catalog'
 import { IcCheck } from './icons'
-import { dur, ease } from '../lib/motion'
+import { dur, ease, spring } from '../lib/motion'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,8 +70,11 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex }: DayCellProps) {
 
   if (status === 'taken') {
     // círculo relleno success con IcCheck blanco centrado
+    // Loop 171: el círculo entra con scale 0→1 spring.celebrate (rebote al renderizar)
     inner = (
-      <span
+      <motion.span
+        initial={{ scale: 0 }}
+        animate={{ scale: 1, transition: spring.celebrate }}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -84,7 +88,7 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex }: DayCellProps) {
         }}
       >
         <IcCheck size={15} />
-      </span>
+      </motion.span>
     )
   } else if (status === 'missed') {
     // círculo con borde ámbar, número ámbar
@@ -155,6 +159,8 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex }: DayCellProps) {
       variants={cellVariants}
       initial="initial"
       animate="animate"
+      // Loop 171: whileTap con spring.ui para feedback táctil inmediato
+      whileTap={{ scale: 0.88, transition: spring.ui }}
       onClick={handleClick}
       style={{
         display: 'flex',
@@ -164,7 +170,7 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex }: DayCellProps) {
         minHeight: 44,
         minWidth: 0,
         padding: '4px 0',
-        border: isToday ? '1.5px solid var(--kelp, #16a34a)' : '1.5px solid transparent',
+        border: isToday ? '1.5px solid var(--brand-700)' : '1.5px solid transparent',
         borderRadius: 8,
         background: bg ?? 'transparent',
         cursor: 'pointer',
