@@ -74,3 +74,16 @@ export const IcWeek = (p: P) => (
     <path d="M4 21h16" /><path d="M7 21v-6" /><path d="M12 21v-11" /><path d="M17 21v-8" />
   </svg>
 )
+export function IcCalendarExport({ size = 22, className, style }: P) {
+  return (
+    <svg {...base(size)} className={className} style={style}>
+      {/* calendario */}
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18" />
+      <path d="M8 2v4M16 2v4" />
+      {/* flecha de salida (↗) */}
+      <path d="M14 13h4v4" />
+      <path d="M18 13l-4 4" />
+    </svg>
+  )
+}

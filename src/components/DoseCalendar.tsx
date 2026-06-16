@@ -1,13 +1,13 @@
 // Hacktrack — orquestador del calendario de dosis (sin props, usa useApp)
 import { useState, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { PanInfo } from 'framer-motion'
 import { useApp, isoKey, trackedProtocols } from '../lib/store'
 import { fmtDate, fmtTime, cadenceLabel } from '../lib/cadence'
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { buildIcs, downloadIcs, upcomingDoses } from '../lib/calendar'
 import { Segmented } from './controls'
-import { IcBack, IcChevron, IcBell } from './icons'
+import { IcBack, IcBell, IcChevron, IcCalendarExport } from './icons'
 import { CalendarMonth } from './CalendarMonth'
 import { CalendarAgenda } from './CalendarAgenda'
 
@@ -193,7 +193,17 @@ export function DoseCalendar() {
           onDragEnd={handleDragEnd}
           style={{ touchAction: 'pan-y' }}
         >
-          <CalendarMonth year={year} month={month} hidden={hidden} />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${year}-${month}`}
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+            >
+              <CalendarMonth year={year} month={month} hidden={hidden} />
+            </motion.div>
+          </AnimatePresence>
         </motion.div>
       ) : (
         <CalendarAgenda />
@@ -255,6 +265,7 @@ export function DoseCalendar() {
         <button
           className="btn btn-outline btn-sm"
           onClick={handleExport}
+          aria-label="Exportar calendario (.ics)"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -263,36 +274,39 @@ export function DoseCalendar() {
             width: '100%',
           }}
         >
-          <IcBell size={16} />
-          Agregar a mi calendario
+          <IcCalendarExport size={16} />
+          Exportar calendario (.ics)
         </button>
       </div>
 
       {/* ── TOAST ────────────────────────────────────────────────── */}
-      {toast && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 16 }}
-          style={{
-            position: 'fixed',
-            bottom: 88,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--ink-900)',
-            color: 'var(--surface)',
-            borderRadius: 10,
-            padding: '8px 18px',
-            fontSize: 13,
-            fontWeight: 500,
-            zIndex: 200,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Calendario exportado
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            key="toast"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            style={{
+              position: 'fixed',
+              bottom: 88,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'var(--ink-900)',
+              color: 'var(--surface)',
+              borderRadius: 10,
+              padding: '8px 18px',
+              fontSize: 13,
+              fontWeight: 500,
+              zIndex: 200,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Calendario exportado
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

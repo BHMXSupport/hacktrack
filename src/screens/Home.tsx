@@ -13,7 +13,7 @@ import { ActiveNowChips } from '../components/ActiveNowChips'
 import { LastDoseLine } from '../components/LastDoseLine'
 import { dayProducts, upcomingDoses } from '../lib/calendar'
 import { startOfDay } from '../lib/cadence'
-import { staggerParent, staggerItem } from '../lib/motion'
+import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -141,13 +141,19 @@ export function Home() {
         </motion.section>
 
         {/* ── 1b. Checklist "Tus dosis de hoy" (1-tap, sin escribir) ──── */}
-        <TodayDoses />
+        <motion.div variants={staggerItem}>
+          <TodayDoses />
+        </motion.div>
 
         {/* ── 1c. "Activo ahora": péptidos con presencia estimada → Cuerpo ── */}
-        <ActiveNowChips />
+        <motion.div variants={staggerItem}>
+          <ActiveNowChips />
+        </motion.div>
 
         {/* ── 1d. "Última toma": evita la duda de doble-dosis ── */}
-        <LastDoseLine />
+        <motion.div variants={staggerItem}>
+          <LastDoseLine />
+        </motion.div>
 
         {/* ── 2. HÉROE: próxima toma con cuenta regresiva real ────────── */}
         {!state.logged && !hasProtocol && (
@@ -157,6 +163,7 @@ export function Home() {
             style={{
               background: 'linear-gradient(135deg, #0E5A52 0%, #1B8A7D 100%)',
               border: 0,
+              boxShadow: 'var(--e2)',
               color: '#fff',
               position: 'relative',
               overflow: 'hidden',
@@ -194,13 +201,15 @@ export function Home() {
             >
               Registra tu primer dato hoy
             </h2>
-            <button
+            <motion.button
               className="btn btn-ember"
               style={{ height: 48, width: '100%' }}
+              whileTap={{ scale: 0.96 }}
+              transition={spring.ui}
               onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
             >
               Registrar ahora
-            </button>
+            </motion.button>
           </motion.div>
         )}
 
@@ -222,13 +231,15 @@ export function Home() {
             <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
               Crea tu protocolo para ver la cuenta regresiva y tu adherencia.
             </p>
-            <button
+            <motion.button
               className="btn btn-brand"
               style={{ width: '100%', height: 44 }}
+              whileTap={{ scale: 0.96 }}
+              transition={spring.ui}
               onClick={() => dispatch({ t: 'tab', tab: 'protocolo' })}
             >
               Crear protocolo
-            </button>
+            </motion.button>
           </motion.div>
         )}
 
@@ -292,18 +303,28 @@ export function Home() {
 
             {/* Cuenta regresiva hero */}
             {countdownText && (
-              <p
-                className="mono"
-                style={{
-                  margin: '0 0 20px',
-                  fontSize: 32,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  color: isNow ? catColor : 'var(--ink-700)',
-                }}
+              <motion.div
+                key={countdownText}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: dur.base, ease: ease.decelerate }}
+                aria-live="polite"
+                aria-atomic="true"
+                aria-label={`Próxima toma de ${nextProduct || state.protocol?.product}: ${countdownText}`}
+                style={{ margin: '0 0 20px' }}
               >
-                {countdownText}
-              </p>
+                <p
+                  className="display-l mono"
+                  style={{
+                    margin: 0,
+                    letterSpacing: -0.5,
+                    lineHeight: 1,
+                    color: isNow ? catColor : 'var(--ink-700)',
+                  }}
+                >
+                  {countdownText}
+                </p>
+              </motion.div>
             )}
             {!countdownText && (
               <p className="sm" style={{ margin: '0 0 20px', color: 'var(--ink-400)' }}>
@@ -311,13 +332,15 @@ export function Home() {
               </p>
             )}
 
-            <button
+            <motion.button
               className="btn btn-brand"
               style={{ width: '100%', height: 48 }}
+              whileTap={{ scale: 0.96 }}
+              transition={spring.ui}
               onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
             >
               Registrar
-            </button>
+            </motion.button>
           </motion.div>
         )}
 
@@ -413,6 +436,17 @@ export function Home() {
             {weekLabels.map((label, idx) => {
               const filled = weekBits[idx]
               const isToday = idx === todayWdsIdx
+              // Fecha del día en la tira (L=lunes de esta semana…)
+              const dayOffset = idx - todayWdsIdx
+              const dayDate = new Date(today)
+              dayDate.setDate(today.getDate() + dayOffset)
+              const dayStr = dayDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+              const estado = filled ? 'completado' : isToday ? 'hoy, sin completar' : 'sin completar'
+              const dotBg = filled
+                ? catColor
+                : isToday
+                ? `color-mix(in srgb, ${catColor} 30%, transparent)`
+                : 'var(--ink-100)'
               return (
                 <div
                   key={label}
@@ -437,19 +471,34 @@ export function Home() {
                     {label}
                   </span>
                   <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      background: filled
-                        ? catColor
-                        : isToday
-                        ? catColor + '22'
-                        : 'var(--ink-100)',
-                      border: isToday ? `2px solid ${catColor}` : '2px solid transparent',
-                      transition: 'background 0.2s',
-                    }}
-                  />
+                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+                    aria-label={`${dayStr} — ${estado}`}
+                  >
+                    <motion.div
+                      animate={{ backgroundColor: dotBg }}
+                      transition={{ duration: dur.fast }}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        border: isToday ? `2px solid ${catColor}` : '2px solid transparent',
+                      }}
+                    />
+                    {/* Punto blanco bajo el dot cuando es hoy y ya está completado */}
+                    {isToday && filled && (
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          width: 4,
+                          height: 4,
+                          borderRadius: '50%',
+                          background: '#fff',
+                          position: 'absolute',
+                          bottom: -6,
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -459,7 +508,9 @@ export function Home() {
         {/* ── 4. KPI cards (máx 4, datos reales) ─────────────────────── */}
         {kpiMeasures.length > 0 && (
           <motion.section
-            variants={staggerItem}
+            variants={staggerParent}
+            initial="initial"
+            animate="animate"
             style={{
               display: 'grid',
               gridTemplateColumns: kpiMeasures.length === 1 ? '1fr' : '1fr 1fr',
@@ -476,9 +527,14 @@ export function Home() {
               const accentColor = iconMeta?.cat ?? catColor
 
               return (
-                <div
+                <motion.div
                   key={m}
+                  variants={staggerItem}
                   className="card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
+                  onKeyDown={(e) => e.key === 'Enter' || e.key === ' ' ? dispatch({ t: 'sheet', sheet: 'registrar' }) : undefined}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -486,6 +542,7 @@ export function Home() {
                     minHeight: 120,
                     position: 'relative',
                     overflow: 'hidden',
+                    cursor: 'pointer',
                   }}
                 >
                   {/* Etiqueta + ícono */}
@@ -559,10 +616,10 @@ export function Home() {
                         fontSize: 11,
                       }}
                     >
-                      Sin datos aún
+                      Toca para registrar
                     </p>
                   )}
-                </div>
+                </motion.div>
               )
             })}
           </motion.section>

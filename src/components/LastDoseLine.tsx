@@ -34,15 +34,23 @@ export function LastDoseLine() {
   }
   if (!last) return null
 
+  const ago = fmtAgo(last.ts, now)
+
   return (
     <motion.div
       variants={staggerItem}
-      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 'var(--r-sm)', background: 'var(--border)' }}
+      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 'var(--r-sm)', background: 'var(--ink-100)', boxShadow: 'var(--e1)' }}
     >
-      <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ink-300)', flexShrink: 0 }} />
-      <span className="sm" style={{ color: 'var(--ink-400)' }}>Última toma:</span>
-      <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600 }}>{last.u}</span>
-      <span className="sm mono" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>{fmtAgo(last.ts, now)}</span>
+      <p
+        role="status"
+        aria-label={`Última toma: ${last.u}, ${ago}`}
+        style={{ display: 'contents' }}
+      >
+        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ink-300)', flexShrink: 0 }} />
+        <span aria-hidden="true" className="sm" style={{ color: 'var(--ink-400)' }}>Última toma:</span>
+        <span aria-hidden="true" className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600 }}>{last.u}</span>
+        <span aria-hidden="true" className="sm mono" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>{ago}</span>
+      </p>
     </motion.div>
   )
 }
