@@ -40,6 +40,7 @@ export interface AppState {
   foodLibrary: FoodFav[]                                              // comidas frecuentes (registro 1-tap)
   macroGoals: { protein: number; carbs: number; fat: number } | null // metas de macros que define el usuario
   kcalGoal: number | null                                            // meta calórica diaria
+  lastMealTs: number | null                                          // última comida registrada (chip "repetir")
   settings: UserSettings
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
@@ -72,6 +73,7 @@ export const initialState: AppState = {
   foodLibrary: [],
   macroGoals: null,
   kcalGoal: null,
+  lastMealTs: null,
   settings: {
     pinEnabled: false,
     darkMode: false,
@@ -107,6 +109,7 @@ export type Action =
   | { t: 'delMeal'; id: string }                                      // elimina una comida
   | { t: 'delFav'; id: string }                                       // elimina un favorito
   | { t: 'editFav'; id: string; patch: Partial<FoodFav> }             // edita un favorito (nombre/kcal/macros)
+  | { t: 'copyYesterday' }                                            // copia las comidas de ayer a hoy
   | { t: 'setMacroGoals'; goals: { protein: number; carbs: number; fat: number } | null } // metas de macros
   | { t: 'setKcalGoal'; value: number | null }                        // meta calórica diaria
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
@@ -133,6 +136,16 @@ const genId = () => `it_${Date.now().toString(36)}_${_seq++}`
 export function isoKey(ts: number): string {
   const d = new Date(ts)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// franja horaria de una comida (para predicción contextual)
+export function mealSlot(ts: number): string {
+  const h = new Date(ts).getHours()
+  if (h >= 6 && h < 10) return 'desayuno'
+  if (h >= 10 && h < 12) return 'media mañana'
+  if (h >= 12 && h < 16) return 'almuerzo'
+  if (h >= 16 && h < 19) return 'tarde'
+  return 'cena'
 }
 
 const HISTORY_CAP = 365
@@ -294,34 +307,49 @@ export function reducer(s: AppState, a: Action): AppState {
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       const meal: Meal = {
         id: genId(), kcal: Math.round(a.kcal), ts: Date.now(),
-        protein: a.protein ?? null, carbs: a.carbs ?? null, fat: a.fat ?? null, label: a.label?.trim() || null,
+        protein: a.protein ?? null, carbs: a.carbs ?? null, fat: a.fat ?? null, label: a.label?.trim() || null, portion: 1,
       }
-      // guardar como favorito (fusiona por etiqueta) si se pidió
+      const slot = mealSlot(meal.ts)
+      // guardar como favorito (fusiona por etiqueta) si se pidió + aprende la franja horaria
       let foodLibrary = s.foodLibrary
       if (a.fav && meal.label) {
         const i = foodLibrary.findIndex((f) => f.label.toLowerCase() === meal.label!.toLowerCase())
         if (i >= 0) {
-          foodLibrary = foodLibrary.map((f, j) => (j === i ? { ...f, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: f.usoCount + 1 } : f))
+          foodLibrary = foodLibrary.map((f, j) => (j === i ? { ...f, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: f.usoCount + 1, hourBucket: { ...(f.hourBucket ?? {}), [slot]: (f.hourBucket?.[slot] ?? 0) + 1 } } : f))
         } else {
-          foodLibrary = [{ id: genId(), label: meal.label, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: 1 }, ...foodLibrary]
+          foodLibrary = [{ id: genId(), label: meal.label, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: 1, hourBucket: { [slot]: 1 }, defaultMultiplier: 1 }, ...foodLibrary]
         }
       }
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary }
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary, lastMealTs: meal.ts }
     }
     case 'addFavMeal': {
       const fav = s.foodLibrary.find((f) => f.id === a.id)
       if (!fav) return s
-      const por = a.portion && a.portion > 0 ? a.portion : 1
+      const por = a.portion && a.portion > 0 ? a.portion : (fav.defaultMultiplier && fav.defaultMultiplier > 0 ? fav.defaultMultiplier : 1)
       const sc = (v: number | null | undefined) => (v != null ? Math.round(v * por) : null)
       const k = isoKey(s.todayTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       const meal: Meal = {
         id: genId(), kcal: Math.round(fav.kcal * por), ts: Date.now(),
         protein: sc(fav.protein), carbs: sc(fav.carbs), fat: sc(fav.fat),
-        label: por !== 1 ? `${fav.label} ×${por}` : fav.label,
+        label: por !== 1 ? `${fav.label} ×${por}` : fav.label, portion: por, favId: fav.id,
       }
-      const foodLibrary = s.foodLibrary.map((f) => (f.id === a.id ? { ...f, usoCount: f.usoCount + 1 } : f))
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary }
+      const slot = mealSlot(meal.ts)
+      // aprende: cuenta uso, franja horaria y porción por defecto
+      const foodLibrary = s.foodLibrary.map((f) => (f.id === a.id
+        ? { ...f, usoCount: f.usoCount + 1, hourBucket: { ...(f.hourBucket ?? {}), [slot]: (f.hourBucket?.[slot] ?? 0) + 1 }, defaultMultiplier: por }
+        : f))
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary, lastMealTs: meal.ts }
+    }
+    case 'copyYesterday': {
+      const k = isoKey(s.todayTs)
+      const yd = new Date(s.todayTs); yd.setDate(yd.getDate() - 1)
+      const y = s.nutrition[isoKey(yd.getTime())]
+      if (!y || y.meals.length === 0) return s
+      const cur = s.nutrition[k] ?? { water: 0, meals: [] }
+      const now = Date.now()
+      const copied: Meal[] = y.meals.map((m, i) => ({ ...m, id: genId(), ts: now - i }))
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals] } }, lastMealTs: now }
     }
     case 'delMeal': {
       const nutrition: AppState['nutrition'] = {}

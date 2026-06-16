@@ -1,8 +1,8 @@
 // Analítica de Alimentación + Resumen (features premium). Todo es OBSERVACIONAL sobre los datos del usuario:
 // nunca causalidad, nunca se nombra un péptido junto a un resultado de peso, sin consejo médico.
 import type { AppState } from './store'
-import { isoKey } from './store'
-import type { MeasureSample } from './types'
+import { isoKey, mealSlot } from './store'
+import type { MeasureSample, FoodFav } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, CATEGORY_COLOR } from './catalog'
 
 const DAY = 86_400_000
@@ -102,6 +102,29 @@ export function productKpis(s: AppState, product: string, n = 4): KpiRow[] {
     const unit = meta?.kind === 'num' ? (meta.unit ? ` ${meta.unit}` : '') : meta?.max ? `/${meta.max}` : ''
     return { measure: m, unit, last, delta: delta != null ? Math.round(delta * 10) / 10 : null, points: series.slice(-8).map((p) => p.value), down: !!meta?.down }
   })
+}
+
+// ── Predicción contextual de comida por franja horaria + búsqueda en la biblioteca ──
+export function predictions(s: AppState, now: number, n = 3): FoodFav[] {
+  const slot = mealSlot(now)
+  return [...s.foodLibrary]
+    .map((f) => ({ f, score: (f.hourBucket?.[slot] ?? 0) * 3 + f.usoCount }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, n)
+    .map((x) => x.f)
+}
+export function fuzzySearch(library: FoodFav[], q: string, n = 8): FoodFav[] {
+  const query = q.trim().toLowerCase()
+  if (!query) return []
+  return library
+    .map((f) => {
+      const l = f.label.toLowerCase()
+      return { f, score: l.startsWith(query) ? 3 : l.includes(query) ? 2 : 0 }
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || b.f.usoCount - a.f.usoCount)
+    .slice(0, n)
+    .map((x) => x.f)
 }
 
 // ── kcal por día (últimos N días) ──

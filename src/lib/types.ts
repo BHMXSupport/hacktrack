@@ -68,6 +68,8 @@ export interface Meal {
   carbs?: number | null
   fat?: number | null
   label?: string | null
+  portion?: number      // multiplicador usado (1, 1.5…)
+  favId?: string        // favorito de origen (para aprendizaje)
 }
 export interface FoodFav {
   id: string
@@ -77,6 +79,8 @@ export interface FoodFav {
   carbs?: number | null
   fat?: number | null
   usoCount: number
+  hourBucket?: Record<string, number> // uso por franja horaria (predicción)
+  defaultMultiplier?: number           // porción aprendida
 }
 
 export type LogItemType = 'dose' | 'medida' | 'none'
