@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { IcDrop } from '../components/icons'
+import { IcDrop, IcBack } from '../components/icons'
+import { staggerParent, staggerItem } from '../lib/motion'
 import { BiohackmxConnect } from '../components/BiohackmxConnect'
 import { Disclaimer } from '../components/controls'
 import { AppleLogo, GoogleLogo } from '../components/SocialAuth'
@@ -12,10 +14,11 @@ export function Account() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [tried, setTried] = useState(false)
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return // el nombre es necesario para que quede en tu perfil
+    if (!name.trim()) { setTried(true); return }
     dispatch({ t: 'setName', name: name.trim() })
     dispatch({ t: 'tab', tab: 'inicio' })
     dispatch({ t: 'go', screen: 's-app' })
@@ -35,52 +38,68 @@ export function Account() {
         boxSizing: 'border-box',
       }}
     >
-      {/* Header — icono + wordmark */}
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 32,
-        }}
-      >
-        <IcDrop
-          size={32}
-          style={{ color: 'var(--brand-700)' }}
-          aria-hidden="true"
-        />
-        <span
-          className="h1"
+      <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ display: 'contents' }}>
+
+      {/* Header — 3 columnas: atrás | logo+wordmark | spacer */}
+      <motion.div variants={staggerItem}>
+        <header
           style={{
-            color: 'var(--brand-700)',
-            margin: 0,
-            letterSpacing: '-0.01em',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 32,
           }}
         >
-          Hacktrack
-        </span>
-      </header>
+          <button
+            className="iconbtn"
+            aria-label="Atrás"
+            onClick={() => dispatch({ t: 'go', screen: 's-goal' })}
+          >
+            <IcBack size={22} />
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IcDrop
+              size={32}
+              style={{ color: 'var(--brand-700)' }}
+              aria-hidden="true"
+            />
+            <span
+              className="h1"
+              style={{
+                color: 'var(--brand-700)',
+                margin: 0,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Hacktrack
+            </span>
+          </div>
+          <div style={{ width: 36 }} />
+        </header>
+      </motion.div>
 
       {/* Título de pantalla */}
-      <h2
-        className="display-l"
-        style={{
-          textAlign: 'center',
-          marginBottom: 24,
-          color: 'var(--ink-900)',
-        }}
-      >
-        Crea tu cuenta
-      </h2>
+      <motion.div variants={staggerItem}>
+        <h2
+          className="display-l"
+          style={{
+            textAlign: 'center',
+            marginBottom: 24,
+            color: 'var(--ink-900)',
+          }}
+        >
+          Crea tu cuenta
+        </h2>
+      </motion.div>
 
       {/* Conexión con BiohackMX — opción principal */}
-      <div style={{ marginBottom: 24 }}>
+      <motion.div variants={staggerItem} style={{ marginBottom: 24 }}>
         <BiohackmxConnect />
-      </div>
+      </motion.div>
 
       {/* Divider */}
-      <div
+      <motion.div
+        variants={staggerItem}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -94,22 +113,12 @@ export function Account() {
           o crea tu cuenta en Hacktrack
         </span>
         <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-      </div>
+      </motion.div>
 
       {/* Botones sociales */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+      <motion.div variants={staggerItem} style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
         <button
-          className="btn btn-outline"
-          style={{
-            flex: 1,
-            height: 52,
-            borderRadius: 16,
-            fontSize: 15,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
+          className="btn btn-outline btn-social"
           type="button"
           aria-label="Continuar con Apple"
         >
@@ -117,44 +126,42 @@ export function Account() {
           Continuar con Apple
         </button>
         <button
-          className="btn btn-outline"
-          style={{
-            flex: 1,
-            height: 52,
-            borderRadius: 16,
-            fontSize: 15,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
+          className="btn btn-outline btn-social"
           type="button"
           aria-label="Continuar con Google"
         >
           <GoogleLogo />
           Continuar con Google
         </button>
-      </div>
+      </motion.div>
 
       {/* Formulario email / contraseña */}
+      <motion.div variants={staggerItem}>
       <form
         onSubmit={handleCreate}
         style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}
       >
-        {/* Campo nombre (opcional) */}
+        {/* Campo nombre (requerido) */}
         <div>
           <label className="label" htmlFor="ht-name">
-            ¿Cómo te llamas?
+            ¿Cómo te llamas?<span aria-hidden="true" style={{ color: 'var(--error)' }}> *</span>
           </label>
           <input
             id="ht-name"
-            className="field"
+            className={'field' + (tried && !name.trim() ? ' error' : '')}
             type="text"
             autoComplete="given-name"
             placeholder="Tu nombre"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            aria-required="true"
+            aria-describedby={tried && !name.trim() ? 'name-error' : undefined}
           />
+          {tried && !name.trim() && (
+            <p id="name-error" role="alert" className="field-error sm" style={{ color: 'var(--error)', marginTop: 4 }}>
+              Escribe tu nombre para continuar.
+            </p>
+          )}
         </div>
 
         {/* Campo correo */}
@@ -233,9 +240,11 @@ export function Account() {
           Crear cuenta
         </button>
       </form>
+      </motion.div>
 
       {/* Footer */}
-      <div
+      <motion.div
+        variants={staggerItem}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -278,7 +287,9 @@ export function Account() {
 
         {/* Insignia de cumplimiento */}
         <TrustBadge />
-      </div>
+      </motion.div>
+
+      </motion.div>
     </div>
   )
 }

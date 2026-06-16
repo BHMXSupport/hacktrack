@@ -58,6 +58,7 @@ body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(-
 /* Botón outline/ghost con borde kelp */
 .btn-outline{background:transparent;color:var(--brand-700);border:1.5px solid var(--brand-700)}
 .btn-sm{height:44px;font-size:15px}
+.btn-social{flex:1;font-size:15px}
 
 /* Bottom nav (4 tabs + FAB central) — fondo sólido, sin blur */
 .bottomnav{position:absolute;left:0;right:0;bottom:0;height:78px;background:var(--surface);

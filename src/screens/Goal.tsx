@@ -5,6 +5,7 @@ import { GOALS, CATEGORY_COLOR, CATEGORY_ICON } from '../lib/catalog'
 import { IcBack } from '../components/icons'
 import { Glyph } from '../components/glyphs'
 import { Disclaimer } from '../components/controls'
+import { spring } from '../lib/motion'
 
 const stagger = { animate: { transition: { staggerChildren: 0.07 } } }
 const item = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } }
@@ -75,6 +76,9 @@ export function Goal() {
             <motion.button
               key={g.cat}
               variants={item}
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              transition={spring.ui}
               className="card"
               onClick={() => handleSelect(g.cat)}
               style={{
@@ -147,14 +151,14 @@ export function Goal() {
       <div style={{ padding: '28px 16px 40px', textAlign: 'center' }}>
         <button
           className="btn btn-brand"
-          disabled={!selected}
+          aria-disabled={!selected}
           onClick={handleContinue}
           style={{ opacity: selected ? 1 : 0.4, transition: 'opacity 0.2s' }}
         >
           Continuar
         </button>
-        <p className="sm" style={{ marginTop: 14, color: 'var(--ink-400)' }}>
-          Podrás ajustar esto más adelante.
+        <p className="sm" role="status" style={{ marginTop: 14, color: 'var(--ink-400)' }}>
+          {selected ? 'Podrás ajustar esto más adelante.' : 'Elige una opción para continuar.'}
         </p>
         <Disclaimer kind="general" />
       </div>

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type PanInfo } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { Glyph } from '../components/glyphs'
-import { dur, ease } from '../lib/motion'
+import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
 import { CATEGORY_COLOR, CATEGORY_ICON } from '../lib/catalog'
 import type { Category } from '../lib/types'
 import { TrustBadge } from '../components/identity'
@@ -140,14 +140,21 @@ export function Onboarding() {
     if (slide < 2) goTo(slide + 1)
   }
 
+  // swipe horizontal para navegar (gramática motora natural en móvil)
+  const onSwipe = (_e: unknown, info: PanInfo) => {
+    if (info.offset.x < -50) advance()
+    else if (info.offset.x > 50 && slide > 0) goTo(slide - 1)
+  }
+
   const skipToGoal = () => dispatch({ t: 'go', screen: 's-goal' })
 
-  // Variantes shared-axis con dirección dinámica
+  // Variantes shared-axis con dirección dinámica (magnitud x:±24, alineada a sharedAxisX)
   const slideVariants = {
-    initial: (d: number) => ({ opacity: 0, x: d * 32 }),
+    initial: (d: number) => ({ opacity: 0, x: d * 24 }),
     animate: { opacity: 1, x: 0, transition: { duration: dur.slow, ease: ease.decelerate } },
-    exit: (d: number) => ({ opacity: 0, x: d * -32, transition: { duration: dur.base, ease: ease.accelerate } }),
+    exit: (d: number) => ({ opacity: 0, x: d * -24, transition: { duration: dur.base, ease: ease.accelerate } }),
   }
+  const SLIDE_TITLES = ['Ritmo', 'Progreso', 'Privacidad']
 
   return (
     <div
@@ -186,14 +193,19 @@ export function Onboarding() {
         </button>
       </div>
 
-      {/* Área de ilustración */}
-      <div
+      {/* Área de ilustración — arrastrable (swipe) para navegar */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.14}
+        onDragEnd={onSwipe}
         style={{
           flex: '0 0 auto',
           height: 220,
           position: 'relative',
           overflow: 'hidden',
           margin: '8px 0 0',
+          touchAction: 'pan-y',
         }}
       >
         <AnimatePresence mode="wait" custom={dir}>
@@ -237,10 +249,11 @@ export function Onboarding() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Indicador de puntos */}
-      <div
+      <nav
+        aria-label="Pasos del recorrido"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -254,7 +267,8 @@ export function Onboarding() {
           <button
             key={i}
             onClick={() => goTo(i)}
-            aria-label={`Ir al slide ${i + 1}`}
+            aria-label={`${SLIDE_TITLES[i]} — paso ${i + 1} de 3`}
+            aria-current={i === slide ? 'step' : undefined}
             style={{
               border: 0,
               cursor: 'pointer',
@@ -269,7 +283,7 @@ export function Onboarding() {
                 width: i === slide ? 24 : 8,
                 background: i === slide ? 'var(--brand-500)' : 'var(--ink-200)',
               }}
-              transition={{ duration: dur.base, ease: ease.standard }}
+              transition={spring.ui}
               style={{
                 height: 8,
                 borderRadius: 999,
@@ -277,7 +291,7 @@ export function Onboarding() {
             />
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* Copy del slide */}
       <div
@@ -301,10 +315,10 @@ export function Onboarding() {
               style={{ position: 'absolute', inset: '0 24px' }}
             >
               <h1 className="display-l" style={{ margin: '0 0 12px', color: 'var(--ink-900)' }}>
-                No vuelvas a fallar tu dosis
+                Nunca pierdas el ritmo
               </h1>
               <p className="body" style={{ margin: 0 }}>
-                Recordatorios a tu ritmo y un registro de un toque.
+                Recordatorios inteligentes y registro en un toque.
               </p>
             </motion.div>
           )}
@@ -324,8 +338,11 @@ export function Onboarding() {
               <p className="body" style={{ margin: '0 0 20px' }}>
                 Tus datos, claros y tuyos.
               </p>
-              {/* Fila de glyphs de categoría */}
-              <div
+              {/* Fila de glyphs de categoría — entran en cascada */}
+              <motion.div
+                variants={staggerParent}
+                initial="initial"
+                animate="animate"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -334,8 +351,9 @@ export function Onboarding() {
                 }}
               >
                 {CATEGORY_LIST.map((cat) => (
-                  <div
+                  <motion.div
                     key={cat}
+                    variants={staggerItem}
                     style={{
                       width: 40,
                       height: 40,
@@ -348,9 +366,9 @@ export function Onboarding() {
                     }}
                   >
                     <Glyph name={CATEGORY_ICON[cat]} size={20} color={CATEGORY_COLOR[cat]} />
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </motion.div>
           )}
           {slide === 2 && (

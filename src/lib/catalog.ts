@@ -233,7 +233,7 @@ export const GOALS: GoalOption[] = [
   { label: 'Bajar de peso',       sub: 'Optimiza tu metabolismo y composición.',        cat: 'Metabolismo' },
   { label: 'Recuperarme mejor',   sub: 'Mejora tu sueño y reduce el estrés físico.',    cat: 'Recuperación' },
   { label: 'Más energía y foco',  sub: 'Claridad mental y rendimiento sostenido.',      cat: 'Cognitivo' },
-  { label: 'Cuidar mi piel',      sub: 'Salud dermatológica desde adentro.',            cat: 'Piel' },
+  { label: 'Cuidar mi piel',      sub: 'Apoyo a la salud de la piel.',                  cat: 'Piel' },
   { label: 'Longevidad',          sub: 'Prácticas para una vida más larga y saludable.', cat: 'Anti-Aging' },
 ]
 
