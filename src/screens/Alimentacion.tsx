@@ -1,9 +1,15 @@
 // Alimentación — "Registro Relámpago": predicciones por franja horaria (1 toque), barra inteligente
 // con búsqueda en tu biblioteca, copiar de ayer, porciones, proteína + meta. (Torneo multiagente → audit.)
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey, mealSlot } from '../lib/store'
-import { dayMacros, predictions, fuzzySearch, protocolNumbers, anchorProduct, tdee, kcalFromMacros, proteinSuggestion, waterGoalGlasses } from '../lib/nutrition'
+import {
+  dayMacros, predictions, predictionConfidence, fuzzySearch, protocolNumbers, anchorProduct,
+  tdee, tdeeChip, kcalFromMacros, proteinSuggestion, waterGoalGlasses, kcalSeries,
+  proteinRemaining, fastingMinutes, fastingLabel, kcalBySlot, macroPercents, proteinQualityScore,
+  isProteinUnbalanced, weeklyDiversityScore, proteinQualityStreak, recentFoods,
+  exportNutritionCsv, shareDayText,
+} from '../lib/nutrition'
 import { Sparkline, TrendChart } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
 import { TimeWheel } from '../components/TimeWheel'
@@ -40,6 +46,50 @@ let _toastUndoId: ReturnType<typeof setTimeout> | null = null
 const porLabel = (p: number | null) => (p == null ? 'auto' : p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}×`)
 const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
 
+// ── Mini heatmap semanal de kcal (7 días) ──
+function WeekHeatmap({ s }: { s: ReturnType<typeof useApp>['state'] }) {
+  const series = kcalSeries(s, 7)
+  const goal = s.kcalGoal ?? tdee(s)
+  const max = Math.max(...series.map((d) => d.kcal), goal ?? 1, 1)
+  const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 36 }}>
+      {series.map(({ ts, kcal, has }, i) => {
+        const pct = Math.min(1, kcal / max)
+        const dayIdx = new Date(ts).getDay() // 0=Dom
+        const label = days[(dayIdx + 6) % 7]
+        const color = !has ? 'var(--ink-100)' : goal && kcal > goal * 1.05 ? 'var(--warning)' : kcal > 0 ? 'var(--brand-500)' : 'var(--ink-100)'
+        return (
+          <div key={ts} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <div style={{ width: '100%', background: color, height: Math.max(4, Math.round(pct * 28)), borderRadius: 3, transition: 'height 0.25s ease' }} title={has ? `${kcal} kcal` : 'Sin registro'} />
+            <span className="sm" style={{ fontSize: 9, color: 'var(--ink-300)', fontWeight: 600 }}>{label}</span>
+          </div>
+        )
+      })}
+      {goal && (
+        <div style={{ position: 'relative', left: -((series.length) * 6), width: 0, height: '100%', pointerEvents: 'none' }}>
+          {/* línea de meta — posición relativa al max */}
+          <div style={{ position: 'absolute', bottom: Math.round((goal / max) * 28) + 12, left: -100, right: 0, height: 1, borderTop: '1px dashed var(--border)', width: 160 }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Barra apilada P·C·G ──
+function MacroStackBar({ protein, carbs, fat }: { protein: number; carbs: number; fat: number }) {
+  const pcts = macroPercents(protein, carbs, fat)
+  const total = pcts.protein + pcts.carbs + pcts.fat
+  if (total === 0) return null
+  return (
+    <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', marginTop: 6 }}>
+      <div style={{ width: `${pcts.protein}%`, background: 'var(--brand-700)', transition: 'width 0.3s ease' }} title={`Proteína ${pcts.protein}%`} />
+      <div style={{ width: `${pcts.carbs}%`, background: 'var(--warning)', transition: 'width 0.3s ease' }} title={`Carbos ${pcts.carbs}%`} />
+      <div style={{ width: `${pcts.fat}%`, background: 'var(--brand-300)', transition: 'width 0.3s ease' }} title={`Grasa ${pcts.fat}%`} />
+    </div>
+  )
+}
+
 export function Alimentacion() {
   const { state, dispatch } = useApp()
   const now = Date.now()
@@ -63,6 +113,11 @@ export function Alimentacion() {
   const [kcalWarning, setKcalWarning] = useState<string | null>(null)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const [undoPending, setUndoPending] = useState<boolean>(false)
+  // nuevos estados de UI
+  const [macroMode, setMacroMode] = useState<'g' | 'pct'>('g')
+  const [showSlotDist, setShowSlotDist] = useState(false)
+  const [showRecientes, setShowRecientes] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(false)
 
   const goalKcal = state.kcalGoal ?? tdee(state)
   const goalP = state.macroGoals?.protein ?? null
@@ -80,6 +135,19 @@ export function Alimentacion() {
   // Suggested protein from weight (§82)
   const suggestedProtein = (!goalP && peso) ? proteinSuggestion(peso) : null
 
+  // Chip TDEE inteligente
+  const tdeeVal = tdee(state)
+  const chipTdee = (tdeeVal && kcal > 0) ? tdeeChip(kcal, tdeeVal) : null
+
+  // Proteína restante accionable
+  const protRem = (goalP && goalP > 0 && macros.protein < goalP)
+    ? proteinRemaining(macros.protein, goalP, now)
+    : null
+
+  // Ventana de ayuno
+  const fastMins = fastingMinutes(state.lastMealTs ?? null, now)
+  const showFasting = fastMins !== null && fastMins >= 120 // solo mostrar si ≥2 h sin comer
+
   // Caloric balance label (§83)
   const deficitLabel = goalKcal
     ? kcal >= goalKcal * 0.97 && kcal <= goalKcal * 1.03
@@ -93,6 +161,22 @@ export function Alimentacion() {
   const hasDayMacros = macros.hasMacros
   const dayTotals = hasDayMacros ? `${kcal} kcal · P: ${macros.protein} g · C: ${macros.carbs} g · G: ${macros.fat} g` : null
 
+  // Distribución por franja
+  const slotDist = useMemo(() => kcalBySlot(day.meals), [day.meals])
+
+  // Calidad proteica (observacional)
+  const pqScore = proteinQualityScore(day.meals)
+  const pUnbalanced = isProteinUnbalanced(day.meals)
+
+  // Racha de calidad (proteína)
+  const pStreak = proteinQualityStreak(state)
+
+  // Diversidad semanal
+  const diversity = weeklyDiversityScore(state)
+
+  // Recientes (7 días)
+  const recientes = useMemo(() => recentFoods(state, 8), [state])
+
   const showToast = (msg: string) => {
     setToastMsg(msg)
     setTimeout(() => setToastMsg(null), 3000)
@@ -104,6 +188,16 @@ export function Alimentacion() {
     dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined, ts: whenTs })
     showToast(`✓ ${f.label} — ${Math.round(f.kcal * (portion ?? (f.defaultMultiplier && f.defaultMultiplier > 0 ? f.defaultMultiplier : 1)))} kcal`)
     setQuery('')
+  }
+  // Para recientes efímeros (id empieza con _raw_): usar addMeal en lugar de addFavMeal
+  const logReciente = (f: FoodFav) => {
+    tapHaptic()
+    if (f.id.startsWith('_raw_')) {
+      dispatch({ t: 'addMeal', kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, label: f.label, fav: true, ts: whenTs })
+      showToast(`✓ ${f.label} — ${f.kcal} kcal`)
+    } else {
+      logFav(f)
+    }
   }
   const multOf = (f: FoodFav) => portion ?? (f.defaultMultiplier && f.defaultMultiplier > 0 ? f.defaultMultiplier : 1)
 
@@ -155,6 +249,35 @@ export function Alimentacion() {
     setToastMsg(null)
   }
 
+  // Exportar CSV
+  const handleExportCsv = () => {
+    const csv = exportNutritionCsv(state, 7)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `nutricion-${isoKey(state.todayTs)}.csv`
+    a.click(); URL.revokeObjectURL(url)
+    showToast('CSV exportado (7 días)')
+  }
+
+  // Compartir día (Web Share API)
+  const handleShare = async () => {
+    const text = shareDayText(state)
+    if ('share' in navigator) {
+      try {
+        await (navigator as Navigator & { share: (d: { text: string }) => Promise<void> }).share({ text })
+        return
+      } catch { /* ignorar cancelación */ }
+    }
+    // Fallback: copiar al portapapeles
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Copiado al portapapeles')
+    } catch {
+      showToast('No se pudo compartir')
+    }
+  }
+
   return (
     <div className="scroll has-nav">
       <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '20px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -203,15 +326,53 @@ export function Alimentacion() {
               )}
             </>
           )}
-          {(macros.hasMacros || goalP) && (
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-              <span className="sm mono" style={{ color: 'var(--ink-900)', fontWeight: 700, background: 'var(--brand-100)', padding: '3px 10px', borderRadius: 999 }}>
-                P: {macros.protein}{goalP ? ` / ${goalP}` : ''} g
+
+          {/* Chip TDEE inteligente (Déficit / Mantenimiento / Superávit) */}
+          {chipTdee && (
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span className="chip sm" style={{ background: chipTdee.zone === 'deficit-agresivo' ? 'color-mix(in srgb, var(--error) 10%, transparent)' : chipTdee.zone === 'superavit' ? 'color-mix(in srgb, var(--warning) 10%, transparent)' : 'var(--bg)', color: chipTdee.color, border: `1px solid ${chipTdee.color}`, fontWeight: 700, padding: '2px 10px' }}>
+                {chipTdee.label}
               </span>
-              {goalP != null && macros.protein < goalP && <span className="sm" style={{ color: 'var(--ink-400)' }}>faltan {goalP - macros.protein} g</span>}
-              {macros.hasMacros && <span className="sm mono" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>C: {macros.carbs} g · G: {macros.fat} g</span>}
+              <span className="sm" style={{ color: 'var(--ink-400)' }}>{chipTdee.detail}</span>
+              {chipTdee.zone === 'deficit-agresivo' && (
+                <span className="sm" style={{ color: 'var(--error)', fontWeight: 600 }}>⚠ Déficit muy agresivo — registra más o considera si es intencional</span>
+              )}
             </div>
           )}
+
+          {/* Macros con toggle g / % + barra apilada */}
+          {(macros.hasMacros || goalP) && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <span className="sm mono" style={{ color: 'var(--ink-900)', fontWeight: 700, background: 'var(--brand-100)', padding: '3px 10px', borderRadius: 999 }}>
+                  {macroMode === 'g'
+                    ? `P: ${macros.protein}${goalP ? `/${goalP}` : ''} g`
+                    : `P: ${macroPercents(macros.protein, macros.carbs, macros.fat).protein}%`}
+                </span>
+                {macros.hasMacros && (
+                  <>
+                    <span className="sm mono" style={{ color: 'var(--ink-400)' }}>
+                      {macroMode === 'g'
+                        ? `C: ${macros.carbs} g · G: ${macros.fat} g`
+                        : `C: ${macroPercents(macros.protein, macros.carbs, macros.fat).carbs}% · G: ${macroPercents(macros.protein, macros.carbs, macros.fat).fat}%`}
+                    </span>
+                    <button
+                      className="chip sm"
+                      style={{ marginLeft: 'auto', background: 'var(--bg)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 700 }}
+                      onClick={() => setMacroMode((m) => m === 'g' ? 'pct' : 'g')}
+                      aria-label="Cambiar modo: gramos o porcentaje"
+                    >{macroMode === 'g' ? 'g→%' : '%→g'}</button>
+                  </>
+                )}
+                {goalP != null && macros.protein < goalP && (
+                  <span className="sm" style={{ color: 'var(--ink-400)' }}>faltan {goalP - macros.protein} g</span>
+                )}
+              </div>
+              {/* Barra apilada P·C·G */}
+              {macros.hasMacros && <MacroStackBar protein={macros.protein} carbs={macros.carbs} fat={macros.fat} />}
+            </div>
+          )}
+
           {/* §82 — Chip sugerencia de proteína si no hay meta y hay peso */}
           {suggestedProtein != null && (
             <button
@@ -222,7 +383,52 @@ export function Alimentacion() {
               Meta sugerida: {suggestedProtein} g proteína →
             </button>
           )}
+
+          {/* Proteína restante accionable */}
+          {protRem && protRem.remaining > 0 && (
+            <div className="sm" style={{ marginTop: 8, color: 'var(--brand-700)', fontWeight: 600 }}>
+              Faltan {protRem.remaining} g de proteína
+              {protRem.perMeal && protRem.mealsLeft > 0
+                ? ` en ~${protRem.mealsLeft} ${protRem.mealsLeft === 1 ? 'comida' : 'comidas'} → ~${protRem.perMeal} g/comida`
+                : ''}
+            </div>
+          )}
+
+          {/* Alerta distribución proteína desigual */}
+          {pUnbalanced && macros.hasMacros && macros.protein > 20 && (
+            <div className="sm" style={{ marginTop: 6, color: 'var(--warning)', fontWeight: 600 }}>
+              Mayoría de proteína en una sola toma — distribuir puede ayudar a la síntesis (observacional)
+            </div>
+          )}
+
+          {/* Calidad proteica */}
+          {pqScore !== 'sin-datos' && (
+            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="sm" style={{ color: 'var(--ink-400)' }}>Calidad proteica:</span>
+              <span className="chip sm" style={{
+                background: pqScore === 'alta' ? 'rgba(34,197,94,0.1)' : pqScore === 'media' ? 'rgba(234,179,8,0.1)' : 'var(--bg)',
+                color: pqScore === 'alta' ? 'var(--success)' : pqScore === 'media' ? 'var(--warning)' : 'var(--ink-400)',
+                fontWeight: 700, border: '1px solid currentColor', padding: '1px 8px',
+              }}>
+                {pqScore === 'alta' ? '● Alta' : pqScore === 'media' ? '● Media' : '● Baja'}
+              </span>
+              <span className="sm" style={{ color: 'var(--ink-300)' }}>animal/vegetal · observacional</span>
+            </div>
+          )}
         </motion.section>
+
+        {/* ── Ventana de ayuno ── */}
+        {showFasting && (
+          <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>⏱</span>
+            <span className="sm" style={{ color: 'var(--ink-700)' }}>
+              {fastingLabel(fastMins!)} — observacional, sin interpretación clínica
+            </span>
+            {fastMins! >= 240 && (
+              <span className="chip sm" style={{ marginLeft: 'auto', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ink-400)', fontWeight: 600 }}>Ayuno prolongado</span>
+            )}
+          </motion.section>
+        )}
 
         {/* ── Predicciones por franja + barra inteligente ── */}
         <motion.section variants={staggerItem} className="card">
@@ -243,17 +449,25 @@ export function Alimentacion() {
             ))}
           </div>
 
-          {/* Tarjetas de predicción (1 toque) */}
+          {/* Tarjetas de predicción (1 toque) con confianza visible */}
           {preds.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {preds.map((f, i) => {
                 const mult = multOf(f)
+                const conf = predictionConfidence(state, f, whenTs)
                 return (
                   <button key={f.id} onClick={() => logFav(f)} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', border: '1px solid var(--border)', opacity: i === 0 ? 1 : i === 1 ? 0.92 : 0.84 }}>
-                    <span style={{ color: 'var(--brand-700)', flexShrink: 0 }}>{i === 0 ? '★' : '•'}</span>
+                    <span style={{ color: 'var(--brand-700)', flexShrink: 0 }}>
+                      {conf === 'habitual' ? '★' : conf === 'frecuente' ? '↑' : '•'}
+                    </span>
                     <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {f.label}{mult !== 1 ? ` ·${porLabel(mult)}` : ''}
                     </span>
+                    {conf && (
+                      <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 10, flexShrink: 0 }}>
+                        {conf === 'habitual' ? 'habitual' : 'frecuente'}
+                      </span>
+                    )}
                     <span className="mono sm" style={{ fontWeight: 700, marginLeft: 'auto', flexShrink: 0 }}>{Math.round(f.kcal * mult)}<span style={{ color: 'var(--ink-400)' }}> kcal</span></span>
                   </button>
                 )
@@ -334,6 +548,33 @@ export function Alimentacion() {
           </div>
         </motion.section>
 
+        {/* ── Sección 'Recientes' (últimos 7 días, registro 1-toque) ── */}
+        {recientes.length > 0 && (
+          <motion.section variants={staggerItem} className="card">
+            <button
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0 }}
+              onClick={() => setShowRecientes((v) => !v)}
+            >
+              <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Recientes (7 días)</span>
+              <span className="sm" style={{ color: 'var(--brand-700)' }}>{showRecientes ? 'Ocultar' : `${recientes.length} alimentos ▾`}</span>
+            </button>
+            {showRecientes && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                {recientes.map((f) => {
+                  const mult = multOf(f)
+                  return (
+                    <button key={f.id} onClick={() => logReciente(f)} className="card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', border: '1px solid var(--border)' }}>
+                      <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>↩</span>
+                      <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</span>
+                      <span className="mono sm" style={{ marginLeft: 'auto', color: 'var(--ink-400)', flexShrink: 0 }}>{Math.round(f.kcal * mult)} kcal</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </motion.section>
+        )}
+
         {/* ── Toast no-bloqueante ── */}
         {toastMsg && (
           <motion.div
@@ -355,9 +596,11 @@ export function Alimentacion() {
           <motion.section variants={staggerItem} className="card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <span className="sm" style={{ color: 'var(--ink-400)' }}>Hoy — {day.meals.length} {day.meals.length === 1 ? 'comida' : 'comidas'}</span>
-              {state.foodLibrary.length > 0 && (
-                <button className="sm" style={{ background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => setManageFav((v) => !v)}>{manageFav ? 'Listo' : 'Editar favoritos'}</button>
-              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {state.foodLibrary.length > 0 && (
+                  <button className="sm" style={{ background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => setManageFav((v) => !v)}>{manageFav ? 'Listo' : 'Editar favoritos'}</button>
+                )}
+              </div>
             </div>
             {manageFav ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -405,6 +648,87 @@ export function Alimentacion() {
                 </div>
               )
             })()}
+          </motion.section>
+        )}
+
+        {/* ── Distribución calórica por franja horaria (chrono-nutrición) ── */}
+        {slotDist.length >= 2 && (
+          <motion.section variants={staggerItem} className="card">
+            <button
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0, marginBottom: showSlotDist ? 10 : 0 }}
+              onClick={() => setShowSlotDist((v) => !v)}
+            >
+              <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Distribución por franja</span>
+              <span className="sm" style={{ color: 'var(--brand-700)' }}>{showSlotDist ? 'Ocultar ▴' : 'Ver ▾'}</span>
+            </button>
+            {showSlotDist && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {slotDist.map(({ slot, kcal: sk, pct }) => (
+                  <div key={slot}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span className="sm" style={{ color: 'var(--ink-700)', textTransform: 'capitalize' }}>{slot}</span>
+                      <span className="sm mono" style={{ color: 'var(--ink-400)' }}>{sk} kcal · {pct}%</span>
+                    </div>
+                    <div style={{ height: 5, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: pct >= 40 ? 'var(--warning)' : 'var(--brand-500)', borderRadius: 999, transition: 'width 0.3s ease' }} />
+                    </div>
+                  </div>
+                ))}
+                <span className="sm" style={{ color: 'var(--ink-300)', marginTop: 2 }}>Distribución calórica del día — referencia observacional, sin prescripción</span>
+              </div>
+            )}
+          </motion.section>
+        )}
+
+        {/* ── Señales de calidad + diversidad ── */}
+        {(pStreak >= 3 || diversity.unique >= 5) && (
+          <motion.section variants={staggerItem} className="card">
+            <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700, display: 'block', marginBottom: 8 }}>Señales de calidad</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {pStreak >= 3 && (
+                <span className="chip sm" style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--success)', border: '1px solid var(--success)', fontWeight: 700 }}>
+                  🥩 {pStreak} días cumpliendo meta de proteína
+                </span>
+              )}
+              {diversity.unique >= 5 && (
+                <span className="chip sm" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)', border: '1px solid var(--brand-300)', fontWeight: 700 }}>
+                  🌿 {diversity.unique} alimentos distintos esta semana ({diversity.level} variedad)
+                </span>
+              )}
+            </div>
+          </motion.section>
+        )}
+
+        {/* ── Mini heatmap semanal de kcal ── */}
+        <motion.section variants={staggerItem} className="card">
+          <button
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0, marginBottom: showHeatmap ? 10 : 0 }}
+            onClick={() => setShowHeatmap((v) => !v)}
+          >
+            <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Semana en kcal</span>
+            <span className="sm" style={{ color: 'var(--brand-700)' }}>{showHeatmap ? 'Ocultar ▴' : 'Ver ▾'}</span>
+          </button>
+          {showHeatmap && (
+            <>
+              <WeekHeatmap s={state} />
+              <span className="sm" style={{ color: 'var(--ink-300)', marginTop: 6, display: 'block' }}>
+                Últimos 7 días · {goalKcal ? `meta ${goalKcal} kcal` : 'define una meta para ver la línea'}
+              </span>
+            </>
+          )}
+        </motion.section>
+
+        {/* ── Acciones de exportación ── */}
+        {day.meals.length > 0 && (
+          <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="chip sm" style={{ cursor: 'pointer', background: 'var(--bg)', border: '1px solid var(--border)' }} onClick={handleShare}>
+                Compartir día
+              </button>
+              <button className="chip sm" style={{ cursor: 'pointer', background: 'var(--bg)', border: '1px solid var(--border)' }} onClick={handleExportCsv}>
+                Exportar CSV (7 días)
+              </button>
+            </div>
           </motion.section>
         )}
 

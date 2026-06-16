@@ -113,13 +113,46 @@ export function predictions(s: AppState, now: number, n = 3): FoodFav[] {
     .slice(0, n)
     .map((x) => x.f)
 }
+
+// Confianza relativa de cada predicción (para badges ★/↑)
+// Devuelve 'habitual' si es la más frecuente en la franja, 'frecuente' si sube, null si solo es reciente
+export function predictionConfidence(s: AppState, fav: FoodFav, now: number): 'habitual' | 'frecuente' | null {
+  const slot = mealSlot(now)
+  const slotCount = fav.hourBucket?.[slot] ?? 0
+  const totalCount = fav.usoCount
+  if (slotCount >= 2) return 'habitual'
+  if (totalCount >= 3) return 'frecuente'
+  return null
+}
+
+// ── Fuzzy search con trigramas (tolerante a typos) + fallback substring ──
+function trigrams(s: string): Set<string> {
+  const tg = new Set<string>()
+  const pad = '  ' + s + '  '
+  for (let i = 0; i < pad.length - 2; i++) tg.add(pad.slice(i, i + 3))
+  return tg
+}
+function trigramSim(a: string, b: string): number {
+  const ta = trigrams(a), tb = trigrams(b)
+  let inter = 0
+  for (const t of ta) if (tb.has(t)) inter++
+  return (2 * inter) / (ta.size + tb.size || 1)
+}
+
 export function fuzzySearch(library: FoodFav[], q: string, n = 8): FoodFav[] {
   const query = q.trim().toLowerCase()
   if (!query) return []
   return library
     .map((f) => {
       const l = f.label.toLowerCase()
-      return { f, score: l.startsWith(query) ? 3 : l.includes(query) ? 2 : 0 }
+      let score = 0
+      if (l.startsWith(query)) score = 4
+      else if (l.includes(query)) score = 3
+      else {
+        const sim = trigramSim(query, l)
+        if (sim > 0.25) score = sim * 2  // tolerante a typos
+      }
+      return { f, score }
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || b.f.usoCount - a.f.usoCount)
@@ -195,6 +228,32 @@ export function avgKcal(s: AppState, days: number): number | null {
   const series = kcalSeries(s, days).filter((d) => d.has)
   if (!series.length) return null
   return Math.round(series.reduce((a, b) => a + b.kcal, 0) / series.length)
+}
+
+// ── Chip TDEE: Déficit / Mantenimiento / Superávit ──
+export type TdeeZone = 'deficit-agresivo' | 'deficit' | 'mantenimiento' | 'superavit'
+export function tdeeZone(kcal: number, tdeeVal: number): TdeeZone {
+  const ratio = kcal / tdeeVal
+  if (ratio < 0.7) return 'deficit-agresivo'
+  if (ratio < 0.95) return 'deficit'
+  if (ratio <= 1.05) return 'mantenimiento'
+  return 'superavit'
+}
+export interface TdeeChip {
+  zone: TdeeZone
+  label: string
+  color: string
+  detail: string
+}
+export function tdeeChip(kcal: number, tdeeVal: number): TdeeChip {
+  const zone = tdeeZone(kcal, tdeeVal)
+  const diff = Math.abs(kcal - tdeeVal)
+  switch (zone) {
+    case 'deficit-agresivo': return { zone, label: 'Déficit agresivo', color: 'var(--error)', detail: `−${Math.round(diff)} kcal bajo TDEE (>${Math.round((1 - kcal / tdeeVal) * 100)}%)` }
+    case 'deficit':          return { zone, label: 'Déficit', color: 'var(--brand-700)', detail: `−${Math.round(diff)} kcal bajo tu TDEE estimado` }
+    case 'mantenimiento':    return { zone, label: 'Mantenimiento', color: 'var(--success)', detail: `Cerca de tu TDEE (${tdeeVal} kcal)` }
+    case 'superavit':        return { zone, label: 'Superávit', color: 'var(--warning)', detail: `+${Math.round(diff)} kcal sobre tu TDEE estimado` }
+  }
 }
 
 // ── Proyección de meta de peso (regresión lineal sobre history.Peso) ──
@@ -277,6 +336,117 @@ export function waterGoalGlasses(pesoKg: number): number {
   return Math.max(8, Math.round(pesoKg * 0.033))
 }
 
+// ── Proteína restante accionable: "Faltan X g en Y comidas → ~Z g/comida" ──
+export interface ProteinRemaining {
+  remaining: number       // g que faltan para la meta
+  mealsLeft: number       // comidas restantes en el día según franja actual
+  perMeal: number | null  // g sugeridos por comida (null si mealsLeft === 0)
+}
+export function proteinRemaining(protein: number, goalP: number, now: number): ProteinRemaining {
+  const remaining = Math.max(0, goalP - protein)
+  // estimar comidas restantes según franjas del día (comida/colación tarde/cena = 2-3 después del almuerzo)
+  const h = new Date(now).getHours()
+  const mealsLeft = h < 12 ? 3 : h < 14 ? 2 : h < 19 ? 2 : h < 21 ? 1 : 0
+  const perMeal = mealsLeft > 0 ? Math.ceil(remaining / mealsLeft) : null
+  return { remaining, mealsLeft, perMeal }
+}
+
+// ── Ventana de ayuno: minutos transcurridos desde la última comida ──
+export function fastingMinutes(lastMealTs: number | null, now: number): number | null {
+  if (!lastMealTs) return null
+  const diff = now - lastMealTs
+  if (diff < 0) return null
+  return Math.floor(diff / 60_000)
+}
+export function fastingLabel(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m} min sin comer`
+  if (m === 0) return `${h} h sin comer`
+  return `${h} h ${m} min sin comer`
+}
+
+// ── Distribución calórica por franja horaria (chrono-nutrición) ──
+const SLOT_ORDER = ['desayuno', 'colación de la mañana', 'comida', 'colación de la tarde', 'cena', 'antojo nocturno']
+export interface SlotKcal { slot: string; kcal: number; pct: number }
+export function kcalBySlot(meals: { kcal: number; ts: number }[]): SlotKcal[] {
+  const totals: Record<string, number> = {}
+  for (const m of meals) {
+    const s = mealSlot(m.ts)
+    totals[s] = (totals[s] ?? 0) + m.kcal
+  }
+  const total = Object.values(totals).reduce((a, b) => a + b, 0)
+  return SLOT_ORDER
+    .filter((s) => totals[s] > 0)
+    .map((s) => ({ slot: s, kcal: totals[s], pct: total > 0 ? Math.round((totals[s] / total) * 100) : 0 }))
+}
+
+// ── Toggle macro display: g absolutos ↔ % de kcal ──
+export interface MacroPct { protein: number; carbs: number; fat: number }
+export function macroPercents(protein: number, carbs: number, fat: number): MacroPct {
+  const kcalP = protein * 4, kcalC = carbs * 4, kcalF = fat * 9
+  const total = kcalP + kcalC + kcalF
+  if (total === 0) return { protein: 0, carbs: 0, fat: 0 }
+  return {
+    protein: Math.round((kcalP / total) * 100),
+    carbs: Math.round((kcalC / total) * 100),
+    fat: Math.round((kcalF / total) * 100),
+  }
+}
+
+// ── Índice calidad proteica del día (animal vs vegetal) — semáforo observacional ──
+// Se infiere del label: items con carne/pollo/huevo/pescado/lácteo → animal; legumbres/soya/tofu → vegetal.
+// Sin datos → 'sin-datos'
+const ANIMAL_KEYS = ['pollo', 'res', 'cerdo', 'atún', 'salmón', 'huevo', 'leche', 'yogur', 'queso', 'pavo', 'camarón', 'pescado', 'proteína']
+const VEGETAL_KEYS = ['frijol', 'lenteja', 'garbanzo', 'soya', 'tofu', 'edamame', 'chícharo', 'quinoa', 'chayote']
+export type ProteinQuality = 'alta' | 'media' | 'baja' | 'sin-datos'
+export function proteinQualityScore(meals: { label?: string | null; protein?: number | null }[]): ProteinQuality {
+  let animal = 0, vegetal = 0
+  for (const m of meals) {
+    if (!m.label || !m.protein) continue
+    const l = m.label.toLowerCase()
+    if (ANIMAL_KEYS.some((k) => l.includes(k))) animal += m.protein!
+    else if (VEGETAL_KEYS.some((k) => l.includes(k))) vegetal += m.protein!
+  }
+  const total = animal + vegetal
+  if (total < 5) return 'sin-datos'
+  const animalPct = animal / total
+  if (animalPct >= 0.5) return 'alta'
+  if (animalPct >= 0.25) return 'media'
+  return 'baja'
+}
+
+// ── Distribución proteína por toma: alerta silenciosa de reparto desigual ──
+// Devuelve true si una sola toma concentra >60% de la proteína total del día
+export function isProteinUnbalanced(meals: { protein?: number | null; ts: number }[]): boolean {
+  const total = meals.reduce((s, m) => s + (m.protein ?? 0), 0)
+  if (total < 20) return false
+  const grouped: Record<string, number> = {}
+  for (const m of meals) {
+    const s = mealSlot(m.ts)
+    grouped[s] = (grouped[s] ?? 0) + (m.protein ?? 0)
+  }
+  return Object.values(grouped).some((v) => v / total > 0.6)
+}
+
+// ── Índice de diversidad alimentaria semanal (Shannon simplificado) ──
+// Cuenta etiquetas únicas en los últimos 7 días; >10 = alta, 5-9 = media, <5 = baja
+export interface DiversityScore { unique: number; level: 'alta' | 'media' | 'baja' }
+export function weeklyDiversityScore(s: AppState): DiversityScore {
+  const labels = new Set<string>()
+  const series = kcalSeries(s, 7)
+  for (const { ts } of series) {
+    const d = s.nutrition[isoKey(ts)]
+    if (!d) continue
+    for (const m of d.meals) {
+      if (m.label) labels.add(m.label.toLowerCase().trim())
+    }
+  }
+  const unique = labels.size
+  const level: DiversityScore['level'] = unique >= 10 ? 'alta' : unique >= 5 ? 'media' : 'baja'
+  return { unique, level }
+}
+
 // ── Señales de la semana: observaciones por plantilla fija (cumplimiento) ──
 export function weeklyInsights(s: AppState): string[] {
   const out: string[] = []
@@ -314,5 +484,120 @@ export function weeklyInsights(s: AppState): string[] {
       out.push(`Promediaste ${avgProt} g de proteína/día (meta ${goalProt} g).`)
     }
   }
+  // Diversidad alimentaria
+  const div = weeklyDiversityScore(s)
+  if (div.unique > 0) out.push(`Registraste ${div.unique} alimentos distintos esta semana (variedad ${div.level}).`)
   return out
+}
+
+// ── Racha de calidad nutricional (solo proteína — fibra no disponible en tipos actuales) ──
+// Días consecutivos cumpliendo ≥80% de la meta de proteína
+export function proteinQualityStreak(s: AppState): number {
+  const goal = s.macroGoals?.protein
+  if (!goal || goal <= 0) return 0
+  let streak = 0
+  const base = new Date(s.todayTs)
+  for (let i = 0; i < 90; i++) {
+    const day = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i)
+    const k = isoKey(day.getTime())
+    const d = s.nutrition[k]
+    if (!d || d.meals.length === 0) {
+      if (i === 0) continue // hoy en curso
+      break
+    }
+    const { protein } = dayMacros(d.meals)
+    if (protein >= goal * 0.8) streak++
+    else if (i === 0) continue
+    else break
+  }
+  return streak
+}
+
+// ── Recientes: alimentos de los últimos 7 días para registro 1-toque ──
+export function recentFoods(s: AppState, n = 8): FoodFav[] {
+  const seen = new Map<string, { fav: FoodFav; lastTs: number }>()
+  const series = kcalSeries(s, 7)
+  for (const { ts } of [...series].reverse()) {
+    const d = s.nutrition[isoKey(ts)]
+    if (!d) continue
+    for (const m of [...d.meals].reverse()) {
+      if (!m.label) continue
+      // intentar encontrar en la biblioteca de favoritos
+      const fav = s.foodLibrary.find((f) => f.label.toLowerCase() === m.label!.toLowerCase())
+      if (fav && !seen.has(fav.id)) {
+        seen.set(fav.id, { fav, lastTs: m.ts })
+      } else if (!fav && !seen.has('_raw_' + m.label.toLowerCase())) {
+        // crear FoodFav efímero desde el meal (para mostrar en UI)
+        const ephemeral: FoodFav = {
+          id: '_raw_' + m.label.toLowerCase(),
+          label: m.label,
+          kcal: m.kcal,
+          protein: m.protein ?? null,
+          carbs: m.carbs ?? null,
+          fat: m.fat ?? null,
+          usoCount: 1,
+        }
+        seen.set('_raw_' + m.label.toLowerCase(), { fav: ephemeral, lastTs: m.ts })
+      }
+      if (seen.size >= n) break
+    }
+    if (seen.size >= n) break
+  }
+  return [...seen.values()].sort((a, b) => b.lastTs - a.lastTs).map((x) => x.fav).slice(0, n)
+}
+
+// ── Exportar log de nutrición como CSV (7 ó 30 días) ──
+export function exportNutritionCsv(s: AppState, days: 7 | 30 = 7): string {
+  const header = 'Fecha,Franja,Alimento,kcal,Proteína (g),Carbos (g),Grasa (g)'
+  const rows: string[] = [header]
+  const series = kcalSeries(s, days)
+  for (const { ts } of series) {
+    const k = isoKey(ts)
+    const d = s.nutrition[k]
+    if (!d || d.meals.length === 0) continue
+    for (const m of d.meals) {
+      const row = [
+        k,
+        mealSlot(m.ts),
+        (m.label ?? '').replace(/,/g, ';'),
+        m.kcal,
+        m.protein ?? '',
+        m.carbs ?? '',
+        m.fat ?? '',
+      ].join(',')
+      rows.push(row)
+    }
+  }
+  return rows.join('\n')
+}
+
+// ── Compartir el día como texto plano ──
+export function shareDayText(s: AppState): string {
+  const k = isoKey(s.todayTs)
+  const d = s.nutrition[k]
+  if (!d || d.meals.length === 0) return 'Sin comidas registradas hoy.'
+  const total = dayKcal(d.meals)
+  const macros = dayMacros(d.meals)
+  let text = `Mi alimentación de hoy — ${k}\n`
+  text += `Total: ${total} kcal`
+  if (macros.hasMacros) text += ` · P: ${macros.protein} g · C: ${macros.carbs} g · G: ${macros.fat} g`
+  text += '\n\n'
+  const SLOT_ORDER_ES = ['desayuno', 'colación de la mañana', 'comida', 'colación de la tarde', 'cena', 'antojo nocturno']
+  const grouped: Record<string, typeof d.meals> = {}
+  for (const m of d.meals) {
+    const sl = mealSlot(m.ts)
+    if (!grouped[sl]) grouped[sl] = []
+    grouped[sl].push(m)
+  }
+  for (const sl of SLOT_ORDER_ES) {
+    if (!grouped[sl]?.length) continue
+    text += `${sl.charAt(0).toUpperCase() + sl.slice(1)}:\n`
+    for (const m of grouped[sl]) {
+      text += `  · ${m.label ?? 'Comida'} — ${m.kcal} kcal`
+      if (m.protein) text += ` (P: ${m.protein} g)`
+      text += '\n'
+    }
+  }
+  text += '\nRegistrado con Hacktrack'
+  return text
 }

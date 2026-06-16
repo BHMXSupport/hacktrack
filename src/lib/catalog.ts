@@ -286,35 +286,45 @@ export const GOALS: GoalOption[] = [
 ]
 
 // ── Ingredientes comunes (macros por 100 g/ml) — para "crear platillo" (gratis) ──
-export interface Ingredient { name: string; unit: 'g' | 'ml'; per: number; kcal: number; protein: number; carbs: number; fat: number }
+export interface Ingredient {
+  name: string
+  unit: 'g' | 'ml'
+  per: number
+  kcal: number
+  protein: number
+  carbs: number
+  fat: number
+  glutenFree?: boolean   // item 253 — libre de gluten (true cuando aplica)
+  dairyFree?: boolean    // item 253 — libre de lácteos (true cuando aplica)
+}
 export const INGREDIENTS: Ingredient[] = [
-  { name: "Pechuga de pollo", unit: "g", per: 100, kcal: 165, protein: 31, carbs: 0, fat: 4 },
-  { name: "Pechuga de pavo", unit: "g", per: 100, kcal: 135, protein: 29, carbs: 0, fat: 2 },
-  { name: "Huevo entero", unit: "g", per: 100, kcal: 155, protein: 13, carbs: 1, fat: 11 },
-  { name: "Arroz blanco cocido", unit: "g", per: 100, kcal: 130, protein: 3, carbs: 28, fat: 0 },
-  { name: "Papa cocida", unit: "g", per: 100, kcal: 87, protein: 2, carbs: 20, fat: 0 },
-  { name: "Camote cocido", unit: "g", per: 100, kcal: 90, protein: 2, carbs: 21, fat: 0 },
-  { name: "Brócoli", unit: "g", per: 100, kcal: 34, protein: 3, carbs: 7, fat: 0 },
-  { name: "Espinaca", unit: "g", per: 100, kcal: 23, protein: 3, carbs: 4, fat: 0 },
-  { name: "Jitomate", unit: "g", per: 100, kcal: 18, protein: 1, carbs: 4, fat: 0 },
-  { name: "Zanahoria", unit: "g", per: 100, kcal: 41, protein: 1, carbs: 10, fat: 0 },
-  { name: "Frijol negro cocido", unit: "g", per: 100, kcal: 132, protein: 9, carbs: 24, fat: 1 },
-  { name: "Lentejas cocidas", unit: "g", per: 100, kcal: 116, protein: 9, carbs: 20.1, fat: 0.4 },
-  { name: "Tortilla de maíz", unit: "g", per: 100, kcal: 218, protein: 6, carbs: 46, fat: 3 },
-  { name: "Pan integral", unit: "g", per: 100, kcal: 247, protein: 9, carbs: 45, fat: 3 },
-  { name: "Pasta cocida", unit: "g", per: 100, kcal: 158, protein: 6, carbs: 31, fat: 1 },
-  { name: "Avena en hojuelas cruda", unit: "g", per: 100, kcal: 389, protein: 16.9, carbs: 66.3, fat: 6.9 },
-  { name: "Aguacate", unit: "g", per: 100, kcal: 160, protein: 2, carbs: 9, fat: 15 },
-  { name: "Plátano", unit: "g", per: 100, kcal: 89, protein: 1, carbs: 23, fat: 0 },
-  { name: "Manzana", unit: "g", per: 100, kcal: 52, protein: 0, carbs: 14, fat: 0 },
-  { name: "Leche entera", unit: "ml", per: 100, kcal: 61, protein: 3, carbs: 5, fat: 3 },
-  { name: "Queso panela", unit: "g", per: 100, kcal: 200, protein: 18, carbs: 4, fat: 12 },
-  { name: "Salmón", unit: "g", per: 100, kcal: 208, protein: 20, carbs: 0, fat: 13 },
-  { name: "Carne molida de res 90/10", unit: "g", per: 100, kcal: 176, protein: 20, carbs: 0, fat: 10 },
-  { name: "Tofu firme", unit: "g", per: 100, kcal: 76, protein: 8, carbs: 2, fat: 4 },
-  { name: "Crema de cacahuate", unit: "g", per: 100, kcal: 588, protein: 25, carbs: 20, fat: 50 },
-  { name: "Semillas de chía", unit: "g", per: 100, kcal: 486, protein: 17, carbs: 42, fat: 31 },
-  { name: "Aceite de oliva", unit: "ml", per: 100, kcal: 884, protein: 0, carbs: 0, fat: 100 },
+  { name: "Pechuga de pollo", unit: "g", per: 100, kcal: 165, protein: 31, carbs: 0, fat: 4, glutenFree: true, dairyFree: true },
+  { name: "Pechuga de pavo", unit: "g", per: 100, kcal: 135, protein: 29, carbs: 0, fat: 2, glutenFree: true, dairyFree: true },
+  { name: "Huevo entero", unit: "g", per: 100, kcal: 155, protein: 13, carbs: 1, fat: 11, glutenFree: true, dairyFree: true },
+  { name: "Arroz blanco cocido", unit: "g", per: 100, kcal: 130, protein: 3, carbs: 28, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Papa cocida", unit: "g", per: 100, kcal: 87, protein: 2, carbs: 20, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Camote cocido", unit: "g", per: 100, kcal: 90, protein: 2, carbs: 21, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Brócoli", unit: "g", per: 100, kcal: 34, protein: 3, carbs: 7, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Espinaca", unit: "g", per: 100, kcal: 23, protein: 3, carbs: 4, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Jitomate", unit: "g", per: 100, kcal: 18, protein: 1, carbs: 4, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Zanahoria", unit: "g", per: 100, kcal: 41, protein: 1, carbs: 10, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Frijol negro cocido", unit: "g", per: 100, kcal: 132, protein: 9, carbs: 24, fat: 1, glutenFree: true, dairyFree: true },
+  { name: "Lentejas cocidas", unit: "g", per: 100, kcal: 116, protein: 9, carbs: 20.1, fat: 0.4, glutenFree: true, dairyFree: true },
+  { name: "Tortilla de maíz", unit: "g", per: 100, kcal: 218, protein: 6, carbs: 46, fat: 3, glutenFree: true, dairyFree: true },
+  { name: "Pan integral", unit: "g", per: 100, kcal: 247, protein: 9, carbs: 45, fat: 3, glutenFree: false, dairyFree: true },
+  { name: "Pasta cocida", unit: "g", per: 100, kcal: 158, protein: 6, carbs: 31, fat: 1, glutenFree: false, dairyFree: true },
+  { name: "Avena en hojuelas cruda", unit: "g", per: 100, kcal: 389, protein: 16.9, carbs: 66.3, fat: 6.9, dairyFree: true },
+  { name: "Aguacate", unit: "g", per: 100, kcal: 160, protein: 2, carbs: 9, fat: 15, glutenFree: true, dairyFree: true },
+  { name: "Plátano", unit: "g", per: 100, kcal: 89, protein: 1, carbs: 23, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Manzana", unit: "g", per: 100, kcal: 52, protein: 0, carbs: 14, fat: 0, glutenFree: true, dairyFree: true },
+  { name: "Leche entera", unit: "ml", per: 100, kcal: 61, protein: 3, carbs: 5, fat: 3, glutenFree: true, dairyFree: false },
+  { name: "Queso panela", unit: "g", per: 100, kcal: 200, protein: 18, carbs: 4, fat: 12, glutenFree: true, dairyFree: false },
+  { name: "Salmón", unit: "g", per: 100, kcal: 208, protein: 20, carbs: 0, fat: 13, glutenFree: true, dairyFree: true },
+  { name: "Carne molida de res 90/10", unit: "g", per: 100, kcal: 176, protein: 20, carbs: 0, fat: 10, glutenFree: true, dairyFree: true },
+  { name: "Tofu firme", unit: "g", per: 100, kcal: 76, protein: 8, carbs: 2, fat: 4, glutenFree: true, dairyFree: true },
+  { name: "Crema de cacahuate", unit: "g", per: 100, kcal: 588, protein: 25, carbs: 20, fat: 50, glutenFree: true, dairyFree: true },
+  { name: "Semillas de chía", unit: "g", per: 100, kcal: 486, protein: 17, carbs: 42, fat: 31, glutenFree: true, dairyFree: true },
+  { name: "Aceite de oliva", unit: "ml", per: 100, kcal: 884, protein: 0, carbs: 0, fat: 100, glutenFree: true, dairyFree: true },
   { name: "Pechuga de pollo sin piel", unit: "g", per: 100, kcal: 165, protein: 31, carbs: 0, fat: 3.6 },
   { name: "Pechuga de pollo con piel", unit: "g", per: 100, kcal: 197, protein: 29.8, carbs: 0, fat: 7.8 },
   { name: "Muslo de pollo sin piel", unit: "g", per: 100, kcal: 177, protein: 24, carbs: 0, fat: 8.2 },
@@ -770,8 +780,63 @@ export const INGREDIENTS: Ingredient[] = [
 
 // ── Recetario (Plus): recetas listas con macros + ingredientes, organizadas por comida y subcategoría ──
 export type RecipeMeal = 'desayuno' | 'comida' | 'cena' | 'colacion'
-export type RecipeTag = 'keto-friendly' | 'fácil y rápido' | 'bajo en calorías' | 'alto en proteína' | 'vegetariano' | 'vegano' | 'post-entreno'
-export interface Recipe { name: string; meal: RecipeMeal; tags: RecipeTag[]; kcal: number; protein: number; carbs: number; fat: number; servings: number; ingredients: { name: string; grams: number }[]; prep: string }
+export type RecipeTag =
+  | 'keto-friendly'
+  | 'fácil y rápido'
+  | 'bajo en calorías'
+  | 'alto en proteína'
+  | 'vegetariano'
+  | 'vegano'
+  | 'post-entreno'
+  | 'alto en fibra'          // ≥7 g fibra (item 250)
+  | 'colación saciante'      // ≥10 g P, ≥3 g fibra, <200 kcal (item 252)
+
+export type ProteinSource = 'completa' | 'incompleta' | 'mixta'  // item 248
+export type GlycemicImpact = 'bajo' | 'moderado' | 'alto'         // item 252
+
+export interface Recipe {
+  name: string
+  meal: RecipeMeal
+  tags: RecipeTag[]
+  kcal: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber?: number               // item 250 — g de fibra total
+  servings: number
+  prepMin?: number             // item 245 — tiempo de preparación en minutos
+  proteinSource?: ProteinSource  // item 248 — calidad de la proteína
+  glycemicImpact?: GlycemicImpact // item 252 — impacto glucémico estimado
+  ingredients: { name: string; grams: number }[]
+  prep: string
+}
+
+// ── MACRO_COLOR — tokens semánticos para P/C/G (item 263) ──────────────────
+// Usados en Recetario y en cualquier barra de macros. No usar --ink-300/400 para C y G
+// porque colapsan en dark mode (contraste ~1.2:1).
+export const MACRO_COLOR = {
+  protein: 'var(--brand-700)',   // mint
+  carbs: '#D97706',              // amber-600 — visible en dark y light (AAA sobre --card)
+  fat: '#6B7BE8',                // azul apagado (coincide con Cognitivo)
+} as const
+
+// ── Hints contextuales por péptido activo para el banner del Recetario (item 260) ──
+// Dato observacional. No es consejo médico. Clave = nombre exacto del péptido en PEPTIDES.
+export const PEPTIDE_NUTRITION_HINT: Record<string, string> = {
+  'Retatrutide':       'Prioriza proteína para preservar músculo.',
+  'Tirzepatida':       'Prioriza proteína para preservar músculo.',
+  'Semaglutida':       'Prioriza proteína para preservar músculo.',
+  'Tesamorelin':       'Prioriza proteína para preservar músculo.',
+  'BPC-157':           'Colágeno y glicina favorecen la recuperación tisular.',
+  'TB-500':            'Colágeno y glicina favorecen la recuperación tisular.',
+  'GHK-Cu':            'Colágeno y glicina favorecen la recuperación tisular.',
+  'ARA 290':           'Colágeno y glicina favorecen la recuperación tisular.',
+  'Semax':             'Los omega-3 apoyan la función cognitiva.',
+  'Selank':            'Los omega-3 apoyan la función cognitiva.',
+  'DSIP':              'Los omega-3 apoyan la función cognitiva.',
+  'CJC 1295 (No DAC)': 'Distribuye la proteína en al menos 3 tomas para maximizar la síntesis.',
+  'Ipamorelin':        'Distribuye la proteína en al menos 3 tomas para maximizar la síntesis.',
+}
 export const RECIPES: Recipe[] = [
   { name: "Huevos a la mexicana con frijoles", meal: "desayuno", tags: ["fácil y rápido", "alto en proteína"], kcal: 388, protein: 23.9, carbs: 26.3, fat: 22.1, servings: 1,
     ingredients: [{ name: "Huevo entero", grams: 120 }, { name: "Frijol negro cocido", grams: 80 }, { name: "Jitomate", grams: 60 }, { name: "Cebolla", grams: 30 }, { name: "Chile serrano", grams: 10 }, { name: "Aceite de aguacate", grams: 8 }],
@@ -1245,3 +1310,146 @@ export const RECIPES: Recipe[] = [
     ingredients: [{ name: "Espinaca", grams: 60 }, { name: "Plátano", grams: 120 }, { name: "Leche entera", grams: 200 }, { name: "Yogur griego natural", grams: 100 }, { name: "Semillas de chía", grams: 10 }],
     prep: "Licúa todos los ingredientes hasta homogéneo. Sirve de inmediato; agrega hielo si gustas." },
 ]
+
+// ── prepMin estimado por nombre (item 245) ─────────────────────────────────
+// Aplica solo a recetas cuyo nombre coincide; el resto queda undefined.
+// Los smoothies/licuados/yogur/bowl sin cocción = 5-8 min; guisados/horneados = 20-40 min.
+const PREP_MIN_MAP: Record<string, number> = {
+  'Smoothie verde de proteína': 5, 'Smoothie de mango y proteína': 5, 'Smoothie verde proteico': 5, 'Smoothie verde': 5,
+  'Licuado de proteína con fresas y leche': 5, 'Licuado proteico de plátano y leche': 5, 'Licuado de fresa con proteína': 5,
+  'Licuado de proteína con mantequilla de almendra y avena': 5, 'Licuado de nopal, piña y limón': 5,
+  'Batido de proteína con leche y cacao': 5,
+  'Tazón de chia con leche de almendras y kiwi': 8, 'Avena overnight con chía y manzana': 8, 'Pudín de chía con leche de almendra': 8,
+  'Yogur griego con granola y frutos rojos': 5, 'Yogur griego con nuez y miel': 5, 'Yogur griego con semillas de girasol': 5,
+  'Manzana con crema de cacahuate': 5, 'Hummus con bastones de pepino': 5, 'Puño de almendras naturales': 3,
+  'Jícama con chile y limón': 5, 'Apio con mantequilla de almendra': 5, 'Pepino con crema de cacahuate': 5,
+  'Mezcla de nueces y arándanos secos': 3, 'Nueces de la india con arándanos': 3, 'Requesón con fresas': 5,
+  'Tostadas de arroz con aguacate': 5, 'Rollitos de jamón serrano con queso': 5, 'Queso panela con mango': 5,
+  'Huevo cocido con sal y limón': 12, 'Claras de huevo revueltas': 8, 'Atún con galletas integrales': 5,
+  'Tofu firme con salsa de soya': 5, 'Zanahorias baby con hummus de chipotle': 5, 'Edamame con sal de mar': 10,
+  'Gelatina proteica de fresa': 8, 'Barrita casera de avena y dátil': 15, 'Cecina con aguacate': 10,
+  'Ricotta con durazno y canela': 5, 'Palomitas de maíz con levadura nutricional': 5,
+  'Huevos a la mexicana con frijoles': 15, 'Omelette de espinacas y queso panela': 12, 'Omelette de espinaca y queso panela': 12,
+  'Avena proteica con plátano y almendras': 10, 'Avena proteica': 10, 'Avena proteica con cacao y crema de cacahuate': 10,
+  'Tacos de huevo con nopales': 15, 'Hot cakes proteicos de avena': 15, 'Hot cakes de amaranto con miel de piloncillo': 15,
+  'Chilaquiles verdes con pollo deshebrado': 15, 'Chilaquiles rojos con huevo y frijoles de olla': 15, 'Chilaquiles verdes light (sin crema)': 15,
+  'Molletes con frijoles y pico de gallo': 10, 'Tacos de claras con pico de gallo y aguacate': 12,
+  'Pan tostado integral con huevo estrellado y jitomate': 10, 'Aguacate con huevo pochado sobre tostada integral': 15,
+  'Egg muffins de chorizo y chile poblano': 25, 'Frittata de verduras con queso fresco': 25,
+  'Crepas integrales de requesón con miel': 20, 'Pancakes de plátano y proteína sin harina': 15,
+  'Enfrijoladas de pollo con crema light': 20, 'Burrito de desayuno con huevo, frijoles y pico de gallo': 15,
+  'Huevos rancheros ligeros': 12, 'Huevos rancheros con frijoles negros': 12, 'Huevos benedictinos con jamón de pavo': 18,
+  'Huevos al comal con salsa de chile de árbol': 12, 'Huevos revueltos con champiñones y epazote': 12,
+  'Ensalada de huevo duro con palta y jitomate': 8, 'Bowl de quinoa con huevo escalfado y espinacas': 15,
+  'Wrap de tortilla integral con claras y espinacas': 12, 'Tostadas de jícama con atún y aguacate': 10,
+  'Claras revueltas con nopal y epazote': 10, 'Bowl proteico de cottage con durazno y nuez': 5,
+  'Smoothie bowl de açaí con granola': 8, 'Tostadas de frijoles negros con queso y salsa': 8,
+  'Bowl de fruta con yogur griego y semillas de cáñamo': 5,
+  // Comidas
+  'Pechuga asada con arroz integral y ensalada': 20, 'Tinga de pollo en tostadas': 25, 'Salmón al limón con espárragos': 20,
+  'Picadillo de res con chayote': 25, 'Bowl de atún con aguacate y quinoa': 10, 'Ceviche de camarón con tostadas': 15,
+  'Tacos de camarón con aguacate': 15, 'Ensalada griega con pollo': 15, 'Filete de tilapia al vapor con verduras': 15,
+  'Sopa de pollo con verduras y fideos': 20, 'Tacos de pescado baja-style': 15, 'Tacos de coliflor con crema de chile': 25,
+  'Ensalada de atún con frijoles blancos': 10, 'Pasta integral con atún y alcaparras': 15,
+  'Pollo horneado con camote y brócoli': 30, 'Pollo al mole ligero con arroz': 25, 'Lomo de cerdo con chiles poblanos': 20,
+  'Pozole rojo de pollo ligero': 30, 'Fajitas de res con pimientos': 20, 'Bistec encebollado con frijoles charros': 20,
+  'Guisado de res con chile ancho': 40, 'Enchiladas verdes de pollo (horneadas)': 25, 'Tostadas de pollo con salsa verde': 15,
+  'Bowl de pollo con quinoa y mango': 20, 'Bowl keto de carne molida con aguacate': 20, 'Salmón con costra de ajonjolí y espinacas salteadas': 15,
+  'Milanesa de pechuga al horno con ejotes': 25, 'Espagueti de calabacita con pesto y pollo': 15,
+  'Tacos de res estilo pastor fitness': 20, 'Tacos de tinga ligera': 20, 'Bowl de arroz con ejotes y huevo pochado': 20,
+  'Carne de res con nopalitos': 20, 'Quesadillas de champiñones y espinacas': 15, 'Lentejas guisadas con espinacas': 20,
+  'Chiles rellenos de queso panela (al horno)': 30, 'Caldo tlalpeño con garbanzo': 25,
+  'Ensalada de garbanzo con verduras asadas': 25, 'Calabacitas rellenas de quinoa y queso': 30,
+  'Ensalada de salmón ahumado con aguacate': 10, 'Verdolagas con cerdo': 35, 'Bowl de pollo y arroz': 20,
+  // Cenas
+  'Salmón al horno con espárragos': 20, 'Caldo de pollo con verduras': 20, 'Ensalada tibia de atún y ejotes': 15,
+  'Crema de calabaza': 25, 'Tostadas de atún con aguacate': 10, 'Pollo a la plancha con brócoli al vapor': 15,
+  'Tofu salteado con champiñones y chile poblano': 15, 'Lettuce wraps de camarón al ajillo': 10,
+  'Sopa de lentejas con epazote': 20, 'Filete de tilapia a la veracruzana': 15, 'Huevos revueltos con nopales y jitomate': 12,
+  'Caldo de camarón estilo sinaloa': 20, 'Ensalada de pollo con mango y chile piquín': 15,
+  'Filete de robalo a la plancha con salsa de tomatillo': 15, 'Quesadillas de flor de calabaza (sin tortilla gruesa)': 12,
+  'Pechugas rellenas de huitlacoche': 30, 'Crema de chícharo con hierbabuena': 20,
+  'Atún sellado con costra de ajonjolí y ensalada de pepino': 10, 'Sopa de verdolagas con cerdo desgrasado': 30,
+  'Ensalada de nopal, pepino y jícama': 10, 'Pechuga de pollo al limón con ejotes salteados': 15,
+  'Tazón de arroz integral con salmón y edamame': 10, 'Verduras asadas al horno con queso cotija': 25,
+  'Coctel de camarones con aguacate': 10, 'Sopa de champiñones al chipotle': 20, 'Filete de atún en escabeche con chile jalapeño': 15,
+  'Tacos de coliflor asada estilo birria': 25, 'Clara de huevo con espinaca y salsa de chipotle': 10,
+  'Sardinas al limón con ensalada de rábano': 8, 'Consomé de res con verduras': 12, 'Pechuga de guajolote a las hierbas con zucchini': 25,
+  'Ensalada de quinoa con pollo y aderezo de limón': 15, 'Crema de elote sin mantequilla': 20,
+  'Atún con aguacate en pepino bote': 8, 'Pollo con mole negro light y ejotes': 20, 'Sopa de elote y chile poblano': 20,
+  'Tazón post-entreno de proteína con avena y plátano': 10, 'Ensalada cesar ligera de pollo a la plancha': 10,
+  'Calabacitas con queso oaxaca al comal': 12, 'Rollitos de lechuga con picadillo de pavo': 15,
+}
+
+// ── proteinSource por receta (item 248) ───────────────────────────────────
+// completa = proteína animal dominante; incompleta = leguminosa/cereal solo;
+// mixta = leguminosa+cereal o leguminosa+huevo/lácteo
+const PROTEIN_SOURCE_MAP: Record<string, ProteinSource> = {
+  // animal → completa
+  'Pechuga asada con arroz integral y ensalada': 'completa', 'Tinga de pollo en tostadas': 'completa',
+  'Salmón al limón con espárragos': 'completa', 'Picadillo de res con chayote': 'completa',
+  'Bowl de atún con aguacate y quinoa': 'completa', 'Tacos de camarón con aguacate': 'completa',
+  'Ensalada griega con pollo': 'completa', 'Filete de tilapia al vapor con verduras': 'completa',
+  'Sopa de pollo con verduras y fideos': 'completa', 'Huevos a la mexicana con frijoles': 'mixta',
+  'Omelette de espinacas y queso panela': 'completa', 'Avena proteica con plátano y almendras': 'mixta',
+  'Smoothie verde de proteína': 'completa', 'Hot cakes proteicos de avena': 'mixta',
+  'Chilaquiles verdes con pollo deshebrado': 'completa', 'Molletes con frijoles y pico de gallo': 'mixta',
+  'Yogur griego con granola y frutos rojos': 'completa', 'Licuado de proteína con fresas y leche': 'completa',
+  'Avena proteica con cacao y crema de cacahuate': 'mixta', 'Lentejas guisadas con espinacas': 'incompleta',
+  'Caldo tlalpeño con garbanzo': 'incompleta', 'Calabacitas rellenas de quinoa y queso': 'mixta',
+  'Hummus con bastones de pepino': 'incompleta', 'Tofu firme con salsa de soya': 'incompleta',
+  'Smoothie verde proteico': 'incompleta', 'Gelatina proteica de fresa': 'completa',
+  'Frijol negro cocido': 'incompleta', 'Edamame con sal de mar': 'incompleta',
+  // leguminosa + cereal → mixta
+  'Tacos de tinga ligera': 'completa', 'Bowl de pollo y arroz': 'completa',
+}
+
+// ── fiber estimada por receta (item 250) — fuente: composición de ingredientes típica ──
+// Solo las recetas donde la fibra es relevante para el tag 'alto en fibra' (≥7 g)
+const FIBER_MAP: Record<string, number> = {
+  'Huevos a la mexicana con frijoles': 8, 'Avena proteica con plátano y almendras': 9,
+  'Avena overnight con chía y manzana': 11, 'Tazón de chia con leche de almendras y kiwi': 8,
+  'Avena proteica': 8, 'Avena proteica con cacao y crema de cacahuate': 7,
+  'Smoothie verde de proteína': 4, 'Burrito de desayuno con huevo, frijoles y pico de gallo': 9,
+  'Enfrijoladas de pollo con crema light': 10, 'Molletes con frijoles y pico de gallo': 9,
+  'Tostadas de frijoles negros con queso y salsa': 8, 'Bowl de quinoa con huevo escalfado y espinacas': 7,
+  'Pollo horneado con camote y brócoli': 8, 'Lentejas guisadas con espinacas': 12,
+  'Caldo tlalpeño con garbanzo': 10, 'Ensalada de garbanzo con verduras asadas': 11,
+  'Ensalada de atún con frijoles blancos': 9, 'Tacos de coliflor con crema de chile': 8,
+  'Pasta integral con atún y alcaparras': 8, 'Bowl de arroz con ejotes y huevo pochado': 7,
+  'Sopa de lentejas con epazote': 10, 'Crema de chícharo con hierbabuena': 9,
+  'Calabacitas rellenas de quinoa y queso': 7, 'Bowl de pollo con quinoa y mango': 7,
+  'Barrita casera de avena y dátil': 8, 'Ensalada de nopal, pepino y jícama': 7,
+  'Crema de elote sin mantequilla': 7, 'Jícama con chile y limón': 9,
+  'Licuado de nopal, piña y limón': 4, 'Tacos de coliflor asada estilo birria': 8,
+}
+
+// Enriquecer RECIPES con prepMin, proteinSource, fiber + auto-tags alto en fibra / colación saciante
+// Esto se hace en tiempo de módulo (O(n)) — sin overhead en runtime.
+function enrichRecipes(recipes: Recipe[]): Recipe[] {
+  return recipes.map((r) => {
+    const prepMin = r.prepMin ?? PREP_MIN_MAP[r.name]
+    const proteinSource = r.proteinSource ?? PROTEIN_SOURCE_MAP[r.name]
+    const fiber = r.fiber ?? FIBER_MAP[r.name]
+    const tags = [...r.tags] as RecipeTag[]
+
+    // Auto-tag 'alto en fibra' (item 250): ≥7 g fibra
+    if (fiber != null && fiber >= 7 && !tags.includes('alto en fibra')) {
+      tags.push('alto en fibra')
+    }
+    // Auto-tag 'colación saciante' (item 252): ≥10 g P, ≥3 g fibra, <200 kcal (solo colaciones)
+    if (
+      r.meal === 'colacion' &&
+      r.protein >= 10 &&
+      (fiber ?? 0) >= 3 &&
+      r.kcal < 200 &&
+      !tags.includes('colación saciante')
+    ) {
+      tags.push('colación saciante')
+    }
+
+    return { ...r, prepMin, proteinSource, fiber, tags }
+  })
+}
+
+export const RECIPES_ENRICHED: Recipe[] = enrichRecipes(RECIPES)

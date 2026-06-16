@@ -26,12 +26,14 @@ interface Props {
   yTicks?: number[]
   formatY?: (v: number) => string
   xTicks?: { t: number; label: string }[]
-  refLines?: { y: number; label: string }[]   // líneas horizontales de referencia (p.ej. 25%)
+  refLines?: { y: number; label: string; tooltip?: string }[] // tooltip educativo al tap (item 380)
   mode?: 'percent' | 'absolute'
-  verticalRefs?: { t: number; label: string; color?: string }[]
+  verticalRefs?: { t: number; label: string; color?: string; tooltip?: string }[]
   secondarySeries?: { points: [number, number][]; color?: string; label?: string }
   showSecondaryAxis?: boolean
   domainY2?: [number, number]
+  // item 280 — zona de washout sombreada desde este timestamp (opcional, retrocompatible)
+  shadeFrom?: number
 }
 
 const W = 360
@@ -70,10 +72,13 @@ function formatWashout(halfLifeH: number): string {
 export function MultiLineChart({
   series, domainX, domainY, nowTs, height = 200, yTicks = [], formatY = (v) => String(Math.round(v)), xTicks = [], refLines = [], mode,
   verticalRefs = [], secondarySeries, showSecondaryAxis, domainY2,
+  shadeFrom,
 }: Props) {
   const reduce = useReducedMotion()
   const svgRef = useRef<SVGSVGElement>(null)
   const [hoverT, setHoverT] = useState<number | null>(null)
+  // item 380 — tooltip educativo en refLines al tap (índice de la línea activa, o null)
+  const [activeRefLine, setActiveRefLine] = useState<number | null>(null)
 
   const H = height
   const plotW = W - PAD.l - PAD.r
@@ -141,6 +146,21 @@ export function MultiLineChart({
     }
   }
 
+  // item 280 — calcular zona de washout (shadeFrom → x1)
+  const washoutShade = (() => {
+    if (shadeFrom == null) return null
+    const wx = sx(shadeFrom)
+    if (wx >= W - PAD.r) return null // ya fuera del plot
+    const left = Math.max(PAD.l, wx)
+    const right = W - PAD.r
+    if (left >= right) return null
+    return { left, right, wx }
+  })()
+
+  // item 380 — tooltip box para refLines educativas
+  const refLineTooltipW = 164
+  const refLineTooltipH = 44
+
   return (
     <svg
       ref={svgRef}
@@ -150,6 +170,10 @@ export function MultiLineChart({
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
       style={{ display: 'block', overflow: 'visible', touchAction: 'pan-y' }}
+      onClick={() => {
+        // Cerrar tooltip educativo al tocar fuera
+        if (activeRefLine !== null) setActiveRefLine(null)
+      }}
     >
       {/* gridlines + etiquetas Y */}
       {yTicks.map((v) => {
@@ -164,15 +188,87 @@ export function MultiLineChart({
         )
       })}
 
-      {/* líneas de referencia (p.ej. 25%) */}
-      {refLines.map((r) => {
+      {/* item 280 — zona de washout sombreada */}
+      {washoutShade && (
+        <g>
+          <rect
+            x={washoutShade.left}
+            y={PAD.t}
+            width={washoutShade.right - washoutShade.left}
+            height={plotH}
+            fill="var(--ink-100)"
+            opacity={0.55}
+          />
+          <text
+            x={washoutShade.left + 4}
+            y={PAD.t + 12}
+            fontSize={8}
+            fontFamily="JetBrains Mono, monospace"
+            fill="var(--ink-300)"
+          >
+            washout
+          </text>
+        </g>
+      )}
+
+      {/* líneas de referencia (p.ej. 25%) — item 380: táctiles con tooltip educativo */}
+      {refLines.map((r, ri) => {
         const y = sy(r.y)
+        const isActive = activeRefLine === ri
+        const hasTooltip = !!r.tooltip
+        const ttX = Math.min(W - PAD.r - refLineTooltipW - 4, PAD.l + 4)
+        const ttY = y - refLineTooltipH - 6
         return (
-          <g key={`ref${r.y}`}>
+          <g
+            key={`ref${r.y}`}
+            style={{ cursor: hasTooltip ? 'pointer' : undefined }}
+            onClick={hasTooltip ? (e) => { e.stopPropagation(); setActiveRefLine(isActive ? null : ri) } : undefined}
+          >
             <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--ink-300)" strokeWidth={1} strokeDasharray="1 4" opacity={0.7} />
             <text x={W - PAD.r} y={y - 3} textAnchor="end" fontSize={8.5} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
               {r.label}
             </text>
+            {/* hit area ampliado para tap */}
+            {hasTooltip && (
+              <rect x={PAD.l} y={y - 8} width={plotW} height={16} fill="transparent" />
+            )}
+            {/* item 380 — tooltip educativo expandible */}
+            <AnimatePresence>
+              {isActive && hasTooltip && (
+                <motion.g
+                  initial={{ opacity: 0, scale: 0.88 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.88 }}
+                  transition={{ duration: dur.fast, ease: ease.standard }}
+                  style={{ transformOrigin: `${ttX + refLineTooltipW / 2}px ${ttY + refLineTooltipH / 2}px` }}
+                >
+                  <rect
+                    x={ttX} y={Math.max(PAD.t + 2, ttY)}
+                    width={refLineTooltipW} height={refLineTooltipH}
+                    rx={6}
+                    fill="var(--card)" stroke="var(--border)" strokeWidth={1} opacity={0.97}
+                  />
+                  <foreignObject
+                    x={ttX + 7}
+                    y={Math.max(PAD.t + 6, ttY + 6)}
+                    width={refLineTooltipW - 14}
+                    height={refLineTooltipH - 10}
+                  >
+                    <div
+                      style={{
+                        fontSize: 8.5,
+                        fontFamily: 'JetBrains Mono, monospace',
+                        color: 'var(--ink-400)',
+                        lineHeight: 1.35,
+                        whiteSpace: 'normal',
+                      }}
+                    >
+                      {r.tooltip}
+                    </div>
+                  </foreignObject>
+                </motion.g>
+              )}
+            </AnimatePresence>
           </g>
         )
       })}

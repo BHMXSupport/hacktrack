@@ -1,17 +1,17 @@
 // ResumenSemanal — recap de 7 días + perspectivas Plus (premium).
 // Muestra los datos DEL USUARIO por protocolo (puede nombrar el producto). App Store: el copy no
 // afirma causalidad/eficacia ni recomienda dosis; "desde que iniciaste <producto>" es solo el ancla temporal.
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, adherence, isoKey, adherenceMonth } from '../lib/store'
 import {
-  protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct, protocolList, productKpis,
+  protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct, protocolList, productKpis, dayMacros,
 } from '../lib/nutrition'
-import { Sparkline, TrendChart } from '../components/charts'
+import { Sparkline, TrendChart, MacroBar, ConsistencyHeatmap, R2Chip, movingAverage } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
 import { PremiumGate } from '../components/PremiumGate'
 import type { Actividad, Sexo } from '../lib/types'
-import { staggerParent, staggerItem } from '../lib/motion'
+import { staggerParent, staggerItem, dur, ease } from '../lib/motion'
 import { dayStatusEx } from '../lib/calendar'
 import { WDS, MEASURES_BY, MEASURE_META } from '../lib/catalog'
 
@@ -19,6 +19,25 @@ const DAY = 86_400_000
 const ACT_LABEL: { v: Actividad; l: string }[] = [
   { v: 'sedentario', l: 'Sedentario' }, { v: 'ligero', l: 'Ligero' }, { v: 'moderado', l: 'Moderado' }, { v: 'activo', l: 'Activo' }, { v: 'muy-activo', l: 'Muy activo' },
 ]
+
+// ── R² helper (interno, se expone en el chip de TrendChart) ──
+function calcR2(data: number[]): number {
+  const n = data.length
+  if (n < 3) return 0
+  const mean = data.reduce((a, b) => a + b, 0) / n
+  let sx = 0, sy = 0, sxx = 0, sxy = 0
+  for (let i = 0; i < n; i++) { sx += i; sy += data[i]; sxx += i * i; sxy += i * data[i] }
+  const den = n * sxx - sx * sx
+  if (!den) return 0
+  const sl = (n * sxy - sx * sy) / den
+  const ic = (sy - sl * sx) / n
+  let ssTot = 0, ssRes = 0
+  for (let i = 0; i < n; i++) {
+    ssTot += (data[i] - mean) ** 2
+    ssRes += (data[i] - (ic + sl * i)) ** 2
+  }
+  return ssTot > 0 ? Math.max(0, Math.min(1, 1 - ssRes / ssTot)) : 1
+}
 
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
@@ -37,6 +56,32 @@ function ProgressBar({ pct, color = 'var(--brand-700)' }: { pct: number; color?:
     <div style={{ height: 6, background: 'var(--ink-100)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
       <div style={{ width: `${Math.max(0, Math.min(100, pct))}%`, height: '100%', background: color, borderRadius: 'var(--r-sm)', transition: 'width 0.3s ease' }} />
     </div>
+  )
+}
+
+// ── WellnessRing: score 0–100 animado (n=291) ──
+function WellnessRing({ score }: { score: number }) {
+  const R = 30, CX = 36, CY = 36, SW = 7
+  const C = 2 * Math.PI * R
+  const pct = Math.max(0, Math.min(100, score))
+  const dash = (pct / 100) * C
+  const col = pct >= 70 ? 'var(--success)' : pct >= 45 ? 'var(--brand-500)' : 'var(--warning)'
+  return (
+    <svg width={72} height={72} aria-label={`Score de semana: ${score} puntos`}>
+      <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--ink-100)" strokeWidth={SW} />
+      <motion.circle
+        cx={CX} cy={CY} r={R} fill="none"
+        stroke={col} strokeWidth={SW}
+        strokeLinecap="round"
+        strokeDasharray={C}
+        initial={{ strokeDashoffset: C }}
+        animate={{ strokeDashoffset: C - dash }}
+        transition={{ duration: dur.draw, ease: ease.decelerate }}
+        style={{ transform: 'rotate(-90deg)', transformOrigin: `${CX}px ${CY}px` }}
+      />
+      <text x={CX} y={CY + 1} textAnchor="middle" dominantBaseline="middle"
+        fontSize={14} fontFamily="JetBrains Mono" fontWeight={800} fill={col}>{pct}</text>
+    </svg>
   )
 }
 
@@ -133,7 +178,6 @@ function StreakWeekCard() {
   }
 
   const protos = protocolList(state)
-  const multiProto = protos.length > 1
 
   return (
     <motion.div variants={staggerItem} className="card">
@@ -240,10 +284,12 @@ function AdherenciaProyeccionCard() {
   )
 }
 
-// ── Tarjeta PER-PRODUCTO: cada producto que consumes con sus KPIs de categoría ──
+// ── Tarjeta PER-PRODUCTO: cada producto con tap-to-expand (n=296) ──
 function ProductCards() {
   const { state, dispatch } = useApp()
   const protos = protocolList(state)
+  const [expandedProto, setExpandedProto] = useState<string | null>(null)
+
   if (protos.length === 0) return (
     <motion.div variants={staggerItem} className="card">
       <div className="h2" style={{ color: 'var(--ink-900)' }}>Progreso por producto</div>
@@ -255,40 +301,111 @@ function ProductCards() {
       />
     </motion.div>
   )
+
   return (
     <>
       {protos.map((pr) => {
         const kpis = productKpis(state, pr.product)
+        const isExpanded = expandedProto === pr.product
+        const primaryKpi = kpis[0]
+
+        // Insight cruzado: pérdida simultánea de músculo y grasa (n=298) — observacional
+        const musKpi = kpis.find((k) => k.measure === '% músculo')
+        const grasaKpi = kpis.find((k) => k.measure === '% grasa')
+        const muscleFatAlert = musKpi?.delta != null && grasaKpi?.delta != null
+          && grasaKpi.delta < -0.3 && musKpi.delta < -0.3
+
         return (
-          <motion.div key={pr.product} variants={staggerItem} className="card">
+          <motion.div key={pr.product} variants={staggerItem} className="card"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setExpandedProto(isExpanded ? null : pr.product)}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{pr.product}</span>
               <span className="sm" style={{ background: pr.color + '18', color: pr.color, padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>{pr.cat}</span>
               <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>{pr.daysActive} d activo</span>
+              {/* chevron */}
+              <span style={{
+                display: 'inline-block', color: 'var(--ink-300)', fontSize: 12, lineHeight: 1,
+                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease',
+              }}>▼</span>
             </div>
-            <div className="sm" style={{ color: 'var(--ink-400)', margin: '2px 0 12px' }}>Tus lecturas durante este protocolo</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {kpis.map((k) => {
-                const good = k.delta != null && k.delta !== 0 && ((k.down && k.delta < 0) || (!k.down && k.delta > 0))
-                const bad = k.delta != null && k.delta !== 0 && !good
-                const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
-                const dUnit = k.unit.startsWith('/') ? '' : k.unit
-                return (
-                  <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.measure}</span>
-                    {k.last == null ? (
-                      <button className="btn btn-outline btn-sm" onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: k.measure })}>+ Registrar</button>
-                    ) : (
-                      <>
-                        <span className="mono sm" style={{ fontWeight: 700 }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
-                        {k.delta != null && <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{k.delta > 0 ? '+' : ''}{k.delta}{dUnit}</span>}
-                        {k.points.length >= 2 && <Sparkline data={k.points} color={good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-300)'} w={60} h={22} />}
-                      </>
-                    )}
+            {/* KPI primario siempre visible */}
+            {primaryKpi && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                <span className="sm" style={{ flex: 1, color: 'var(--ink-700)' }}>{primaryKpi.measure}</span>
+                {primaryKpi.last == null ? (
+                  <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'medida', arg: primaryKpi.measure }) }}>+ Registrar</button>
+                ) : (
+                  <>
+                    <span className="mono sm" style={{ fontWeight: 700 }}>{primaryKpi.last}<span style={{ color: 'var(--ink-400)' }}>{primaryKpi.unit}</span></span>
+                    {primaryKpi.delta != null && (() => {
+                      const good = (primaryKpi.down && primaryKpi.delta < 0) || (!primaryKpi.down && primaryKpi.delta > 0)
+                      const bad = primaryKpi.delta !== 0 && !good
+                      const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
+                      const dUnit = primaryKpi.unit.startsWith('/') ? '' : primaryKpi.unit
+                      return <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{primaryKpi.delta > 0 ? '+' : ''}{primaryKpi.delta}{dUnit}</span>
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+            {/* Expanded: todos los KPIs + sparkline de 30d (n=296) */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: dur.base, ease: ease.decelerate }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div className="sm" style={{ color: 'var(--ink-400)', margin: '6px 0 10px' }}>Tus lecturas durante este protocolo</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {kpis.map((k) => {
+                      const good = k.delta != null && k.delta !== 0 && ((k.down && k.delta < 0) || (!k.down && k.delta > 0))
+                      const bad = k.delta != null && k.delta !== 0 && !good
+                      const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
+                      const dUnit = k.unit.startsWith('/') ? '' : k.unit
+                      return (
+                        <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.measure}</span>
+                          {k.last == null ? (
+                            <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'medida', arg: k.measure }) }}>+ Registrar</button>
+                          ) : (
+                            <>
+                              <span className="mono sm" style={{ fontWeight: 700 }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
+                              {k.delta != null && <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{k.delta > 0 ? '+' : ''}{k.delta}{dUnit}</span>}
+                              {k.points.length >= 2 && (
+                                <Sparkline
+                                  data={k.points}
+                                  color={good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-300)'}
+                                  w={90} h={26}
+                                  interactive
+                                />
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
+                  {/* Insight cruzado músculo+grasa (n=298) */}
+                  {muscleFatAlert && (
+                    <div style={{
+                      marginTop: 12, padding: '8px 10px', borderRadius: 'var(--r-sm)',
+                      background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
+                    }}>
+                      <span className="sm" style={{ color: 'var(--warning)' }}>
+                        ⚠ Se observa reducción en % grasa y % músculo simultáneamente — solo como dato de registro.
+                      </span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )
       })}
@@ -296,19 +413,72 @@ function ProductCards() {
   )
 }
 
-// ── Tendencias: selector de ventana con sparkline de peso, calorías/día e hidratación ──
+// ── Tendencias: selector de ventana ampliado 7/14/30/60/Todo (n=350) + MA-7 + banda σ + proyección curva ──
 function TrendsCard() {
   const { state } = useApp()
   const [win, setWin] = useState<number>(7)
-  const kcalAll = kcalSeries(state, win)
-  const kcalPts = kcalAll.filter((d) => d.has).map((d) => d.kcal)
-  // No se filtran ceros — un día con 0 vasos es dato válido
-  const waterPts = kcalAll.map((d) => state.nutrition[isoKey(d.ts)]?.water ?? 0)
-  const pesoAll = [...(state.history['Peso'] ?? [])].sort((a, b) => a.ts - b.ts)
-  const pesoWin = pesoAll.filter((p) => p.ts >= state.todayTs - win * DAY)
-  const pesoPts = (pesoWin.length >= 2 ? pesoWin : pesoAll).map((p) => p.value)
+  const WINDOWS = [
+    { v: 7, l: '7d' }, { v: 14, l: '14d' }, { v: 30, l: '30d' }, { v: 60, l: '60d' }, { v: 9999, l: 'Todo' },
+  ]
+  // Resolver 'Todo': longitud real del historial de peso
+  const pesoAllFull = useMemo(() => [...(state.history['Peso'] ?? [])].sort((a, b) => a.ts - b.ts), [state.history])
+  const effectiveWin = win === 9999
+    ? (pesoAllFull.length >= 2 ? Math.ceil((pesoAllFull[pesoAllFull.length - 1].ts - pesoAllFull[0].ts) / DAY) + 1 : 30)
+    : win
 
-  const Row = ({ label, pts, unit, color, animKeyPrefix }: { label: string; pts: number[]; unit: string; color: string; animKeyPrefix: string }) => {
+  const kcalAll = useMemo(() => kcalSeries(state, effectiveWin), [state, effectiveWin])
+  const kcalPts = kcalAll.filter((d) => d.has).map((d) => d.kcal)
+  const waterPts = useMemo(() => kcalAll.map((d) => state.nutrition[isoKey(d.ts)]?.water ?? 0), [kcalAll, state.nutrition])
+  const pesoWin = pesoAllFull.filter((p) => p.ts >= state.todayTs - effectiveWin * DAY)
+  const pesoPts = (pesoWin.length >= 2 ? pesoWin : pesoAllFull).map((p) => p.value)
+
+  // MA-7 sobre el peso (n=295): solo activa en ventana ≥14d
+  const pesoMA = useMemo(() => effectiveWin >= 14 && pesoPts.length >= 7 ? movingAverage(pesoPts, 7) : [], [pesoPts, effectiveWin])
+
+  // R² para chip de calidad (n=349)
+  const pesoR2 = useMemo(() => pesoPts.length >= 5 ? calcR2(pesoPts) : null, [pesoPts])
+
+  // Proyección de meta para curva en TrendChart (n=294)
+  const proj = useMemo(() => weightProjection(state), [state])
+
+  // Macros promedio de la ventana (n=292/353)
+  const macroAvg = useMemo(() => {
+    let totP = 0, totC = 0, totF = 0, daysN = 0
+    for (let i = 0; i < effectiveWin; i++) {
+      const d = state.nutrition[isoKey(state.todayTs - i * DAY)]
+      if (!d || d.meals.length === 0) continue
+      const m = dayMacros(d.meals)
+      if (!m.hasMacros) continue
+      totP += m.protein; totC += m.carbs; totF += m.fat; daysN++
+    }
+    if (!daysN) return null
+    return { protein: Math.round(totP / daysN), carbs: Math.round(totC / daysN), fat: Math.round(totF / daysN) }
+  }, [state.nutrition, state.todayTs, effectiveWin])
+
+  // Consistencia intra-semana 7×3 (n=362)
+  const consistencyDays = useMemo(() => {
+    const now = new Date(state.todayTs)
+    // lunes de la semana actual
+    const wd = now.getDay() === 0 ? 6 : now.getDay() - 1
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now)
+      d.setDate(now.getDate() - wd + i)
+      const k = isoKey(d.getTime())
+      const nut = state.nutrition[k]
+      const g = state.log.find((x) => x.dateKey === k)
+      return {
+        dose: !!g?.items.some((it) => it.type === 'dose'),
+        water: !!nut && nut.water >= 8,
+        meal: !!nut && nut.meals.length > 0,
+      }
+    })
+  }, [state.todayTs, state.nutrition, state.log])
+
+  const hasAnyData = pesoPts.length >= 2 || kcalPts.length >= 2 || waterPts.some((w) => w > 0)
+
+  const Row = ({ label, pts, unit, color, animKeyPrefix, refY }: {
+    label: string; pts: number[]; unit: string; color: string; animKeyPrefix: string; refY?: number
+  }) => {
     if (pts.length < 2) return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className="sm" style={{ width: 96, color: 'var(--ink-700)' }}>{label}</span>
@@ -320,44 +490,154 @@ function TrendsCard() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className="sm" style={{ width: 96, color: 'var(--ink-700)' }}>{label}</span>
         <span className="sm mono" style={{ width: 64, color: 'var(--ink-400)' }}>{d > 0 ? '+' : ''}{d}{unit}</span>
-        <div style={{ marginLeft: 'auto' }}><Sparkline data={pts} color={color} w={120} h={26} animKey={`${animKeyPrefix}-${win}`} /></div>
+        <div style={{ marginLeft: 'auto' }}>
+          <Sparkline data={pts} color={color} w={120} h={26} animKey={`${animKeyPrefix}-${win}`} refY={refY} interactive />
+        </div>
       </div>
     )
   }
 
-  const hasAnyData = pesoPts.length >= 2 || kcalPts.length >= 2 || waterPts.some((w) => w > 0)
-
   return (
     <Card title="Tendencias">
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        {[{ v: 7, l: '7 d' }, { v: 30, l: '30 d' }, { v: 90, l: 'Todo' }].map((o) => (
-          <button key={o.v} className="chip" style={{ flex: 1, justifyContent: 'center', background: win === o.v ? 'var(--brand-700)' : undefined, color: win === o.v ? '#fff' : undefined }} onClick={() => setWin(o.v)}>{o.l}</button>
+      {/* Selector ampliado 7/14/30/60/Todo (n=350) */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
+        {WINDOWS.map((o) => (
+          <button key={o.v} className="chip" style={{
+            flex: 1, justifyContent: 'center', minWidth: 36,
+            background: win === o.v ? 'var(--brand-700)' : undefined,
+            color: win === o.v ? '#fff' : undefined,
+          }} onClick={() => setWin(o.v)}>{o.l}</button>
         ))}
       </div>
       {!hasAnyData ? (
         <EmptyState glyph="medidas" title="Sin datos todavía" subtitle="Registra peso, comidas o agua para ver tus tendencias." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Row label="Peso" pts={pesoPts} unit=" kg" color="var(--brand-700)" animKeyPrefix="peso" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Peso con TrendChart (banda σ + proyección) cuando hay ≥10 pts y ≥14d */}
+          {pesoPts.length >= 2 && effectiveWin >= 14 ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span className="sm" style={{ width: 96, color: 'var(--ink-700)' }}>Peso</span>
+                <span className="sm mono" style={{ width: 64, color: 'var(--ink-400)' }}>
+                  {(() => { const d = Math.round((pesoPts[pesoPts.length - 1] - pesoPts[0]) * 10) / 10; return `${d > 0 ? '+' : ''}${d} kg` })()}
+                </span>
+                {pesoR2 != null && <R2Chip r2={pesoR2} n={pesoPts.length} />}
+              </div>
+              <TrendChart
+                data={pesoPts}
+                w={280} h={60}
+                showBand
+                projectionEtaTs={proj?.etaTs}
+                projectionStartTs={proj ? undefined : undefined}
+                labels={[`${pesoPts[0]} kg`, `${pesoPts[pesoPts.length - 1]} kg`]}
+              />
+              {proj?.etaTs && (
+                <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 3 }}>
+                  Proyección estimada → ~{fmtDate(proj.etaTs)} · extrapolación
+                </div>
+              )}
+            </div>
+          ) : (
+            <Row label="Peso" pts={pesoPts} unit=" kg" color="var(--brand-700)" animKeyPrefix="peso" />
+          )}
           <Row label="Calorías/día" pts={kcalPts} unit="" color="var(--brand-500)" animKeyPrefix="kcal" />
-          <Row label="Hidratación" pts={waterPts} unit=" vasos" color="var(--brand-300)" animKeyPrefix="agua" />
+          {/* Hidratación con línea de meta (n=354) */}
+          <Row label="Hidratación" pts={waterPts} unit=" vasos" color="var(--brand-300)" animKeyPrefix="agua" refY={8} />
+
+          {/* Barra de macros apilada (n=292/353) */}
+          {macroAvg && (
+            <div>
+              <div className="sm" style={{ color: 'var(--ink-700)', marginBottom: 6 }}>Distribución de macros (prom.)</div>
+              <MacroBar
+                protein={macroAvg.protein} carbs={macroAvg.carbs} fat={macroAvg.fat}
+                goalProtein={state.macroGoals?.protein} goalCarbs={state.macroGoals?.carbs} goalFat={state.macroGoals?.fat}
+                w={280} h={18}
+              />
+              <div style={{ display: 'flex', gap: 12, marginTop: 5 }}>
+                {[
+                  { label: `P ${macroAvg.protein}g`, col: 'var(--brand-700)' },
+                  { label: `C ${macroAvg.carbs}g`, col: 'var(--brand-300)' },
+                  { label: `G ${macroAvg.fat}g`, col: 'var(--ink-300)' },
+                ].map(({ label, col }) => (
+                  <span key={label} className="sm" style={{ color: col }}>{label}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Consistencia intra-semana 7×3 (n=362) */}
+          <div>
+            <div className="sm" style={{ color: 'var(--ink-700)', marginBottom: 6 }}>Consistencia esta semana</div>
+            <ConsistencyHeatmap days={consistencyDays} />
+          </div>
         </div>
       )}
     </Card>
   )
 }
 
+// ── Señales clasificadas: tipo logro/alerta/info (n=297) ──
+type InsightType = 'logro' | 'alerta' | 'info'
+interface ClassifiedInsight { type: InsightType; text: string }
+
+function classifyInsights(raw: string[]): ClassifiedInsight[] {
+  return raw.map((text) => {
+    const lower = text.toLowerCase()
+    // logro: mejora positiva
+    if (lower.includes('cumpliste') || lower.includes('bajó') || lower.includes('subió') || lower.includes('déficit'))
+      return { type: 'logro' as const, text }
+    // alerta: algo a vigilar
+    if (lower.includes('sin registro') || lower.includes('cero') || lower.includes('perdida') || lower.includes('alta'))
+      return { type: 'alerta' as const, text }
+    return { type: 'info' as const, text }
+  })
+}
+
+const INSIGHT_GLYPH: Record<InsightType, string> = { logro: '★', alerta: '⚠', info: 'ℹ' }
+const INSIGHT_BG: Record<InsightType, string> = {
+  logro: 'color-mix(in srgb, var(--brand-100) 60%, transparent)',
+  alerta: 'color-mix(in srgb, var(--warning) 12%, transparent)',
+  info: 'var(--surface)',
+}
+const INSIGHT_COL: Record<InsightType, string> = {
+  logro: 'var(--brand-700)',
+  alerta: 'var(--warning)',
+  info: 'var(--ink-700)',
+}
+
 export function ResumenSemanal() {
   const { state, dispatch } = useApp()
   const cutoff = state.todayTs - 7 * DAY
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const [showStickyHeader, setShowStickyHeader] = useState(false)
 
-  let doses = 0, measures = 0
+  let doses = 0
   for (const g of state.log) for (const it of g.items) {
     if (it.ts < cutoff) continue
     if (it.type === 'dose') doses++
-    else if (it.type === 'medida') measures++
   }
   const adh = adherence(state, 7)
+
+  // ── Delta semana actual vs semana previa (n=363) ──
+  const adhPrev7 = adherence(state, 14)  // 14d tiene dentro las semanas 1 y 2
+  // adherencia de los días 8–14 (semana previa)
+  const adhPrevOnly = useMemo(() => {
+    let taken = 0, due = 0
+    const now = new Date(state.todayTs)
+    for (let i = 7; i < 14; i++) {
+      const d = new Date(now)
+      d.setDate(now.getDate() - i)
+      const k = isoKey(d.getTime())
+      const g = state.log.find((x) => x.dateKey === k)
+      const hasDose = !!g?.items.some((it) => it.type === 'dose')
+      const proto = Object.values(state.protocols)[0]
+      if (proto && d.getTime() >= proto.startDate) { due++; if (hasDose) taken++ }
+    }
+    return due > 0 ? Math.round((taken / due) * 100) : null
+  }, [state.todayTs, state.log, state.protocols])
+
+  const adhDelta = adh && adhPrevOnly != null ? adh.pct - adhPrevOnly : null
+
   // Promedios en lugar de totales: más honestos con semanas incompletas
   const waterDays: number[] = [], kcalDays: number[] = []
   for (let i = 0; i < 7; i++) {
@@ -368,39 +648,160 @@ export function ResumenSemanal() {
     if (d.meals.length > 0) kcalDays.push(dayKcalVal)
   }
   const waterAvg = waterDays.length ? Math.round(waterDays.reduce((a, b) => a + b, 0) / waterDays.length) : 0
+
+  // Delta agua semana previa
+  const waterPrevDays: number[] = []
+  for (let i = 7; i < 14; i++) {
+    const d = state.nutrition[isoKey(state.todayTs - i * DAY)]
+    if (d) waterPrevDays.push(d.water)
+  }
+  const waterPrevAvg = waterPrevDays.length ? Math.round(waterPrevDays.reduce((a, b) => a + b, 0) / waterPrevDays.length) : null
+  const waterDelta = waterPrevAvg != null ? waterAvg - waterPrevAvg : null
+
   const avg7 = avgKcal(state, 7)
   const streak = compositeStreak(state)
   const sd = streakDetail(state)
 
-  // datos premium
-  const pn = protocolNumbers(state)
-  const t = tdee(state)
-  const proj = weightProjection(state)
-  const insights = weeklyInsights(state)
+  // datos premium — memoizados (n=368)
+  const pn = useMemo(() => protocolNumbers(state), [state.nutrition, state.history, state.protocols])
+  const t = useMemo(() => tdee(state), [state.profile])
+  const proj = useMemo(() => weightProjection(state), [state.history, state.profile])
+  const rawInsights = useMemo(() => weeklyInsights(state), [state.nutrition, state.history, state.protocols, state.macroGoals])
+  const insights = useMemo(() => classifyInsights(rawInsights), [rawInsights])
+
   const p = state.profile
   const profileComplete = !!(p.edad && p.sexo && p.actividad)
   const ap = anchorProduct(state)
   const multiProto = Object.keys(state.protocols).length > 1
   const ancSub = multiProto ? 'Desde el inicio de tu seguimiento' : ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'
 
+  // ── WellnessScore (n=291) ──
+  const wellnessScore = useMemo(() => {
+    const adhScore = adh ? adh.pct * 0.4 : 0
+    const waterScore = (waterDays.filter((w) => w >= 8).length / 7) * 100 * 0.25
+    const mealScore = (kcalDays.length / 7) * 100 * 0.20
+    // variación de peso → 15%: si hay tendencia y va hacia la meta, full; sino proporcional
+    let weightScore = 0
+    if (proj?.slopePerDay != null && state.profile.metaPesoKg != null) {
+      const good = Math.sign(proj.slopePerDay) === Math.sign(state.profile.metaPesoKg - proj.current)
+      weightScore = good ? 15 : 0
+    }
+    return Math.round(adhScore + waterScore + mealScore + weightScore)
+  }, [adh, waterDays, kcalDays, proj, state.profile])
+
+  // ── Mini-header sticky (n=370) ──
+  useEffect(() => {
+    const el = anchorRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      setShowStickyHeader(!entry.isIntersecting)
+    }, { threshold: 0.1 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  // ── CTA dinámico de racha (n=357) ──
+  const streakCta = useMemo(() => {
+    const { dose, water, meal } = sd.today
+    if (dose && water && meal) return 'Racha asegurada hoy'
+    const pending = [!dose && 'dosis', !water && 'hidratación', !meal && 'comida'].filter(Boolean)
+    if (pending.length === 0) return 'Racha asegurada hoy'
+    return `Registra ${pending.join(' y ')} para mantener tu racha`
+  }, [sd.today])
+
+  // Tab destino para el CTA de racha
+  const streakCtaTab = useMemo(() => {
+    if (!sd.today.dose) return 'protocolo'
+    if (!sd.today.meal) return 'comida'
+    return 'inicio'
+  }, [sd.today]) as 'protocolo' | 'comida' | 'inicio'
+
+  // ── Compartir semana (n=372) Web Share API ──
+  const handleShare = useCallback(async () => {
+    const text = `🔥 ${streak} ${streak === 1 ? 'día' : 'días'} · ${adh ? adh.pct + '%' : '—'} adherencia · ${avg7 != null ? avg7 + ' kcal/día' : '—'} — via Hacktrack`
+    try {
+      if (navigator.share && navigator.canShare?.({ title: 'Mi semana en Hacktrack', text })) {
+        await navigator.share({ title: 'Mi semana en Hacktrack', text })
+      } else {
+        await navigator.clipboard.writeText(text)
+        dispatch({ t: 'toast', msg: 'Copiado al portapapeles' })
+      }
+    } catch {
+      // cancelado por el usuario — ignorar
+    }
+  }, [streak, adh, avg7, dispatch])
+
+  const canShare = (streak > 0 || (adh?.pct ?? 0) > 0)
+
+  // ── Aviso déficit calórico agresivo (n=365) ──
+  const caloricDeficit = avg7 != null && t != null ? avg7 - t : null
+  const severeDeficit = caloricDeficit != null && caloricDeficit < -500
+  const veryDeficit = caloricDeficit != null && caloricDeficit < -1000
+
   return (
     <div className="scroll has-nav">
+      {/* ── Mini-header sticky (n=370) ── */}
+      <AnimatePresence>
+        {showStickyHeader && (
+          <motion.div
+            initial={{ y: -40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -40, opacity: 0 }}
+            transition={{ duration: dur.base, ease: ease.decelerate }}
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+              background: 'var(--bg)', borderBottom: '1px solid var(--border)',
+              padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12,
+            }}
+          >
+            {streak > 0 && (
+              <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>🔥 {streak}d</span>
+            )}
+            {adh && (
+              <span className="sm mono" style={{ color: 'var(--ink-700)' }}>{adh.pct}% adh</span>
+            )}
+            {pn?.weightDelta != null && (
+              <span className="sm mono" style={{ color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--warning)' }}>
+                {pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta} kg
+              </span>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <motion.div variants={staggerItem} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-          <div>
+        {/* ── Header con WellnessRing + Compartir (n=291, n=372) ── */}
+        <motion.div variants={staggerItem} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1 }}>
             <h1 className="h1" style={{ margin: 0 }}>Tu semana</h1>
             <p className="sm" style={{ color: 'var(--ink-400)', marginTop: 4 }}>Últimos 7 días</p>
           </div>
-          {streak > 0 && (
-            <span className="sm mono" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)', fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>
-              🔥 {streak} {streak === 1 ? 'día' : 'días'}
-            </span>
+          <WellnessRing score={wellnessScore} />
+          {canShare && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={handleShare}
+              aria-label="Compartir resumen semanal"
+            >
+              Compartir
+            </button>
           )}
         </motion.div>
 
+        {/* ── Ancla para IntersectionObserver del sticky header ── */}
+        <div ref={anchorRef} style={{ height: 0 }} />
+
         {/* ── Stats base (gratis) ── */}
         <Card title="Adherencia" subtitle={adh ? `${adh.taken} de ${adh.due} dosis cumplidas` : 'Sin protocolo activo'}>
-          <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: 'var(--brand-700)', lineHeight: 1 }}>{adh ? `${adh.pct}%` : '—'}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: 'var(--brand-700)', lineHeight: 1 }}>{adh ? `${adh.pct}%` : '—'}</div>
+            {/* Delta vs semana previa (n=363) */}
+            {adhDelta != null && Math.abs(adhDelta) >= 1 && (
+              <span className="sm mono" style={{ color: adhDelta >= 0 ? 'var(--success)' : 'var(--warning)' }}>
+                {adhDelta >= 0 ? '▲' : '▼'} {Math.abs(adhDelta)} pp vs sem. anterior
+              </span>
+            )}
+          </div>
         </Card>
 
         {/* Rejilla 2+1: Dosis + Hidratación arriba al 50/50, Calorías full-width abajo */}
@@ -408,8 +809,15 @@ export function ResumenSemanal() {
           <div style={{ flex: 1 }}><Card title="Dosis"><div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>{doses}</div></Card></div>
           <div style={{ flex: 1 }}>
             <Card title="Hidratación" subtitle="Promedio/día vs meta (8)">
-              <div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>
-                {waterAvg}<span className="sm" style={{ color: 'var(--ink-400)' }}> / 8 vasos</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>
+                  {waterAvg}<span className="sm" style={{ color: 'var(--ink-400)' }}> / 8</span>
+                </div>
+                {waterDelta != null && Math.abs(waterDelta) >= 1 && (
+                  <span className="sm mono" style={{ color: waterDelta >= 0 ? 'var(--success)' : 'var(--warning)', fontSize: 11 }}>
+                    {waterDelta >= 0 ? '▲' : '▼'} {Math.abs(waterDelta)} vasos
+                  </span>
+                )}
               </div>
               <div style={{ marginTop: 8 }}>
                 <ProgressBar pct={(waterAvg / 8) * 100} color="var(--brand-300)" />
@@ -417,9 +825,10 @@ export function ResumenSemanal() {
             </Card>
           </div>
         </div>
+
         <Card title="Calorías" subtitle="Promedio de días con registro">
           {avg7 != null ? (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
               <div className="mono" style={{ fontSize: 26, fontWeight: 800 }}>
                 {avg7 >= 1000 ? `${(avg7 / 1000).toFixed(1)}k` : avg7}
                 <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 4 }}>kcal/día</span>
@@ -432,18 +841,45 @@ export function ResumenSemanal() {
           ) : (
             <div className="sm" style={{ color: 'var(--ink-400)' }}>Sin registros esta semana</div>
           )}
+          {/* Aviso déficit agresivo observacional (n=365) */}
+          {severeDeficit && (
+            <div style={{
+              marginTop: 10, padding: '8px 10px', borderRadius: 'var(--r-sm)',
+              border: `1px solid ${veryDeficit ? 'var(--error)' : 'color-mix(in srgb, var(--warning) 50%, transparent)'}`,
+              background: veryDeficit
+                ? 'color-mix(in srgb, var(--error) 10%, transparent)'
+                : 'color-mix(in srgb, var(--warning) 10%, transparent)',
+            }}>
+              <span className="sm" style={{ color: veryDeficit ? 'var(--error)' : 'var(--warning)' }}>
+                {veryDeficit
+                  ? `⚠ Déficit muy elevado (>${Math.abs(caloricDeficit!)} kcal) — solo como dato de registro.`
+                  : `Déficit elevado (${Math.abs(caloricDeficit!)} kcal/día) — solo como dato de registro.`}
+              </span>
+            </div>
+          )}
         </Card>
 
-        {/* ── Señales siempre visible (con estado vacío honesto) ── */}
+        {/* ── Señales con clasificación visual (n=297) ── */}
         <Card title="Señales de la semana">
           {insights.length > 0 ? (
-            <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {insights.map((s, i) => (<li key={i} className="sm" style={{ color: 'var(--ink-700)', lineHeight: 1.4 }}>{s}</li>))}
-            </ul>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {insights.map((ins, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 10px',
+                  borderRadius: 'var(--r-sm)', background: INSIGHT_BG[ins.type],
+                }}>
+                  <span style={{ fontSize: 14, color: INSIGHT_COL[ins.type], flexShrink: 0, lineHeight: 1.4 }}>
+                    {INSIGHT_GLYPH[ins.type]}
+                  </span>
+                  <span className="sm" style={{ color: 'var(--ink-700)', lineHeight: 1.45 }}>{ins.text}</span>
+                </div>
+              ))}
+            </div>
           ) : (
             <EmptyState glyph="energia" title="Aún sin señales" subtitle="Registra comidas, agua y peso durante la semana para ver observaciones personalizadas." />
           )}
         </Card>
+
         <TrendsCard />
 
         {/* ── Perspectivas Plus (premium) ── */}
@@ -458,8 +894,30 @@ export function ResumenSemanal() {
             {!profileComplete && (
               <Card title="Completa tu perfil" subtitle="Para calcular tu gasto energético y proyección">
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <input className="field" type="number" inputMode="numeric" placeholder="Edad" defaultValue={p.edad ?? ''} onBlur={(e) => { const v = parseFloat(e.target.value); dispatch({ t: 'setProfileFields', patch: { edad: Number.isFinite(v) && v > 0 ? v : null } }) }} style={{ flex: 1 }} />
-                  <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+                  {/* n=371: label visible + validación de rango */}
+                  <div style={{ flex: 1 }}>
+                    <label htmlFor="rs-edad" className="sm" style={{ display: 'block', color: 'var(--ink-400)', marginBottom: 3 }}>Edad</label>
+                    <input
+                      id="rs-edad"
+                      className="field"
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="Años"
+                      min={10} max={120}
+                      defaultValue={p.edad ?? ''}
+                      onBlur={(e) => {
+                        const v = parseFloat(e.target.value)
+                        if (Number.isFinite(v) && v >= 10 && v <= 120) {
+                          dispatch({ t: 'setProfileFields', patch: { edad: v } })
+                          e.target.setCustomValidity('')
+                        } else if (e.target.value !== '') {
+                          e.target.setCustomValidity('Introduce una edad entre 10 y 120')
+                          e.target.reportValidity()
+                        }
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flex: 1, alignItems: 'flex-end' }}>
                     {(['H', 'M'] as Sexo[]).map((sx) => (
                       <button key={sx} className={'chip' + (p.sexo === sx ? ' chip-active' : '')} style={{ flex: 1, justifyContent: 'center', background: p.sexo === sx ? 'var(--brand-700)' : undefined, color: p.sexo === sx ? '#fff' : undefined }} onClick={() => dispatch({ t: 'setProfileFields', patch: { sexo: sx } })}>{sx === 'H' ? 'Hombre' : 'Mujer'}</button>
                     ))}
@@ -478,10 +936,20 @@ export function ResumenSemanal() {
               <Card title="Tu protocolo en números" subtitle={ancSub}>
                 <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
                   {pn.deltaKcal != null && (
-                    <div><div className="mono" style={{ fontSize: 26, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div></div>
+                    <div>
+                      <div className="mono" style={{ fontSize: 26, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>
+                        {pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}
+                      </div>
+                      <div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div>
+                    </div>
                   )}
                   {pn.weightDelta != null && (
-                    <div><div className="mono" style={{ fontSize: 26, fontWeight: 800, color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kg</div></div>
+                    <div>
+                      <div className="mono" style={{ fontSize: 26, fontWeight: 800, color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>
+                        {pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta}
+                      </div>
+                      <div className="sm" style={{ color: 'var(--ink-400)' }}>kg</div>
+                    </div>
                   )}
                 </div>
                 {pn.weightPoints.length >= 2 ? (() => {
@@ -489,10 +957,33 @@ export function ResumenSemanal() {
                   const net = wp[wp.length - 1] - wp[0]
                   const goal = state.profile.metaPesoKg
                   const towardGoal = goal != null ? (goal < wp[0] ? net <= 0 : net >= 0) : net <= 0
+                  const r2 = calcR2(wp)
+                  // Marcadores de eventos: inicio de cada protocolo en el índice aproximado
+                  const eventsMarkers = (() => {
+                    if (!pn.startTs) return []
+                    const base = pn.startTs
+                    const protos = protocolList(state)
+                    return protos
+                      .filter((pr) => pr.startDate > base)
+                      .map((pr) => {
+                        const idx = Math.round((pr.startDate - base) / DAY)
+                        return { idx: Math.min(idx, wp.length - 1), label: pr.product.slice(0, 5) }
+                      })
+                  })()
                   return (
                     <div style={{ marginTop: 4 }}>
-                      <TrendChart data={wp} w={280} h={56} trendColor={towardGoal ? 'var(--success)' : 'var(--warning)'} labels={[`${wp[0]} kg`, `${wp[wp.length - 1]} kg`]} />
-                      <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>Peso · línea de tendencia</div>
+                      <TrendChart
+                        data={wp} w={280} h={60}
+                        trendColor={towardGoal ? 'var(--success)' : 'var(--warning)'}
+                        labels={[`${wp[0]} kg`, `${wp[wp.length - 1]} kg`]}
+                        showBand={wp.length >= 7}
+                        projectionEtaTs={proj?.etaTs}
+                        events={eventsMarkers.length > 0 ? eventsMarkers : undefined}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <div className="sm" style={{ color: 'var(--ink-400)' }}>Peso · línea de tendencia</div>
+                        <R2Chip r2={r2} n={wp.length} />
+                      </div>
                     </div>
                   )
                 })() : pn.kcalPoints.length >= 2 ? (
@@ -512,13 +1003,13 @@ export function ResumenSemanal() {
             {/* Proyección de adherencia mensual */}
             <AdherenciaProyeccionCard />
 
-            {/* Progreso por producto — todos los que consumes, con sus KPIs de categoría */}
+            {/* Progreso por producto — expandible (n=296) */}
             <ProductCards />
 
             {/* Margen energético (TDEE) */}
             {t != null && (
               <Card title="Margen energético" subtitle="Tu consumo vs tu gasto estimado">
-                <div style={{ display: 'flex', gap: 20 }}>
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                   <div><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{t}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal gasto est.</div></div>
                   <div><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{avg7 ?? '—'}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal consumo 7d</div></div>
                   {avg7 != null && (() => { const m = avg7 - t; return (
@@ -528,12 +1019,39 @@ export function ResumenSemanal() {
               </Card>
             )}
 
-            {/* Proyección de meta */}
+            {/* Proyección de meta (n=294 + ghost cuando no hay meta) */}
             {state.profile.metaPesoKg == null ? (
               <Card title="Proyección de meta">
-                <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 10 }}>Define tu peso objetivo para ver tu proyección.</div>
+                <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 8 }}>
+                  Define tu peso objetivo para ver tu trayectoria proyectada.
+                </div>
+                {/* Preview fantasma (curva tenue con puntos placeholder) */}
+                <div style={{ position: 'relative', opacity: 0.3, pointerEvents: 'none', marginBottom: 10 }}>
+                  <TrendChart data={[80, 79.5, 79, 78.4, 77.9, 77.5, 77]} w={280} h={48} trendColor="var(--ink-200)" lineColor="var(--ink-100)" />
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="field" type="number" inputMode="decimal" placeholder="Meta (kg)" onBlur={(e) => { const v = parseFloat(e.target.value); if (v > 0) dispatch({ t: 'setProfileFields', patch: { metaPesoKg: v } }) }} style={{ flex: 1 }} />
+                  <div style={{ flex: 1 }}>
+                    <label htmlFor="rs-meta" className="sm" style={{ display: 'block', color: 'var(--ink-400)', marginBottom: 3 }}>Meta (kg)</label>
+                    <input
+                      id="rs-meta"
+                      className="field"
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="ej. 72"
+                      min={30} max={300}
+                      onBlur={(e) => {
+                        const v = parseFloat(e.target.value)
+                        if (Number.isFinite(v) && v >= 30 && v <= 300) {
+                          dispatch({ t: 'setProfileFields', patch: { metaPesoKg: v } })
+                          e.target.setCustomValidity('')
+                        } else if (e.target.value !== '') {
+                          e.target.setCustomValidity('Introduce un peso entre 30 y 300 kg')
+                          e.target.reportValidity()
+                        }
+                      }}
+                      style={{ flex: 1 }}
+                    />
+                  </div>
                 </div>
               </Card>
             ) : proj ? (
@@ -558,7 +1076,7 @@ export function ResumenSemanal() {
               <Card title="Proyección de meta"><div className="sm" style={{ color: 'var(--ink-400)' }}>Registra tu peso unos días más para construir tu tendencia.</div></Card>
             )}
 
-            {/* Racha y hitos */}
+            {/* Racha y hitos con CTA dinámico (n=357) */}
             <Card title="Racha y hitos" subtitle="Días seguidos con dosis, agua y comida">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
                 <span className="mono" style={{ fontSize: 30, fontWeight: 800, color: 'var(--brand-700)' }}>{sd.streak}</span>
@@ -571,6 +1089,23 @@ export function ResumenSemanal() {
                     {ok ? '✓' : '○'} {lbl}
                   </span>
                 ))}
+              </div>
+              {/* CTA dinámico (n=357) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <span className="sm" style={{
+                  color: sd.today.dose && sd.today.water && sd.today.meal ? 'var(--success)' : 'var(--ink-700)',
+                  flex: 1, lineHeight: 1.4,
+                }}>
+                  {streakCta}
+                </span>
+                {!(sd.today.dose && sd.today.water && sd.today.meal) && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => dispatch({ t: 'tab', tab: streakCtaTab })}
+                  >
+                    Ir →
+                  </button>
+                )}
               </div>
               {/* progreso al siguiente hito */}
               {sd.nextMilestone != null && (() => {
