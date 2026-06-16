@@ -199,7 +199,7 @@ export function Alimentacion() {
             <PremiumGate label="Tu protocolo en números — Plus">
               <div className="card">
                 <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Tu protocolo en números</span>
-                <span className="sm" style={{ color: 'var(--ink-400)', display: 'block', marginTop: 2, marginBottom: 10 }}>{ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'}</span>
+                <span className="sm" style={{ color: 'var(--ink-400)', display: 'block', marginTop: 2, marginBottom: 10 }}>{Object.keys(state.protocols).length > 1 ? 'Desde el inicio de tu seguimiento' : ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'}</span>
                 <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
                   {pn.deltaKcal != null && (
                     <div><div className="mono" style={{ fontSize: 24, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div></div>

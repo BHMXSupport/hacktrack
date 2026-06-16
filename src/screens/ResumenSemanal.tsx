@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, adherence, isoKey } from '../lib/store'
 import {
-  compositionDeltas, protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct,
+  protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct, protocolList, productKpis,
 } from '../lib/nutrition'
 import { Sparkline } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
@@ -27,6 +27,52 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
   )
 }
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+
+// ── Tarjeta PER-PRODUCTO: cada producto que consumes con sus KPIs de categoría ──
+function ProductCards() {
+  const { state, dispatch } = useApp()
+  const protos = protocolList(state)
+  if (protos.length === 0) return null
+  return (
+    <>
+      {protos.map((pr) => {
+        const kpis = productKpis(state, pr.product)
+        return (
+          <motion.div key={pr.product} variants={staggerItem} className="card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{pr.product}</span>
+              <span className="sm" style={{ background: pr.color + '18', color: pr.color, padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>{pr.cat}</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>{pr.daysActive} d activo</span>
+            </div>
+            <div className="sm" style={{ color: 'var(--ink-400)', margin: '2px 0 12px' }}>Tus lecturas durante este protocolo</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {kpis.map((k) => {
+                const good = k.delta != null && k.delta !== 0 && ((k.down && k.delta < 0) || (!k.down && k.delta > 0))
+                const bad = k.delta != null && k.delta !== 0 && !good
+                const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
+                const dUnit = k.unit.startsWith('/') ? '' : k.unit
+                return (
+                  <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.measure}</span>
+                    {k.last == null ? (
+                      <button className="chip" style={{ height: 28, fontSize: 12.5 }} onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: k.measure })}>+ Registrar</button>
+                    ) : (
+                      <>
+                        <span className="mono sm" style={{ fontWeight: 700 }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
+                        {k.delta != null && <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{k.delta > 0 ? '+' : ''}{k.delta}{dUnit}</span>}
+                        {k.points.length >= 2 && <Sparkline data={k.points} color={good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-300)'} w={60} h={22} />}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )
+      })}
+    </>
+  )
+}
 
 // ── Tendencias: selector de ventana con sparkline de peso, calorías/día e hidratación ──
 function TrendsCard() {
@@ -93,7 +139,6 @@ export function ResumenSemanal() {
   const sd = streakDetail(state)
 
   // datos premium
-  const comp = compositionDeltas(state)
   const pn = protocolNumbers(state)
   const t = tdee(state); const avg7 = avgKcal(state, 7)
   const proj = weightProjection(state)
@@ -101,6 +146,8 @@ export function ResumenSemanal() {
   const p = state.profile
   const profileComplete = !!(p.edad && p.sexo && p.actividad)
   const ap = anchorProduct(state)
+  const multiProto = Object.keys(state.protocols).length > 1
+  const ancSub = multiProto ? 'Desde el inicio de tu seguimiento' : ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'
 
   return (
     <div className="scroll has-nav">
@@ -156,7 +203,7 @@ export function ResumenSemanal() {
 
             {/* Tu protocolo en números — ANCLA */}
             {pn && (pn.deltaKcal != null || pn.weightDelta != null) && (
-              <Card title="Tu protocolo en números" subtitle={ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'}>
+              <Card title="Tu protocolo en números" subtitle={ancSub}>
                 <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
                   {pn.deltaKcal != null && (
                     <div><div className="mono" style={{ fontSize: 26, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div></div>
@@ -170,26 +217,8 @@ export function ResumenSemanal() {
               </Card>
             )}
 
-            {/* Composición en movimiento */}
-            {comp.length > 0 && (
-              <Card title="Composición en movimiento" subtitle={ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {comp.map((c) => {
-                    const good = c.delta != null && (c.goodDown ? c.delta < 0 : c.delta > 0)
-                    return (
-                      <div key={c.metric} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span className="sm" style={{ width: 78, color: 'var(--ink-700)' }}>{c.metric}</span>
-                        <span className="mono" style={{ width: 56, fontWeight: 700 }}>{c.last}<span className="sm" style={{ color: 'var(--ink-400)' }}>{c.unit}</span></span>
-                        {c.delta != null && (
-                          <span className="sm mono" style={{ width: 64, color: good ? 'var(--success)' : 'var(--ink-400)' }}>{c.delta > 0 ? '+' : ''}{Math.round(c.delta * 10) / 10}{c.unit}</span>
-                        )}
-                        <div style={{ marginLeft: 'auto' }}>{c.points.length >= 2 && <Sparkline data={c.points} color={good ? 'var(--success)' : 'var(--ink-300)'} w={70} h={24} />}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </Card>
-            )}
+            {/* Progreso por producto — todos los que consumes, con sus KPIs de categoría */}
+            <ProductCards />
 
             {/* Margen energético (TDEE) */}
             {t != null && (

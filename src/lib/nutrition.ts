@@ -3,6 +3,7 @@
 import type { AppState } from './store'
 import { isoKey } from './store'
 import type { MeasureSample } from './types'
+import { PEPTIDES, MEASURES_BY, MEASURE_META, CATEGORY_COLOR } from './catalog'
 
 const DAY = 86_400_000
 
@@ -73,6 +74,34 @@ export function compositionDeltas(s: AppState): CompDelta[] {
     out.push({ metric: c.metric, unit: c.unit, last, delta, points: series.slice(-7).map((x) => x.value), goodDown: c.goodDown })
   }
   return out
+}
+
+// ── Per-producto: lista de protocolos + KPIs de su categoría ──
+export interface ProtocolInfo { product: string; cat: string; color: string; startDate: number; daysActive: number }
+export function protocolList(s: AppState): ProtocolInfo[] {
+  return Object.values(s.protocols)
+    .map((p) => {
+      const cat = PEPTIDES[p.product]?.cat ?? 'Explorar'
+      return { product: p.product, cat, color: CATEGORY_COLOR[cat] ?? 'var(--brand-700)', startDate: p.startDate, daysActive: Math.max(0, Math.floor((s.todayTs - p.startDate) / DAY)) }
+    })
+    .sort((a, b) => b.startDate - a.startDate)
+}
+
+export interface KpiRow { measure: string; unit: string; last: number | null; delta: number | null; points: number[]; down: boolean }
+// KPIs relevantes de un producto (por su categoría), con delta+sparkline desde el inicio de ESE producto.
+export function productKpis(s: AppState, product: string, n = 4): KpiRow[] {
+  const proto = s.protocols[product]
+  if (!proto) return []
+  const cat = PEPTIDES[product]?.cat ?? 'Explorar'
+  const measures = (MEASURES_BY[cat] ?? MEASURES_BY['Explorar']).slice(0, n)
+  return measures.map((m) => {
+    const meta = MEASURE_META[m]
+    const series = sortedAsc(s.history[m]).filter((p) => p.ts >= proto.startDate)
+    const last = series.length ? series[series.length - 1].value : null
+    const delta = series.length >= 2 ? series[series.length - 1].value - series[0].value : null
+    const unit = meta?.kind === 'num' ? (meta.unit ? ` ${meta.unit}` : '') : meta?.max ? `/${meta.max}` : ''
+    return { measure: m, unit, last, delta: delta != null ? Math.round(delta * 10) / 10 : null, points: series.slice(-8).map((p) => p.value), down: !!meta?.down }
+  })
 }
 
 // ── kcal por día (últimos N días) ──
