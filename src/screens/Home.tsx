@@ -10,6 +10,7 @@ import { Glyph } from '../components/glyphs'
 import { UserAvatar, TrustChip } from '../components/identity'
 import { TodayDoses } from '../components/TodayDoses'
 import { ActiveNowChips } from '../components/ActiveNowChips'
+import { LastDoseLine } from '../components/LastDoseLine'
 import { dayProducts, upcomingDoses } from '../lib/calendar'
 import { startOfDay } from '../lib/cadence'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -142,6 +143,9 @@ export function Home() {
 
         {/* ── 1c. "Activo ahora": péptidos con presencia estimada → Cuerpo ── */}
         <ActiveNowChips />
+
+        {/* ── 1d. "Última toma": evita la duda de doble-dosis ── */}
+        <LastDoseLine />
 
         {/* ── 2. HÉROE: próxima toma con cuenta regresiva real ────────── */}
         {!state.logged && !hasProtocol && (
