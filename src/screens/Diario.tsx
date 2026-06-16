@@ -2,12 +2,15 @@ import { useState, useMemo, useEffect, useDeferredValue, useRef, useCallback } f
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, isoKey } from '../lib/store'
 import { Chip, Segmented, Disclaimer } from '../components/controls'
-import { dayLabel, startOfDay, fmtTime } from '../lib/cadence'
+import { dayLabel, startOfDay, fmtTime, cyclePhaseInfo } from '../lib/cadence'
 import { MON, WD, MEASURE_ICON, CATEGORY_COLOR, PEPTIDES, MEASURE_META } from '../lib/catalog'
 import { Glyph } from '../components/glyphs'
 import { EmptyState } from '../components/EmptyState'
 import { tapHaptic } from '../lib/haptics'
 import type { LogItem, InjectionSite, RangeFilter } from '../lib/types'
+import { productStreak, weekAdherencePctLast8, phaseForDate } from '../lib/calendar'
+import { presenceNow } from '../lib/pharma'
+import { Sparkline } from '../components/charts'
 
 // loop 140: etiquetas legibles para cada sitio de inyección
 const SITE_LABEL: Record<InjectionSite, string> = {
@@ -46,6 +49,35 @@ const RANGE_OPTIONS: { value: RangeFilter; label: string }[] = [
 
 // ── clave de localStorage ────────────────────────────────────────────────────
 const FILTER_KEY = 'hk_diario_filters'
+
+// ── CSV export helpers ───────────────────────────────────────────────────────
+function buildCsv(items: LogItem[]): string {
+  const rows: string[][] = [['Fecha', 'Hora', 'Tipo', 'Nombre', 'Valor/Unidad', 'Producto', 'Sitio', 'Nota', 'Efecto']]
+  for (const it of items) {
+    const d = new Date(it.ts)
+    rows.push([
+      d.toLocaleDateString('es-MX'),
+      it.t,
+      it.type,
+      it.n,
+      it.u,
+      it.product ?? '',
+      it.site ?? '',
+      it.note ?? '',
+      it.effect ?? '',
+    ])
+  }
+  return rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 function readFilters(): { typeFilter: TypeFilter; rangeFilter: RangeFilter; productFilter?: string } | null {
   try {
@@ -157,11 +189,17 @@ function TimelineItem({
   onDelete,
   groupLabel: label,
   dispatch,
+  measureHistory,
+  phaseIndex,
+  presencePct,
 }: {
   item: LogItem
   onDelete: (id: string) => void
   groupLabel: string
   dispatch: ReturnType<typeof useApp>['dispatch']
+  measureHistory?: number[]
+  phaseIndex?: number | null
+  presencePct?: number
 }) {
   // n°236: swipe-to-delete
   const [dragX, setDragX] = useState(0)
@@ -350,29 +388,72 @@ function TimelineItem({
 
               {/* n°182: botón 'Registrar de nuevo' para medidas */}
               {item.type === 'medida' && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    tapHaptic()
-                    dispatch({ t: 'sheet', sheet: 'medida', arg: item.n })
-                  }}
-                  style={{
-                    marginTop: 6,
-                    background: 'none',
-                    border: '1px solid var(--ink-200)',
-                    borderRadius: 'var(--r-sm)',
-                    padding: '3px 8px',
-                    fontSize: 11,
-                    color: 'var(--ink-400)',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  Registrar de nuevo
-                </button>
+                <>
+                  {/* n°184: sparkline + n°233: badge de tendencia */}
+                  {measureHistory && measureHistory.length >= 2 && (() => {
+                    const numMatch = item.u.match(/^([\d.]+)/)
+                    const currentVal = numMatch ? parseFloat(numMatch[1]) : null
+                    const prevVal = measureHistory[measureHistory.length - 2]
+                    const isTrendDown = MEASURE_META[item.n]?.down
+                    let trendIcon = '='
+                    let trendColor = 'var(--ink-300)'
+                    if (currentVal !== null && prevVal !== undefined) {
+                      if (currentVal > prevVal) {
+                        trendIcon = '↑'
+                        trendColor = isTrendDown ? 'var(--error)' : 'var(--success)'
+                      } else if (currentVal < prevVal) {
+                        trendIcon = '↓'
+                        trendColor = isTrendDown ? 'var(--success)' : 'var(--error)'
+                      }
+                    }
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                        <Sparkline data={measureHistory} w={56} h={22} color={item.cat} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: trendColor }}>{trendIcon}</span>
+                      </div>
+                    )
+                  })()}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      tapHaptic()
+                      dispatch({ t: 'sheet', sheet: 'medida', arg: item.n })
+                    }}
+                    style={{
+                      marginTop: 6,
+                      background: 'none',
+                      border: '1px solid var(--ink-200)',
+                      borderRadius: 'var(--r-sm)',
+                      padding: '3px 8px',
+                      fontSize: 11,
+                      color: 'var(--ink-400)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    Registrar de nuevo
+                  </button>
+                </>
+              )}
+              {/* n°239: fase de titulación */}
+              {item.type === 'dose' && phaseIndex != null && (
+                <div style={{ marginTop: 4 }}>
+                  <span style={{ fontSize: 10, color: 'var(--brand-700)', background: 'color-mix(in srgb, var(--brand-500) 10%, transparent)', borderRadius: 999, padding: '1px 6px', border: '1px solid color-mix(in srgb, var(--brand-500) 22%, transparent)', display: 'inline-flex', alignItems: 'center' }}>
+                    Fase {phaseIndex + 1}
+                  </span>
+                </div>
+              )}
+              {/* n°190: barra de presencia farmacológica */}
+              {item.type === 'dose' && presencePct !== undefined && presencePct > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ fontSize: 9, color: 'var(--ink-300)', marginBottom: 2 }}>Presencia estimada</div>
+                  <div style={{ height: 3, background: 'var(--ink-100)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${presencePct}%`, background: item.cat, borderRadius: 2, transition: 'width 0.4s' }} />
+                  </div>
+                </div>
               )}
             </div>
 
@@ -648,6 +729,85 @@ export function Diario() {
     return weeks
   }, [groupBy, deferredFiltered])
 
+  // n°263: coach marks primera vez
+  const [showCoach, setShowCoach] = useState(() => { try { return !localStorage.getItem('hk_diario_coach') } catch { return false } })
+
+  // n°187: racha por producto / global
+  const currentStreak = useMemo(() => {
+    if (pf !== 'todos') {
+      return productStreak(state, pf, new Date(state.todayTs))
+    }
+    // racha global: días consecutivos hacia atrás con al menos una dosis
+    let streak = 0
+    const today = startOfDay(new Date(state.todayTs))
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today.getTime() - i * 86400000)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const group = state.log.find((g) => g.dateKey === key)
+      if (!group || !group.items.some((it) => it.type === 'dose')) break
+      streak++
+    }
+    return streak
+  }, [pf, state, state.todayTs])
+
+  // n°230: adherencia del período (últimas 8 semanas → promedio)
+  const periodAdherence = useMemo(() => {
+    const weeks = weekAdherencePctLast8(state, new Date(state.todayTs))
+    const valid = weeks.filter((w): w is number => w !== null)
+    if (valid.length === 0) return null
+    return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length)
+  }, [state, state.todayTs])
+
+  // n°240: fase de ciclo OFF para producto filtrado
+  const productCycleOff = useMemo(() => {
+    if (pf === 'todos') return null
+    const proto = state.protocols[pf]
+    if (!proto || proto.cadence.mode !== 'ciclo') return null
+    const info = cyclePhaseInfo(proto.cadence, new Date(proto.startDate), new Date(state.todayTs))
+    if (!info || info.phase !== 'off') return null
+    return info
+  }, [pf, state.protocols, state.todayTs])
+
+  // n°190: presencia farmacológica
+  const presenceData = useMemo(() => presenceNow(state, state.todayTs), [state, state.todayTs])
+
+  // n°184: mapa nombre_medida → valores históricos ordenados cronológicamente
+  const measureHistoryMap = useMemo(() => {
+    const map: Record<string, number[]> = {}
+    // iterate oldest to newest (deferredFiltered is newest-first, so reverse)
+    const groups = [...deferredFiltered].reverse()
+    for (const g of groups) {
+      for (const it of g.items) {
+        if (it.type !== 'medida') continue
+        const numMatch = it.u.match(/^([\d.]+)/)
+        if (!numMatch) continue
+        const val = parseFloat(numMatch[1])
+        if (isNaN(val)) continue
+        if (!map[it.n]) map[it.n] = []
+        map[it.n].push(val)
+      }
+    }
+    return map
+  }, [deferredFiltered])
+
+  // n°186: entradas de timeline con gaps entre días sin registros
+  const timelineEntries = useMemo(() => {
+    type Entry = { type: 'group'; group: typeof deferredFiltered[0] } | { type: 'gap'; days: number }
+    const entries: Entry[] = []
+    for (let i = 0; i < deferredFiltered.length; i++) {
+      entries.push({ type: 'group', group: deferredFiltered[i] })
+      if (i < deferredFiltered.length - 1) {
+        const curr = new Date(deferredFiltered[i].dateKey + 'T00:00:00').getTime()
+        const next = new Date(deferredFiltered[i + 1].dateKey + 'T00:00:00').getTime()
+        const daysDiff = Math.round((curr - next) / 86400000)
+        if (daysDiff > 1) {
+          entries.push({ type: 'gap', days: daysDiff - 1 })
+        }
+      }
+    }
+    return entries
+  }, [deferredFiltered])
+
   function handleDelete(id: string) {
     tapHaptic()
     // n°76: flow: confirm-delete sheet → deleteLog action (modified in store) → fills deletedLogBuffer → toast + timer
@@ -657,6 +817,23 @@ export function Diario() {
   function handleUndoDelete() {
     if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
     dispatch({ t: 'undoDeleteLog' })
+  }
+
+  function handleExport() {
+    tapHaptic()
+    const allItems = deferredFiltered.flatMap((g) => g.items)
+    const csv = buildCsv(allItems)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const rangeLabel = rangeFilter === 'all' ? 'todo' : `${rangeFilter}d`
+    const filename = `diario-hacktrack-${rangeLabel}.csv`
+    if (typeof navigator.share === 'function') {
+      const file = new File([blob], filename, { type: 'text/csv' })
+      navigator.share({ files: [file], title: 'Diario Hacktrack' }).catch(() => {
+        downloadBlob(blob, filename)
+      })
+    } else {
+      downloadBlob(blob, filename)
+    }
   }
 
   return (
@@ -721,25 +898,67 @@ export function Diario() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h1 className="h1" style={{ color: 'var(--ink-900)', marginBottom: 4 }}>
             Tu diario
+            {/* n°188: doble badge dosis/medidas */}
+            {typeFilter === 'todo' && !isEmpty && (() => {
+              const doseCount = deferredFiltered.reduce((a, g) => a + g.items.filter((it) => it.type === 'dose').length, 0)
+              const medCount = deferredFiltered.reduce((a, g) => a + g.items.filter((it) => it.type === 'medida').length, 0)
+              return (
+                <span style={{ display: 'inline-flex', gap: 4, marginLeft: 8, verticalAlign: 'middle' }}>
+                  {doseCount > 0 && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brand-700)', background: 'color-mix(in srgb, var(--brand-500) 10%, transparent)', borderRadius: 999, padding: '1px 7px', border: '1px solid color-mix(in srgb, var(--brand-500) 22%, transparent)' }}>
+                      {doseCount} dosis
+                    </span>
+                  )}
+                  {medCount > 0 && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-700)', background: 'var(--ink-100)', borderRadius: 999, padding: '1px 7px', border: '1px solid var(--ink-200)' }}>
+                      {medCount} medidas
+                    </span>
+                  )}
+                </span>
+              )
+            })()}
           </h1>
-          {/* n°80: icono búsqueda */}
-          <button
-            type="button"
-            aria-label={showSearch ? 'Cerrar búsqueda' : 'Buscar en el diario'}
-            onClick={() => { setShowSearch((v) => !v); if (showSearch) setSearchQuery('') }}
-            style={{
-              background: showSearch ? 'color-mix(in srgb, var(--brand-500) 12%, transparent)' : 'none',
-              border: '1px solid var(--ink-200)',
-              borderRadius: 'var(--r-sm)',
-              padding: '6px 8px',
-              cursor: 'pointer',
-              color: showSearch ? 'var(--brand-700)' : 'var(--ink-400)',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Glyph name="medidas" size={16} color={showSearch ? 'var(--brand-700)' : 'var(--ink-400)'} />
-          </button>
+          {/* n°80: icono búsqueda + n°191: botón exportar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {!isEmpty && (
+              <button
+                type="button"
+                aria-label="Exportar diario como CSV"
+                onClick={handleExport}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--ink-200)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '6px 8px',
+                  cursor: 'pointer',
+                  color: 'var(--ink-400)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                ↗ CSV
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label={showSearch ? 'Cerrar búsqueda' : 'Buscar en el diario'}
+              onClick={() => { setShowSearch((v) => !v); if (showSearch) setSearchQuery('') }}
+              style={{
+                background: showSearch ? 'color-mix(in srgb, var(--brand-500) 12%, transparent)' : 'none',
+                border: '1px solid var(--ink-200)',
+                borderRadius: 'var(--r-sm)',
+                padding: '6px 8px',
+                cursor: 'pointer',
+                color: showSearch ? 'var(--brand-700)' : 'var(--ink-400)',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Glyph name="medidas" size={16} color={showSearch ? 'var(--brand-700)' : 'var(--ink-400)'} />
+            </button>
+          </div>
         </div>
         <p className="sm" style={{ color: 'var(--ink-400)' }}>
           {todayLabel(state.todayTs)}
@@ -889,6 +1108,67 @@ export function Diario() {
           </div>
         )}
       </motion.div>
+
+      {/* n°199: aria-live para anunciar conteo al cambiar filtros */}
+      <div aria-live="polite" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+        {isEmpty ? 'Sin registros con el filtro actual' : `${totalRecords} registro${totalRecords !== 1 ? 's' : ''} mostrado${totalRecords !== 1 ? 's' : ''}`}
+      </div>
+
+      {/* n°230/232: racha y adherencia del período */}
+      {!isEmpty && (currentStreak > 0 || periodAdherence !== null) && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          {currentStreak > 0 && (
+            <span style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: currentStreak >= 7 ? 'var(--success)' : 'var(--warning)',
+              background: currentStreak >= 7
+                ? 'color-mix(in srgb, var(--success) 10%, transparent)'
+                : 'color-mix(in srgb, var(--warning) 10%, transparent)',
+              borderRadius: 999,
+              padding: '3px 10px',
+              border: `1px solid ${currentStreak >= 7 ? 'color-mix(in srgb, var(--success) 22%, transparent)' : 'color-mix(in srgb, var(--warning) 22%, transparent)'}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              Racha {currentStreak} día{currentStreak !== 1 ? 's' : ''}
+            </span>
+          )}
+          {periodAdherence !== null && (
+            <span style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: periodAdherence >= 70 ? 'var(--success)' : 'var(--warning)',
+              background: periodAdherence >= 70
+                ? 'color-mix(in srgb, var(--success) 10%, transparent)'
+                : 'color-mix(in srgb, var(--warning) 10%, transparent)',
+              borderRadius: 999,
+              padding: '3px 10px',
+              border: `1px solid ${periodAdherence >= 70 ? 'color-mix(in srgb, var(--success) 22%, transparent)' : 'color-mix(in srgb, var(--warning) 22%, transparent)'}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+            }}>
+              {periodAdherence}% adherencia
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* n°240: banner día de descanso (ciclo off) */}
+      {productCycleOff && (
+        <div style={{
+          marginBottom: 12,
+          padding: '8px 14px',
+          borderRadius: 'var(--r-md)',
+          background: 'var(--ink-100)',
+          color: 'var(--ink-400)',
+          fontSize: 13,
+          border: '1px solid var(--ink-200)',
+        }}>
+          Día de descanso ({productCycleOff.day}/{productCycleOff.total}) — período off activo
+        </div>
+      )}
 
       {/* n°226: fila de hidratación cuando typeFilter='todo' */}
       {typeFilter === 'todo' && (
@@ -1120,7 +1400,20 @@ export function Diario() {
                 </motion.div>
               ))
             ) : (
-              deferredFiltered.map((group) => {
+              timelineEntries.map((entry, entryIdx) => {
+                if (entry.type === 'gap') {
+                  const { days } = entry
+                  return (
+                    <div key={`gap-${entryIdx}`} style={{ paddingLeft: 64, margin: '4px 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1, height: 1, background: 'var(--ink-100)' }} />
+                      <span style={{ fontSize: 10, color: 'var(--ink-300)', whiteSpace: 'nowrap' }}>
+                        {days} día{days !== 1 ? 's' : ''} sin registros
+                      </span>
+                      <div style={{ flex: 1, height: 1, background: 'var(--ink-100)' }} />
+                    </div>
+                  )
+                }
+                const { group } = entry
                 const label = groupLabel(group.dateKey, state.todayTs)
                 const headingId = `grp-head-${group.dateKey}`
                 return (
@@ -1182,15 +1475,26 @@ export function Diario() {
                     </button>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {group.items.map((it) => (
-                        <TimelineItem
-                          key={it.id}
-                          item={it}
-                          onDelete={handleDelete}
-                          groupLabel={label}
-                          dispatch={dispatch}
-                        />
-                      ))}
+                      {group.items.map((it) => {
+                        const phaseIdx = it.type === 'dose' && it.product
+                          ? phaseForDate(state, new Date(it.ts), it.product)
+                          : null
+                        const pct = it.type === 'dose' && it.product
+                          ? (presenceData.find((p) => p.product === it.product)?.pct ?? 0)
+                          : 0
+                        return (
+                          <TimelineItem
+                            key={it.id}
+                            item={it}
+                            onDelete={handleDelete}
+                            groupLabel={label}
+                            dispatch={dispatch}
+                            measureHistory={it.type === 'medida' ? measureHistoryMap[it.n] : undefined}
+                            phaseIndex={phaseIdx}
+                            presencePct={pct > 0 ? pct : undefined}
+                          />
+                        )
+                      })}
                     </div>
                   </motion.div>
                 )
@@ -1201,6 +1505,50 @@ export function Diario() {
       </AnimatePresence>
 
       <Disclaimer kind="measure" />
+
+      {/* n°263: coach marks primera vez */}
+      <AnimatePresence>
+        {showCoach && mounted && (
+          <motion.div
+            key="coach"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', padding: 24, paddingBottom: 48 }}
+            onClick={() => { try { localStorage.setItem('hk_diario_coach', '1') } catch { /* storage no disponible */ } setShowCoach(false) }}
+          >
+            <motion.div
+              initial={{ y: 32, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              style={{ background: 'var(--bg)', borderRadius: 'var(--r-lg)', padding: 24, maxWidth: 340, width: '100%', boxShadow: 'var(--e3)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 8 }}>Tu diario</h2>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {([
+                  { icon: '⬅️', text: 'Desliza un registro hacia la izquierda para eliminarlo.' },
+                  { icon: '🔍', text: 'Usa el botón de búsqueda para filtrar por nombre o nota.' },
+                  { icon: '📤', text: 'Exporta tu diario a CSV desde el ícono en la cabecera.' },
+                  { icon: '🔥', text: 'La racha y adherencia aparecen debajo de los filtros.' },
+                ] as { icon: string; text: string }[]).map(({ icon, text }) => (
+                  <li key={icon} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
+                    <span style={{ fontSize: 14, color: 'var(--ink-700)', lineHeight: 1.45 }}>{text}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => { try { localStorage.setItem('hk_diario_coach', '1') } catch { /* storage no disponible */ } setShowCoach(false) }}
+                style={{ marginTop: 20, width: '100%', background: 'var(--brand-500)', color: '#fff', border: 'none', borderRadius: 'var(--r-md)', padding: '12px 0', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+              >
+                Entendido
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
