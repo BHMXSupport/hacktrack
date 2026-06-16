@@ -159,6 +159,35 @@ export function rhythmBadge(p: PeptideEntry): string {
   )[p.type] ?? 'por uso'
 }
 
+/**
+ * cyclePhaseInfo: si la cadencia del usuario es 'ciclo' (on/off), devuelve la fase actual.
+ * Retorna null si la cadencia no es de tipo ciclo.
+ *
+ * @returns { day: number; total: number; phase: 'on' | 'off' }
+ *   day   = día 1-based dentro del ciclo actual (p.ej. "Día 3 de 7")
+ *   total = duración de la fase activa (on o off)
+ *   phase = 'on' | 'off'
+ */
+export function cyclePhaseInfo(
+  cad: UserCadence,
+  start: Date,
+  today: Date,
+): { day: number; total: number; phase: 'on' | 'off' } | null {
+  if (cad.mode !== 'ciclo') return null
+  const on = cad.on ?? 1
+  const off = cad.off ?? 0
+  if (on + off === 0) return null
+  const elapsed = dayDiff(startOfDay(today), startOfDay(start))
+  if (elapsed < 0) return null
+  const cycleLen = on + off
+  const posInCycle = elapsed % cycleLen
+  if (posInCycle < on) {
+    return { day: posInCycle + 1, total: on, phase: 'on' }
+  } else {
+    return { day: posInCycle - on + 1, total: off, phase: 'off' }
+  }
+}
+
 // preset de cadencia desde el catálogo — maneja los 6 tipos (fix P0-3, ya no degrada a diario)
 export function presetCad(p?: PeptideEntry): UserCadence {
   const base: UserCadence = {

@@ -5,6 +5,8 @@ import { startOfDay, dayDiff } from './cadence'
 import { PEPTIDES } from './catalog'
 
 export type DayState = 'taken' | 'missed' | 'scheduled' | 'none'
+/** DayState extendido: 'rest' = no tocaba dosis (día libre por cadencia); 'missed' = tocaba y no se tomó. */
+export type DayStateEx = 'taken' | 'missed' | 'rest' | 'scheduled' | 'none'
 
 const nextLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
 
@@ -48,6 +50,71 @@ export function dayStatus(s: AppState, d: Date, now: Date): DayState {
   if (unfulfilled.length === 0) return 'taken'
   const allPast = unfulfilled.every((p) => now.getTime() > dueTime(s, d, p).getTime())
   return allPast ? 'missed' : 'scheduled'
+}
+
+/**
+ * dayStatusEx: igual que dayStatus pero devuelve 'rest' cuando no hay dosis programadas
+ * en lugar de 'none', para distinguir "día de descanso por cadencia" de "no hay protocolo".
+ * 'rest'     = hay protocolo activo pero la cadencia no programa toma este día
+ * 'none'     = sin protocolo en absoluto (sin tracks)
+ * 'taken'    = todas las dosis del día registradas
+ * 'missed'   = tocaba y no se tomó (ya venció la hora)
+ * 'scheduled'= toca hoy pero aún no vence la hora
+ */
+export function dayStatusEx(s: AppState, d: Date, now: Date): DayStateEx {
+  const hasAnyProtocol = Object.keys(s.protocols).length > 0
+  const prods = dayProducts(s, d)
+  if (prods.length === 0) return hasAnyProtocol ? 'rest' : 'none'
+  const effective = prods.filter((p) => doseTakenOnProduct(s, d, p) || !doseSkippedOnProduct(s, d, p))
+  if (effective.length === 0) return 'rest'
+  const unfulfilled = effective.filter((p) => !doseTakenOnProduct(s, d, p))
+  if (unfulfilled.length === 0) return 'taken'
+  const allPast = unfulfilled.every((p) => now.getTime() > dueTime(s, d, p).getTime())
+  return allPast ? 'missed' : 'scheduled'
+}
+
+/**
+ * productStreak: días consecutivos con ≥1 dosis de ESE producto (hacia atrás desde hoy).
+ * Ignora días en que la cadencia no programa toma (días de descanso no rompen la racha).
+ */
+export function productStreak(s: AppState, product: string, today: Date): number {
+  const tracked = trackedProtocols(s).find((t) => t.product === product)
+  if (!tracked) return 0
+  let count = 0
+  let d = startOfDay(today)
+  for (let i = 0; i < 365; i++) {
+    // si ese día no programaba toma, lo ignoramos (día de descanso por cadencia)
+    const scheduled = dayProducts(s, d).includes(product)
+    if (!scheduled) {
+      // retroceder, pero solo si ya empezó el protocolo (no contar hacia antes del start)
+      if (d.getTime() < startOfDay(tracked.start).getTime()) break
+      d = new Date(d.getTime() - 86400000)
+      continue
+    }
+    const took = doseTakenOnProduct(s, d, product)
+    if (!took) break
+    count++
+    d = new Date(d.getTime() - 86400000)
+  }
+  return count
+}
+
+/**
+ * weekAdherencePctLast8: adherencia por semana de las últimas 8 semanas completas (más reciente primero).
+ * Retorna un array de 8 valores 0..100 (o null si no hubo dosis programadas esa semana).
+ */
+export function weekAdherencePctLast8(s: AppState, today: Date): (number | null)[] {
+  const now = new Date()
+  // Semana ISO L→D de hoy
+  const thisMonday = startOfDay(today)
+  thisMonday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  const results: (number | null)[] = []
+  for (let w = 0; w < 8; w++) {
+    const monday = new Date(thisMonday.getTime() - w * 7 * 86400000)
+    const days = Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * 86400000))
+    results.push(weekAdherencePct(s, days, now))
+  }
+  return results
 }
 
 // items del diario de ese día

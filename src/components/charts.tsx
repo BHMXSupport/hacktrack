@@ -3,6 +3,61 @@ import { useId, useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { dur, ease, spring } from '../lib/motion'
 
+/**
+ * SparkBar: mini-barras de adherencia de las últimas N semanas.
+ * data[0] = semana más reciente. Cada valor: 0-100 o null (sin datos esa semana).
+ */
+export function SparkBar({
+  data,
+  color = 'var(--brand-500)',
+  missColor = 'var(--warning)',
+  barW = 10,
+  barMaxH = 32,
+  gap = 4,
+}: {
+  data: (number | null)[]
+  color?: string
+  missColor?: string
+  barW?: number
+  barMaxH?: number
+  gap?: number
+}) {
+  const reduce = useReducedMotion()
+  const totalW = data.length * (barW + gap) - gap
+  return (
+    <svg
+      width={totalW}
+      height={barMaxH}
+      aria-hidden="true"
+      style={{ display: 'block', overflow: 'visible' }}
+    >
+      {[...data].reverse().map((pct, i) => {
+        const barH = pct == null ? 3 : Math.max(3, (pct / 100) * barMaxH)
+        const y = barMaxH - barH
+        const x = i * (barW + gap)
+        const fill = pct == null
+          ? 'var(--ink-100)'
+          : pct >= 80 ? color : pct >= 50 ? missColor : 'var(--error)'
+        return (
+          <motion.rect
+            key={i}
+            x={x}
+            y={y}
+            width={barW}
+            height={barH}
+            rx={barW / 2}
+            fill={fill}
+            initial={reduce ? false : { scaleY: 0, originY: barMaxH }}
+            animate={{ scaleY: 1 }}
+            transition={{ duration: dur.base, ease: ease.decelerate, delay: reduce ? 0 : i * 0.04 }}
+            style={{ transformOrigin: `${x + barW / 2}px ${barMaxH}px` }}
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
 function smoothPath(pts: [number, number][]): string {
   if (pts.length < 2) return ''
   let d = `M ${pts[0][0]} ${pts[0][1]}`

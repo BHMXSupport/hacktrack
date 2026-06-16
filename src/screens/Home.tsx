@@ -1,20 +1,22 @@
 // Tab 'inicio' — dashboard de wellness premium "Quiet Signal".
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, useReducedMotion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
-import { useApp, adherenceMonth, weekStatus, isoKey } from '../lib/store'
+import { useApp, adherenceMonth, isoKey, computeStreak } from '../lib/store'
 import { CATEGORY_COLOR, MEASURE_ICON, MEASURE_META, WDS } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
-import { Sparkline } from '../components/charts'
+import { Sparkline, SparkBar } from '../components/charts'
 import { Glyph } from '../components/glyphs'
 import { UserAvatar, TrustChip } from '../components/identity'
 import { TodayDoses } from '../components/TodayDoses'
 import { ActiveNowChips } from '../components/ActiveNowChips'
 import { LastDoseLine } from '../components/LastDoseLine'
-import { dayProducts, upcomingDoses } from '../lib/calendar'
+import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, dayStatusEx } from '../lib/calendar'
 import { startOfDay } from '../lib/cadence'
 import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
 import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs } from '../lib/nutrition'
+import { StreakChip, ProductStreakBadge } from '../components/StreakChip'
+import { CycleStatusCard } from '../components/CycleStatusCard'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -180,7 +182,6 @@ export function Home() {
   const adh = adherenceMonth(state, now)
 
   // Tira semanal (L Ma Mi J V S D)
-  const weekBits = weekStatus(state.log, today, true)
   const weekLabels = WDS.map(([l]) => l)
   // índice del día de hoy en WDS (L=0..D=6); getDay: 0=Dom → índice 6
   const todayWdsIdx = [1, 2, 3, 4, 5, 6, 0][today.getDay()]
@@ -210,6 +211,37 @@ export function Home() {
   const todayKey = isoKey(state.todayTs)
   const waterToday = state.nutrition[todayKey]?.water ?? 0
   const waterGoal = state.profile.peso ? waterGoalGlasses(state.profile.peso) : 8
+
+  // ── Item 131: racha global compositeStreak ───────────────────────────────
+  const compositeStreak = useMemo(() => computeStreak(state.log, today), [state.log, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Item 132: racha por producto (para los chips de protocolo) ───────────
+  const productStreaks = useMemo(() =>
+    state.importedProducts.reduce<Record<string, number>>((acc, p) => {
+      acc[p] = productStreak(state, p, today)
+      return acc
+    }, {}),
+  [state.log, state.protocols, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Item 155: tira semanal con dayStatusEx (rest vs missed) ─────────────
+  const weekStatusEx = useMemo(() =>
+    Array.from({ length: 7 }, (_, idx) => {
+      const dayOffset = idx - todayWdsIdx
+      const d = new Date(today)
+      d.setDate(today.getDate() + dayOffset)
+      return dayStatusEx(state, d, now)
+    }),
+  [state.log, state.protocols, state.todayTs, now]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Item 157: sparkbar adherencia últimas 8 semanas ─────────────────────
+  const weekAdh8 = useMemo(() => weekAdherencePctLast8(state, today),
+    [state.log, state.protocols, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+  const hasWeekAdh8 = weekAdh8.some((v) => v !== null)
+
+  // ── Item 154: ciclo on/off — protocolos con cadencia tipo ciclo ──────────
+  const cycleProtocols = useMemo(() =>
+    Object.values(state.protocols).filter((p) => p.cadence.mode === 'ciclo'),
+  [state.protocols])
 
   // ── Loop 153: Barra de ventana de toma ───────────────────────────────────
   // Ventana de ±30min alrededor del horario de toma
@@ -291,9 +323,10 @@ export function Home() {
             >
               {greeting}
             </h1>
-            {/* Micro-chip de confianza */}
-            <div style={{ marginTop: 8 }}>
+            {/* Micro-chip de confianza + racha global (item 131) */}
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <TrustChip onClick={() => dispatch({ t: 'sheet', sheet: 'perfil' })} />
+              <StreakChip streak={compositeStreak} />
             </div>
           </div>
 
@@ -312,6 +345,15 @@ export function Home() {
         <motion.div variants={staggerItem}>
           <ActiveNowChips />
         </motion.div>
+
+        {/* ── Item 154: CycleStatusCard — solo si hay protocolo(s) con ciclo on/off ── */}
+        {cycleProtocols.length > 0 && (
+          <motion.div variants={staggerItem} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {cycleProtocols.map((p) => (
+              <CycleStatusCard key={p.product} protocol={p} today={today} />
+            ))}
+          </motion.div>
+        )}
 
         {/* ── Loop 161: Widget de hidratación ───────────────────────────── */}
         <motion.div
@@ -492,10 +534,15 @@ export function Home() {
               </span>
             </div>
 
-            {/* Producto */}
-            <h2 className="h2" style={{ margin: '0 0 4px', color: 'var(--ink-900)' }}>
-              {nextProduct || state.protocol?.product}
-            </h2>
+            {/* Producto + racha por-producto (item 132) */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+              <h2 className="h2" style={{ margin: 0, color: 'var(--ink-900)' }}>
+                {nextProduct || state.protocol?.product}
+              </h2>
+              {(nextProduct || state.protocol?.product) && (
+                <ProductStreakBadge streak={productStreaks[nextProduct || state.protocol?.product || ''] ?? 0} />
+              )}
+            </div>
 
             {/* ── Loop 152: cuenta regresiva con count-up animado ───────── */}
             {countdownText && (
@@ -662,23 +709,45 @@ export function Home() {
             </div>
           )}
 
-          {/* ── Tira semanal — Loop 156: micro-spring dot al completarse ── */}
+          {/* ── Tira semanal — Loop 156 + Item 155: rest vs missed ──────── */}
           <div
             style={{ display: 'flex', gap: 6, marginTop: 24, justifyContent: 'center', width: '100%' }}
           >
             {weekLabels.map((label, idx) => {
-              const filled = weekBits[idx]
+              const stEx = weekStatusEx[idx]
+              const filled = stEx === 'taken'
               const isToday = idx === todayWdsIdx
               const dayOffset = idx - todayWdsIdx
               const dayDate = new Date(today)
               dayDate.setDate(today.getDate() + dayOffset)
               const dayStr = dayDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-              const estado = filled ? 'completado' : isToday ? 'hoy, sin completar' : 'sin completar'
+              // 'rest' = día de descanso por cadencia; 'missed' = tocaba y faltó
+              const isRest = stEx === 'rest'
+              const isMissed = stEx === 'missed'
+              const estado = filled
+                ? 'completado'
+                : isRest
+                ? 'descanso'
+                : isMissed
+                ? 'incompleto'
+                : isToday
+                ? 'hoy, sin completar'
+                : 'sin completar'
+              // colores: tomado=catColor, descanso=ink-100(muy tenue), incompleto=warning tenue, hoy=catColor 30%
               const dotBg = filled
                 ? catColor
+                : isMissed
+                ? 'color-mix(in srgb, var(--warning) 35%, transparent)'
+                : isRest
+                ? 'var(--ink-100)'
                 : isToday
                 ? `color-mix(in srgb, ${catColor} 30%, transparent)`
                 : 'var(--ink-100)'
+              const dotBorder = isMissed
+                ? 'color-mix(in srgb, var(--warning) 60%, transparent)'
+                : isToday
+                ? catColor
+                : 'transparent'
               return (
                 <div
                   key={label}
@@ -705,7 +774,7 @@ export function Home() {
                         width: 28,
                         height: 28,
                         borderRadius: '50%',
-                        border: isToday ? `2px solid ${catColor}` : '2px solid transparent',
+                        border: `2px solid ${dotBorder}`,
                       }}
                     />
                     {isToday && filled && (
@@ -714,12 +783,81 @@ export function Home() {
                         style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', position: 'absolute', bottom: -6 }}
                       />
                     )}
+                    {/* punto de descanso — guión muy pequeño */}
+                    {isRest && !isToday && (
+                      <div
+                        aria-hidden="true"
+                        style={{ width: 6, height: 2, borderRadius: 999, background: 'var(--ink-200)', position: 'absolute', bottom: -5 }}
+                      />
+                    )}
                   </div>
                 </div>
               )
             })}
           </div>
+
+          {/* ── Leyenda rest/missed (solo si hay protocolo con cadencia no-diaria) ── */}
+          {hasProtocol && (
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }} aria-hidden="true">
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-300)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ink-100)', border: '1px solid var(--ink-200)', display: 'block' }} />
+                descanso
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-400)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'color-mix(in srgb, var(--warning) 35%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 60%, transparent)', display: 'block' }} />
+                incompleto
+              </span>
+            </div>
+          )}
+
+          {/* ── Item 157: Sparkbar de adherencia últimas 8 semanas ─────── */}
+          {hasWeekAdh8 && (
+            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 10, letterSpacing: 0.3 }}>
+                Adherencia · últimas 8 semanas
+              </p>
+              <SparkBar data={weekAdh8} color={catColor} barW={11} barMaxH={32} gap={4} />
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }} aria-hidden="true">
+                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, display: 'block' }} />≥80%
+                </span>
+                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)', display: 'block' }} />50-79%
+                </span>
+                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--error)', display: 'block' }} />&lt;50%
+                </span>
+              </div>
+            </div>
+          )}
         </motion.section>
+
+        {/* ── Item 132: rachas por producto (cuando hay >1 producto) ──── */}
+        {state.importedProducts.length > 1 && (
+          <motion.div
+            variants={staggerItem}
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
+            <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+              Racha por producto
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {state.importedProducts.map((p) => {
+                const s = productStreaks[p] ?? 0
+                return (
+                  <div key={p} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 500 }}>{p}</span>
+                    {s > 0
+                      ? <ProductStreakBadge streak={s} />
+                      : <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 11 }}>sin racha</span>
+                    }
+                  </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* ── 4. KPI cards (máx 4, datos reales) ─────────────────────── */}
         {kpiMeasures.length > 0 && (
