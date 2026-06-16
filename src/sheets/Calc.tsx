@@ -37,7 +37,8 @@ export function CalcSheet() {
 
   function handleCopy() {
     if (!r) return
-    dispatch({ t: 'setDraftDose', draft: { value: r.ui, unit: 'UI' } }) // precarga la dosis en Registrar
+    // precarga la dosis (en UI) + la reconstitución → el Registrar reconstruye los mg canónicos
+    dispatch({ t: 'setDraftDose', draft: { value: r.ui, unit: 'UI', recon: { vialMg: vial, aguaMl: agua } } })
     dispatch({ t: 'toast', msg: copyToRegisterToast(r) })
     dispatch({ t: 'sheet', sheet: 'registrar' })
   }

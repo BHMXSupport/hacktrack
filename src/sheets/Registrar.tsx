@@ -1,7 +1,7 @@
 // Registrar dosis — bottom-sheet. Un solo archivo, sin props, usa useApp().
 // Compliance: sin jeringas (IcDrop/IcLeaf), el usuario teclea su dosis,
 // calculadora solo convierte, sin venta in-app, disclaimers presentes.
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
@@ -126,10 +126,14 @@ export function RegistrarSheet() {
   }
 
   // ── Reconstitución del vial (solo para UI/clics/mL → convertir a mg) ──
-  const [vialStr, setVialStr] = useState('')
-  const [aguaStr, setAguaStr] = useState('')
-  // pre-llena con la reconstitución recordada del producto seleccionado
+  // semilla: la reconstitución que vino de la calculadora, o la recordada del producto
+  const seedRecon = state.draftDose?.recon ?? state.productRecon[defaultProduct]
+  const [vialStr, setVialStr] = useState(() => (seedRecon ? String(seedRecon.vialMg) : ''))
+  const [aguaStr, setAguaStr] = useState(() => (seedRecon ? String(seedRecon.aguaMl) : ''))
+  // al CAMBIAR de producto (no en el primer render), re-llena con la reconstitución recordada de ese producto
+  const reconFirst = useRef(true)
   useEffect(() => {
+    if (reconFirst.current) { reconFirst.current = false; return }
     const rec = state.productRecon[product]
     setVialStr(rec ? String(rec.vialMg) : '')
     setAguaStr(rec ? String(rec.aguaMl) : '')

@@ -40,7 +40,7 @@ export interface AppState {
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
   scale: SyringeScale          // escala de jeringa de la calculadora (P0-6)
-  draftDose: { value: number; unit: string } | null  // "copiar a mi registro" desde la calc
+  draftDose: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null  // "copiar a mi registro" desde la calc (con reconstitución)
   toast: string | null
 }
 
@@ -100,7 +100,7 @@ export type Action =
   | { t: 'setName'; name: string }
   | { t: 'setReminderTime'; time: string }
   | { t: 'setScale'; scale: SyringeScale }
-  | { t: 'setDraftDose'; draft: { value: number; unit: string } | null }
+  | { t: 'setDraftDose'; draft: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null }
   | { t: 'arcoDelete' }                                               // P0-5
   | { t: 'reset' }                                                    // P1-7
   | { t: 'toast'; msg: string | null }
