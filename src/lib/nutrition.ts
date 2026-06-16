@@ -69,8 +69,10 @@ export function compositionDeltas(s: AppState): CompDelta[] {
 // ── kcal por día (últimos N días) ──
 export function kcalSeries(s: AppState, days: number, now = s.todayTs): { ts: number; kcal: number; has: boolean }[] {
   const out: { ts: number; kcal: number; has: boolean }[] = []
+  const base = new Date(now)
   for (let i = days - 1; i >= 0; i--) {
-    const ts = now - i * DAY
+    const day = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i) // día calendario local (DST-safe)
+    const ts = day.getTime()
     const d = s.nutrition[isoKey(ts)]
     out.push({ ts, kcal: d ? dayKcal(d.meals) : 0, has: !!d && d.meals.length > 0 })
   }
@@ -158,9 +160,10 @@ export function weightProjection(s: AppState): WeightProjection | null {
 // ── Racha compuesta: días consecutivos (hasta hoy) con ≥1 dosis y ≥1 comida y agua≥meta ──
 export function compositeStreak(s: AppState, waterGoal = 8): number {
   let streak = 0
+  const base = new Date(s.todayTs)
   for (let i = 0; i < 90; i++) {
-    const ts = s.todayTs - i * DAY
-    const k = isoKey(ts)
+    const day = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i) // día calendario local (DST-safe)
+    const k = isoKey(day.getTime())
     const nut = s.nutrition[k]
     const g = s.log.find((x) => x.dateKey === k)
     const dose = !!g?.items.some((it) => it.type === 'dose')

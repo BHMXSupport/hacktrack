@@ -7,7 +7,7 @@ export function PremiumGate({ children, label = 'Función Plus' }: { children: R
   if (state.settings.premium) return <>{children}</>
   return (
     <div style={{ position: 'relative', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
-      <div aria-hidden style={{ filter: 'blur(7px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.65 }}>
+      <div aria-hidden {...({ inert: '' } as Record<string, string>)} style={{ filter: 'blur(7px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.65 }}>
         {children}
       </div>
       <div

@@ -1,0 +1,50 @@
+<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hacktrack · Premium Comida + Resumen</title>
+<style>:root{--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--dim:#64748b;--mint:#5eead4;--good:#34d399;--bad:#f87171;--warn:#fbbf24;--line:#334155}
+body{margin:0;background:linear-gradient(160deg,#0f172a,#0b1220);color:var(--ink);font:15px/1.6 -apple-system,Inter,sans-serif;padding:32px 18px 80px}
+.w{max-width:900px;margin:0 auto}h1{font-size:28px;margin:0 0 2px}.s{color:var(--mut);margin:0 0 4px}.m{color:var(--dim);font-size:13px;font-family:'JetBrains Mono',monospace;margin-bottom:24px}
+h2{font-size:18px;margin:28px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line)}.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px}
+ul{margin:6px 0;padding-left:20px}li{margin:5px 0}code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--mint)}
+.k{background:#0b1220;border:1px solid #2a6;border-radius:12px;padding:14px 16px;margin:10px 0}.k b{color:var(--mint)}
+.p{display:inline-block;font-size:11px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:999px;border:1px solid #14532d;background:#052e1a;color:var(--good)}
+.pp{border-color:#713f12;background:#2a1f08;color:var(--warn)}.f li{font-family:'JetBrains Mono',monospace;font-size:13px}</style></head>
+<body><div class="w">
+<h1>Hacktrack · Premium — Comida + Resumen</h1><p class="s"><b>Features de pago para Alimentación y Resumen semanal</b></p>
+<p class="m">workflow multiagente (31 agentes, 1.2M tokens) → roadmap → implementación serial · red-team Codex (3 fixes) · self-audit</p>
+
+<div class="k"><b>Feature ancla:</b> "Tu protocolo en números" — cruza tus calorías y tu peso contra tu fecha de inicio del protocolo y muestra el delta observacional. Es lo único que ninguna app genérica puede producir (requiere los 3 data streams + el modelo de protocolo en la misma app). Crece con cada semana registrada (retención).</div>
+
+<h2>Lo construido</h2>
+<div class="c"><b>Base de pago</b><ul>
+<li><span class="p">premium</span> <code>PremiumGate</code>: preview borroso + "Desbloquear con Plus" → paywall. Paywall "Probar Plus" activa Plus (placeholder hasta pagos). Toggle Plus en Ajustes.</li>
+</ul></div>
+<div class="c"><b>Alimentación (Comida)</b><ul>
+<li><b>Favoritos 1-tap</b>: guarda comidas frecuentes (fusión por nombre + uso) y las registra en un toque — mata la fricción #1 de abandono.</li>
+<li><b>Macros</b> (P/C/G) opcionales por comida + resumen del día — clave para el miedo a perder músculo en GLP-1.</li>
+</ul></div>
+<div class="c"><b>Resumen semanal (Semana) — Perspectivas Plus</b><ul>
+<li><span class="p">ancla</span> <b>Tu protocolo en números</b>: Δ kcal/día y Δ peso desde tu fecha de inicio + sparkline de calorías.</li>
+<li><span class="p">premium</span> <b>Composición en movimiento</b>: Peso / % grasa / % músculo / Cintura — delta desde el inicio + sparkline por métrica.</li>
+<li><span class="p">premium</span> <b>Margen energético (TDEE)</b>: gasto estimado (Mifflin-St Jeor) vs tu consumo de 7 días → déficit/superávit.</li>
+<li><span class="p">premium</span> <b>Proyección de meta</b>: regresión sobre tu peso → fecha estimada a tu ritmo registrado.</li>
+<li><span class="p">premium</span> <b>Señales de la semana</b>: 3-5 observaciones por plantilla fija (sin causalidad).</li>
+<li><b>Racha compuesta</b>: días seguidos con dosis + agua + comida.</li>
+</ul></div>
+
+<h2>Cumplimiento (el riesgo único)</h2>
+<div class="c"><ul>
+<li>NUNCA se nombra un péptido junto a un resultado de peso (el patrón que baneó el IG de BiohackMX). Copy: <i>"desde tu fecha de inicio"</i>, "lo que registraste", "tus datos muestran".</li>
+<li>Todo observacional con disclaimers inline; sin causalidad, sin eficacia clínica, sin dosis, sin antes/después, sin comparación entre usuarios. Señales = plantillas fijas (ninguna variante suena a consejo médico).</li>
+</ul></div>
+
+<h2>Red-team Codex — 3 fixes</h2>
+<div class="c"><ul>
+<li><span class="p">fix</span> <code>PremiumGate</code>: el preview borroso seguía en el tab order → <code>inert</code> (no se puede enfocar/activar lo bloqueado).</li>
+<li><span class="p">fix</span> <code>kcalSeries</code> y <code>compositeStreak</code>: restar <code>DAY</code> fijo se saltaba/duplicaba días en horario de verano → iteración por día calendario local.</li>
+</ul></div>
+
+<h2>Archivos</h2><div class="c f"><ul>
+<li>+ src/lib/nutrition.ts (analítica), src/components/PremiumGate.tsx</li>
+<li>~ store.ts (premium, nutrition/foodLibrary/macroGoals, profile fields), types.ts, Alimentacion.tsx, ResumenSemanal.tsx, Paywall.tsx, Ajustes.tsx</li>
+</ul></div>
+<p style="color:var(--dim);font-size:12px;margin-top:18px">Para probar: Ajustes → activa "Plus" (o el paywall) y registra unos días de comida/peso para ver las tarjetas con tus datos.</p>
+</div></body></html>
