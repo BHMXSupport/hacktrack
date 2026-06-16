@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { buildPharmaSeries, fmtApproxMg, formatHalfLife, HALF_LIFE_H, getProductNote, type Mode } from '../lib/pharma'
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
+import { upcomingDoses } from '../lib/calendar'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -31,6 +32,8 @@ export function PharmaDashboard() {
   const [win, setWin] = useState<Win>('7d')
   const [mode, setMode] = useState<Mode>('percent')
   const [hidden, setHidden] = useState<Set<string>>(new Set())
+  const [showNextDose, setShowNextDose] = useState(true)
+  const [showWeight, setShowWeight] = useState(false)
 
   // "ahora" en vivo (el punto de cada serie y la línea avanzan)
   useEffect(() => {
@@ -42,6 +45,32 @@ export function PharmaDashboard() {
     () => buildPharmaSeries(state, { now, windowMs: WIN_MS[win], mode }),
     [state, now, win, mode],
   )
+
+  const nextDose = useMemo(() => {
+    const upcoming = upcomingDoses(state, new Date(now), 3, 30)
+    return upcoming[0] ?? null
+  }, [state, now])
+
+  const hasGlp1 = useMemo(() =>
+    data.series.some((s) => PEPTIDES[s.product]?.cat === 'Metabolismo' && (HALF_LIFE_H[s.product] ?? 0) >= 24),
+    [data.series],
+  )
+
+  const weightOverlay = useMemo(() => {
+    if (!hasGlp1 || !showWeight) return null
+    const pts = (state.history['Peso'] ?? [])
+      .filter((p) => p.ts >= data.domainX[0] && p.ts <= data.domainX[1])
+      .sort((a, b) => a.ts - b.ts)
+      .map((p) => [p.ts, p.value] as [number, number])
+    if (pts.length < 2) return null
+    const vals = pts.map((p) => p[1])
+    return {
+      points: pts,
+      domainY2: [Math.min(...vals) - 0.5, Math.max(...vals) + 0.5] as [number, number],
+      color: 'var(--ink-400)',
+      label: 'kg',
+    }
+  }, [hasGlp1, showWeight, state.history, data.domainX])
 
   const toggle = (product: string) =>
     setHidden((prev) => {
@@ -174,6 +203,24 @@ export function PharmaDashboard() {
               options={[{ value: 'percent', label: '% pico' }, { value: 'absolute', label: 'mg' }]}
             />
           </div>
+          {nextDose && (
+            <button
+              className="chip"
+              style={{ background: showNextDose ? 'var(--brand-100)' : undefined, color: showNextDose ? 'var(--brand-700)' : undefined }}
+              onClick={() => setShowNextDose((v) => !v)}
+            >
+              Próxima dosis
+            </button>
+          )}
+          {hasGlp1 && (
+            <button
+              className="chip"
+              style={{ background: showWeight ? 'var(--brand-100)' : undefined, color: showWeight ? 'var(--brand-700)' : undefined }}
+              onClick={() => setShowWeight((v) => !v)}
+            >
+              Mostrar peso
+            </button>
+          )}
         </div>
 
         {/* Mini-nota eje Y en modo mg */}
@@ -185,21 +232,36 @@ export function PharmaDashboard() {
 
         {/* Chart */}
         {visible.length > 0 ? (
-          <MultiLineChart
-            series={visible.map((s) => ({ ...s, dashed: s.isEstimatedOnly, halfLifeH: s.halfLifeH }))}
-            mode={mode}
-            domainX={data.domainX}
-            domainY={data.domainY}
-            nowTs={data.nowTs}
-            yTicks={yTicks}
-            formatY={formatY}
-            xTicks={xTicks}
-            refLines={
-              mode === 'percent'
-                ? [{ y: 25, label: '25%' }, { y: 50, label: 't½' }]
-                : []
-            }
-          />
+          <>
+            <MultiLineChart
+              series={visible.map((s) => ({ ...s, dashed: s.isEstimatedOnly, halfLifeH: s.halfLifeH }))}
+              mode={mode}
+              domainX={data.domainX}
+              domainY={data.domainY}
+              nowTs={data.nowTs}
+              yTicks={yTicks}
+              formatY={formatY}
+              xTicks={xTicks}
+              refLines={
+                mode === 'percent'
+                  ? [{ y: 25, label: '25%' }, { y: 50, label: 't½' }]
+                  : []
+              }
+              verticalRefs={
+                showNextDose && nextDose && nextDose.date.getTime() >= data.domainX[0] && nextDose.date.getTime() <= data.domainX[1]
+                  ? [{ t: nextDose.date.getTime(), label: `próxima · ${nextDose.product}`, color: 'var(--brand-700)' }]
+                  : []
+              }
+              secondarySeries={weightOverlay ?? undefined}
+              showSecondaryAxis={!!weightOverlay}
+              domainY2={weightOverlay?.domainY2}
+            />
+            {showWeight && hasGlp1 && (
+              <p className="disclaimer" style={{ borderLeft: '2px solid var(--border)', paddingLeft: 10, marginTop: 8 }}>
+                Observacional — no implica causalidad entre la dosis y el cambio de peso.
+              </p>
+            )}
+          </>
         ) : (
           <div className="sm" style={{ color: 'var(--ink-400)', textAlign: 'center', padding: '40px 0' }}>
             <EyeOffIcon />

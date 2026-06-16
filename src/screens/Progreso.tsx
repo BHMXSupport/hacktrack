@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useApp, adherence } from '../lib/store'
+import { useApp, adherence, isoKey } from '../lib/store'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { cadenceLabel } from '../lib/cadence'
 import { dur, ease, spring, sharedAxisX, staggerParent, staggerItem } from '../lib/motion'
@@ -94,7 +94,7 @@ function TitrationPhasesAll() {
 
   return (
     <>
-      {withPhases.map((protocol, idx) => {
+      {withPhases.map((protocol) => {
         const entry = PEPTIDES[protocol.product]
         const n = protocol.progN ?? entry?.phases ?? 2
         const phaseWeeks = entry?.phaseWeeks ?? null
@@ -112,22 +112,47 @@ function TitrationPhasesAll() {
               </span>
             </div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {/* n=144: chips de fase + input de dosis por fase */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
               {Array.from({ length: n }, (_, i) => {
                 const weeksPart = phaseWeeks ? ` · sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}` : ''
                 const levelPart = ` · nivel ${i + 1}`
+                const phaseDose = protocol.phaseDoses?.[i]
                 return (
-                  <motion.div key={i} whileTap={{ scale: 0.94 }} transition={spring.ui} style={{ display: 'inline-flex' }}>
-                    <Chip
-                      label={`Fase ${i + 1}${weeksPart}${levelPart}`}
-                      active={i === cur}
-                      color="var(--brand-700)"
-                      onClick={() => setPhase(i)}
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <motion.div whileTap={{ scale: 0.94 }} transition={spring.ui} style={{ display: 'inline-flex' }}>
+                      <Chip
+                        label={`Fase ${i + 1}${weeksPart}${levelPart}`}
+                        active={i === cur}
+                        color="var(--brand-700)"
+                        onClick={() => setPhase(i)}
+                      />
+                    </motion.div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="mg"
+                      value={phaseDose ?? ''}
+                      aria-label={`Dosis fase ${i + 1} de ${protocol.product}`}
+                      style={{ fontSize: 12, width: 72, border: '1px solid var(--ink-200)', borderRadius: 'var(--r-sm)', padding: '3px 6px', background: 'var(--ink-100)', color: 'var(--ink-900)' }}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? null : parseFloat(e.target.value)
+                        const newDoses: (number | null)[] = Array.from({ length: n }, (_, j) => protocol.phaseDoses?.[j] ?? null)
+                        newDoses[i] = val !== null && isNaN(val) ? null : val
+                        dispatch({ t: 'updateProtocolFor', product: protocol.product, patch: { phaseDoses: newDoses } })
+                      }}
                     />
-                  </motion.div>
+                    <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 10 }}>
+                      Dosis de esta fase (mg)
+                    </span>
+                  </div>
                 )
               })}
             </div>
+            <p className="sm" style={{ color: 'var(--ink-400)', margin: '0 0 12px', fontSize: 11 }}>
+              Dato personal del usuario — no prescripción médica
+            </p>
 
             <div style={{ display: 'flex', gap: 8 }}>
               <motion.button
@@ -154,6 +179,17 @@ function TitrationPhasesAll() {
                 Siguiente fase
                 <IcChevron size={15} />
               </motion.button>
+            </div>
+
+            {/* n=157: deeplink fase → medidas de la categoría */}
+            <div style={{ marginTop: 10 }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ width: 'auto', padding: '0 0', color: 'var(--brand-700)', fontSize: 13 }}
+                onClick={() => dispatch({ t: 'setProgresoView', view: 'avances' })}
+              >
+                Ver medidas de {entry?.cat ?? 'tu protocolo'}
+              </button>
             </div>
           </motion.div>
         )
@@ -227,6 +263,39 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
                 </span>
               )}
             </div>
+
+            {/* n=143: fecha de inicio del protocolo editable (backdating) */}
+            <div style={{ marginTop: 8 }}>
+              <label className="sm" style={{ color: 'var(--ink-400)', display: 'block', marginBottom: 2 }}>
+                Inicio del protocolo
+              </label>
+              <input
+                type="date"
+                value={isoKey(p.startDate)}
+                style={{ fontSize: 13, border: '1px solid var(--ink-200)', borderRadius: 'var(--r-sm)', padding: '4px 8px', background: 'var(--ink-100)', color: 'var(--ink-900)' }}
+                onChange={(e) => {
+                  if (!e.target.value) return
+                  dispatch({ t: 'updateProtocolFor', product: p.product, patch: { startDate: new Date(e.target.value).getTime() } })
+                }}
+              />
+            </div>
+
+            {/* n=145: Días desde inicio + % de avance del ciclo */}
+            {(() => {
+              const dayN = Math.floor((state.todayTs - p.startDate) / 86400000) + 1
+              const clampedDay = Math.max(1, dayN)
+              let phaseLabel = ''
+              if (p.progOn && entry?.phases && entry?.phaseWeeks) {
+                const totalDays = entry.phases * entry.phaseWeeks * 7
+                const pct = Math.min(100, Math.round((clampedDay / totalDays) * 100))
+                phaseLabel = ` · Fase ${p.curPhase + 1} · ${pct}%`
+              }
+              return (
+                <div className="sm" style={{ color: 'var(--brand-700)', marginTop: 4, fontWeight: 600 }}>
+                  Día {clampedDay} del ciclo{phaseLabel}
+                </div>
+              )
+            })()}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               <motion.button
@@ -417,6 +486,43 @@ export function Progreso() {
           <Disclaimer kind="proto" />
         </motion.div>
       </motion.div>
+
+      {/* n=155: FAB 'Registrar medida rápida' en Avances */}
+      <AnimatePresence>
+        {view === 'avances' && (
+          <motion.button
+            aria-label="Registrar medida rápida"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            transition={spring.ui}
+            onClick={() => dispatch({ t: 'sheet', sheet: 'medida' })}
+            style={{
+              position: 'fixed',
+              bottom: 80,
+              right: 20,
+              width: 56,
+              height: 56,
+              borderRadius: 99,
+              background: 'var(--brand-700)',
+              color: 'white',
+              border: 'none',
+              boxShadow: 'var(--e3)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 24,
+              fontWeight: 700,
+              cursor: 'pointer',
+              zIndex: 100,
+              lineHeight: 1,
+            }}
+          >
+            <span>+</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

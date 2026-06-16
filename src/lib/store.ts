@@ -40,6 +40,7 @@ export interface AppState {
   profile: Profile
   measureValues: Record<string, number>
   history: Record<string, MeasureSample[]>   // serie temporal por KPI/medida (dashboard)
+  kpiOrder?: string[]                         // n=146: orden y selección de KPIs mostrados (hasta 4)
   productDoses: Record<string, { value: number; unit: string }>  // dosis recordada por producto (para "hecho hoy")
   productRecon: Record<string, ProductReconEntry> // reconstitución recordada por producto (UI/mL → mg); incluye reconDate opcional
   nutrition: Record<string, { water: number; meals: Meal[] }>        // por dateKey: hidratación + comidas
@@ -159,6 +160,7 @@ export type Action =
   | { t: 'editLogTime'; id: string; ts: number }
   | { t: 'undoDeleteLog' }
   | { t: 'clearDeletedLogBuffer' }
+  | { t: 'setKpiOrder'; order: string[] }                             // n=146: orden y selección de KPIs (hasta 4)
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 let _seq = 0
@@ -741,6 +743,9 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'toast':
       return { ...s, toast: a.msg, toastUndoId: null } // un toast normal no trae acción de deshacer
+
+    case 'setKpiOrder':
+      return { ...s, kpiOrder: a.order.slice(0, 4) }
 
     default:
       return s

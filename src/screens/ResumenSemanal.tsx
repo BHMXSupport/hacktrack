@@ -3,7 +3,7 @@
 // afirma causalidad/eficacia ni recomienda dosis; "desde que iniciaste <producto>" es solo el ancla temporal.
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useApp, adherence, isoKey } from '../lib/store'
+import { useApp, adherence, isoKey, adherenceMonth } from '../lib/store'
 import {
   protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct, protocolList, productKpis,
 } from '../lib/nutrition'
@@ -12,6 +12,8 @@ import { EmptyState } from '../components/EmptyState'
 import { PremiumGate } from '../components/PremiumGate'
 import type { Actividad, Sexo } from '../lib/types'
 import { staggerParent, staggerItem } from '../lib/motion'
+import { dayStatusEx } from '../lib/calendar'
+import { WDS, MEASURES_BY, MEASURE_META } from '../lib/catalog'
 
 const DAY = 86_400_000
 const ACT_LABEL: { v: Actividad; l: string }[] = [
@@ -35,6 +37,206 @@ function ProgressBar({ pct, color = 'var(--brand-700)' }: { pct: number; color?:
     <div style={{ height: 6, background: 'var(--ink-100)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
       <div style={{ width: `${Math.max(0, Math.min(100, pct))}%`, height: '100%', background: color, borderRadius: 'var(--r-sm)', transition: 'width 0.3s ease' }} />
     </div>
+  )
+}
+
+// ── ComparativaCard: antes vs durante el protocolo por producto ──
+function ComparativaCard() {
+  const { state } = useApp()
+  const protos = protocolList(state)
+  if (protos.length === 0) return null
+
+  return (
+    <>
+      {protos.map((pr) => {
+        const measures = (MEASURES_BY[pr.cat] ?? MEASURES_BY['Explorar']).slice(0, 4)
+        const rows = measures.map((m) => {
+          const meta = MEASURE_META[m]
+          const allPts = [...(state.history[m] ?? [])].sort((a, b) => a.ts - b.ts)
+          const before = allPts.filter((p) => p.ts < pr.startDate)
+          const beforeVal = before.length ? before[before.length - 1].value : null
+          const during = allPts.filter((p) => p.ts >= pr.startDate)
+          const duringVal = during.length ? during[during.length - 1].value : null
+          const delta = beforeVal != null && duringVal != null
+            ? Math.round((duringVal - beforeVal) * 10) / 10
+            : null
+          const unit = meta?.kind === 'num' ? (meta.unit ? ` ${meta.unit}` : '') : meta?.max ? `/${meta.max}` : ''
+          const down = !!meta?.down
+          return { m, beforeVal, duringVal, delta, unit, down }
+        }).filter((r) => r.beforeVal != null || r.duringVal != null)
+
+        if (rows.length === 0) return null
+
+        return (
+          <motion.div key={pr.product + '-comp'} variants={staggerItem} className="card">
+            <div className="h2" style={{ color: 'var(--ink-900)' }}>Antes vs durante — {pr.product}</div>
+            <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2, marginBottom: 12 }}>
+              Observacional — registros personales antes y desde el inicio del protocolo.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 72px 60px', gap: 6, marginBottom: 6 }}>
+              <span className="sm" style={{ color: 'var(--ink-400)' }}>Medida</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', textAlign: 'right' }}>Antes</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', textAlign: 'right' }}>Durante</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', textAlign: 'right' }}>Δ</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {rows.map(({ m, beforeVal, duringVal, delta, unit, down }) => {
+                const good = delta != null && delta !== 0 && ((down && delta < 0) || (!down && delta > 0))
+                const bad = delta != null && delta !== 0 && !good
+                const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
+                return (
+                  <div key={m} style={{ display: 'grid', gridTemplateColumns: '1fr 72px 72px 60px', gap: 6, alignItems: 'center' }}>
+                    <span className="sm" style={{ color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m}</span>
+                    <span className="mono sm" style={{ textAlign: 'right', color: 'var(--ink-400)' }}>
+                      {beforeVal != null ? `${beforeVal}${unit}` : '—'}
+                    </span>
+                    <span className="mono sm" style={{ textAlign: 'right', fontWeight: 700 }}>
+                      {duringVal != null ? `${duringVal}${unit}` : '—'}
+                    </span>
+                    <span className="mono sm" style={{ textAlign: 'right', color: col, fontWeight: 600 }}>
+                      {delta != null ? `${delta > 0 ? '+' : ''}${delta}${unit.startsWith('/') ? '' : unit}` : '—'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )
+      })}
+    </>
+  )
+}
+
+// ── StreakWeekCard: racha de la semana con mini-timeline 7 días ──
+function StreakWeekCard() {
+  const { state } = useApp()
+  const now = new Date(state.todayTs)
+
+  const todayWdsIdx = (() => {
+    const wd = now.getDay()
+    const idx = WDS.findIndex(([, d]) => d === wd)
+    return idx >= 0 ? idx : 6
+  })()
+
+  const days = WDS.map(([label], idx) => {
+    const offset = idx - todayWdsIdx
+    const d = new Date(now)
+    d.setDate(now.getDate() + offset)
+    const status = offset <= 0 ? dayStatusEx(state, d, now) : 'future' as const
+    return { label, status, isFuture: offset > 0 }
+  })
+
+  let best = 0, cur = 0
+  for (const day of days) {
+    if (day.status === 'taken') { cur++; best = Math.max(best, cur) }
+    else if (day.status === 'missed') cur = 0
+  }
+
+  const protos = protocolList(state)
+  const multiProto = protos.length > 1
+
+  return (
+    <motion.div variants={staggerItem} className="card">
+      <div className="h2" style={{ color: 'var(--ink-900)' }}>Racha de la semana</div>
+      <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2, marginBottom: 14 }}>
+        Tu mejor racha: <strong style={{ color: 'var(--brand-700)', fontWeight: 700 }}>{best} {best === 1 ? 'día' : 'días'}</strong> consecutivos con dosis
+      </div>
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+        {days.map(({ label, status, isFuture }, idx) => {
+          const color = protos[0]?.color ?? 'var(--brand-700)'
+          const bg = status === 'taken'
+            ? color
+            : status === 'missed'
+            ? 'color-mix(in srgb, var(--warning) 35%, transparent)'
+            : status === 'rest'
+            ? 'var(--ink-100)'
+            : isFuture
+            ? 'transparent'
+            : 'var(--ink-100)'
+          const border = status === 'missed'
+            ? 'color-mix(in srgb, var(--warning) 60%, transparent)'
+            : status === 'taken'
+            ? color
+            : status === 'rest'
+            ? 'var(--ink-200)'
+            : 'var(--ink-100)'
+          const isToday = idx === todayWdsIdx
+          return (
+            <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1 }}>
+              <span className="sm" style={{ fontSize: 10, color: isToday ? 'var(--brand-700)' : 'var(--ink-400)', fontWeight: isToday ? 700 : 400 }}>
+                {label}
+              </span>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: bg,
+                border: `2px solid ${border}`,
+                opacity: isFuture ? 0.3 : 1,
+              }} />
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+        {[
+          { col: protos[0]?.color ?? 'var(--brand-700)', label: 'Tomado' },
+          { col: 'color-mix(in srgb, var(--warning) 35%, transparent)', label: 'Faltó' },
+          { col: 'var(--ink-100)', label: 'Descanso' },
+        ].map(({ col, label }) => (
+          <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: col, border: '1.5px solid var(--border)', flexShrink: 0 }} />
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>{label}</span>
+          </span>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+// ── AdherenciaProyeccionCard: proyección mensual de adherencia ──
+function AdherenciaProyeccionCard() {
+  const { state } = useApp()
+  const now = new Date(state.todayTs)
+  const stat = adherenceMonth(state, now)
+  if (!stat) return null
+
+  const { taken, due, upcoming, scheduled } = stat
+  const projPct = scheduled > 0 ? Math.round(((taken + upcoming) / scheduled) * 100) : 0
+  const need80 = Math.max(0, Math.ceil(0.8 * scheduled) - taken)
+  const canReach = upcoming >= need80
+
+  let msg: string
+  if (projPct >= 80) {
+    msg = `¡Vas al ${projPct}%! Llegarás a tu meta si sigues así.`
+  } else if (canReach) {
+    msg = `Necesitas tomar ${need80} de ${upcoming} dosis restantes para llegar al 80%.`
+  } else {
+    msg = `Con las dosis que quedan podrías llegar a ${projPct}% — cada toma cuenta.`
+  }
+
+  const barColor = projPct >= 80 ? 'var(--success)' : projPct >= 60 ? 'var(--brand-500)' : 'var(--warning)'
+
+  return (
+    <motion.div variants={staggerItem} className="card">
+      <div className="h2" style={{ color: 'var(--ink-900)' }}>¿Llegaré al 80%?</div>
+      <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2, marginBottom: 12 }}>
+        Proyección de adherencia este mes
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+        <span className="mono" style={{ fontSize: 28, fontWeight: 800, color: barColor, lineHeight: 1 }}>{projPct}%</span>
+        <span className="sm" style={{ color: 'var(--ink-400)' }}>proyectado · meta 80%</span>
+      </div>
+      <ProgressBar pct={projPct} color={barColor} />
+      <div style={{ position: 'relative', height: 0 }}>
+        <div style={{
+          position: 'absolute', left: '80%', top: -8,
+          width: 1, height: 14, background: 'var(--ink-300)',
+        }} />
+      </div>
+      <div className="sm" style={{ color: 'var(--ink-700)', marginTop: 14, lineHeight: 1.45 }}>{msg}</div>
+      <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 6 }}>
+        {taken} tomadas · {due - taken} perdidas · {upcoming} pendientes este mes
+      </div>
+    </motion.div>
   )
 }
 
@@ -302,6 +504,13 @@ export function ResumenSemanal() {
                 {!pn.enoughData && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 8 }}>Registra ~14 días para una comparación más sólida.</div>}
               </Card>
             )}
+
+            {/* Comparativa antes/durante protocolo */}
+            <ComparativaCard />
+            {/* Racha semanal con mini-timeline */}
+            <StreakWeekCard />
+            {/* Proyección de adherencia mensual */}
+            <AdherenciaProyeccionCard />
 
             {/* Progreso por producto — todos los que consumes, con sus KPIs de categoría */}
             <ProductCards />

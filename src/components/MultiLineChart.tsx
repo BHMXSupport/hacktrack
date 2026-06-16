@@ -28,6 +28,10 @@ interface Props {
   xTicks?: { t: number; label: string }[]
   refLines?: { y: number; label: string }[]   // líneas horizontales de referencia (p.ej. 25%)
   mode?: 'percent' | 'absolute'
+  verticalRefs?: { t: number; label: string; color?: string }[]
+  secondarySeries?: { points: [number, number][]; color?: string; label?: string }
+  showSecondaryAxis?: boolean
+  domainY2?: [number, number]
 }
 
 const W = 360
@@ -65,6 +69,7 @@ function formatWashout(halfLifeH: number): string {
 
 export function MultiLineChart({
   series, domainX, domainY, nowTs, height = 200, yTicks = [], formatY = (v) => String(Math.round(v)), xTicks = [], refLines = [], mode,
+  verticalRefs = [], secondarySeries, showSecondaryAxis, domainY2,
 }: Props) {
   const reduce = useReducedMotion()
   const svgRef = useRef<SVGSVGElement>(null)
@@ -81,6 +86,18 @@ export function MultiLineChart({
   const sx = (t: number) => PAD.l + ((t - x0) / spanX) * plotW
   const sy = (v: number) => PAD.t + plotH - ((v - y0) / spanY) * plotH
   const nowX = sx(nowTs)
+
+  // secondary axis (Y2) — narrower plot width to avoid overlap
+  const plotW2 = plotW - 22
+  const secDomainY2: [number, number] = domainY2 ?? (() => {
+    if (!secondarySeries || !secondarySeries.points.length) return [0, 1]
+    const vals = secondarySeries.points.map((p) => p[1])
+    return [Math.min(...vals) - 0.5, Math.max(...vals) + 0.5]
+  })()
+  const [y2min, y2max] = secDomainY2
+  const spanY2 = y2max - y2min || 1
+  const sy2 = (v: number) => PAD.t + plotH - ((v - y2min) / spanY2) * plotH
+  const sx2 = (t: number) => PAD.l + ((t - x0) / spanX) * plotW2
 
   // pointer → instante de tiempo (toca/arrastra sobre el plot)
   const onMove = (e: React.PointerEvent) => {
@@ -156,6 +173,19 @@ export function MultiLineChart({
             <text x={W - PAD.r} y={y - 3} textAnchor="end" fontSize={8.5} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
               {r.label}
             </text>
+          </g>
+        )
+      })}
+
+      {/* líneas de referencia VERTICALES (dibujadas antes de las series) */}
+      {verticalRefs.map((r) => {
+        const vx = sx(r.t)
+        if (vx < PAD.l || vx > W - PAD.r) return null
+        const col = r.color ?? 'var(--brand-500)'
+        return (
+          <g key={`vref-${r.t}`}>
+            <line x1={vx} y1={PAD.t} x2={vx} y2={PAD.t + plotH} stroke={col} strokeWidth={1} strokeDasharray="3 4" opacity={0.8} />
+            <text x={vx + 3} y={PAD.t + 10} fontSize={8} fontFamily="JetBrains Mono, monospace" fill={col}>{r.label}</text>
           </g>
         )
       })}
@@ -255,6 +285,42 @@ export function MultiLineChart({
           </g>
         )
       })}
+
+      {/* overlay de serie secundaria (scatter + línea punteada + eje Y2) */}
+      {secondarySeries && secondarySeries.points.length >= 2 && (() => {
+        const col = secondarySeries.color ?? 'var(--ink-400)'
+        const pts2 = secondarySeries.points.filter(([t]) => t >= x0 && t <= x1)
+        const polyPts = pts2.map(([t, v]) => `${sx2(t).toFixed(1)},${sy2(v).toFixed(1)}`).join(' ')
+        return (
+          <g>
+            {pts2.length >= 2 && (
+              <polyline points={polyPts} fill="none" stroke="var(--ink-300)" strokeDasharray="2 3" strokeWidth={1} />
+            )}
+            {pts2.map(([t, v], i) => (
+              <circle key={i} cx={sx2(t)} cy={sy2(v)} r={3} fill={col} />
+            ))}
+            {showSecondaryAxis && (
+              <>
+                {/* ticks min/max del eje Y2 */}
+                <text x={W - 6} y={sy2(y2max) + 3} textAnchor="end" fontSize={8} fontFamily="JetBrains Mono, monospace" fill={col}>{y2max.toFixed(1)}</text>
+                <text x={W - 6} y={sy2(y2min) + 3} textAnchor="end" fontSize={8} fontFamily="JetBrains Mono, monospace" fill={col}>{y2min.toFixed(1)}</text>
+                {/* etiqueta rotada del eje Y2 */}
+                <text
+                  x={W - 6}
+                  y={PAD.t + plotH / 2}
+                  fontSize={8}
+                  fontFamily="JetBrains Mono, monospace"
+                  fill={col}
+                  textAnchor="middle"
+                  transform={`rotate(-90, ${W - 6}, ${PAD.t + plotH / 2})`}
+                >
+                  {secondarySeries.label ?? 'kg'}
+                </text>
+              </>
+            )}
+          </g>
+        )
+      })()}
 
       {/* tooltip táctil — AnimatePresence para fade/slide suave */}
       <AnimatePresence>
