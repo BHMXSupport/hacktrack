@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, adherence, isoKey } from '../lib/store'
 import {
-  compositionDeltas, protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries,
+  compositionDeltas, protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail,
 } from '../lib/nutrition'
 import { Sparkline } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
@@ -94,6 +94,7 @@ export function ResumenSemanal() {
     water += d.water; kcalTot += d.meals.reduce((s, m) => s + m.kcal, 0)
   }
   const streak = compositeStreak(state)
+  const sd = streakDetail(state)
 
   // datos premium
   const comp = compositionDeltas(state)
@@ -239,6 +240,35 @@ export function ResumenSemanal() {
             ) : (
               <Card title="Proyección de meta"><div className="sm" style={{ color: 'var(--ink-400)' }}>Registra tu peso unos días más para construir tu tendencia.</div></Card>
             )}
+
+            {/* Racha y hitos */}
+            <Card title="Racha y hitos" subtitle="Días seguidos con dosis, agua y comida">
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                <span className="mono" style={{ fontSize: 30, fontWeight: 800, color: 'var(--brand-700)' }}>{sd.streak}</span>
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>{sd.streak === 1 ? 'día' : 'días'} de racha</span>
+              </div>
+              {/* condiciones de hoy */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                {([['Dosis', sd.today.dose], ['Agua', sd.today.water], ['Comida', sd.today.meal]] as const).map(([lbl, ok]) => (
+                  <span key={lbl} className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: ok ? 'var(--brand-100)' : 'var(--ink-100)', color: ok ? 'var(--brand-700)' : 'var(--ink-400)', fontWeight: 600 }}>
+                    {ok ? '✓' : '○'} {lbl}
+                  </span>
+                ))}
+              </div>
+              {/* progreso al siguiente hito */}
+              {sd.nextMilestone != null && (() => {
+                const span = sd.nextMilestone - sd.prevMilestone
+                const pct = span > 0 ? ((sd.streak - sd.prevMilestone) / span) * 100 : 0
+                return (
+                  <>
+                    <div style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden', marginBottom: 6 }}>
+                      <div style={{ width: `${Math.max(0, Math.min(100, pct))}%`, height: '100%', background: 'var(--brand-700)', borderRadius: 999 }} />
+                    </div>
+                    <div className="sm" style={{ color: 'var(--ink-700)' }}>Próximo hito: {sd.nextMilestone} días · faltan {sd.nextMilestone - sd.streak}</div>
+                  </>
+                )
+              })()}
+            </Card>
 
             {/* Tendencias */}
             <TrendsCard />

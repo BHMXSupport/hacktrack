@@ -176,6 +176,29 @@ export function compositeStreak(s: AppState, waterGoal = 8): number {
   return streak
 }
 
+// ── Detalle de racha + hito siguiente (gamificación) ──
+const MILESTONES = [7, 14, 30, 60, 90, 180, 365]
+export interface StreakDetail {
+  streak: number
+  today: { dose: boolean; water: boolean; meal: boolean }
+  prevMilestone: number
+  nextMilestone: number | null
+}
+export function streakDetail(s: AppState, waterGoal = 8): StreakDetail {
+  const streak = compositeStreak(s, waterGoal)
+  const k = isoKey(s.todayTs)
+  const nut = s.nutrition[k]
+  const g = s.log.find((x) => x.dateKey === k)
+  const today = {
+    dose: !!g?.items.some((it) => it.type === 'dose'),
+    water: !!nut && nut.water >= waterGoal,
+    meal: !!nut && nut.meals.length > 0,
+  }
+  const next = MILESTONES.find((m) => m > streak) ?? null
+  const prev = [...MILESTONES].reverse().find((m) => m <= streak) ?? 0
+  return { streak, today, prevMilestone: prev, nextMilestone: next }
+}
+
 // ── Señales de la semana: observaciones por plantilla fija (cumplimiento) ──
 export function weeklyInsights(s: AppState): string[] {
   const out: string[] = []
