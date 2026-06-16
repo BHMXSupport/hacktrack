@@ -31,8 +31,12 @@ function loadState(): AppState {
 import { Splash } from './screens/Splash'
 import { Onboarding } from './screens/Onboarding'
 import { Goal } from './screens/Goal'
+import { Baseline } from './screens/Baseline'
+import { MeasurePicker } from './screens/MeasurePicker'
 import { Account } from './screens/Account'
 import { Login } from './screens/Login'
+import { Forgot } from './screens/Forgot'
+import { Welcome } from './screens/Welcome'
 import { Import } from './screens/Import'
 import { Home } from './screens/Home'
 import { Diario } from './screens/Diario'
@@ -177,8 +181,12 @@ function Root() {
     's-splash': Splash,
     's-onboarding': Onboarding,
     's-goal': Goal,
+    's-baseline': Baseline,
+    's-measures': MeasurePicker,
     's-account': Account,
     's-login': Login,
+    's-forgot': Forgot,
+    's-welcome': Welcome,
     's-import': Import,
   }
   const Flow = FLOW[screen]

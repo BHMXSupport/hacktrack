@@ -8,7 +8,7 @@ import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cad
 import { bmiCalc } from './bmi'
 
 export type ScreenId =
-  | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-login' | 's-import' | 's-app'
+  | 's-splash' | 's-onboarding' | 's-goal' | 's-baseline' | 's-measures' | 's-account' | 's-login' | 's-forgot' | 's-welcome' | 's-import' | 's-app'
 export type TabId = 'inicio' | 'diario' | 'protocolo' | 'vida' | 'comida' | 'semana'
 export type ProgresoView = 'cal' | 'avances'
 export type SheetId =
@@ -23,7 +23,12 @@ export interface AppState {
   sheetArg: string | null      // p.ej. id de log a borrar, o producto
 
   curGoal: Category | null
+  secondaryGoals: Category[]                 // objetivos adicionales (multi-goal, máx 3 total)
   selectedMeasures: string[]
+  localOnly: boolean                         // modo sin cuenta (solo local, sin sync en la nube)
+  justOnboarded: boolean                     // pasó el onboarding recién (para Welcome/coachmarks)
+  coachmarksSeen: boolean                    // ya vio el tutorial de coachmarks
+  returnTo: ScreenId | null                  // deep-link de retorno post-auth
   progresoView: ProgresoView                // segmento activo en Progreso (global, para deep-link desde Inicio)
   protocols: Record<string, UserProtocol>  // FUENTE DE VERDAD: un protocolo editable por producto
   activeProduct: string | null             // producto "primario" (cuenta regresiva en Inicio, etc.)
@@ -57,7 +62,12 @@ export const initialState: AppState = {
   sheet: null,
   sheetArg: null,
   curGoal: null,
+  secondaryGoals: [],
   selectedMeasures: [],
+  localOnly: false,
+  justOnboarded: false,
+  coachmarksSeen: false,
+  returnTo: null,
   progresoView: 'cal',
   protocols: {},
   activeProduct: null,
@@ -97,6 +107,14 @@ export type Action =
   | { t: 'sheet'; sheet: SheetId | null; arg?: string | null }
   | { t: 'tick' }                                                     // refresca todayTs (medianoche)
   | { t: 'pickGoal'; cat: Category }                                   // P0-4
+  | { t: 'setGoals'; cats: Category[] }                                // multi-goal (primario + secundarios)
+  | { t: 'setMeasures'; measures: string[] }                           // selector de métricas (onboarding)
+  | { t: 'setBaseline'; peso?: number | null; metaPesoKg?: number | null; est?: number | null } // baseline biométrico
+  | { t: 'setLocalOnly'; value: boolean }                              // modo sin cuenta
+  | { t: 'finishOnboarding' }                                          // marca justOnboarded + va a s-app
+  | { t: 'seenWelcome' }                                               // limpia justOnboarded
+  | { t: 'seenCoachmarks' }                                            // marca tutorial visto
+  | { t: 'setReturnTo'; screen: ScreenId | null }                     // deep-link de retorno
   | { t: 'setProtocol'; product: string }
   | { t: 'setCadence'; cadence: UserCadence }                          // P0-3
   | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar el protocolo en foco de edición
@@ -284,6 +302,30 @@ export function reducer(s: AppState, a: Action): AppState {
         curGoal: a.cat,
         selectedMeasures: [...(MEASURES_BY[a.cat] ?? MEASURES_BY.Explorar)],
       }
+
+    case 'setGoals': {
+      const [primary, ...rest] = a.cats
+      const measures = [...new Set(a.cats.flatMap((c) => MEASURES_BY[c] ?? MEASURES_BY.Explorar))]
+      return { ...s, curGoal: primary ?? s.curGoal, secondaryGoals: rest, selectedMeasures: measures }
+    }
+    case 'setMeasures':
+      return { ...s, selectedMeasures: a.measures }
+    case 'setBaseline': {
+      const p = { ...s.profile }
+      if (a.peso != null) p.peso = a.peso
+      if (a.est != null) p.est = a.est
+      return { ...s, profile: p, ...(a.metaPesoKg != null ? { profile: { ...p, metaPesoKg: a.metaPesoKg } } : {}) }
+    }
+    case 'setLocalOnly':
+      return { ...s, localOnly: a.value }
+    case 'finishOnboarding':
+      return { ...s, justOnboarded: true, screen: 's-app', tab: 'inicio' }
+    case 'seenWelcome':
+      return { ...s, justOnboarded: false }
+    case 'seenCoachmarks':
+      return { ...s, coachmarksSeen: true }
+    case 'setReturnTo':
+      return { ...s, returnTo: a.screen }
 
     case 'setProtocol': {
       // crea el protocolo del producto si no existe y lo deja como activo

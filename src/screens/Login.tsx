@@ -87,7 +87,7 @@ export function Login() {
                 </button>
               </div>
             </div>
-            <button type="button" className="sm" style={{ alignSelf: 'flex-end', background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => dispatch({ t: 'toast', msg: 'Recuperación por correo próximamente' })}>¿Olvidaste tu contraseña?</button>
+            <button type="button" className="sm" style={{ alignSelf: 'flex-end', background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => dispatch({ t: 'go', screen: 's-forgot' })}>¿Olvidaste tu contraseña?</button>
             <button type="submit" className="btn btn-brand" style={{ height: 52, borderRadius: 16, fontSize: 16, marginTop: 4 }}>
               Iniciar sesión
             </button>

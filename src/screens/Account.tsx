@@ -7,6 +7,8 @@ import { BiohackmxConnect } from '../components/BiohackmxConnect'
 import { Disclaimer } from '../components/controls'
 import { AppleLogo, GoogleLogo } from '../components/SocialAuth'
 import { TrustBadge } from '../components/identity'
+import { OnboardingProgress } from '../components/OnboardingProgress'
+import { PrivacyAccordion } from '../components/PrivacyAccordion'
 
 export function Account() {
   const { dispatch } = useApp()
@@ -15,13 +17,21 @@ export function Account() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [tried, setTried] = useState(false)
+  const [accepted, setAccepted] = useState(false)
+
+  const canCreate = name.trim() !== '' && accepted
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setTried(true); return }
+    if (!accepted) return
     dispatch({ t: 'setName', name: name.trim() })
-    dispatch({ t: 'tab', tab: 'inicio' })
-    dispatch({ t: 'go', screen: 's-app' })
+    dispatch({ t: 'go', screen: 's-welcome' })
+  }
+
+  function handleLocalOnly() {
+    dispatch({ t: 'setLocalOnly', value: true })
+    dispatch({ t: 'go', screen: 's-welcome' })
   }
 
   return (
@@ -40,7 +50,7 @@ export function Account() {
     >
       <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ display: 'contents' }}>
 
-      {/* Header — 3 columnas: atrás | logo+wordmark | spacer */}
+      {/* Header — 3 columnas: atrás | progreso | spacer */}
       <motion.div variants={staggerItem}>
         <header
           style={{
@@ -53,27 +63,11 @@ export function Account() {
           <button
             className="iconbtn"
             aria-label="Atrás"
-            onClick={() => dispatch({ t: 'go', screen: 's-goal' })}
+            onClick={() => dispatch({ t: 'go', screen: 's-measures' })}
           >
             <IcBack size={22} />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <IcDrop
-              size={32}
-              style={{ color: 'var(--brand-700)' }}
-              aria-hidden="true"
-            />
-            <span
-              className="h1"
-              style={{
-                color: 'var(--brand-700)',
-                margin: 0,
-                letterSpacing: '-0.01em',
-              }}
-            >
-              Hacktrack
-            </span>
-          </div>
+          <OnboardingProgress step={4} total={4} />
           <div style={{ width: 36 }} />
         </header>
       </motion.div>
@@ -234,12 +228,50 @@ export function Account() {
         <button
           type="submit"
           className="btn btn-brand"
-          disabled={!name.trim()}
-          style={{ height: 52, borderRadius: 16, fontSize: 16, marginTop: 4, opacity: name.trim() ? 1 : 0.5, cursor: name.trim() ? 'pointer' : 'not-allowed' }}
+          aria-disabled={!canCreate}
+          disabled={!canCreate}
+          style={{ height: 52, borderRadius: 16, fontSize: 16, marginTop: 4, opacity: canCreate ? 1 : 0.5, cursor: canCreate ? 'pointer' : 'not-allowed' }}
         >
           Crear cuenta
         </button>
       </form>
+      </motion.div>
+
+      {/* Aviso de Privacidad colapsable + checkbox obligatorio */}
+      <motion.div variants={staggerItem} style={{ marginBottom: 20 }}>
+        <PrivacyAccordion />
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            marginTop: 14,
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={accepted}
+            onChange={(e) => setAccepted(e.target.checked)}
+            aria-required="true"
+            style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--brand-700)', width: 18, height: 18 }}
+          />
+          <span className="sm" style={{ color: 'var(--ink-700)', lineHeight: '1.5' }}>
+            He leído el Aviso de Privacidad y acepto
+          </span>
+        </label>
+      </motion.div>
+
+      {/* Modo local — opción prominente */}
+      <motion.div variants={staggerItem} style={{ marginBottom: 8 }}>
+        <button
+          type="button"
+          className="btn btn-outline"
+          style={{ width: '100%', height: 48, borderRadius: 14, fontSize: 15, fontWeight: 600, color: 'var(--ink-700)' }}
+          onClick={handleLocalOnly}
+        >
+          Continuar sin cuenta · solo local
+        </button>
       </motion.div>
 
       {/* Footer */}
@@ -266,24 +298,6 @@ export function Account() {
 
         {/* Disclaimer de auto-registro */}
         <Disclaimer kind="general" />
-
-        {/* Legal LFPDPPP */}
-        <p
-          className="sm"
-          style={{
-            color: 'var(--ink-400)',
-            fontSize: 12,
-            lineHeight: '1.6',
-            maxWidth: 360,
-          }}
-        >
-          Al crear una cuenta, aceptas nuestra Política de Privacidad y confirmas
-          que has leído el{' '}
-          <strong style={{ color: 'var(--ink-700)' }}>
-            Aviso de Privacidad (LFPDPPP)
-          </strong>{' '}
-          para el manejo seguro de tus datos personales en México.
-        </p>
 
         {/* Insignia de cumplimiento */}
         <TrustBadge />

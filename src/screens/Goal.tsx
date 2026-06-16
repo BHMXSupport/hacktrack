@@ -6,22 +6,36 @@ import { IcBack } from '../components/icons'
 import { Glyph } from '../components/glyphs'
 import { Disclaimer } from '../components/controls'
 import { spring } from '../lib/motion'
+import { OnboardingProgress } from '../components/OnboardingProgress'
 
 const stagger = { animate: { transition: { staggerChildren: 0.07 } } }
 const item = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } }
 
+const MAX_GOALS = 3
+
 export function Goal() {
   const { dispatch } = useApp()
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const handleSelect = (cat: string) => {
-    setSelected(cat)
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) {
+        next.delete(cat)
+      } else if (next.size < MAX_GOALS) {
+        next.add(cat)
+      }
+      return next
+    })
   }
 
   const handleContinue = () => {
-    if (!selected) return
-    dispatch({ t: 'pickGoal', cat: selected as import('../lib/types').Category })
-    dispatch({ t: 'go', screen: 's-account' })
+    if (selected.size === 0) return
+    dispatch({
+      t: 'setGoals',
+      cats: [...selected] as import('../lib/types').Category[],
+    })
+    dispatch({ t: 'go', screen: 's-baseline' })
   }
 
   return (
@@ -40,9 +54,7 @@ export function Goal() {
         >
           <IcBack size={22} />
         </button>
-        <span className="h2" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>
-          Hacktrack
-        </span>
+        <OnboardingProgress step={1} total={4} />
         {/* balancing spacer */}
         <div style={{ width: 36 }} />
       </header>
@@ -57,7 +69,8 @@ export function Goal() {
           ¿Qué quieres lograr?
         </div>
         <div className="body" style={{ color: 'var(--ink-400)', maxWidth: 340, margin: '0 auto' }}>
-          Elige tu enfoque principal para personalizar tu experiencia.
+          Elige tu enfoque principal para personalizar tu experiencia.{' '}
+          <span style={{ color: 'var(--ink-300)' }}>(Elige hasta 3)</span>
         </div>
       </motion.div>
 
@@ -71,7 +84,7 @@ export function Goal() {
         {GOALS.map((g) => {
           const color = CATEGORY_COLOR[g.cat]
           const icon = CATEGORY_ICON[g.cat]
-          const isActive = selected === g.cat
+          const isActive = selected.has(g.cat)
           return (
             <motion.button
               key={g.cat}
@@ -119,7 +132,7 @@ export function Goal() {
                   {g.sub}
                 </div>
               </div>
-              {/* Selection indicator */}
+              {/* Selection indicator — visible en todas las seleccionadas */}
               <AnimatePresence>
                 {isActive && (
                   <motion.div
@@ -151,14 +164,16 @@ export function Goal() {
       <div style={{ padding: '28px 16px 40px', textAlign: 'center' }}>
         <button
           className="btn btn-brand"
-          aria-disabled={!selected}
+          aria-disabled={selected.size === 0}
           onClick={handleContinue}
-          style={{ opacity: selected ? 1 : 0.4, transition: 'opacity 0.2s' }}
+          style={{ opacity: selected.size > 0 ? 1 : 0.4, transition: 'opacity 0.2s' }}
         >
           Continuar
         </button>
         <p className="sm" role="status" style={{ marginTop: 14, color: 'var(--ink-400)' }}>
-          {selected ? 'Podrás ajustar esto más adelante.' : 'Elige una opción para continuar.'}
+          {selected.size > 0
+            ? `${selected.size} objetivo${selected.size > 1 ? 's' : ''} elegido${selected.size > 1 ? 's' : ''}. Podrás ajustar esto más adelante.`
+            : 'Elige al menos una opción para continuar.'}
         </p>
         <Disclaimer kind="general" />
       </div>
