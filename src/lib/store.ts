@@ -153,6 +153,7 @@ export type Action =
   | { t: 'addMeal'; kcal: number; protein?: number | null; carbs?: number | null; fat?: number | null; label?: string; fav?: boolean; ts?: number } // agrega comida (ts = franja elegida)
   | { t: 'addFavMeal'; id: string; portion?: number; ts?: number }    // registra una comida favorita (1-tap, con porción y franja)
   | { t: 'delMeal'; id: string }                                      // elimina una comida
+  | { t: 'editMeal'; id: string; patch: { kcal?: number; protein?: number | null; carbs?: number | null; fat?: number | null; label?: string | null; note?: string | null } } // edita una comida registrada
   | { t: 'delFav'; id: string }                                       // elimina un favorito
   | { t: 'editFav'; id: string; patch: Partial<FoodFav> }             // edita un favorito (nombre/kcal/macros)
   | { t: 'createFav'; fav: Omit<FoodFav, 'id' | 'usoCount'> }         // crea un platillo en la biblioteca (sin registrarlo)
@@ -475,6 +476,13 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'delMeal': {
       const nutrition: AppState['nutrition'] = {}
       for (const [k, v] of Object.entries(s.nutrition)) nutrition[k] = { ...v, meals: v.meals.filter((m) => m.id !== a.id) }
+      return { ...s, nutrition }
+    }
+    case 'editMeal': {
+      const nutrition: AppState['nutrition'] = {}
+      for (const [k, v] of Object.entries(s.nutrition)) {
+        nutrition[k] = { ...v, meals: v.meals.map((m) => (m.id === a.id ? { ...m, ...a.patch } : m)) }
+      }
       return { ...s, nutrition }
     }
     case 'delFav':

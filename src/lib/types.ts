@@ -73,6 +73,7 @@ export interface Meal {
   label?: string | null
   portion?: number      // multiplicador usado (1, 1.5…)
   favId?: string        // favorito de origen (para aprendizaje)
+  note?: string | null  // nota opcional de la comida
 }
 export interface FoodFav {
   id: string

@@ -17,7 +17,7 @@ import { EmptyState } from '../components/EmptyState'
 import { IcDrop, IcClose } from '../components/icons'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
-import type { FoodFav } from '../lib/types'
+import type { FoodFav, Meal } from '../lib/types'
 
 // WATER_GOAL is now dynamic (waterGoalGlasses), kept for backwards-compat w/ compositeStreak
 const WATER_GOAL = 8
@@ -43,6 +43,7 @@ const SLOT_PROMPT: Record<string, string> = {
 }
 // toastId for undo operations
 let _toastUndoId: ReturnType<typeof setTimeout> | null = null
+let _delMealTimer: ReturnType<typeof setTimeout> | null = null
 const porLabel = (p: number | null) => (p == null ? 'auto' : p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}×`)
 const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
 
@@ -118,6 +119,13 @@ export function Alimentacion() {
   const [showSlotDist, setShowSlotDist] = useState(false)
   const [showRecientes, setShowRecientes] = useState(false)
   const [showHeatmap, setShowHeatmap] = useState(false)
+
+  // edición inline de comidas (n°201 + n°221)
+  const [editingMealId, setEditingMealId] = useState<string | null>(null)
+  const [editMealDraft, setEditMealDraft] = useState<{ label: string; kcalStr: string; pStr: string; cStr: string; fStr: string; noteStr: string }>({ label: '', kcalStr: '', pStr: '', cStr: '', fStr: '', noteStr: '' })
+  // undo al borrar comida (n°202)
+  const [pendingDelMeal, setPendingDelMeal] = useState<Meal | null>(null)
+  const [delUndoPending, setDelUndoPending] = useState(false)
 
   // n°356: tamaño de vaso configurable (ml), persiste en localStorage
   const [glassMl, setGlassMl] = useState<number>(() => {
@@ -331,6 +339,62 @@ export function Alimentacion() {
   const undoCopy = () => {
     if (_toastUndoId) clearTimeout(_toastUndoId)
     setUndoPending(false)
+    setToastMsg(null)
+  }
+
+  // ── Abrir edición inline de una comida ──
+  const openEditMeal = (m: Meal) => {
+    setEditingMealId(m.id)
+    setEditMealDraft({
+      label: m.label ?? '',
+      kcalStr: String(m.kcal),
+      pStr: m.protein != null ? String(m.protein) : '',
+      cStr: m.carbs != null ? String(m.carbs) : '',
+      fStr: m.fat != null ? String(m.fat) : '',
+      noteStr: m.note ?? '',
+    })
+  }
+
+  const closeEditMeal = () => setEditingMealId(null)
+
+  const commitEditMeal = (id: string) => {
+    const k = parseFloat(editMealDraft.kcalStr)
+    if (!(k > 0)) { closeEditMeal(); return }
+    tapHaptic()
+    dispatch({
+      t: 'editMeal', id,
+      patch: {
+        kcal: Math.round(k),
+        label: editMealDraft.label.trim() || null,
+        protein: parseFloat(editMealDraft.pStr) > 0 ? parseFloat(editMealDraft.pStr) : null,
+        carbs: parseFloat(editMealDraft.cStr) > 0 ? parseFloat(editMealDraft.cStr) : null,
+        fat: parseFloat(editMealDraft.fStr) > 0 ? parseFloat(editMealDraft.fStr) : null,
+        note: editMealDraft.noteStr.trim().slice(0, 100) || null,
+      },
+    })
+    showToast('✓ Comida actualizada')
+    closeEditMeal()
+  }
+
+  // ── Borrar comida con undo (n°202) ──
+  const handleDelMeal = (m: Meal) => {
+    tapHaptic()
+    setPendingDelMeal(m)
+    setDelUndoPending(true)
+    setToastMsg(`Comida eliminada · Deshacer`)
+    if (_delMealTimer) clearTimeout(_delMealTimer)
+    _delMealTimer = setTimeout(() => {
+      dispatch({ t: 'delMeal', id: m.id })
+      setDelUndoPending(false)
+      setPendingDelMeal(null)
+      setToastMsg(null)
+    }, 3500)
+  }
+
+  const undoDelMeal = () => {
+    if (_delMealTimer) clearTimeout(_delMealTimer)
+    setDelUndoPending(false)
+    setPendingDelMeal(null)
     setToastMsg(null)
   }
 
@@ -801,6 +865,9 @@ export function Alimentacion() {
             {undoPending && (
               <button onClick={undoCopy} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, color: '#fff', fontWeight: 700, cursor: 'pointer', padding: '2px 8px', fontSize: 12 }}>Deshacer</button>
             )}
+            {delUndoPending && (
+              <button onClick={undoDelMeal} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, color: '#fff', fontWeight: 700, cursor: 'pointer', padding: '2px 8px', fontSize: 12 }}>Deshacer</button>
+            )}
           </motion.div>
         )}
 
@@ -839,19 +906,133 @@ export function Alimentacion() {
                   {slots.filter((s) => grouped[s]?.length).map((s) => (
                     <div key={s}>
                       <div className="agenda__day-label sm" style={{ color: 'var(--ink-400)', textTransform: 'capitalize', fontWeight: 700, padding: '4px 0 2px', letterSpacing: '0.01em' }}>{s}</div>
-                      {grouped[s].map((m) => (
-                        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                          <span className="body mono" style={{ fontWeight: 600 }}>{m.kcal}</span>
-                          <span className="sm" style={{ color: 'var(--ink-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {m.label || 'kcal'}
-                            {m.protein ? ` · P: ${m.protein} g` : ''}
-                            {m.carbs ? ` · C: ${m.carbs} g` : ''}
-                            {m.fat ? ` · G: ${m.fat} g` : ''}
-                          </span>
-                          <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 'auto', flexShrink: 0 }}>{fmtTime(m.ts)}</span>
-                          <button aria-label="Eliminar" onClick={() => { tapHaptic(); dispatch({ t: 'delMeal', id: m.id }) }} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><IcClose size={16} /></button>
-                        </div>
-                      ))}
+                      {grouped[s].map((m) => {
+                        // ocultar la fila si está en soft-delete (esperando confirmación de borrado)
+                        if (pendingDelMeal?.id === m.id) return null
+                        const isEditing = editingMealId === m.id
+                        return (
+                          <div key={m.id} style={{ borderRadius: 'var(--r-sm)', border: isEditing ? '1px solid var(--brand-300)' : '1px solid transparent', marginBottom: isEditing ? 6 : 0, overflow: 'hidden', transition: 'border-color 0.15s ease' }}>
+                            {/* Fila principal — tap en kcal/label abre edición */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isEditing ? '6px 8px' : '4px 0' }}>
+                              <button
+                                aria-label="Editar kcal"
+                                onClick={() => isEditing ? commitEditMeal(m.id) : openEditMeal(m)}
+                                style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'baseline', gap: 3 }}
+                              >
+                                <span className="body mono" style={{ fontWeight: 700, color: isEditing ? 'var(--brand-700)' : 'var(--ink-900)' }}>{m.kcal}</span>
+                                <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 10 }}>kcal</span>
+                              </button>
+                              <button
+                                aria-label={`Editar comida: ${m.label ?? 'sin nombre'}`}
+                                onClick={() => isEditing ? commitEditMeal(m.id) : openEditMeal(m)}
+                                style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0, flex: 1, textAlign: 'left', minWidth: 0 }}
+                              >
+                                <div className="sm" style={{ color: 'var(--ink-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                                  {m.label || 'sin nombre'}
+                                  {m.protein ? ` · P: ${m.protein}g` : ''}
+                                  {m.carbs ? ` · C: ${m.carbs}g` : ''}
+                                  {m.fat ? ` · G: ${m.fat}g` : ''}
+                                </div>
+                                {m.note && !isEditing && (
+                                  <div className="xs" style={{ color: 'var(--ink-400)', fontStyle: 'italic', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {m.note}
+                                  </div>
+                                )}
+                              </button>
+                              <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0, fontSize: 11 }}>{fmtTime(m.ts)}</span>
+                              {isEditing ? (
+                                <button
+                                  aria-label="Cancelar edición"
+                                  onClick={closeEditMeal}
+                                  style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0, fontSize: 12 }}
+                                >✕</button>
+                              ) : (
+                                <button
+                                  aria-label="Eliminar"
+                                  onClick={() => handleDelMeal(m)}
+                                  style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
+                                ><IcClose size={16} /></button>
+                              )}
+                            </div>
+                            {/* Acordeón de edición inline */}
+                            <AnimatePresence>
+                              {isEditing && (
+                                <motion.div
+                                  key={`edit-${m.id}`}
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.18 }}
+                                  style={{ overflow: 'hidden' }}
+                                >
+                                  <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border)' }}>
+                                    {/* Nombre */}
+                                    <div>
+                                      <label className="xs" style={{ color: 'var(--ink-400)', display: 'block', marginBottom: 3 }}>Nombre</label>
+                                      <input
+                                        className="field sm"
+                                        value={editMealDraft.label}
+                                        onChange={(e) => setEditMealDraft((d) => ({ ...d, label: e.target.value }))}
+                                        placeholder="Sin nombre"
+                                        style={{ width: '100%' }}
+                                      />
+                                    </div>
+                                    {/* kcal + macros en fila */}
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                      <div style={{ flex: 1 }}>
+                                        <label className="xs" style={{ color: 'var(--ink-400)', display: 'block', marginBottom: 3 }}>kcal</label>
+                                        <input
+                                          className="field sm mono"
+                                          type="number"
+                                          inputMode="numeric"
+                                          value={editMealDraft.kcalStr}
+                                          onChange={(e) => setEditMealDraft((d) => ({ ...d, kcalStr: e.target.value }))}
+                                          style={{ textAlign: 'center' }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') commitEditMeal(m.id) }}
+                                        />
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <label className="xs" style={{ color: 'var(--ink-400)', display: 'block', marginBottom: 3 }}>P (g)</label>
+                                        <input className="field sm" type="number" inputMode="numeric" value={editMealDraft.pStr} onChange={(e) => setEditMealDraft((d) => ({ ...d, pStr: e.target.value }))} style={{ textAlign: 'center' }} />
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <label className="xs" style={{ color: 'var(--ink-400)', display: 'block', marginBottom: 3 }}>C (g)</label>
+                                        <input className="field sm" type="number" inputMode="numeric" value={editMealDraft.cStr} onChange={(e) => setEditMealDraft((d) => ({ ...d, cStr: e.target.value }))} style={{ textAlign: 'center' }} />
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <label className="xs" style={{ color: 'var(--ink-400)', display: 'block', marginBottom: 3 }}>G (g)</label>
+                                        <input className="field sm" type="number" inputMode="numeric" value={editMealDraft.fStr} onChange={(e) => setEditMealDraft((d) => ({ ...d, fStr: e.target.value }))} style={{ textAlign: 'center' }} />
+                                      </div>
+                                    </div>
+                                    {/* Nota opcional ≤100 chars */}
+                                    <div>
+                                      <label className="xs" style={{ color: 'var(--ink-400)', display: 'block', marginBottom: 3 }}>
+                                        Nota (opcional · observacional)
+                                        <span style={{ color: editMealDraft.noteStr.length > 80 ? 'var(--warning)' : 'var(--ink-300)', marginLeft: 6 }}>{editMealDraft.noteStr.length}/100</span>
+                                      </label>
+                                      <input
+                                        className="field sm"
+                                        value={editMealDraft.noteStr}
+                                        onChange={(e) => setEditMealDraft((d) => ({ ...d, noteStr: e.target.value.slice(0, 100) }))}
+                                        placeholder="Ej: con poco aceite, antes del gym…"
+                                        style={{ width: '100%' }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') commitEditMeal(m.id) }}
+                                      />
+                                    </div>
+                                    {/* Guardar */}
+                                    <button
+                                      className="btn btn-brand"
+                                      style={{ height: 36 }}
+                                      disabled={!(parseFloat(editMealDraft.kcalStr) > 0)}
+                                      onClick={() => commitEditMeal(m.id)}
+                                    >Guardar cambios</button>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )
+                      })}
                     </div>
                   ))}
                   {/* §83 — Footer totales del día cuando hay macros */}

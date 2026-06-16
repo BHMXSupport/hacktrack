@@ -110,9 +110,20 @@ function CatCircle({ item }: { item: LogItem }) {
       ? 'dose'
       : item.type === 'skip'
         ? 'skip'
-        : (MEASURE_ICON[item.n]?.icon ?? item.ic ?? 'medidas')
+        : item.type === 'efecto-adverso'
+          ? 'efecto'
+          : item.type === 'ayuno'
+            ? 'hidratacion'
+            : (MEASURE_ICON[item.n]?.icon ?? item.ic ?? 'medidas')
 
-  const cat = item.type === 'skip' ? '#94A3B8' : item.cat
+  const cat =
+    item.type === 'skip'
+      ? '#94A3B8'
+      : item.type === 'efecto-adverso'
+        ? 'var(--error)'
+        : item.type === 'ayuno'
+          ? 'var(--brand-500)'
+          : item.cat
 
   return (
     <div
@@ -358,7 +369,41 @@ function TimelineItem({
                   </span>
                 )}
               </div>
-              {item.type === 'dose' && item.note && (
+              {/* efecto-adverso: badge de severidad + descripción */}
+              {item.type === 'efecto-adverso' && item.severity && (
+                <div style={{ marginTop: 4 }}>
+                  <span
+                    style={{
+                      display: 'inline-flex', alignItems: 'center',
+                      padding: '2px 9px', borderRadius: 999,
+                      background:
+                        item.severity === 'severo'
+                          ? 'color-mix(in srgb, var(--error) 14%, transparent)'
+                          : item.severity === 'moderado'
+                            ? 'color-mix(in srgb, var(--warning) 14%, transparent)'
+                            : 'color-mix(in srgb, var(--ink-400) 12%, transparent)',
+                      color:
+                        item.severity === 'severo'
+                          ? 'var(--error)'
+                          : item.severity === 'moderado'
+                            ? 'var(--warning)'
+                            : 'var(--ink-400)',
+                      border:
+                        item.severity === 'severo'
+                          ? '1px solid color-mix(in srgb, var(--error) 28%, transparent)'
+                          : item.severity === 'moderado'
+                            ? '1px solid color-mix(in srgb, var(--warning) 28%, transparent)'
+                            : '1px solid color-mix(in srgb, var(--ink-400) 22%, transparent)',
+                      fontWeight: 600, fontSize: 11, lineHeight: 1.5,
+                    }}
+                    aria-label={`Severidad: ${item.severity}`}
+                  >
+                    {item.severity === 'leve' ? 'Leve' : item.severity === 'moderado' ? 'Moderado' : 'Severo'}
+                  </span>
+                </div>
+              )}
+              {/* nota libre — visible en todos los tipos */}
+              {item.note && (
                 <div
                   className="sm"
                   style={{ color: 'var(--ink-400)', fontStyle: 'italic', marginTop: 3, lineHeight: 1.35 }}
