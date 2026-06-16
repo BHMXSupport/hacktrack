@@ -11,10 +11,11 @@ const UNIT_OPTIONS = [
   { value: 'mcg' as const, label: 'mcg' },
 ]
 
+// Jeringas de insulina/péptidos = U-100. El selector elige el TAMAÑO del barril (no la concentración).
 const SCALE_OPTIONS = [
-  { value: 40 as SyringeScale, label: 'U-40' },
-  { value: 50 as SyringeScale, label: 'U-50' },
-  { value: 100 as SyringeScale, label: 'U-100' },
+  { value: 30 as SyringeScale, label: '0.3 mL' },
+  { value: 50 as SyringeScale, label: '0.5 mL' },
+  { value: 100 as SyringeScale, label: '1 mL' },
 ]
 
 // La calculadora SOLO convierte la dosis que el usuario teclea (P0-6, guardrail de compliance).
@@ -30,7 +31,9 @@ export function CalcSheet() {
   const agua  = parseFloat(aguaStr)
   const dosis = parseFloat(dosisStr)
 
-  const r = calcRecon({ vial, agua, dosis, unit, scale: state.scale })
+  // normaliza una escala persistida vieja (U-40/U-50 ya no son válidas) → 1 mL por defecto
+  const scale: SyringeScale = ([30, 50, 100] as number[]).includes(state.scale) ? state.scale : 100
+  const r = calcRecon({ vial, agua, dosis, unit, scale })
 
   function handleCopy() {
     if (!r) return
@@ -106,12 +109,12 @@ export function CalcSheet() {
           </div>
         </div>
 
-        {/* Escala de jeringa (P0-6) — persiste en state.scale via dispatch */}
+        {/* Tamaño de jeringa — todas U-100; el barril solo limita la capacidad */}
         <div>
-          <p className="label" style={{ marginBottom: 8 }}>Escala de jeringa</p>
+          <p className="label" style={{ marginBottom: 8 }}>Tamaño de jeringa <span style={{ color: 'var(--ink-300)', fontWeight: 400 }}>· U-100</span></p>
           <Segmented
             options={SCALE_OPTIONS}
-            value={state.scale}
+            value={scale}
             onChange={(v) => dispatch({ t: 'setScale', scale: v })}
           />
         </div>
@@ -132,13 +135,23 @@ export function CalcSheet() {
           >
             <span
               className="mono display-l"
-              style={{ fontSize: 48, fontWeight: 700, color: 'var(--brand-700)', lineHeight: 1 }}
+              style={{ fontSize: 48, fontWeight: 700, color: r.overCapacity ? 'var(--error)' : 'var(--brand-700)', lineHeight: 1 }}
             >
               {r.ui} UI
             </span>
             <span className="sm" style={{ color: 'var(--ink-400)' }}>
-              ≈ {r.mL} mL · {r.conc} mg/mL · jeringa U-{r.scale}
+              ≈ {r.mL} mL · {r.conc} mg/mL · U-100
             </span>
+            {r.overCapacity && (
+              <span className="sm" style={{ color: 'var(--error)', fontWeight: 600, marginTop: 6 }}>
+                No cabe en una jeringa de {r.mlBarril} mL ({r.scale} U). Usa una más grande o más agua.
+              </span>
+            )}
+            {!r.overCapacity && r.lowPrecision && (
+              <span className="sm" style={{ color: 'var(--warning)', marginTop: 6 }}>
+                Menos de 5 UI: difícil de medir con precisión. Considera reconstituir con menos agua.
+              </span>
+            )}
           </div>
         ) : (
           <div

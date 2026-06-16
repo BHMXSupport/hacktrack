@@ -76,14 +76,23 @@ export function PharmaDashboard() {
     )
   }
 
-  // Hay dosis, pero NINGÚN producto es graficable (p.ej. solo NAD+, sin vida media estándar)
+  // Hay dosis pero ninguna serie graficable: o todo es no-graficable (NAD+), o nada tiene
+  // presencia relevante en esta ventana (p.ej. péptidos cortos inyectados hace días, ya decaídos).
   if (data.series.length === 0) {
+    const noHalfLife = data.skipped.length > 0
     return (
       <motion.div variants={staggerItem} className="card" style={{ marginTop: 16, padding: 20 }}>
         <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Vida del péptido en el cuerpo</div>
         <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 8, lineHeight: 1.4 }}>
-          {data.skipped.join(', ')}: sin vida media de eliminación estándar — no se pueden graficar todavía.
+          {noHalfLife
+            ? `${data.skipped.join(', ')}: sin vida media de eliminación estándar — no se pueden graficar todavía.`
+            : 'Ningún producto tiene presencia relevante en esta ventana. Amplía el rango o registra una dosis reciente.'}
         </div>
+        {!noHalfLife && win !== '30d' && (
+          <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px', marginTop: 12 }} onClick={() => setWin('30d')}>
+            Ver 30 días
+          </button>
+        )}
         <p className="sm" style={{ color: 'var(--ink-300)', marginTop: 14, lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
           Estimación educativa. No es consejo médico ni recomendación de dosis.
         </p>

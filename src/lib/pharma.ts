@@ -175,11 +175,22 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
   const series: PharmaSeries[] = []
   let maxMg = 0
   for (const r of rawSeries) {
-    // pico = máx de los instantes analíticos (peakOf) Y de la línea muestreada (captura el pico
-    // combinado de dosis superpuestas que cae entre instantes — fix red-team: evita % > 100)
-    let peakMg = peakOf(r.doses, r.product, r.halfMs)
-    for (const t of ts) peakMg = Math.max(peakMg, amountAt(r.doses, r.product, r.halfMs, t))
+    // mg crudos en cada instante de la ventana; rastrea el máximo presente DENTRO de la ventana
+    let maxRawWin = 0
+    const rawByT = ts.map((t) => {
+      const mg = amountAt(r.doses, r.product, r.halfMs, t)
+      if (mg > maxRawWin) maxRawWin = mg
+      return mg
+    })
+    // pico (para normalizar) = máx de los instantes analíticos (peakOf, todo el historial) y de la ventana
+    const peakMg = Math.max(peakOf(r.doses, r.product, r.halfMs), maxRawWin)
     if (peakMg <= 0) continue
+
+    const dosesInWindow = r.doses.filter((d) => d.ts >= domainX[0] && d.ts <= domainX[1])
+    // FILTRO DE VENTANA: muestra el producto SOLO si tiene una inyección en la ventana
+    // o presencia no-despreciable en ella. Evita que un producto ya decaído (p.ej. SLU-PP, t½ 2h,
+    // inyectado hace días) quede como serie/chip fantasma cuando su presencia es ~0.
+    if (dosesInWindow.length === 0 && maxRawWin <= peakMg * 0.005) continue
     maxMg = Math.max(maxMg, peakMg)
 
     const color = CATEGORY_COLOR[PEPTIDES[r.product]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
@@ -187,10 +198,8 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
       const v = mode === 'percent' ? (mg / peakMg) * 100 : mg
       return Math.abs(v) < THRESHOLD * (mode === 'percent' ? 100 : peakMg) ? 0 : v
     }
-    const points: Pt[] = ts.map((t) => [t, toY(amountAt(r.doses, r.product, r.halfMs, t))])
-    const markers: Pt[] = r.doses
-      .filter((d) => d.ts >= domainX[0] && d.ts <= domainX[1])
-      .map((d) => [d.ts, toY(amountAt(r.doses, r.product, r.halfMs, d.ts))])
+    const points: Pt[] = ts.map((t, i) => [t, toY(rawByT[i])])
+    const markers: Pt[] = dosesInWindow.map((d) => [d.ts, toY(amountAt(r.doses, r.product, r.halfMs, d.ts))])
 
     series.push({
       product: r.product,

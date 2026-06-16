@@ -101,7 +101,8 @@ export interface UserProtocol {
   reminderTime: string // 'HH:MM' hora del recordatorio/toma (para cuenta regresiva)
 }
 
-export type SyringeScale = 40 | 50 | 100
+// Capacidad del barril de la jeringa en unidades (todas escala U-100): 0.3 mL=30U, 0.5 mL=50U, 1 mL=100U
+export type SyringeScale = 30 | 50 | 100
 
 export interface UserSettings {
   pinEnabled: boolean

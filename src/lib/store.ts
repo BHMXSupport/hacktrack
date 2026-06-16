@@ -211,10 +211,12 @@ export function hydrate(s: AppState): AppState {
   }
   const activeProduct = s.activeProduct ?? s.protocol?.product ?? Object.keys(protocols)[0] ?? null
 
-  // Estampa las dosis legado (sin producto) con un producto estable, una sola vez (idempotente).
-  // Así el match es EXACTO en toda la app y no se reatribuyen al cambiar el foco de edición.
+  // Estampa las dosis legado (sin producto) con el producto, SOLO si es inequívoco: hay exactamente
+  // UN protocolo. Con varios protocolos, atribuirlas al activo crea inyecciones fantasma (p.ej. SLU-PP);
+  // mejor dejarlas en null → quedan excluidas de las vistas por-producto. (fix: dosis fantasma en el chart.)
   let log = s.log
-  const anchor = s.protocol?.product ?? activeProduct
+  const names = Object.keys(protocols)
+  const anchor = names.length === 1 ? names[0] : null
   if (anchor && s.log.some((g) => g.items.some((it) => it.type === 'dose' && it.product == null))) {
     log = s.log.map((g) => ({
       ...g,
