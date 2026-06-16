@@ -12,7 +12,7 @@ export type ScreenId =
 export type TabId = 'inicio' | 'diario' | 'protocolo' | 'vida' | 'comida' | 'semana'
 export type ProgresoView = 'cal' | 'avances'
 export type SheetId =
-  | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail'
+  | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail' | 'crear-platillo' | 'recetario'
   | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit' | 'ajustes'
 
 export interface AppState {
@@ -109,6 +109,7 @@ export type Action =
   | { t: 'delMeal'; id: string }                                      // elimina una comida
   | { t: 'delFav'; id: string }                                       // elimina un favorito
   | { t: 'editFav'; id: string; patch: Partial<FoodFav> }             // edita un favorito (nombre/kcal/macros)
+  | { t: 'createFav'; fav: Omit<FoodFav, 'id' | 'usoCount'> }         // crea un platillo en la biblioteca (sin registrarlo)
   | { t: 'copyYesterday' }                                            // copia las comidas de ayer a hoy
   | { t: 'setMacroGoals'; goals: { protein: number; carbs: number; fat: number } | null } // metas de macros
   | { t: 'setKcalGoal'; value: number | null }                        // meta calórica diaria
@@ -366,6 +367,14 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, foodLibrary: s.foodLibrary.filter((f) => f.id !== a.id) }
     case 'editFav':
       return { ...s, foodLibrary: s.foodLibrary.map((f) => (f.id === a.id ? { ...f, ...a.patch } : f)) }
+    case 'createFav': {
+      if (!a.fav.label?.trim() || !(a.fav.kcal > 0)) return s
+      // fusiona por etiqueta si ya existe
+      const i = s.foodLibrary.findIndex((f) => f.label.toLowerCase() === a.fav.label.trim().toLowerCase())
+      const entry: FoodFav = { id: genId(), usoCount: 0, defaultMultiplier: 1, hourBucket: {}, ...a.fav, label: a.fav.label.trim() }
+      if (i >= 0) return { ...s, foodLibrary: s.foodLibrary.map((f, j) => (j === i ? { ...f, ...a.fav, label: a.fav.label.trim() } : f)) }
+      return { ...s, foodLibrary: [entry, ...s.foodLibrary] }
+    }
     case 'setMacroGoals':
       return { ...s, macroGoals: a.goals }
     case 'setKcalGoal':

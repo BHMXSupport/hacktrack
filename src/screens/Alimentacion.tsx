@@ -152,6 +152,8 @@ export function Alimentacion() {
 
           {/* Acciones rápidas */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            <button className="chip" onClick={() => dispatch({ t: 'sheet', sheet: 'crear-platillo' })}>Crear platillo</button>
+            <button className="chip" onClick={() => dispatch({ t: 'sheet', sheet: 'recetario' })}>Recetario ✦</button>
             {hasYesterday && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'copyYesterday' }) }}>Copiar de ayer</button>}
             {day.meals[0] && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: day.meals[0].kcal, protein: day.meals[0].protein, carbs: day.meals[0].carbs, fat: day.meals[0].fat, label: (day.meals[0].label ?? undefined), ts: whenTs }) }}>Repetir última</button>}
           </div>

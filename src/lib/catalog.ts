@@ -236,3 +236,55 @@ export const GOALS: GoalOption[] = [
   { label: 'Cuidar mi piel',      sub: 'Salud dermatológica desde adentro.',            cat: 'Piel' },
   { label: 'Longevidad',          sub: 'Prácticas para una vida más larga y saludable.', cat: 'Anti-Aging' },
 ]
+
+// ── Ingredientes comunes (macros por 100 g/ml) — para "crear platillo" (gratis) ──
+export interface Ingredient { name: string; unit: 'g' | 'ml'; per: number; kcal: number; protein: number; carbs: number; fat: number }
+export const INGREDIENTS: Ingredient[] = [
+  { name: 'Pechuga de pollo', unit: 'g', per: 100, kcal: 165, protein: 31, carbs: 0, fat: 4 },
+  { name: 'Pechuga de pavo', unit: 'g', per: 100, kcal: 135, protein: 29, carbs: 0, fat: 2 },
+  { name: 'Huevo entero', unit: 'g', per: 100, kcal: 155, protein: 13, carbs: 1, fat: 11 },
+  { name: 'Arroz blanco cocido', unit: 'g', per: 100, kcal: 130, protein: 3, carbs: 28, fat: 0 },
+  { name: 'Papa cocida', unit: 'g', per: 100, kcal: 87, protein: 2, carbs: 20, fat: 0 },
+  { name: 'Camote cocido', unit: 'g', per: 100, kcal: 90, protein: 2, carbs: 21, fat: 0 },
+  { name: 'Brócoli', unit: 'g', per: 100, kcal: 34, protein: 3, carbs: 7, fat: 0 },
+  { name: 'Espinaca', unit: 'g', per: 100, kcal: 23, protein: 3, carbs: 4, fat: 0 },
+  { name: 'Jitomate', unit: 'g', per: 100, kcal: 18, protein: 1, carbs: 4, fat: 0 },
+  { name: 'Zanahoria', unit: 'g', per: 100, kcal: 41, protein: 1, carbs: 10, fat: 0 },
+  { name: 'Frijol negro cocido', unit: 'g', per: 100, kcal: 132, protein: 9, carbs: 24, fat: 1 },
+  { name: 'Lentejas cocidas', unit: 'g', per: 100, kcal: 116, protein: 9, carbs: 20, fat: 0 },
+  { name: 'Tortilla de maíz', unit: 'g', per: 100, kcal: 218, protein: 6, carbs: 46, fat: 3 },
+  { name: 'Pan integral', unit: 'g', per: 100, kcal: 247, protein: 9, carbs: 45, fat: 3 },
+  { name: 'Pasta cocida', unit: 'g', per: 100, kcal: 158, protein: 6, carbs: 31, fat: 1 },
+  { name: 'Avena cruda', unit: 'g', per: 100, kcal: 379, protein: 13, carbs: 67, fat: 7 },
+  { name: 'Aguacate', unit: 'g', per: 100, kcal: 160, protein: 2, carbs: 9, fat: 15 },
+  { name: 'Plátano', unit: 'g', per: 100, kcal: 89, protein: 1, carbs: 23, fat: 0 },
+  { name: 'Manzana', unit: 'g', per: 100, kcal: 52, protein: 0, carbs: 14, fat: 0 },
+  { name: 'Leche entera', unit: 'ml', per: 100, kcal: 61, protein: 3, carbs: 5, fat: 3 },
+  { name: 'Yogurt griego natural', unit: 'g', per: 100, kcal: 100, protein: 10, carbs: 4, fat: 5 },
+  { name: 'Queso panela', unit: 'g', per: 100, kcal: 270, protein: 20, carbs: 4, fat: 20 },
+  { name: 'Atún en agua', unit: 'g', per: 100, kcal: 116, protein: 26, carbs: 0, fat: 1 },
+  { name: 'Salmón', unit: 'g', per: 100, kcal: 208, protein: 20, carbs: 0, fat: 13 },
+  { name: 'Carne de res molida 90/10', unit: 'g', per: 100, kcal: 176, protein: 20, carbs: 0, fat: 10 },
+  { name: 'Tofu firme', unit: 'g', per: 100, kcal: 76, protein: 8, carbs: 2, fat: 4 },
+  { name: 'Almendras', unit: 'g', per: 100, kcal: 579, protein: 21, carbs: 22, fat: 50 },
+  { name: 'Crema de cacahuate', unit: 'g', per: 100, kcal: 588, protein: 25, carbs: 20, fat: 50 },
+  { name: 'Semillas de chía', unit: 'g', per: 100, kcal: 486, protein: 17, carbs: 42, fat: 31 },
+  { name: 'Aceite de oliva', unit: 'ml', per: 100, kcal: 884, protein: 0, carbs: 0, fat: 100 },
+]
+
+// ── Recetario (Plus): recetas listas con macros + ingredientes ──
+export interface Recipe { name: string; kcal: number; protein: number; carbs: number; fat: number; ingredients: { name: string; grams: number }[]; prep: string }
+export const RECIPES: Recipe[] = [
+  { name: 'Bowl de pollo y arroz', kcal: 600, protein: 56, carbs: 54, fat: 19,
+    ingredients: [{ name: 'Pechuga de pollo', grams: 150 }, { name: 'Arroz blanco cocido', grams: 150 }, { name: 'Brócoli', grams: 100 }, { name: 'Aguacate', grams: 50 }, { name: 'Aceite de oliva', grams: 5 }],
+    prep: 'Cocina la pechuga a la plancha con aceite y sazona. Sirve sobre el arroz y el brócoli al vapor; corona con aguacate en cubos.' },
+  { name: 'Avena proteica', kcal: 605, protein: 22, carbs: 81, fat: 23,
+    ingredients: [{ name: 'Avena cruda', grams: 60 }, { name: 'Leche entera', grams: 200 }, { name: 'Plátano', grams: 100 }, { name: 'Crema de cacahuate', grams: 20 }, { name: 'Semillas de chía', grams: 10 }],
+    prep: 'Cocina la avena en la leche 3-4 min. Mezcla la crema de cacahuate y las chías; decora con plátano.' },
+  { name: 'Tacos de tinga ligera', kcal: 414, protein: 44, carbs: 36, fat: 13,
+    ingredients: [{ name: 'Pechuga de pollo', grams: 120 }, { name: 'Tortilla de maíz', grams: 60 }, { name: 'Jitomate', grams: 80 }, { name: 'Aguacate', grams: 40 }, { name: 'Espinaca', grams: 30 }],
+    prep: 'Desmenuza la pechuga y saltéala con jitomate y chipotle hasta formar la tinga. Sirve en tortillas con aguacate y espinaca.' },
+  { name: 'Smoothie verde', kcal: 392, protein: 21, carbs: 48, fat: 14,
+    ingredients: [{ name: 'Espinaca', grams: 60 }, { name: 'Plátano', grams: 120 }, { name: 'Leche entera', grams: 200 }, { name: 'Yogurt griego natural', grams: 100 }, { name: 'Semillas de chía', grams: 10 }],
+    prep: 'Licúa todos los ingredientes hasta homogéneo. Sirve de inmediato; agrega hielo si gustas.' },
+]

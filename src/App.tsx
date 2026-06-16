@@ -52,6 +52,8 @@ import { ConfirmDeleteSheet } from './sheets/ConfirmDelete'
 import { ProtocoloEdit } from './sheets/ProtocoloEdit'
 import { Agregar } from './sheets/Agregar'
 import { Medidas } from './sheets/Medidas'
+import { CrearPlatillo } from './sheets/CrearPlatillo'
+import { Recetario } from './sheets/Recetario'
 import { DayDetail } from './sheets/DayDetail'
 
 const fade = sharedAxisX
@@ -109,6 +111,8 @@ const SHEETS = {
   arco: ArcoSheet,
   'confirm-delete': ConfirmDeleteSheet,
   'protocolo-edit': ProtocoloEdit,
+  'crear-platillo': CrearPlatillo,
+  recetario: Recetario,
 } as const
 
 function SheetHost() {
