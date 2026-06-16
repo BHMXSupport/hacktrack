@@ -13,9 +13,9 @@ const UNIT_OPTIONS = [
 
 // Jeringas de insulina/péptidos = U-100. El selector elige el TAMAÑO del barril (no la concentración).
 const SCALE_OPTIONS = [
-  { value: 30 as SyringeScale, label: '0.3 mL' },
-  { value: 50 as SyringeScale, label: '0.5 mL' },
-  { value: 100 as SyringeScale, label: '1 mL' },
+  { value: 30 as SyringeScale, label: '30 U' },
+  { value: 50 as SyringeScale, label: '50 U' },
+  { value: 100 as SyringeScale, label: '100 U' },
 ]
 
 // La calculadora SOLO convierte la dosis que el usuario teclea (P0-6, guardrail de compliance).
@@ -144,7 +144,7 @@ export function CalcSheet() {
             </span>
             {r.overCapacity && (
               <span className="sm" style={{ color: 'var(--error)', fontWeight: 600, marginTop: 6 }}>
-                No cabe en una jeringa de {r.mlBarril} mL ({r.scale} U). Usa una más grande o más agua.
+                No cabe en una jeringa de {r.scale} U.
               </span>
             )}
             {!r.overCapacity && r.lowPrecision && (
