@@ -16,17 +16,29 @@ const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
 const item = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
 const fade = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.18 } }
 
-// ── Barra de adherencia semanal compacta ─────────────────────────────────────
+// ── Barra de adherencia semanal compacta, con hitos 25/50/75% ────────────────
 function AdherenceBar({ pct }: { pct: number }) {
   const clamped = Math.max(0, Math.min(100, pct))
   return (
-    <div style={{ height: 6, background: 'var(--ink-100)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+    <div style={{ position: 'relative', height: 8, background: 'var(--ink-100)', borderRadius: 99, marginTop: 10 }}>
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${clamped}%` }}
         transition={{ duration: dur.draw, ease: ease.decelerate }}
         style={{ height: '100%', background: 'var(--brand-700)', borderRadius: 99 }}
       />
+      {/* hitos pasivos: marca alcanzada = blanca sobre el fill; no alcanzada = tenue */}
+      {[25, 50, 75].map((mk) => (
+        <span
+          key={mk}
+          aria-hidden
+          style={{
+            position: 'absolute', top: 1, bottom: 1, left: `${mk}%`, width: 2, borderRadius: 2,
+            background: clamped >= mk ? 'rgba(255,255,255,0.7)' : 'var(--ink-300)',
+            transform: 'translateX(-1px)',
+          }}
+        />
+      ))}
     </div>
   )
 }
