@@ -216,6 +216,44 @@ export const WDS: [string, number][] = [
 export const WD = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 export const MON = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
+// ── Vida útil de vial reconstituido (loop 167) ───────────────────────────────
+// Guía de manejo (no consejo médico). Días en refrigeración (4–8 °C).
+// Si un péptido no tiene entrada específica, se usa DEFAULT_SHELF_DAYS (conservador = 21 días).
+export const DEFAULT_SHELF_DAYS = 21   // refrigerado — valor conservador para péptidos genéricos
+export const VIAL_SHELF_DAYS: Record<string, number> = {
+  // GLP-1 / metabólicos
+  'Retatrutide':       28,
+  'Tirzepatida':       28,
+  'Semaglutida':       28,
+  'Tesamorelin':       21,
+  '5-Amino-1MQ':       30,
+  'SLU-PP-332':        21,
+  'MOTS-c':            14,
+  // Recuperación
+  'BPC-157':           21,
+  'TB-500':            28,
+  'GHK-Cu':            21,
+  'ARA 290':           21,
+  // Piel
+  'GLOW 70':           21,
+  'KLOW 80':           21,
+  // Anti-Aging
+  'NAD+':              14,
+  'SS-31':             21,
+  'L-Glutathione':     14,
+  // Cognitivo
+  'Semax':             14,
+  'Selank':            14,
+  'DSIP':              21,
+  'Oxytocin':          21,
+  // Crecimiento
+  'CJC 1295 (No DAC)': 21,
+  'Ipamorelin':        21,
+  // Reproductivo
+  'Kisspeptin-10':     21,
+  'PT-141':            21,
+}
+
 // Disclaimers legales — mantener TODAS las instancias, redacción unificada (audit guardrail)
 export const DISCLAIMER = {
   dose:    'Tú registras tu propia dosis. Hacktrack no la calcula ni la prescribe.',

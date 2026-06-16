@@ -1,7 +1,7 @@
 // Hacktrack — store central (Context + reducer). Implementa los fixes P0 + endurecimiento del audit.
 import { createContext, useContext } from 'react'
 import type {
-  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample, Meal, FoodFav, InjectionSite, ThemeMode,
+  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample, Meal, FoodFav, InjectionSite, ThemeMode, ProductReconEntry,
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
@@ -40,7 +40,7 @@ export interface AppState {
   measureValues: Record<string, number>
   history: Record<string, MeasureSample[]>   // serie temporal por KPI/medida (dashboard)
   productDoses: Record<string, { value: number; unit: string }>  // dosis recordada por producto (para "hecho hoy")
-  productRecon: Record<string, { vialMg: number; aguaMl: number }> // reconstitución recordada por producto (UI/mL → mg)
+  productRecon: Record<string, ProductReconEntry> // reconstitución recordada por producto (UI/mL → mg); incluye reconDate opcional
   nutrition: Record<string, { water: number; meals: Meal[] }>        // por dateKey: hidratación + comidas
   foodLibrary: FoodFav[]                                              // comidas frecuentes (registro 1-tap)
   macroGoals: { protein: number; carbs: number; fat: number } | null // metas de macros que define el usuario
@@ -510,8 +510,16 @@ export function reducer(s: AppState, a: Action): AppState {
         log: prependToLog(s.log, item),
         // recuerda la dosis tecleada por producto (alimenta "tus dosis de hoy")
         productDoses: a.value != null ? { ...s.productDoses, [a.product]: { value: a.value, unit: a.unit } } : s.productDoses,
-        // recuerda la reconstitución del producto (para pre-llenar y para "hecho hoy" en UI/mL)
-        productRecon: a.recon ? { ...s.productRecon, [a.product]: a.recon } : s.productRecon,
+        // recuerda la reconstitución del producto (para pre-llenar y para "hecho hoy" en UI/mL).
+        // Si hay recon nueva: preserva reconDate ya existente (no se pisotea al registrar dosis posteriores)
+        // o lo setea a now si es la primera vez (loop 167: fecha de mezcla del vial).
+        productRecon: a.recon ? {
+          ...s.productRecon,
+          [a.product]: {
+            ...a.recon,
+            reconDate: (s.productRecon[a.product]?.reconDate) ?? now.getTime(),
+          },
+        } : s.productRecon,
         // loop 140: actualiza el último sitio de inyección por producto
         lastInjectionSite: a.site ? { ...s.lastInjectionSite, [a.product]: a.site } : s.lastInjectionSite,
         logged: true,

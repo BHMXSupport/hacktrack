@@ -143,6 +143,16 @@ export interface UserProtocol {
   reminderTime: string // 'HH:MM' hora del recordatorio/toma (para cuenta regresiva)
 }
 
+// ── Reconstitución de vial con fecha de mezcla (loop 166/167) ────────────────
+// productRecon[product] = { vialMg, aguaMl, reconDate? }
+// reconDate: epoch ms del momento en que se reconstituyó el vial (lo setea el primer logDose con recon).
+// Retrocompatible: registros previos sin reconDate simplemente no muestran caducidad ni nivel.
+export interface ProductReconEntry {
+  vialMg: number
+  aguaMl: number
+  reconDate?: number   // epoch ms — cuándo se reconstituyó el vial (guía de manejo, no consejo médico)
+}
+
 // Capacidad del barril de la jeringa en unidades (todas escala U-100): 0.3 mL=30U, 0.5 mL=50U, 1 mL=100U
 export type SyringeScale = 30 | 50 | 100
 

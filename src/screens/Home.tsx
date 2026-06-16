@@ -15,6 +15,8 @@ import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, daySt
 import { startOfDay } from '../lib/cadence'
 import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
 import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs } from '../lib/nutrition'
+import { vialDaysLeft, vialExpiryStatus, vialMgConsumed, vialMgRemaining, vialDosesRemaining } from '../lib/calc'
+import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
 import { StreakChip, ProductStreakBadge } from '../components/StreakChip'
 import { CycleStatusCard } from '../components/CycleStatusCard'
 
@@ -212,6 +214,39 @@ export function Home() {
   const waterToday = state.nutrition[todayKey]?.water ?? 0
   const waterGoal = state.profile.peso ? waterGoalGlasses(state.profile.peso) : 8
 
+  // ── Loop 166: Widget de nivel de vial ────────────────────────────────────
+  // Para cada producto trackeado que tenga reconstitución + reconDate registradas,
+  // estima mg restantes y dosis restantes. Solo aparece si hay reconstitución registrada.
+  const vialWidgets = useMemo(() => {
+    return state.importedProducts.flatMap((product) => {
+      const recon = state.productRecon?.[product]
+      if (!recon?.vialMg || !recon?.aguaMl || !recon?.reconDate) return []
+      const { vialMg, reconDate } = recon
+      const shelfDays = VIAL_SHELF_DAYS[product] ?? DEFAULT_SHELF_DAYS
+      const daysLeft = vialDaysLeft(reconDate, shelfDays)
+      const consumed = vialMgConsumed(state.log, product, reconDate)
+      const remaining = vialMgRemaining(vialMg, consumed)
+      const fillPct = Math.max(0, Math.min(100, (remaining / vialMg) * 100))
+      // Dosis típica: la doseMg del registro más reciente para este producto después de reconDate
+      let lastDoseMg: number | null = null
+      let lastDoseTs = -1
+      for (const g of state.log) {
+        for (const it of g.items) {
+          if (it.type === 'dose' && it.product === product && it.ts >= reconDate && it.doseMg != null && it.doseMg > 0) {
+            if (it.ts > lastDoseTs) { lastDoseTs = it.ts; lastDoseMg = it.doseMg }
+          }
+        }
+      }
+      const dosesLeft = vialDosesRemaining(remaining, lastDoseMg ?? 0)
+      // Fecha estimada de próxima reconstitución: reconDate + shelfDays, o cuando se agote (si antes)
+      const expiryTs = reconDate + shelfDays * 86_400_000
+      const expiryDate = new Date(expiryTs)
+      const expiryStr = expiryDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+      const expiryStatus = vialExpiryStatus(daysLeft)
+      return [{ product, vialMg, remaining, fillPct, dosesLeft, expiryStr, expiryStatus, daysLeft }]
+    })
+  }, [state.productRecon, state.log, state.importedProducts, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Item 131: racha global compositeStreak ───────────────────────────────
   const compositeStreak = useMemo(() => computeStreak(state.log, today), [state.log, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -345,6 +380,80 @@ export function Home() {
         <motion.div variants={staggerItem}>
           <ActiveNowChips />
         </motion.div>
+
+        {/* ── Loop 166: Nivel de vial reconstituido ────────────────────────── */}
+        {vialWidgets.length > 0 && (
+          <motion.div
+            variants={staggerItem}
+            style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+          >
+            {vialWidgets.map((w) => {
+              const barColor = w.expiryStatus === 'expired'
+                ? 'var(--error)'
+                : w.expiryStatus === 'soon'
+                ? 'var(--warning)'
+                : w.fillPct > 30
+                ? 'var(--brand-500)'
+                : 'var(--warning)'
+              const labelColor = w.expiryStatus === 'expired'
+                ? 'var(--error)'
+                : w.expiryStatus === 'soon'
+                ? 'var(--warning)'
+                : 'var(--ink-400)'
+              // reconstitución próxima = cuando expire o cuando se agote (guía de manejo)
+              const nextReconLabel = w.expiryStatus === 'expired'
+                ? 'Reconstitución recomendada'
+                : `Próxima reconstitución ~${w.expiryStr}`
+              return (
+                <div
+                  key={w.product}
+                  className="card"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                  aria-label={`Nivel de vial de ${w.product}: ${Math.round(w.fillPct)}% restante. ${nextReconLabel}. Guía de manejo, no consejo médico.`}
+                >
+                  {/* Cabecera: nombre del producto + dosis restantes */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+                      {w.product} · vial
+                    </p>
+                    <p className="sm mono" style={{ margin: 0, color: labelColor, fontWeight: 700 }}>
+                      {w.dosesLeft != null
+                        ? `~${w.dosesLeft} dosis restante${w.dosesLeft === 1 ? '' : 's'}`
+                        : `~${Math.round(w.remaining * 100) / 100} mg`}
+                    </p>
+                  </div>
+
+                  {/* Barra de nivel */}
+                  <div
+                    role="meter"
+                    aria-valuenow={Math.round(w.fillPct)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Nivel de vial: ${Math.round(w.fillPct)}%`}
+                    style={{ height: 5, borderRadius: 999, background: 'var(--ink-100)', overflow: 'hidden' }}
+                  >
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${w.fillPct}%`, background: barColor }}
+                      transition={spring.ui}
+                      style={{ height: '100%', borderRadius: 999 }}
+                    />
+                  </div>
+
+                  {/* Pie: mg usados / totales + próxima reconstitución */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
+                    <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 10 }}>
+                      {Math.round((w.vialMg - w.remaining) * 100) / 100} / {w.vialMg} mg usados
+                    </p>
+                    <p className="sm" style={{ margin: 0, color: labelColor, fontSize: 10, fontWeight: w.expiryStatus !== 'ok' ? 700 : 400 }}>
+                      {nextReconLabel}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </motion.div>
+        )}
 
         {/* ── Item 154: CycleStatusCard — solo si hay protocolo(s) con ciclo on/off ── */}
         {cycleProtocols.length > 0 && (

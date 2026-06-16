@@ -8,6 +8,8 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { presenceNow, PRESENCE_FLOOR_PCT, HALF_LIFE_H, washoutMs } from '../lib/pharma'
 import { spring, staggerParent, staggerItem } from '../lib/motion'
+import { vialDaysLeft, vialExpiryStatus } from '../lib/calc'
+import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
 
 // tiempo hasta washout práctico (~4.32×t½) para un producto dado
 function timeToWashoutMs(product: string, now: number, lastDoseTs: number | undefined): number | null {
@@ -93,6 +95,24 @@ export function ActiveNowChips() {
             ? `${p.product}: ${fmtDuration(remaining)} para washout`
             : undefined
 
+          // Loop 167: caducidad del vial reconstituido
+          const recon = state.productRecon?.[p.product]
+          const reconDate = recon?.reconDate
+          const shelfDays = VIAL_SHELF_DAYS[p.product] ?? DEFAULT_SHELF_DAYS
+          const daysLeft = reconDate != null ? vialDaysLeft(reconDate, shelfDays) : null
+          const expiryStatus = daysLeft != null ? vialExpiryStatus(daysLeft) : null
+          // Solo badge si 'soon' (≤3 días) o 'expired'
+          const showExpiryBadge = expiryStatus === 'soon' || expiryStatus === 'expired'
+          const expiryColor = expiryStatus === 'expired' ? 'var(--error)' : 'var(--warning)'
+          const expiryBg = expiryStatus === 'expired'
+            ? 'color-mix(in srgb, var(--error) 12%, transparent)'
+            : 'color-mix(in srgb, var(--warning) 14%, transparent)'
+          const expiryLabel = expiryStatus === 'expired'
+            ? 'Vial caducado'
+            : daysLeft === 0
+            ? 'Vial: caduca hoy'
+            : `Vial: ${daysLeft} d`
+
           // Loop 150: amplitud del pulso proporcional al pct; suprimido si pct ≤ 20
           const pulseAmplitude = p.pct > 20 ? 1 + (p.pct / 100) * 0.18 : 1
           const dotAnimate = (!prefersReduced && p.pct > 20)
@@ -157,6 +177,29 @@ export function ActiveNowChips() {
                     }}
                     transition={spring.ui}
                   />
+                </span>
+              )}
+
+              {/* Loop 167: badge de caducidad del vial — solo si ≤3 días o caducado */}
+              {showExpiryBadge && (
+                <span
+                  aria-label={expiryStatus === 'expired' ? 'Vial caducado — guía de manejo' : `Vial próximo a caducar: ${daysLeft} días — guía de manejo`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '1px 6px',
+                    borderRadius: 999,
+                    background: expiryBg,
+                    border: `1px solid ${expiryColor}`,
+                    color: expiryColor,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: expiryColor, display: 'block', flexShrink: 0 }} />
+                  {expiryLabel}
                 </span>
               )}
             </motion.button>

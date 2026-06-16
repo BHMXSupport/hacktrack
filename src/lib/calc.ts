@@ -50,6 +50,62 @@ export function copyToRegisterToast(r: ReconResult): string {
   return `Copiado a tu registro: ${r.ui} UI (jeringa U-100) — verifica con tu jeringa`
 }
 
+// ── Vida útil del vial reconstituido (loop 167) ──────────────────────────────
+
+/** Días restantes de vida útil del vial.
+ *  reconDate: epoch ms del momento de reconstitución.
+ *  shelfDays: vida útil en días del producto (ver VIAL_SHELF_DAYS / DEFAULT_SHELF_DAYS en catalog).
+ *  Retorna un número que puede ser negativo (caducado). */
+export function vialDaysLeft(reconDate: number, shelfDays: number): number {
+  const elapsed = (Date.now() - reconDate) / 86_400_000   // días transcurridos
+  return Math.floor(shelfDays - elapsed)                   // días restantes (entero hacia abajo)
+}
+
+/** Estado de caducidad del vial.
+ *  'ok'     → >3 días restantes (verde / sin indicador)
+ *  'soon'   → 0–3 días restantes (naranja: próximo a caducar)
+ *  'expired'→ <0 días (rojo: ya caducó)
+ *  Nota: esta es una guía de manejo, no consejo médico. */
+export function vialExpiryStatus(daysLeft: number): 'ok' | 'soon' | 'expired' {
+  if (daysLeft < 0) return 'expired'
+  if (daysLeft <= 3) return 'soon'
+  return 'ok'
+}
+
+// ── Nivel del vial (loop 166) ─────────────────────────────────────────────────
+
+/** mg consumidos del vial desde la fecha de reconstitución.
+ *  Suma todos los doseMg registrados para `product` con ts >= reconDate en el log.
+ *  Si reconDate es undefined, retorna 0 (sin reconstitución registrada → sin nivel). */
+export function vialMgConsumed(
+  log: Array<{ items: Array<{ type: string; product?: string; doseMg?: number; ts: number }> }>,
+  product: string,
+  reconDate: number | undefined,
+): number {
+  if (reconDate == null) return 0
+  let total = 0
+  for (const g of log) {
+    for (const it of g.items) {
+      if (it.type === 'dose' && it.product === product && it.ts >= reconDate && it.doseMg != null && it.doseMg > 0) {
+        total += it.doseMg
+      }
+    }
+  }
+  return total
+}
+
+/** mg restantes en el vial. Nunca negativo (bottom-out en 0). */
+export function vialMgRemaining(vialMg: number, consumed: number): number {
+  return Math.max(0, vialMg - consumed)
+}
+
+/** Dosis restantes estimadas, dado mg restantes y la dosis típica usada (en mg).
+ *  Retorna null si doseMg <= 0 (no se puede calcular). */
+export function vialDosesRemaining(remainingMg: number, doseMg: number): number | null {
+  if (!(doseMg > 0)) return null
+  return Math.floor(remainingMg / doseMg)
+}
+
 // ¿la unidad necesita la reconstitución del vial para convertirse a mg?
 export function needsRecon(unit: string): boolean {
   return unit === 'UI' || unit === 'clics' || unit === 'mL'
