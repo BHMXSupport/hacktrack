@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, useReducedMotion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
 import { useApp, adherenceMonth, isoKey, computeStreak } from '../lib/store'
-import { CATEGORY_COLOR, MEASURE_ICON, MEASURE_META, WDS } from '../lib/catalog'
+import { CATEGORY_COLOR, MEASURE_ICON, MEASURE_META, WDS, PEPTIDES } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
 import { Sparkline, SparkBar } from '../components/charts'
@@ -214,6 +214,53 @@ export function Home() {
   const waterToday = state.nutrition[todayKey]?.water ?? 0
   const waterGoal = state.profile.peso ? waterGoalGlasses(state.profile.peso) : 8
 
+  // ── Item 124: Glucosa en ayunas widget ───────────────────────────────────
+  const hasMetabolismo = Object.values(state.protocols).some(
+    (p) => PEPTIDES[p.product]?.cat === 'Metabolismo'
+  )
+  const glucosaHoy = (() => {
+    const series = state.history['Glucosa ayunas']
+    if (!series || series.length === 0) return null
+    const sorted = [...series].sort((a, b) => b.ts - a.ts)
+    const lastTs = sorted[0].ts
+    const d = new Date(lastTs)
+    const todayD = new Date(state.todayTs)
+    if (d.toDateString() === todayD.toDateString()) return sorted[0].value
+    return null
+  })()
+  const [glucosaInput, setGlucosaInput] = useState('')
+
+  // ── Item 156: sugerencia post-dosis Metabolismo ───────────────────────────
+  const [showPesoSuggestion, setShowPesoSuggestion] = useState(false)
+  const prevLogLenRef = useRef(0)
+  useEffect(() => {
+    const currentLen = state.log.reduce((s, g) => s + g.items.length, 0)
+    if (currentLen <= prevLogLenRef.current) {
+      prevLogLenRef.current = currentLen
+      return
+    }
+    prevLogLenRef.current = currentLen
+    // Check if the latest item is a Metabolismo dose
+    const latest = state.log[0]?.items[0]
+    if (!latest || latest.type !== 'dose') return
+    const cat = PEPTIDES[latest.product ?? '']?.cat
+    if (cat !== 'Metabolismo') return
+    // Check last Peso entry
+    const pesoSeries = state.history['Peso'] ?? []
+    if (pesoSeries.length === 0) return
+    const lastPesoTs = Math.max(...pesoSeries.map((s) => s.ts))
+    const daysSincePeso = (Date.now() - lastPesoTs) / 86400000
+    if (daysSincePeso < 6) return
+    // Max once per 7 days (use sessionStorage to avoid multiple)
+    try {
+      const key = 'peso-suggest-ts'
+      const last = sessionStorage.getItem(key)
+      if (last && Date.now() - Number(last) < 7 * 86400000) return
+      sessionStorage.setItem(key, String(Date.now()))
+    } catch { /* noop */ }
+    setShowPesoSuggestion(true)
+  }, [state.log])
+
   // ── Loop 166: Widget de nivel de vial ────────────────────────────────────
   // Para cada producto trackeado que tenga reconstitución + reconDate registradas,
   // estima mg restantes y dosis restantes. Solo aparece si hay reconstitución registrada.
@@ -339,6 +386,49 @@ export function Home() {
         onPanEnd={handlePanEnd as Parameters<typeof motion.div>[0]['onPanEnd']}
         style={{ padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}
       >
+
+        {/* Item 156: Sugerencia contextual de Peso tras dosis Metabolismo */}
+        <AnimatePresence>
+          {showPesoSuggestion && (
+            <motion.div
+              key="peso-suggestion"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              style={{
+                background: 'color-mix(in srgb, var(--brand-500) 10%, transparent)',
+                border: '1px solid var(--brand-300)',
+                borderRadius: 'var(--r-md)', padding: '10px 14px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+              }}
+            >
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-700)', flex: 1 }}>
+                ¿Anotas tu peso hoy? Llevas varios días sin medirlo.
+              </p>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button
+                  className="sm"
+                  style={{ fontWeight: 600, color: 'var(--brand-700)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  onClick={() => {
+                    dispatch({ t: 'sheet', sheet: 'medida' })
+                    setShowPesoSuggestion(false)
+                  }}
+                >
+                  Registrar
+                </button>
+                <button
+                  className="sm"
+                  style={{ color: 'var(--ink-400)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  onClick={() => setShowPesoSuggestion(false)}
+                  aria-label="Cerrar sugerencia"
+                >
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── 1. Cabecera: saludo + avatar + trust chip ────────────────── */}
         <motion.section
@@ -512,6 +602,74 @@ export function Home() {
             })}
           </div>
         </motion.div>
+
+        {/* Item 124: Widget glucosa en ayunas (solo con protocolo Metabolismo) */}
+        {hasMetabolismo && (
+          <motion.div
+            variants={staggerItem}
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+                Glucosa en ayunas
+              </p>
+              {glucosaHoy !== null && (
+                <p className="sm mono" style={{ margin: 0, color: 'var(--brand-700)', fontWeight: 700 }}>
+                  {glucosaHoy} mg/dL hoy
+                </p>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder={glucosaHoy !== null ? String(glucosaHoy) : 'mg/dL'}
+                value={glucosaInput}
+                onChange={(e) => setGlucosaInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const v = parseFloat(glucosaInput)
+                    if (!isNaN(v) && v > 0) {
+                      dispatch({ t: 'saveMeasure', name: 'Glucosa ayunas', value: v })
+                      setGlucosaInput('')
+                    }
+                  }
+                }}
+                aria-label="Glucosa en ayunas en mg/dL"
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 'var(--r-sm)',
+                  border: '1.5px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--ink-900)', fontSize: 16, fontFamily: 'inherit',
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={() => {
+                  const v = parseFloat(glucosaInput)
+                  if (!isNaN(v) && v > 0) {
+                    dispatch({ t: 'saveMeasure', name: 'Glucosa ayunas', value: v })
+                    setGlucosaInput('')
+                  }
+                }}
+                disabled={!glucosaInput || isNaN(parseFloat(glucosaInput))}
+                aria-label="Guardar glucosa en ayunas"
+                style={{
+                  height: 40, padding: '0 16px', borderRadius: 'var(--r-sm)',
+                  background: 'var(--brand-700)', color: '#fff', border: 'none',
+                  fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  opacity: !glucosaInput || isNaN(parseFloat(glucosaInput)) ? 0.4 : 1,
+                  transition: 'opacity 0.15s',
+                }}
+              >
+                Guardar
+              </button>
+            </div>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 10 }}>
+              Registro personal — no es consejo médico.
+            </p>
+          </motion.div>
+        )}
 
         {/* ── 1d. "Última toma": evita la duda de doble-dosis ── */}
         <motion.div variants={staggerItem}>

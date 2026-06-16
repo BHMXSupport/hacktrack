@@ -252,6 +252,15 @@ function getTimeGreeting(): { label: string; sub: string | null } {
   return { label: 'Cierre del día', sub: null }
 }
 
+// ── Item 158: chip de franja del día ─────────────────────────────────────────
+function getDaySlot(): { label: string; icon: string } {
+  const h = new Date().getHours()
+  if (h >= 6 && h < 12) return { label: 'Mañana · 6–12h', icon: '🌅' }
+  if (h >= 12 && h < 18) return { label: 'Tarde · 12–18h', icon: '☀️' }
+  if (h >= 18) return { label: 'Noche · 18–24h', icon: '🌙' }
+  return { label: 'Madrugada · 0–6h', icon: '🌃' }
+}
+
 // ── Loop 137: semáforo de ventana de toma (inline — no toca cadence.ts) ────────
 // verde ±0 dentro de la ventana (≤30 min), naranja (31–120 min), rojo (>120 min)
 function windowStatus(tsScheduled: number, nowTs: number, takenTs?: number): 'ok' | 'near' | 'late' | null {
@@ -574,6 +583,32 @@ export function TodayDoses() {
           </span>
         </motion.div>
 
+        {/* Item 158: Chip de franja del día */}
+        {!allDone && (
+          <div style={{ padding: '0 16px 8px' }}>
+            {(() => {
+              const slot = getDaySlot()
+              const nightSlot = slot.label.startsWith('Noche')
+              const hasNocturnalDue = !allDone && prods.some((p) => {
+                const rt = state.protocols[p]?.reminderTime || state.protocol?.reminderTime
+                if (!rt) return false
+                const [hh] = rt.split(':').map(Number)
+                return hh >= 18
+              })
+              return (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99,
+                  background: 'var(--ink-100)', color: 'var(--ink-400)',
+                  border: (nightSlot && hasNocturnalDue) ? '1.5px solid var(--brand-300)' : '1.5px solid transparent',
+                }}>
+                  {slot.icon} {slot.label}
+                </span>
+              )
+            })()}
+          </div>
+        )}
+
         {/* Loop 169: mini-heatmap 7×1 by product — only when expanded */}
         <AnimatePresence initial={false}>
           {!collapsed && (
@@ -651,6 +686,26 @@ export function TodayDoses() {
           ) : (
             // Loop 136: LayoutGroup animation + Loop 137: semáforo
             <motion.div key="rows" layout initial={false}>
+              {/* Item 121: Registrar todo 1-tap */}
+              {doneCount === 0 && activeProds.length > 0 && activeProds.every((p) => doseForProduct(state, p) !== null) && (
+                <div style={{ padding: '10px 16px 6px', borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={() => {
+                      tapHaptic()
+                      activeProds.forEach((p) => markDone(p))
+                    }}
+                    aria-label="Marcar todas las dosis de hoy como hechas"
+                    style={{
+                      width: '100%', height: 36, borderRadius: 999,
+                      border: '1.5px solid var(--brand-300)',
+                      background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)',
+                      color: 'var(--brand-700)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                    }}
+                  >
+                    Marcar todo como hecho · {activeProds.length} dosis
+                  </button>
+                </div>
+              )}
               {prods
                 .slice()
                 .sort((a, b) => {
@@ -726,6 +781,10 @@ export function TodayDoses() {
                               </span>
                             )}
                           </div>
+                          {/* Item 119: badge ¡Perdida! cuando reminderTime ya pasó y no se ha tomado */}
+                          {!taken && !skipped && hasReminder && Date.now() > tsFor(product) && (
+                            <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', padding: '1px 7px', borderRadius: 99, marginTop: 3 }}>¡Perdida!</span>
+                          )}
                         </div>
 
                         {/* Botones de acción: taken → deshacer; skipped → deshacer skip; pending → "Marcar" + "No hoy" */}

@@ -17,32 +17,80 @@ function AdherenceBar({ pct }: { pct: number }) {
   const clamped = Math.max(0, Math.min(100, pct))
   const fillColor =
     clamped >= 75 ? 'var(--success)' : clamped >= 50 ? 'var(--brand-500)' : 'var(--brand-700)'
+  // Item 159: tooltip state para hitos interactivos
+  const [activeTooltip, setActiveTooltip] = useState<number | null>(null)
+
+  const tooltips: Record<number, string> = {
+    25: '25% → 1.75 días perfectos esta semana',
+    50: '50% → semana perfecta completada',
+    75: '75% → objetivo clínico sugerido',
+  }
+
   return (
     <div
       role="progressbar"
       aria-valuenow={clamped}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label="Adherencia semanal"
+      aria-label={`Adherencia semanal: ${clamped}%${clamped < 75 ? ` — próximo hito: ${clamped < 25 ? 25 : clamped < 50 ? 50 : 75}%` : ' — objetivo clínico alcanzado'}`}
       style={{ position: 'relative', height: 8, background: 'var(--ink-100)', borderRadius: 99, marginTop: 10 }}
     >
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${clamped}%` }}
         transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
-        style={{ height: '100%', background: fillColor, borderRadius: 99 }}
+        style={{ position: 'relative', height: '100%', background: fillColor, borderRadius: 99 }}
       />
-      {/* hitos pasivos: marca alcanzada = blanca sobre el fill; no alcanzada = tenue */}
-      {[25, 50, 75].map((mk) => (
+      {/* Item 160: indicador visual "✓" dentro de la barra cuando >= 75% */}
+      {clamped >= 75 && (
         <span
-          key={mk}
           aria-hidden
           style={{
-            position: 'absolute', top: 1, bottom: 1, left: `${mk}%`, width: 2, borderRadius: 2,
-            background: clamped >= mk ? 'rgba(255,255,255,0.7)' : 'var(--ink-300)',
-            transform: 'translateX(-1px)',
+            position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)',
+            fontSize: 6, fontWeight: 900, color: 'rgba(255,255,255,0.8)', lineHeight: 1,
+            pointerEvents: 'none',
           }}
-        />
+        >
+          ✓
+        </span>
+      )}
+      {/* Item 159: hitos interactivos con tooltip */}
+      {[25, 50, 75].map((mk) => (
+        <span key={mk} style={{ position: 'absolute', top: 0, bottom: 0, left: `${mk}%`, transform: 'translateX(-1px)', zIndex: 2 }}>
+          <button
+            aria-label={`Hito ${mk}%: ${tooltips[mk]}`}
+            onClick={() => {
+              setActiveTooltip(activeTooltip === mk ? null : mk)
+              setTimeout(() => setActiveTooltip(null), 1800)
+            }}
+            style={{
+              position: 'absolute', top: 0, bottom: 0, left: 0,
+              width: 2, border: 'none', cursor: 'pointer', padding: 0,
+              background: clamped >= mk ? 'rgba(255,255,255,0.7)' : 'var(--ink-300)',
+              borderRadius: 2,
+            }}
+          />
+          <AnimatePresence>
+            {activeTooltip === mk && (
+              <motion.div
+                key={`tt-${mk}`}
+                initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                style={{
+                  position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)',
+                  background: 'var(--ink-900)', color: 'var(--surface)',
+                  padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
+                  whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 10,
+                  boxShadow: 'var(--e2)',
+                }}
+              >
+                {tooltips[mk]}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </span>
       ))}
     </div>
   )

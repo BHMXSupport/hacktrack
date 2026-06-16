@@ -5,18 +5,79 @@ import type { PanInfo } from 'framer-motion'
 import { useApp, isoKey, trackedProtocols } from '../lib/store'
 import { fmtDate, fmtTime, cadenceLabel } from '../lib/cadence'
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
-import { buildIcs, downloadIcs, upcomingDoses } from '../lib/calendar'
+import { buildIcs, downloadIcs, upcomingDoses, doseTakenOnProduct } from '../lib/calendar'
 import { Segmented } from './controls'
 import { IcBack, IcBell, IcChevron, IcCalendarExport } from './icons'
 import { CalendarMonth } from './CalendarMonth'
 import { CalendarAgenda } from './CalendarAgenda'
 
-type View = 'mes' | 'agenda'
+type View = 'mes' | 'agenda' | '7dias'
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
+
+// ── Item 118: Vista agenda 7 días ────────────────────────────────────────────
+function SevenDayAgenda({ state, now }: { state: ReturnType<typeof useApp>['state']; now: Date }) {
+  const items = upcomingDoses(state, now, 100)
+  // Build next 7 days
+  const days: Date[] = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now)
+    d.setDate(now.getDate() + i)
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
+
+  return (
+    <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {days.map((day) => {
+        const dayItems = items.filter((it) => {
+          const d = new Date(it.date)
+          return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate()
+        })
+        const isToday = day.toDateString() === now.toDateString()
+        return (
+          <div key={day.toISOString()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span className="sm" style={{ fontWeight: isToday ? 700 : 600, color: isToday ? 'var(--brand-700)' : 'var(--ink-700)', minWidth: 80 }}>
+                {isToday ? 'Hoy' : fmtDate(day, now)}
+              </span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              {dayItems.length === 0 && (
+                <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 10 }}>Sin dosis</span>
+              )}
+            </div>
+            {dayItems.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 8 }}>
+                {dayItems.map((it, i) => {
+                  const cat = PEPTIDES[it.product]?.cat
+                  const color = cat ? (CATEGORY_COLOR[cat] ?? 'var(--ink-400)') : 'var(--ink-400)'
+                  const taken = doseTakenOnProduct(state, day, it.product)
+                  return (
+                    <div key={`${it.product}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="sm mono" style={{ color: 'var(--ink-400)', minWidth: 44, fontSize: 11 }}>{fmtTime(it.date)}</span>
+                      <span style={{ width: 7, height: 7, borderRadius: 999, background: color, flexShrink: 0 }} aria-hidden />
+                      <span className="sm" style={{ flex: 1, color: taken ? 'var(--ink-300)' : 'var(--ink-900)', textDecoration: taken ? 'line-through' : 'none' }}>
+                        {it.product}
+                      </span>
+                      {taken && (
+                        <span className="sm" style={{ color: 'var(--success)', fontSize: 10, fontWeight: 600 }}>✓</span>
+                      )}
+                      {isToday && !taken && (
+                        <span className="sm" style={{ color: 'var(--warning)', fontSize: 10, fontWeight: 600 }}>Pendiente</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export function DoseCalendar() {
   const { state } = useApp()
@@ -135,6 +196,7 @@ export function DoseCalendar() {
           options={[
             { value: 'mes', label: 'Mes' },
             { value: 'agenda', label: 'Agenda' },
+            { value: '7dias', label: '7 días' },
           ]}
           value={view}
           onChange={setView}
@@ -252,6 +314,8 @@ export function DoseCalendar() {
             </motion.div>
           </AnimatePresence>
         </motion.div>
+      ) : view === '7dias' ? (
+        <SevenDayAgenda state={state} now={realNow} />
       ) : (
         <CalendarAgenda />
       )}

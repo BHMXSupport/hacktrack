@@ -158,12 +158,15 @@ function AgendaByDay({
   todayKey,
   dispatch,
   pendingSet,
+  timingMap,
 }: {
   groups: { label: string; dayKey: string; entries: { date: Date; product: string }[] }[]
   todayKey: string
   dispatch: (a: import('../lib/store').Action) => void
   /** Set de "product|ts" que tienen toma pendiente (hoy o atrasada, sin marcar) */
   pendingSet: Set<string>
+  /** Item 197: mapa de badges de ventana de toma para dosis ya registradas */
+  timingMap: Record<string, string>
 }) {
   // Loop 174: ref al grupo de hoy para auto-scroll
   const todayRef = useRef<HTMLElement | null>(null)
@@ -225,6 +228,16 @@ function AgendaByDay({
                         dispatch={dispatch}
                       />
                     )}
+                    {/* Item 197: badge de ventana de toma para dosis ya registradas */}
+                    {!isPending && (() => {
+                      const key = `${item.product}|${item.date.getTime()}`
+                      const badge = timingMap[key]
+                      return badge ? (
+                        <span className="sm" style={{ color: 'var(--warning)', fontWeight: 600, fontSize: 10, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                          {badge}
+                        </span>
+                      ) : null
+                    })()}
                   </motion.li>
                 )
               })}
@@ -344,6 +357,27 @@ export function CalendarAgenda() {
   // Set de "product|ts" para lookup O(1)
   const pendingSet = new Set(pending.map((p) => `${p.product}|${p.date.getTime()}`))
 
+  // Item 197: timing badges — compare real ts vs reminderTime for logged doses
+  const timingMap: Record<string, string> = {}
+  for (const group of state.log) {
+    for (const it of group.items) {
+      if (it.type !== 'dose') continue
+      const rt = state.protocols[it.product ?? '']?.reminderTime ?? state.protocol?.reminderTime
+      if (!rt) continue
+      const logged = new Date(it.ts)
+      const expected = new Date(it.ts)
+      const [hh, mm] = rt.split(':').map(Number)
+      expected.setHours(hh, mm, 0, 0)
+      const diffMs = logged.getTime() - expected.getTime()
+      const diffH = Math.round(Math.abs(diffMs) / 3600000 * 10) / 10
+      if (Math.abs(diffMs) > 2 * 3600000) {
+        const sign = diffMs > 0 ? `↑ ${diffH}h tarde` : `↑ ${diffH}h antes`
+        const key = `${it.product}|${expected.getTime()}`
+        timingMap[key] = sign
+      }
+    }
+  }
+
   // Agrupar por día para la vista "Por día"
   // Incluir también las pendientes atrasadas al inicio (antes de los futuros)
   const allItems = [
@@ -425,7 +459,7 @@ export function CalendarAgenda() {
       <AnimatePresence mode="wait" initial={false}>
         {mode === 'day' ? (
           <motion.div key="day" {...sharedAxisX}>
-            <AgendaByDay groups={groups} todayKey={todayKey} dispatch={dispatch} pendingSet={pendingSet} />
+            <AgendaByDay groups={groups} todayKey={todayKey} dispatch={dispatch} pendingSet={pendingSet} timingMap={timingMap} />
           </motion.div>
         ) : (
           <motion.div key="product" {...sharedAxisX}>

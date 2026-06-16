@@ -141,6 +141,34 @@ export function RegistrarSheet() {
   }, [product])
   const showRecon = needsRecon(unit)
 
+  // ── Item 106: advertencia de doble dosis ─────────────────────────────────
+  const doubleDoseWarning = (() => {
+    if (!product) return null
+    let lastTs: number | null = null
+    for (const group of state.log) {
+      for (const it of group.items) {
+        if (it.type === 'dose' && it.product === product) {
+          if (lastTs === null || it.ts > lastTs) {
+            lastTs = it.ts
+          }
+        }
+      }
+    }
+    if (!lastTs) return null
+    const cadMode = (['dia', 'sem', 'mes', 'uso'] as CadMode[]).includes(localCad.mode as CadMode)
+      ? (localCad.mode as CadMode)
+      : 'dia'
+    const windowH = cadMode === 'dia' ? 8 : 12
+    const elapsed = (Date.now() - lastTs) / 3600000
+    if (elapsed >= windowH) return null
+    const elapsedText = elapsed < 1
+      ? `${Math.round(elapsed * 60)} min`
+      : `${elapsed.toFixed(1).replace('.0', '')} h`
+    return { elapsedText, lastTs }
+  })()
+  const [dismissWarning, setDismissWarning] = useState(false)
+  useEffect(() => { setDismissWarning(false) }, [product])
+
   // ── Hora ──────────────────────────────────────────────────────────────────
   const [hora, setHora] = useState('Ahora')
 
@@ -227,6 +255,40 @@ export function RegistrarSheet() {
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 120px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {/* ── Item 106: advertencia de doble dosis ── */}
+        {doubleDoseWarning && !dismissWarning && (
+          <div style={{
+            background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
+            borderRadius: 'var(--r-sm)', padding: '10px 14px',
+            display: 'flex', flexDirection: 'column', gap: 6,
+          }}>
+            <p className="sm" style={{ margin: 0, fontWeight: 700, color: 'var(--warning)' }}>
+              ¡Ya registraste {product} hace {doubleDoseWarning.elapsedText}!
+            </p>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-700)' }}>
+              ¿Seguro que quieres registrar otra dosis?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-outline btn-sm"
+                style={{ width: 'auto', padding: '0 12px', color: 'var(--warning)', borderColor: 'color-mix(in srgb, var(--warning) 50%, transparent)' }}
+                onClick={() => setDismissWarning(true)}
+                aria-label="Sí, registrar de todas formas"
+              >
+                Sí, registrar igual
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ width: 'auto', padding: '0 12px' }}
+                onClick={() => dispatch({ t: 'sheet', sheet: null })}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Producto ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
