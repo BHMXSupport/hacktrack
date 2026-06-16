@@ -149,7 +149,7 @@ export function CalcSheet() {
             )}
             {!r.overCapacity && r.lowPrecision && (
               <span className="sm" style={{ color: 'var(--warning)', marginTop: 6 }}>
-                Menos de 5 UI: difícil de medir con precisión. Considera reconstituir con menos agua.
+                Menos de 5 UI: difícil de medir con precisión.
               </span>
             )}
           </div>
