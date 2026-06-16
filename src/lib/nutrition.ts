@@ -21,7 +21,16 @@ export function dayMacros(meals: { protein?: number | null; carbs?: number | nul
   return { protein: Math.round(protein), carbs: Math.round(carbs), fat: Math.round(fat), hasMacros }
 }
 
-// "Tu fecha de inicio" del protocolo (sin nombrar el péptido): el inicio más antiguo registrado.
+// Producto ancla: el de inicio más antiguo (para nombrar el protocolo en las tarjetas).
+export function anchorProduct(s: AppState): string | null {
+  let best: { product: string; ts: number } | null = null
+  for (const [product, p] of Object.entries(s.protocols)) {
+    if (!best || p.startDate < best.ts) best = { product, ts: p.startDate }
+  }
+  return best?.product ?? null
+}
+
+// Fecha de inicio del protocolo: el inicio más antiguo registrado.
 export function protocolStartTs(s: AppState): number | null {
   const starts = Object.values(s.protocols).map((p) => p.startDate)
   if (starts.length) return Math.min(...starts)

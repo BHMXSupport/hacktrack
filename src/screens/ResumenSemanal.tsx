@@ -1,11 +1,11 @@
 // ResumenSemanal — recap de 7 días + perspectivas Plus (premium).
-// CUMPLIMIENTO: todo observacional; nunca se nombra un péptido junto a un resultado de peso;
-// "desde tu fecha de inicio" sin nombrar el péptido; sin causalidad, sin consejo médico.
+// Muestra los datos DEL USUARIO por protocolo (puede nombrar el producto). App Store: el copy no
+// afirma causalidad/eficacia ni recomienda dosis; "desde que iniciaste <producto>" es solo el ancla temporal.
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, adherence, isoKey } from '../lib/store'
 import {
-  compositionDeltas, protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail,
+  compositionDeltas, protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct,
 } from '../lib/nutrition'
 import { Sparkline } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
@@ -26,9 +26,6 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
     </motion.div>
   )
 }
-const disc = (t: string) => (
-  <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 12, lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>{t}</div>
-)
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 
 // ── Tendencias: selector de ventana con sparkline de peso, calorías/día e hidratación ──
@@ -71,7 +68,6 @@ function TrendsCard() {
         <Row label="Calorías/día" pts={kcalPts} unit="" color="var(--brand-500)" />
         <Row label="Hidratación" pts={waterPts} unit="" color="var(--brand-300)" />
       </div>
-      {disc('Tendencia de tus registros personales. No es evidencia clínica.')}
     </Card>
   )
 }
@@ -104,6 +100,7 @@ export function ResumenSemanal() {
   const insights = weeklyInsights(state)
   const p = state.profile
   const profileComplete = !!(p.edad && p.sexo && p.actividad)
+  const ap = anchorProduct(state)
 
   return (
     <div className="scroll has-nav">
@@ -159,7 +156,7 @@ export function ResumenSemanal() {
 
             {/* Tu protocolo en números — ANCLA */}
             {pn && (pn.deltaKcal != null || pn.weightDelta != null) && (
-              <Card title="Tu protocolo en números" subtitle="Desde tu fecha de inicio">
+              <Card title="Tu protocolo en números" subtitle={ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'}>
                 <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
                   {pn.deltaKcal != null && (
                     <div><div className="mono" style={{ fontSize: 26, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div></div>
@@ -170,13 +167,12 @@ export function ResumenSemanal() {
                 </div>
                 {pn.kcalPoints.length >= 2 && <Sparkline data={pn.kcalPoints.map((x) => x.kcal)} color="var(--brand-500)" w={280} h={36} />}
                 {!pn.enoughData && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 8 }}>Registra ~14 días para una comparación más sólida.</div>}
-                {disc('Datos observacionales de lo que registraste. No implican causalidad ni eficacia clínica.')}
               </Card>
             )}
 
             {/* Composición en movimiento */}
             {comp.length > 0 && (
-              <Card title="Composición en movimiento" subtitle="Desde tu fecha de inicio">
+              <Card title="Composición en movimiento" subtitle={ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {comp.map((c) => {
                     const good = c.delta != null && (c.goodDown ? c.delta < 0 : c.delta > 0)
@@ -192,7 +188,6 @@ export function ResumenSemanal() {
                     )
                   })}
                 </div>
-                {disc('Desde tu fecha de inicio · solo observacional, sin conclusión clínica.')}
               </Card>
             )}
 
@@ -206,7 +201,6 @@ export function ResumenSemanal() {
                     <div><div className="mono" style={{ fontSize: 22, fontWeight: 800, color: m < 0 ? 'var(--brand-700)' : 'var(--warning)' }}>{m > 0 ? '+' : ''}{m}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>{m < 0 ? 'déficit' : 'superávit'}</div></div>
                   ) })()}
                 </div>
-                {disc('Estimación informativa con fórmula estándar (Mifflin-St Jeor). No sustituye orientación profesional.')}
               </Card>
             )}
 
@@ -235,7 +229,6 @@ export function ResumenSemanal() {
                     </>
                   )
                 })()}
-                {disc('Proyección estadística de tu tendencia, no una garantía. No sugiere cambiar tu protocolo.')}
               </Card>
             ) : (
               <Card title="Proyección de meta"><div className="sm" style={{ color: 'var(--ink-400)' }}>Registra tu peso unos días más para construir tu tendencia.</div></Card>
@@ -279,7 +272,6 @@ export function ResumenSemanal() {
                 <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {insights.map((s, i) => (<li key={i} className="sm" style={{ color: 'var(--ink-700)', lineHeight: 1.4 }}>{s}</li>))}
                 </ul>
-                {disc('Observaciones de tus propios registros. Coinciden en el tiempo; no implican causa ni efecto.')}
               </Card>
             )}
 

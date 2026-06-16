@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey } from '../lib/store'
-import { dayMacros, protocolNumbers } from '../lib/nutrition'
+import { dayMacros, protocolNumbers, anchorProduct } from '../lib/nutrition'
 import { Sparkline } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
 import { IcDrop, IcClose } from '../components/icons'
@@ -33,6 +33,7 @@ export function Alimentacion() {
   const [editGoals, setEditGoals] = useState(false)
   const goals = state.macroGoals
   const pn = protocolNumbers(state)
+  const ap = anchorProduct(state)
 
   const water = (delta: number) => { tapHaptic(); dispatch({ t: 'water', delta }) }
   const quickKcal = (n: number) => { tapHaptic(); dispatch({ t: 'addMeal', kcal: n }) }
@@ -198,7 +199,7 @@ export function Alimentacion() {
             <PremiumGate label="Tu protocolo en números — Plus">
               <div className="card">
                 <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Tu protocolo en números</span>
-                <span className="sm" style={{ color: 'var(--ink-400)', display: 'block', marginTop: 2, marginBottom: 10 }}>Desde tu fecha de inicio</span>
+                <span className="sm" style={{ color: 'var(--ink-400)', display: 'block', marginTop: 2, marginBottom: 10 }}>{ap ? `Desde que iniciaste ${ap}` : 'Desde tu fecha de inicio'}</span>
                 <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
                   {pn.deltaKcal != null && (
                     <div><div className="mono" style={{ fontSize: 24, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div></div>
@@ -208,7 +209,6 @@ export function Alimentacion() {
                   )}
                 </div>
                 {pn.kcalPoints.length >= 2 && <Sparkline data={pn.kcalPoints.map((x) => x.kcal)} color="var(--brand-500)" w={280} h={32} />}
-                <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 10, lineHeight: 1.4 }}>Datos observacionales de lo que registraste. No implican causalidad ni eficacia clínica.</div>
               </div>
             </PremiumGate>
           </motion.section>
