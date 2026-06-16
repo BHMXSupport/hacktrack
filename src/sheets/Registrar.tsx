@@ -15,9 +15,9 @@ import type { UserCadence, CadMode } from '../lib/types'
 
 // Unidades disponibles (el usuario elige — NUNCA precargamos dosis)
 type DoseUnit = 'UI' | 'clics' | 'mg' | 'mcg' | 'mL'
+// UI y clics son lo mismo (unidades de la jeringa/pluma) → un solo chip
 const UNITS: { value: DoseUnit; label: string }[] = [
-  { value: 'UI',   label: 'UI' },
-  { value: 'clics', label: 'clics' },
+  { value: 'UI',   label: 'UI/clics' },
   { value: 'mg',   label: 'mg' },
   { value: 'mcg',  label: 'mcg' },
   { value: 'mL',   label: 'mL' },
