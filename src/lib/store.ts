@@ -104,8 +104,8 @@ export type Action =
   | { t: 'setActiveProduct'; product: string }                        // foco de edición (interno, no "activo" visible)
   | { t: 'setProgresoView'; view: ProgresoView }                      // cambia el segmento de Progreso (deep-link)
   | { t: 'water'; delta: number }                                     // hidratación de hoy (± vasos)
-  | { t: 'addMeal'; kcal: number; protein?: number | null; carbs?: number | null; fat?: number | null; label?: string; fav?: boolean } // agrega comida a hoy
-  | { t: 'addFavMeal'; id: string; portion?: number }                 // registra una comida favorita (1-tap, con porción)
+  | { t: 'addMeal'; kcal: number; protein?: number | null; carbs?: number | null; fat?: number | null; label?: string; fav?: boolean; ts?: number } // agrega comida (ts = franja elegida)
+  | { t: 'addFavMeal'; id: string; portion?: number; ts?: number }    // registra una comida favorita (1-tap, con porción y franja)
   | { t: 'delMeal'; id: string }                                      // elimina una comida
   | { t: 'delFav'; id: string }                                       // elimina un favorito
   | { t: 'editFav'; id: string; patch: Partial<FoodFav> }             // edita un favorito (nombre/kcal/macros)
@@ -308,7 +308,7 @@ export function reducer(s: AppState, a: Action): AppState {
       const k = isoKey(s.todayTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       const meal: Meal = {
-        id: genId(), kcal: Math.round(a.kcal), ts: Date.now(),
+        id: genId(), kcal: Math.round(a.kcal), ts: a.ts ?? Date.now(),
         protein: a.protein ?? null, carbs: a.carbs ?? null, fat: a.fat ?? null, label: a.label?.trim() || null, portion: 1,
       }
       const slot = mealSlot(meal.ts)
@@ -332,7 +332,7 @@ export function reducer(s: AppState, a: Action): AppState {
       const k = isoKey(s.todayTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       const meal: Meal = {
-        id: genId(), kcal: Math.round(fav.kcal * por), ts: Date.now(),
+        id: genId(), kcal: Math.round(fav.kcal * por), ts: a.ts ?? Date.now(),
         protein: sc(fav.protein), carbs: sc(fav.carbs), fat: sc(fav.fat),
         label: por !== 1 ? `${fav.label} ×${por}` : fav.label, portion: por, favId: fav.id,
       }

@@ -13,6 +13,20 @@ import type { FoodFav } from '../lib/types'
 
 const WATER_GOAL = 8
 const PORTIONS: (number | null)[] = [null, 0.5, 1, 1.5, 2] // null = "auto" (porción aprendida)
+// franjas seleccionables (key = lo que devuelve mealSlot) + hora representativa para backfill
+const SLOTS: { key: string; short: string; hour: number }[] = [
+  { key: 'desayuno', short: 'Desayuno', hour: 8 },
+  { key: 'colación de la mañana', short: 'Colación AM', hour: 11 },
+  { key: 'comida', short: 'Comida', hour: 14 },
+  { key: 'colación de la tarde', short: 'Colación PM', hour: 17 },
+  { key: 'cena', short: 'Cena', hour: 21 },
+  { key: 'antojo nocturno', short: 'Antojo', hour: 23 },
+]
+function slotTimeToday(key: string, todayTs: number): number {
+  const hour = SLOTS.find((s) => s.key === key)?.hour ?? 12
+  const d = new Date(todayTs); d.setHours(hour, 0, 0, 0)
+  return d.getTime()
+}
 // copy del estado vacío según la franja del día
 const SLOT_PROMPT: Record<string, string> = {
   'desayuno': '¿Qué desayunas? Regístralo abajo y lo recordaré.',
@@ -34,6 +48,7 @@ export function Alimentacion() {
   const macros = dayMacros(day.meals)
 
   const [portion, setPortion] = useState<number | null>(null)
+  const [whenKey, setWhenKey] = useState<string>(() => mealSlot(now))
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const [kcalStr, setKcalStr] = useState('')
@@ -45,20 +60,25 @@ export function Alimentacion() {
 
   const goalKcal = state.kcalGoal ?? tdee(state)
   const goalP = state.macroGoals?.protein ?? null
-  const preds = predictions(state, now, 3)
+  // franja elegida → hora de registro (ahora si es la franja actual, o la hora representativa para backfill)
+  const isNow = whenKey === mealSlot(now)
+  const slotTs = slotTimeToday(whenKey, state.todayTs)
+  const whenTs = isNow ? now : slotTs
+  const whenTag = isNow ? '' : slotTs < now ? ' · atrás' : ' · próxima'
+  const preds = predictions(state, whenTs, 3)
   const results = fuzzySearch(state.foodLibrary, query)
   const yd = new Date(state.todayTs); yd.setDate(yd.getDate() - 1)
   const hasYesterday = (state.nutrition[isoKey(yd.getTime())]?.meals.length ?? 0) > 0
 
   const addWater = (d: number) => { tapHaptic(); dispatch({ t: 'water', delta: d }) }
-  const logFav = (f: FoodFav) => { tapHaptic(); dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined }); setQuery('') }
+  const logFav = (f: FoodFav) => { tapHaptic(); dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined, ts: whenTs }); setQuery('') }
   const multOf = (f: FoodFav) => portion ?? (f.defaultMultiplier && f.defaultMultiplier > 0 ? f.defaultMultiplier : 1)
 
   const createAndLog = () => {
     const k = parseFloat(kcalStr)
     if (!(k > 0)) return
     tapHaptic()
-    dispatch({ t: 'addMeal', kcal: k, protein: parseFloat(pStr) || null, carbs: parseFloat(cStr) || null, fat: parseFloat(fStr) || null, label: query.trim() || undefined, fav: !!query.trim() })
+    dispatch({ t: 'addMeal', kcal: k, protein: parseFloat(pStr) || null, carbs: parseFloat(cStr) || null, fat: parseFloat(fStr) || null, label: query.trim() || undefined, fav: !!query.trim(), ts: whenTs })
     setQuery(''); setKcalStr(''); setPStr(''); setCStr(''); setFStr(''); setShowMacros(false); setCreating(false)
   }
 
@@ -104,8 +124,16 @@ export function Alimentacion() {
 
         {/* ── Predicciones por franja + barra inteligente ── */}
         <motion.section variants={staggerItem} className="card">
+          {/* Selector de franja (permite backfill: agregar a desayuno aunque sea de noche) */}
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 8, paddingBottom: 2 }}>
+            {SLOTS.map((s) => (
+              <button key={s.key} onClick={() => setWhenKey(s.key)} className="sm" style={{ flexShrink: 0, border: 0, borderRadius: 999, padding: '5px 12px', cursor: 'pointer', fontWeight: 600, background: whenKey === s.key ? 'var(--brand-700)' : 'var(--ink-100)', color: whenKey === s.key ? '#fff' : 'var(--ink-400)' }}>
+                {s.short}
+              </button>
+            ))}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>Para tu {mealSlot(now)}</span>
+            <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>Para tu {whenKey}<span style={{ color: 'var(--ink-400)' }}>{whenTag}</span></span>
             <div style={{ display: 'flex', gap: 4 }}>
               {PORTIONS.map((p) => (
                 <button key={String(p)} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 7px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
@@ -132,13 +160,13 @@ export function Alimentacion() {
               })}
             </div>
           ) : (
-            <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>{SLOT_PROMPT[mealSlot(now)] ?? 'Registra tu comida abajo y la recordaré.'}</div>
+            <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>{SLOT_PROMPT[whenKey] ?? 'Registra tu comida abajo y la recordaré.'}</div>
           )}
 
           {/* Acciones rápidas */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
             {hasYesterday && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'copyYesterday' }) }}>Copiar de ayer</button>}
-            {day.meals[0] && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: day.meals[0].kcal, protein: day.meals[0].protein, carbs: day.meals[0].carbs, fat: day.meals[0].fat, label: (day.meals[0].label ?? undefined) }) }}>Repetir última</button>}
+            {day.meals[0] && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: day.meals[0].kcal, protein: day.meals[0].protein, carbs: day.meals[0].carbs, fat: day.meals[0].fat, label: (day.meals[0].label ?? undefined), ts: whenTs }) }}>Repetir última</button>}
           </div>
 
           {/* Barra inteligente: busca en tu biblioteca o crea */}
