@@ -1,13 +1,14 @@
-// Popup al marcar una dosis programada con desfase ≥1h respecto a la hora actual:
-// pregunta si se aplicó a la hora programada o justo ahora, y registra en el diario la hora elegida.
-// Loop 138: campo de nota opcional previo a la confirmación.
-// Loop 139: paso de efecto/síntoma post-dosis (no bloqueante — "Omitir" cierra sin guardar efecto).
+// Popup al marcar una dosis programada con desfase ≥1h respecto a la hora actual.
+// Items: 316 (tercer botón 'Elegir hora exacta' con TimeWheel inline),
+//        317 (haptic + micro-animación de confirmación en ambos botones)
+// Loop 138: campo de nota opcional. Loop 139: paso de efecto/síntoma post-dosis.
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { useApp } from '../lib/store'
 import { fmtTime } from '../lib/cadence'
-import { tapHaptic } from '../lib/haptics'
+import { tapHaptic, mediumHaptic } from '../lib/haptics'
+import { TimeWheel } from '../components/TimeWheel'
 import { EFFECT_OPTIONS } from '../lib/catalog'
 import { dur, ease } from '../lib/motion'
 
@@ -25,6 +26,9 @@ interface Payload {
 // Paso 2 ─ elige efecto/síntoma (o lo omite)
 type Step = 'time' | 'effect'
 
+// item 316: estado del selector de hora exacta
+type TimeMode = 'preset' | 'wheel'
+
 export function DoseConfirm() {
   const { state, dispatch } = useApp()
   const close = () => dispatch({ t: 'sheet', sheet: null })
@@ -39,30 +43,56 @@ export function DoseConfirm() {
   const [note, setNote] = useState('')
   // estado de paso (time → effect)
   const [step, setStep] = useState<Step>('time')
-  // ts elegido (guardado para usarlo en el paso de efecto)
+  // ts elegido
   const [chosenTs, setChosenTs] = useState<number | null>(null)
   // loop 139: texto libre "Otro"
   const [showOtro, setShowOtro] = useState(false)
   const [customEffect, setCustomEffect] = useState('')
 
-  function logWithTime(ts: number) {
-    tapHaptic()
+  // item 316: modo de selección de hora
+  const [timeMode, setTimeMode] = useState<TimeMode>('preset')
+  const [wheelHora, setWheelHora] = useState<string | null>(null)
+
+  // item 317: animación de botón presionado
+  const [pressedBtn, setPressedBtn] = useState<string | null>(null)
+
+  // Parsear hora del TimeWheel a timestamp del día nowTs
+  function parseWheelHora(label: string): number {
+    const m = label.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+    if (!m) return nowTs
+    let h = parseInt(m[1], 10) % 12
+    if (/pm/i.test(m[3])) h += 12
+    const d = new Date(nowTs)
+    d.setHours(h, parseInt(m[2], 10), 0, 0)
+    return d.getTime()
+  }
+
+  function logWithTime(ts: number, btnKey: string) {
+    // item 317: micro-animación + haptic
+    setPressedBtn(btnKey)
+    mediumHaptic()
     const rawNote = note.trim().slice(0, 120) || undefined
-    // keepSheet: true → el sheet permanece abierto para el paso de efecto (paso 2 cierra con close())
-    dispatch({ t: 'logDose', product, value, unit, ts, doseMg, site: suggestedSite, note: rawNote, keepSheet: true })
-    setChosenTs(ts)
-    setStep('effect')
+    setTimeout(() => {
+      dispatch({ t: 'logDose', product, value, unit, ts, doseMg, site: suggestedSite, note: rawNote, keepSheet: true })
+      setChosenTs(ts)
+      setStep('effect')
+      setPressedBtn(null)
+    }, 200)
+  }
+
+  function handleExactTime() {
+    if (!wheelHora) return
+    const ts = parseWheelHora(wheelHora)
+    logWithTime(ts, 'exact')
   }
 
   function commitEffect(effect: string) {
     tapHaptic()
-    // buscar el item recién registrado por producto + ts más reciente
     let itemId: string | undefined
     for (const g of state.log) {
       for (const it of g.items) {
         if (it.type === 'dose' && it.product === product) {
           if (!itemId) itemId = it.id
-          // comparar con el ts elegido (puede ser scheduledTs o nowTs)
           if (chosenTs != null && Math.abs(it.ts - chosenTs) < 2000) { itemId = it.id; break }
         }
       }
@@ -75,6 +105,11 @@ export function DoseConfirm() {
     tapHaptic()
     close()
   }
+
+  // item 317: variantes de animación para botones de confirmación
+  const btnAnimate = (key: string) => pressedBtn === key
+    ? { scale: [1, 0.95, 1.03, 1], opacity: [1, 0.7, 1] }
+    : {}
 
   const btn = {
     height: 60, borderRadius: 16, display: 'flex', flexDirection: 'column' as const,
@@ -97,52 +132,92 @@ export function DoseConfirm() {
               <strong>{product}</strong>{value != null ? ` · ${value} ${unit}` : ''}. Tu hora programada no coincide con la hora actual — elige cuándo te la pusiste.
             </p>
 
-            {/* Loop 138: campo de nota opcional */}
+            {/* Loop 138: nota opcional */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label className="sm" style={{ color: 'var(--ink-400)', fontWeight: 500 }} htmlFor="dc-note">
                 Nota opcional
               </label>
               <input
-                id="dc-note"
-                type="text"
-                maxLength={120}
-                value={note}
+                id="dc-note" type="text" maxLength={120} value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="ej: abdomen, náusea leve, energía…"
                 aria-label="Nota de la dosis (máx. 120 caracteres)"
                 style={{
-                  padding: '7px 10px',
-                  borderRadius: 'var(--r-sm)',
-                  border: '1.5px solid var(--border)',
-                  background: 'var(--bg)',
-                  color: 'var(--ink-900)',
-                  fontSize: 13,
-                  outline: 'none',
-                  fontFamily: 'inherit',
-                  width: '100%',
-                  boxSizing: 'border-box',
+                  padding: '7px 10px', borderRadius: 'var(--r-sm)',
+                  border: '1.5px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--ink-900)', fontSize: 13, outline: 'none',
+                  fontFamily: 'inherit', width: '100%', boxSizing: 'border-box',
                 }}
               />
               {note.length > 100 && (
-                <span className="sm" style={{ color: 'var(--ink-300)', textAlign: 'right' }}>
-                  {note.length}/120
-                </span>
+                <span className="sm" style={{ color: 'var(--ink-300)', textAlign: 'right' }}>{note.length}/120</span>
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button className="btn btn-brand" style={btn} onClick={() => logWithTime(scheduledTs)}>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>A mi hora programada</span>
-                <span className="sm mono" style={{ opacity: 0.85 }}>{fmtTime(new Date(scheduledTs))}</span>
+            {/* item 316: toggle entre presets y hora exacta */}
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+              <button onClick={() => setTimeMode('preset')}
+                style={{
+                  padding: '4px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: timeMode === 'preset' ? '2px solid var(--brand-700)' : '1.5px solid var(--border)',
+                  background: timeMode === 'preset' ? 'color-mix(in srgb, var(--brand-700) 10%, transparent)' : 'transparent',
+                  color: timeMode === 'preset' ? 'var(--brand-700)' : 'var(--ink-400)',
+                }}>
+                Presets
               </button>
-              <button className="btn btn-outline" style={btn} onClick={() => logWithTime(nowTs)}>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>Ahora mismo</span>
-                <span className="sm mono" style={{ color: 'var(--ink-400)' }}>{fmtTime(new Date(nowTs))}</span>
+              <button onClick={() => setTimeMode('wheel')}
+                style={{
+                  padding: '4px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: timeMode === 'wheel' ? '2px solid var(--brand-700)' : '1.5px solid var(--border)',
+                  background: timeMode === 'wheel' ? 'color-mix(in srgb, var(--brand-700) 10%, transparent)' : 'transparent',
+                  color: timeMode === 'wheel' ? 'var(--brand-700)' : 'var(--ink-400)',
+                }}>
+                Hora exacta
               </button>
             </div>
+
+            <AnimatePresence mode="wait">
+              {timeMode === 'preset' ? (
+                <motion.div key="presets"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* item 317: micro-animación en botones */}
+                  <motion.button className="btn btn-brand" style={btn}
+                    animate={btnAnimate('scheduled')}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    onClick={() => logWithTime(scheduledTs, 'scheduled')}>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>A mi hora programada</span>
+                    <span className="sm mono" style={{ opacity: 0.85 }}>{fmtTime(new Date(scheduledTs))}</span>
+                  </motion.button>
+                  <motion.button className="btn btn-outline" style={btn}
+                    animate={btnAnimate('now')}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    onClick={() => logWithTime(nowTs, 'now')}>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>Ahora mismo</span>
+                    <span className="sm mono" style={{ color: 'var(--ink-400)' }}>{fmtTime(new Date(nowTs))}</span>
+                  </motion.button>
+                </motion.div>
+              ) : (
+                /* item 316: TimeWheel inline para hora exacta */
+                <motion.div key="wheel"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <TimeWheel onChange={(label) => setWheelHora(label)} />
+                  <motion.button className="btn btn-brand" style={{ ...btn, height: 52 }}
+                    animate={btnAnimate('exact')}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    disabled={!wheelHora}
+                    onClick={handleExactTime}>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>
+                      Registrar a las {wheelHora ?? '—'}
+                    </span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ) : (
-          /* Loop 139: paso de efecto/síntoma — dato observacional, sin claims de eficacia */
+          /* Loop 139: paso de efecto/síntoma — dato observacional */
           <motion.div
             key="step-effect"
             initial={{ opacity: 0, x: 12 }}
@@ -160,23 +235,18 @@ export function DoseConfirm() {
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {EFFECT_OPTIONS.filter((o) => o !== 'Otro').map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => commitEffect(opt)}
+                <button key={opt} onClick={() => commitEffect(opt)}
                   style={{
                     height: 36, padding: '0 14px', borderRadius: 999,
                     fontSize: 13, fontWeight: 500, cursor: 'pointer',
                     border: '1.5px solid var(--border)',
-                    background: 'transparent',
-                    color: 'var(--ink-700)',
+                    background: 'transparent', color: 'var(--ink-700)',
                     transition: 'all 0.12s ease',
-                  }}
-                >
+                  }}>
                   {opt}
                 </button>
               ))}
-              <button
-                onClick={() => { tapHaptic(); setShowOtro((v) => !v) }}
+              <button onClick={() => { tapHaptic(); setShowOtro((v) => !v) }}
                 style={{
                   height: 36, padding: '0 14px', borderRadius: 999,
                   fontSize: 13, fontWeight: 500, cursor: 'pointer',
@@ -184,56 +254,35 @@ export function DoseConfirm() {
                   background: showOtro ? 'color-mix(in srgb, var(--brand-500) 10%, transparent)' : 'transparent',
                   color: showOtro ? 'var(--brand-700)' : 'var(--ink-700)',
                   transition: 'all 0.12s ease',
-                }}
-              >
+                }}>
                 Otro
               </button>
             </div>
 
-            {/* Campo de texto "Otro" */}
             <AnimatePresence initial={false}>
               {showOtro && (
-                <motion.div
-                  key="otro"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
+                <motion.div key="otro"
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  style={{ overflow: 'hidden' }}
-                >
+                  style={{ overflow: 'hidden' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="text"
-                      maxLength={80}
-                      value={customEffect}
+                    <input type="text" maxLength={80} value={customEffect}
                       onChange={(e) => setCustomEffect(e.target.value)}
                       placeholder="Describe cómo te sientes…"
-                      aria-label="Efecto personalizado"
-                      autoFocus
+                      aria-label="Efecto personalizado" autoFocus
                       style={{
-                        flex: 1,
-                        padding: '7px 10px',
-                        borderRadius: 'var(--r-sm)',
-                        border: '1.5px solid var(--border)',
-                        background: 'var(--bg)',
-                        color: 'var(--ink-900)',
-                        fontSize: 13,
-                        outline: 'none',
-                        fontFamily: 'inherit',
-                      }}
-                    />
-                    <button
-                      onClick={() => { if (customEffect.trim()) commitEffect(customEffect.trim()) }}
+                        flex: 1, padding: '7px 10px', borderRadius: 'var(--r-sm)',
+                        border: '1.5px solid var(--border)', background: 'var(--bg)',
+                        color: 'var(--ink-900)', fontSize: 13, outline: 'none', fontFamily: 'inherit',
+                      }} />
+                    <button onClick={() => { if (customEffect.trim()) commitEffect(customEffect.trim()) }}
                       disabled={!customEffect.trim()}
                       style={{
                         height: 36, padding: '0 12px', borderRadius: 'var(--r-sm)',
                         fontSize: 13, fontWeight: 600, cursor: customEffect.trim() ? 'pointer' : 'not-allowed',
                         border: 'none', background: 'var(--brand-700)', color: 'var(--ink-0)',
-                        opacity: customEffect.trim() ? 1 : 0.4,
-                        transition: 'opacity 0.12s ease',
-                        flexShrink: 0,
-                      }}
-                    >
+                        opacity: customEffect.trim() ? 1 : 0.4, transition: 'opacity 0.12s ease', flexShrink: 0,
+                      }}>
                       Guardar
                     </button>
                   </div>
@@ -241,11 +290,8 @@ export function DoseConfirm() {
               )}
             </AnimatePresence>
 
-            <button
-              onClick={skipEffect}
-              className="btn btn-outline"
-              style={{ height: 44, borderRadius: 12, fontWeight: 500, fontSize: 14 }}
-            >
+            <button onClick={skipEffect} className="btn btn-outline"
+              style={{ height: 44, borderRadius: 12, fontWeight: 500, fontSize: 14 }}>
               Omitir
             </button>
           </motion.div>

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, adherence, isoKey } from '../lib/store'
-import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
-import { cadenceLabel } from '../lib/cadence'
+import { PEPTIDES, CATEGORY_COLOR, MEASURES_BY } from '../lib/catalog'
+
+import { cadenceLabel, cyclePhase } from '../lib/cadence'
 import { dur, ease, spring, sharedAxisX, staggerParent, staggerItem } from '../lib/motion'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
 import { DoseCalendar } from '../components/DoseCalendar'
@@ -11,6 +12,7 @@ import { AdherenceRing } from '../components/AdherenceRing'
 import { BiohackmxFlask } from '../components/BiohackmxFlask'
 import { IcDrop, IcBack, IcChevron } from '../components/icons'
 import { EmptyState } from '../components/EmptyState'
+import { Sparkline } from '../components/charts'
 
 // ── Barra de adherencia semanal compacta, con hitos 25/50/75% ────────────────
 function AdherenceBar({ pct }: { pct: number }) {
@@ -358,6 +360,39 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
               >
                 Editar protocolo
               </motion.button>
+              {/* n°481: duplicar protocolo como variante */}
+              <motion.button
+                className="btn btn-outline btn-sm"
+                style={{ width: 'auto', padding: '0 12px' }}
+                whileTap={{ scale: 0.97 }}
+                transition={spring.ui}
+                aria-label={`Duplicar ${p.product}`}
+                onClick={() => {
+                  const candidates = Object.keys(PEPTIDES).filter((k) => !state.protocols[k] && k !== p.product)
+                  if (candidates.length === 0) {
+                    dispatch({ t: 'toast', msg: 'No hay productos disponibles para duplicar' })
+                    return
+                  }
+                  // Duplicate to first available product not in protocols — user can rename via edit
+                  const target = candidates[0]
+                  dispatch({ t: 'setProtocol', product: target })
+                  dispatch({
+                    t: 'updateProtocolFor',
+                    product: target,
+                    patch: {
+                      cadence: { ...p.cadence },
+                      progOn: p.progOn,
+                      progN: p.progN,
+                      curPhase: p.curPhase,
+                      phaseDoses: p.phaseDoses ? [...p.phaseDoses] : undefined,
+                      reminderTime: p.reminderTime,
+                    },
+                  })
+                  dispatch({ t: 'toast', msg: `Protocolo duplicado a ${target} — edítalo para ajustarlo` })
+                }}
+              >
+                Duplicar
+              </motion.button>
               <motion.button
                 className="btn btn-ghost btn-sm"
                 style={{ width: 'auto', padding: '0 12px', marginLeft: 'auto', color: 'var(--error)' }}
@@ -412,6 +447,157 @@ function ReconstitutionButton() {
         </span>
         <IcChevron size={18} style={{ marginLeft: 'auto', color: 'var(--ink-300)', flexShrink: 0 }} />
       </motion.button>
+    </motion.div>
+  )
+}
+
+// ── Tarjeta fase OFF (#422) ───────────────────────────────────────────────────
+function OffPhaseCards() {
+  const { state } = useApp()
+  const today = new Date(state.todayTs)
+  const offProtos = Object.values(state.protocols).filter((p) => {
+    if (p.cadence.mode !== 'ciclo') return false
+    const info = cyclePhase(p.cadence, today, new Date(p.startDate))
+    return info?.phase === 'off'
+  })
+  if (offProtos.length === 0) return null
+  return (
+    <>
+      {offProtos.map((p) => {
+        const info = cyclePhase(p.cadence, today, new Date(p.startDate))!
+        const entry = PEPTIDES[p.product]
+        const suggestedMeasures = entry ? (MEASURES_BY[entry.cat] ?? []).slice(0, 3) : []
+        return (
+          <motion.div key={`off-${p.product}`} variants={staggerItem} className="card" style={{ marginTop: 16, borderLeft: '3px solid var(--ink-200)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
+                Fase OFF · {p.product}
+              </span>
+              <span className="chip sm" style={{ background: 'var(--ink-100)', color: 'var(--ink-400)', fontWeight: 700, fontSize: 11 }}>
+                Día {info.dayInPhase} · {info.daysLeft} restantes
+              </span>
+            </div>
+            <p className="sm" style={{ color: 'var(--ink-700)', margin: '0 0 10px' }}>
+              Estás en descanso del protocolo. Momento ideal para verificar medidas de referencia.
+            </p>
+            {suggestedMeasures.length > 0 && (
+              <div>
+                <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>Medir durante el OFF:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {suggestedMeasures.map((m: string) => (
+                    <span key={m} className="chip sm" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ink-700)' }}>{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="xs" style={{ color: 'var(--ink-300)', margin: '8px 0 0', fontSize: 11 }}>
+              Comparación on vs off disponible al iniciar el siguiente ciclo ON.
+            </p>
+          </motion.div>
+        )
+      })}
+    </>
+  )
+}
+
+// ── Correlación KPI ↔ dosis (#376) ────────────────────────────────────────────
+function KpiCorrelationCard() {
+  const { state, dispatch } = useApp()
+  const products = Object.keys(state.protocols)
+  const [selProduct, setSelProduct] = useState<string>(products[0] ?? '')
+  const [selKpi, setSelKpi] = useState<string>('')
+
+  const kpiOptions = useMemo(() => {
+    return Object.keys(state.history).filter((k) => (state.history[k]?.length ?? 0) > 0)
+  }, [state.history])
+
+  const activeKpi = selKpi || kpiOptions[0] || ''
+
+  // Build 8-week timeline: dates × dose taken (0|1) × KPI value (or null)
+  const chartData = useMemo(() => {
+    if (!selProduct || !activeKpi) return []
+    const logGroups = state.log ?? []
+    const kpiSeries = state.history[activeKpi] ?? []
+    const today = new Date(state.todayTs)
+    // Build a Set of dateKeys where selProduct was dosed
+    const dosedDays = new Set<string>()
+    for (const grp of logGroups) {
+      const hasDose = grp.items.some((item) => item.product === selProduct && item.type === 'dose')
+      if (hasDose) dosedDays.add(grp.dateKey)
+    }
+    const points: { label: string; dose: number; kpi: number | null }[] = []
+    for (let i = 55; i >= 0; i--) {
+      const dt = new Date(today)
+      dt.setDate(dt.getDate() - i)
+      const key = isoKey(dt.getTime())
+      const kpiEntry = kpiSeries.find((s) => isoKey(s.ts) === key)
+      points.push({ label: key, dose: dosedDays.has(key) ? 1 : 0, kpi: kpiEntry?.value ?? null })
+    }
+    return points
+  }, [selProduct, activeKpi, state.log, state.history, state.todayTs])
+
+  if (products.length === 0 || kpiOptions.length === 0) return null
+
+  const kpiValues = chartData.map((p) => p.kpi).filter((v): v is number => v !== null)
+  const doseValues = chartData.map((p) => p.dose)
+
+  return (
+    <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Correlación KPI ↔ dosis</span>
+        <button className="btn btn-ghost btn-sm" style={{ width: 'auto', padding: '0 8px', fontSize: 12 }} onClick={() => dispatch({ t: 'sheet', sheet: 'medida' })}>+ Medida</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <select
+          value={selProduct}
+          onChange={(e) => setSelProduct(e.target.value)}
+          style={{ fontSize: 12, border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '4px 8px', background: 'var(--bg)', color: 'var(--ink-700)', cursor: 'pointer' }}
+          aria-label="Producto para correlación"
+        >
+          {products.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
+        </select>
+        <select
+          value={activeKpi}
+          onChange={(e) => setSelKpi(e.target.value)}
+          style={{ fontSize: 12, border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '4px 8px', background: 'var(--bg)', color: 'var(--ink-700)', cursor: 'pointer' }}
+          aria-label="KPI para correlación"
+        >
+          {kpiOptions.map((k) => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </div>
+
+      {chartData.length > 0 ? (
+        <div style={{ position: 'relative' }}>
+          {/* Barras de dosis (fondo) */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 40, marginBottom: 4 }}>
+            {doseValues.map((d, i) => (
+              <div key={i} style={{ flex: 1, height: d ? '100%' : '15%', background: d ? 'var(--brand-300)' : 'var(--ink-100)', borderRadius: 2 }} />
+            ))}
+          </div>
+          {/* Línea de KPI */}
+          {kpiValues.length > 1 && (
+            <div style={{ marginTop: 4 }}>
+              <Sparkline data={kpiValues} h={40} color="var(--brand-700)" />
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+            <span className="xs" style={{ color: 'var(--ink-400)', fontSize: 11 }}>
+              <span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--brand-300)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }} />
+              Dosis tomada
+            </span>
+            <span className="xs" style={{ color: 'var(--ink-400)', fontSize: 11 }}>
+              <span style={{ display: 'inline-block', width: 16, height: 2, background: 'var(--brand-700)', verticalAlign: 'middle', marginRight: 4 }} />
+              {activeKpi}
+            </span>
+          </div>
+          <p className="xs" style={{ color: 'var(--ink-300)', margin: '6px 0 0', fontSize: 10 }}>
+            Visualización observacional — sin inferencia causal. 8 semanas.
+          </p>
+        </div>
+      ) : (
+        <p className="sm" style={{ color: 'var(--ink-400)' }}>Sin datos suficientes para la correlación.</p>
+      )}
     </motion.div>
   )
 }
@@ -510,6 +696,12 @@ export function Progreso() {
 
               {/* Fases de titulación — una por cada producto con titulación activa */}
               <TitrationPhasesAll />
+
+              {/* n°422: tarjeta fase OFF */}
+              <OffPhaseCards />
+
+              {/* n°376: correlación KPI ↔ dosis */}
+              <KpiCorrelationCard />
 
               {/* Calculadora de reconstitución — siempre visible */}
               <ReconstitutionButton />

@@ -1,5 +1,7 @@
 // Hacktrack — iconos SVG diseñados (reemplazan emojis). Line-icons 24px, stroke currentColor.
 // Uso: <Glyph name="energia" color="#FF7A59" /> o <GlyphCircle name color /> (icono en círculo tintado).
+// n=479: GlyphName tipado = keyof GLYPHS; MEASURE_ICON usa `satisfies` en catalog.ts.
+//         Glyphs añadidos: recuperacion-muscular, inflamacion, ansiedad, memoria, niebla-mental, fuerza.
 type GP = { size?: number; color?: string; style?: React.CSSProperties; className?: string }
 
 function svg(children: React.ReactNode) {
@@ -14,7 +16,7 @@ function svg(children: React.ReactNode) {
   )
 }
 
-export const GLYPHS: Record<string, (p: GP) => JSX.Element> = {
+export const GLYPHS = {
   // ── medidas / KPIs ──
   peso: svg(<><path d="M12 4v16" /><path d="M6 20h12" /><path d="M4.5 8h15" /><path d="M4.5 8 2 14a3 3 0 0 0 6 0L4.5 8Z" /><path d="M19.5 8 17 14a3 3 0 0 0 6 0l-2.5-6Z" /></>),
   altura: svg(<><path d="M12 3v18" /><path d="m8 6 4-3 4 3" /><path d="m8 18 4 3 4-3" /><path d="M19 8h2M19 12h2M19 16h2" /></>),
@@ -39,6 +41,20 @@ export const GLYPHS: Record<string, (p: GP) => JSX.Element> = {
   efecto: svg(<><path d="M12 3.5 21 19H3L12 3.5Z" /><path d="M12 9.5v4.5M12 17h.01" /></>),
   dose: svg(<path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3Z" />),
 
+  // ── n=479: glyphs faltantes del catálogo ──
+  // recuperacion-muscular: fibras musculares con flecha de regeneración
+  'recuperacion-muscular': svg(<><path d="M6 9v6M10 7v10M14 9v6M18 7v10" /><path d="M4 12h16" /><path d="m19 5 2 2-2 2" /></>),
+  // inflamacion: área hinchada (forma de bulto)
+  inflamacion: svg(<><path d="M12 3C7 3 3 7.5 3 12.5c0 2 .8 4 2 5.5h14c1.2-1.5 2-3.5 2-5.5C21 7.5 17 3 12 3Z" /><path d="M9 12h6M12 9v6" /></>),
+  // ansiedad: cabeza con espiral de tensión
+  ansiedad: svg(<><circle cx="12" cy="10" r="6" /><path d="M12 16v6" /><path d="M9 10c0-1.7 1.3-3 3-3s3 1.3 3 3" /><path d="M10 10c0 1.1.9 2 2 2s2-.9 2-2" /></>),
+  // memoria: cerebro esquemático
+  memoria: svg(<><path d="M9.5 3a5 5 0 0 1 5 5 5 5 0 0 1-5 5H6A3 3 0 0 1 3 10V6a3 3 0 0 1 3-3h3.5Z" /><path d="M14.5 3a5 5 0 0 0-5 5" /><path d="M9.5 13a5 5 0 0 0 5 5H18a3 3 0 0 0 3-3v-4a3 3 0 0 0-3-3h-3.5" /><path d="M14.5 13a5 5 0 0 1-5-5" /></>),
+  // niebla-mental: nube difusa
+  'niebla-mental': svg(<><path d="M6 16a4 4 0 0 1 0-8h.5A5.5 5.5 0 0 1 17.5 8H18a4 4 0 0 1 0 8H6Z" /><path d="M8 19h8M10 21h4" /></>),
+  // fuerza: pesa/dumbbell
+  fuerza: svg(<><path d="M6 5v14M18 5v14" /><path d="M3 8h3M18 8h3M3 16h3M18 16h3" /><path d="M6 12h12" /></>),
+
   // ── categorías ──
   'cat-metabolismo': svg(<path d="M12 3c2.2 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3.2 2.2-4.2 0 2 1 3.2 2.8 3.2 0-3-2-4.2 0-8Z" />),
   'cat-recuperacion': svg(<><path d="M4 20c8 1 14-4 16-16C10 4 5 9 4 20Z" /><path d="M4 20C7 14 11 11 16 9" /></>),
@@ -48,10 +64,14 @@ export const GLYPHS: Record<string, (p: GP) => JSX.Element> = {
   'cat-crecimiento': svg(<><path d="M3 17.5 9.5 11l4 4L21 7.5" /><path d="M15 7.5h6v6" /></>),
   'cat-reproductivo': svg(<path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.4-7 10-7 10Z" />),
   'cat-explorar': svg(<><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5.5-5.5 2 2-5.5 5.5-2Z" /></>),
-}
+} as const
+
+// n=479: GlyphName tipado — TS falla en compilación si se usa un nombre no existente
+export type GlyphName = keyof typeof GLYPHS
 
 export function Glyph({ name, size, color, style }: { name: string; size?: number; color?: string; style?: React.CSSProperties }) {
-  const C = GLYPHS[name] ?? GLYPHS.medidas
+  // Fallback tipado: si el nombre no existe, usa 'medidas' (no silencioso — registra en dev)
+  const C = (GLYPHS as Record<string, (p: GP) => JSX.Element>)[name] ?? GLYPHS.medidas
   return <C size={size} color={color} style={style} />
 }
 

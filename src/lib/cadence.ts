@@ -188,6 +188,29 @@ export function cyclePhaseInfo(
   }
 }
 
+// ── cyclePhase (item 421): wrapper ergonómico sobre cyclePhaseInfo ────────────
+// Devuelve la fase actual para mostrar en Home + Progreso.
+// Retorna null si la cadencia no es 'ciclo'.
+export interface CyclePhase {
+  phase: 'on' | 'off'
+  dayInPhase: number   // día 1-based dentro de la fase actual
+  daysLeft: number     // días que quedan en la fase actual (incluyendo hoy)
+}
+
+export function cyclePhase(
+  cad: UserCadence,
+  today: Date,
+  start: Date,
+): CyclePhase | null {
+  const info = cyclePhaseInfo(cad, start, today)
+  if (!info) return null
+  return {
+    phase: info.phase,
+    dayInPhase: info.day,
+    daysLeft: info.total - info.day + 1,
+  }
+}
+
 // preset de cadencia desde el catálogo — maneja los 6 tipos (fix P0-3, ya no degrada a diario)
 export function presetCad(p?: PeptideEntry): UserCadence {
   const base: UserCadence = {

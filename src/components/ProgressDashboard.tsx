@@ -1,7 +1,9 @@
 // ProgressDashboard — dashboard de progreso desde state.history. Solo datos reales.
-import { useState } from 'react'
+// n=463: Overlay de bandas de fase de titulación sobre la gráfica de peso.
+// n=464: Marcadores de inicio de protocolo y cambios de fase sobre la curva de peso.
+import { useState, useId } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MEASURE_META, MEASURE_ICON } from '../lib/catalog'
+import { MEASURE_META, MEASURE_ICON, PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { useApp } from '../lib/store'
 import { spring, staggerParent, staggerItem } from '../lib/motion'
 import { LineChart } from '../components/charts'
@@ -50,13 +52,176 @@ function exportCsv(history: Record<string, MeasureSample[]>) {
   URL.revokeObjectURL(url)
 }
 
+// ── n=463/464: Overlay de fases y marcadores sobre gráfica de peso ───────────
+interface PhaseOverlayProps {
+  samples: MeasureSample[]
+  protocols: ReturnType<typeof useApp>['state']['protocols']
+  w?: number
+  h?: number
+}
+
+const PHASE_COLORS = [
+  'rgba(27,138,125,0.08)',   // fase 0 → brand tenue
+  'rgba(107,123,232,0.08)',  // fase 1 → índigo
+  'rgba(168,132,47,0.08)',   // fase 2 → ámbar
+  'rgba(155,95,196,0.08)',   // fase 3 → morado
+  'rgba(232,93,58,0.08)',    // fase 4 → naranja
+]
+
+const PHASE_STROKE = [
+  'rgba(27,138,125,0.4)',
+  'rgba(107,123,232,0.4)',
+  'rgba(168,132,47,0.4)',
+  'rgba(155,95,196,0.4)',
+  'rgba(232,93,58,0.4)',
+]
+
+function WeightPhaseOverlay({ samples, protocols, w = 320, h = 150 }: PhaseOverlayProps) {
+  const uid = useId()
+  if (samples.length < 2) return null
+
+  const sorted = [...samples].sort((a, b) => a.ts - b.ts)
+  const minTs = sorted[0].ts
+  const maxTs = sorted[sorted.length - 1].ts
+  const tsRange = maxTs - minTs || 1
+  const PAD = 6
+  const ch = h - 22 // canvas height (sans label space)
+
+  function tsToX(ts: number) {
+    return PAD + ((ts - minTs) / tsRange) * (w - PAD * 2)
+  }
+
+  // ── n=463: bandas de fase ──────────────────────────────────────
+  const phaseBands: { x1: number; x2: number; phase: number; label: string }[] = []
+
+  for (const proto of Object.values(protocols)) {
+    if (!proto || proto.archived) continue
+    const entry = PEPTIDES[proto.product]
+    if (!entry?.phaseWeeks || !entry.phases) continue
+
+    const startTs = proto.startDate
+    const phaseWeeksMs = (entry.phaseWeeks ?? 4) * 7 * 86400000
+
+    for (let ph = 0; ph < (entry.phases ?? 1); ph++) {
+      const bandStart = startTs + ph * phaseWeeksMs
+      const bandEnd = startTs + (ph + 1) * phaseWeeksMs
+
+      // Solo mostrar bandas que intersectan con el rango de datos
+      if (bandEnd < minTs || bandStart > maxTs) continue
+
+      phaseBands.push({
+        x1: Math.max(tsToX(bandStart), PAD),
+        x2: Math.min(tsToX(bandEnd), w - PAD),
+        phase: ph,
+        label: `F${ph + 1}`,
+      })
+    }
+  }
+
+  // ── n=464: marcadores de inicio de protocolo y cambio de fase ─────────────
+  interface Marker {
+    x: number
+    label: string
+    color: string
+    product: string
+  }
+  const markers: Marker[] = []
+
+  for (const proto of Object.values(protocols)) {
+    if (!proto || proto.archived) continue
+    const entry = PEPTIDES[proto.product]
+    const color = entry ? (CATEGORY_COLOR[entry.cat] ?? 'var(--brand-500)') : 'var(--brand-500)'
+    const startTs = proto.startDate
+
+    // Marcador de inicio de protocolo (si cae dentro del rango)
+    if (startTs >= minTs && startTs <= maxTs) {
+      markers.push({ x: tsToX(startTs), label: proto.product.slice(0, 4), color, product: proto.product })
+    }
+
+    // Marcadores de cambio de fase
+    if (entry?.phaseWeeks && entry.phases && entry.phases > 1) {
+      const phaseWeeksMs = entry.phaseWeeks * 7 * 86400000
+      for (let ph = 1; ph < entry.phases; ph++) {
+        const changeTs = startTs + ph * phaseWeeksMs
+        if (changeTs >= minTs && changeTs <= maxTs) {
+          markers.push({ x: tsToX(changeTs), label: `F${ph + 1}`, color, product: proto.product })
+        }
+      }
+    }
+  }
+
+  if (phaseBands.length === 0 && markers.length === 0) return null
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+      aria-hidden
+    >
+      {/* n=463: bandas de fase */}
+      {phaseBands.map((band, i) => (
+        <g key={`band-${i}`}>
+          <rect
+            x={band.x1}
+            y={PAD}
+            width={Math.max(0, band.x2 - band.x1)}
+            height={ch - PAD}
+            fill={PHASE_COLORS[band.phase % PHASE_COLORS.length]}
+          />
+          {/* etiqueta de fase si hay espacio suficiente */}
+          {band.x2 - band.x1 > 24 && (
+            <text
+              x={(band.x1 + band.x2) / 2}
+              y={PAD + 12}
+              textAnchor="middle"
+              fontSize={9}
+              fill={PHASE_STROKE[band.phase % PHASE_STROKE.length].replace('0.4', '0.8')}
+              fontWeight={600}
+            >
+              {band.label}
+            </text>
+          )}
+        </g>
+      ))}
+
+      {/* n=464: líneas verticales de inicio/fase */}
+      {markers.map((m, i) => (
+        <g key={`marker-${i}`}>
+          <line
+            x1={m.x}
+            x2={m.x}
+            y1={PAD}
+            y2={ch}
+            stroke={m.color}
+            strokeWidth={1.5}
+            strokeDasharray="4 2"
+            opacity={0.7}
+          />
+          <text
+            x={m.x + 3}
+            y={ch - 4}
+            fontSize={8}
+            fill={m.color}
+            fontWeight={600}
+            style={{ userSelect: 'none' }}
+          >
+            {m.label}
+          </text>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
 // n=147/148: KpiCard con gráfica expandible + selector de rango
+// n=463/464: si la medida es 'Peso', mostrar overlay de fases sobre la gráfica
 interface KpiCardProps {
   name: string
   samples: MeasureSample[]
+  protocols: ReturnType<typeof useApp>['state']['protocols']
 }
 
-function KpiCard({ name, samples }: KpiCardProps) {
+function KpiCard({ name, samples, protocols }: KpiCardProps) {
   const [chartOpen, setChartOpen] = useState(false)
   const [range, setRange] = useState<'7d' | '30d' | 'Todo'>('Todo')
 
@@ -98,6 +263,9 @@ function KpiCard({ name, samples }: KpiCardProps) {
       </span>
     )
   }
+
+  // n=463/464: ¿es la gráfica de Peso?
+  const isPeso = name === 'Peso'
 
   return (
     <motion.div variants={staggerItem} className="card" style={{ marginBottom: 12 }}>
@@ -150,14 +318,56 @@ function KpiCard({ name, samples }: KpiCardProps) {
                 {displaySamples.length} registros
               </span>
             </div>
-            <div style={{ marginTop: 4, borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
+
+            {/* n=463/464: contenedor relativo para el overlay */}
+            <div
+              style={{
+                marginTop: 4,
+                borderRadius: 'var(--r-sm)',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
               <LineChart
                 data={values}
                 color={color}
                 labels={timeLabels}
                 h={Math.max(90, Math.min(160, 70 + displaySamples.length * 6))}
               />
+              {/* n=463/464: overlay de fases solo en gráfica de Peso */}
+              {isPeso && (
+                <WeightPhaseOverlay
+                  samples={displaySamples}
+                  protocols={protocols}
+                  h={Math.max(90, Math.min(160, 70 + displaySamples.length * 6))}
+                />
+              )}
             </div>
+
+            {/* n=463/464: leyenda de fases (si aplica y hay protocolos con titulación) */}
+            {isPeso && (() => {
+              const protos = Object.values(protocols).filter(
+                (p) => !p?.archived && PEPTIDES[p?.product ?? '']?.phaseWeeks,
+              )
+              if (protos.length === 0) return null
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                  {protos.map((p) => {
+                    const entry = p ? PEPTIDES[p.product] : null
+                    const nPhases = entry?.phases ?? 0
+                    const color = entry ? (CATEGORY_COLOR[entry.cat] ?? 'var(--brand-500)') : 'var(--brand-500)'
+                    return Array.from({ length: nPhases }, (_, i) => (
+                      <span key={`${p?.product}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[i % PHASE_COLORS.length].replace('0.08', '0.35'), display: 'block' }} />
+                        <span style={{ fontSize: 10, color: 'var(--ink-400)' }}>
+                          {p?.product} F{i + 1}
+                        </span>
+                      </span>
+                    ))
+                  })}
+                </div>
+              )
+            })()}
           </motion.div>
         )}
       </AnimatePresence>
@@ -247,6 +457,7 @@ function DualLineChart({ samplesA, samplesB, nameA, nameB }: {
 export function ProgressDashboard() {
   const { state, dispatch } = useApp()
   const history = state.history
+  const protocols = state.protocols ?? {}
 
   const allKeys = Object.keys(history).filter(k => history[k] && history[k].length > 0)
 
@@ -430,7 +641,7 @@ export function ProgressDashboard() {
             count={corporalesDisplay.length}
           />
           {corporalesDisplay.map(name => (
-            <KpiCard key={name} name={name} samples={history[name]} />
+            <KpiCard key={name} name={name} samples={history[name]} protocols={protocols} />
           ))}
         </motion.div>
       )}
@@ -444,7 +655,7 @@ export function ProgressDashboard() {
             count={bienestarDisplay.length}
           />
           {bienestarDisplay.map(name => (
-            <KpiCard key={name} name={name} samples={history[name]} />
+            <KpiCard key={name} name={name} samples={history[name]} protocols={protocols} />
           ))}
         </motion.div>
       )}

@@ -1,6 +1,6 @@
 // "Tus dosis de hoy" — checklist 1-tap: cada producto programado hoy con su dosis + botón "hecho".
 // Sin escribir: la dosis viene de la fase activa o de la última registrada (doseForProduct).
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { useApp, doseForProduct, nextInjectionSite } from '../lib/store'
 import type { InjectionSite } from '../lib/types'
@@ -11,6 +11,7 @@ import { tapHaptic } from '../lib/haptics'
 import { PEPTIDES, CATEGORY_COLOR, EFFECT_OPTIONS } from '../lib/catalog'
 import { IcCheck } from './icons'
 import { staggerParent, staggerItem, spring, dur, ease } from '../lib/motion'
+import { presenceNow } from '../lib/pharma'
 
 // ── Loop 140: selector de sitio de inyección ─────────────────────────────────
 const SITE_OPTIONS: { value: InjectionSite; label: string }[] = [
@@ -362,6 +363,72 @@ function WeekHeatmap({ product, state, today }: { product: string; state: any; t
   )
 }
 
+// ── n°434: LongPressButton — tap directo; long-press 500ms → acción alternativa ──
+interface LongPressButtonProps {
+  onTap: () => void
+  onLongPress: () => void
+  ariaLabel: string
+  active: boolean
+  color: string
+}
+
+function LongPressButton({ onTap, onLongPress, ariaLabel, active, color: _color }: LongPressButtonProps) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
+
+  function startPress() {
+    didLongPress.current = false
+    timerRef.current = setTimeout(() => {
+      didLongPress.current = true
+      onLongPress()
+    }, 500)
+  }
+
+  function endPress() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (!didLongPress.current) onTap()
+  }
+
+  function cancelPress() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    didLongPress.current = false
+  }
+
+  return (
+    <button
+      onPointerDown={startPress}
+      onPointerUp={endPress}
+      onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
+      aria-label={ariaLabel}
+      title={active ? 'Toca para deshacer · mantén para editar' : 'Toca para marcar · mantén para elegir hora'}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 999,
+        cursor: 'pointer', fontWeight: 600, fontSize: 13,
+        border: active ? 'none' : '1.5px solid var(--border)',
+        background: active ? 'var(--success)' : 'transparent',
+        color: active ? 'var(--ink-0)' : 'var(--ink-400)',
+        userSelect: 'none', WebkitUserSelect: 'none',
+      }}
+    >
+      <AnimatePresence>
+        {active && (
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.6, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            style={{ display: 'flex', alignItems: 'center' }}
+          >
+            <IcCheck size={15} />
+          </motion.span>
+        )}
+      </AnimatePresence>
+      {active ? 'Hecho' : 'Marcar'}
+    </button>
+  )
+}
+
 export function TodayDoses() {
   const { state, dispatch } = useApp()
   const today = startOfDay(new Date(state.todayTs))
@@ -442,22 +509,21 @@ export function TodayDoses() {
     return at.getTime()
   }
 
-  function markDone(product: string) {
+  // n°434: 1-tap registra directo; solo long-press (500ms) abre DoseConfirm
+  function markDone(product: string, force = false) {
     tapHaptic()
     const dose = doseForProduct(state, product)
-    if (!dose) { dispatch({ t: 'sheet', sheet: 'registrar', arg: product }); return } // sin dosis aún → abre en ESE producto
-    // mg canónicos: directo si mg/mcg, o con la reconstitución recordada si la dosis es en UI/mL
-    const rec = state.productRecon[product]
-    const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
-    const scheduledTs = tsFor(product)
-    const nowTs = Date.now()
-    // si la hora actual difiere ≥1h de la programada, pregunta a qué hora se aplicó
-    if (Math.abs(nowTs - scheduledTs) >= 60 * 60 * 1000) {
-      // loop 140: pasa el sitio sugerido al dose-confirm (como metadata en el JSON)
+    if (!dose) { dispatch({ t: 'sheet', sheet: 'registrar', arg: product }); return }
+    if (force) {
+      // long-press → abrir DoseConfirm siempre (para backfill o corrección horaria)
+      const rec = state.productRecon[product]
+      const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
+      const scheduledTs = tsFor(product)
+      const nowTs = Date.now()
       const suggestedSite = nextInjectionSite(state.lastInjectionSite?.[product])
       dispatch({ t: 'sheet', sheet: 'dose-confirm', arg: JSON.stringify({ product, value: dose.value, unit: dose.unit, doseMg, scheduledTs, nowTs, suggestedSite }) })
     } else {
-      // loop 140: muestra selector de zona antes de registrar (sin bloquear)
+      // tap normal → muestra selector de zona antes de registrar (sin forzar confirm)
       setPendingSiteProduct(product)
     }
   }
@@ -501,6 +567,32 @@ export function TodayDoses() {
     const item = loggedItemsForDay(state, today).find((it) => it.type === 'skip' && it.product === product)
     if (item) dispatch({ t: 'deleteLog', id: item.id })
   }
+
+  // n°419: presencia farmacológica actual para cada producto
+  const presenceByProduct = useMemo(() => {
+    const map: Record<string, number> = {}
+    try {
+      const pres = presenceNow(state, Date.now())
+      for (const p of pres) map[p.product] = p.pct
+    } catch { /* pharma fallback */ }
+    return map
+  }, [state.log, state.protocols]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // n°484: CTA "Retomar protocolo" cuando hay ≥3 dosis perdidas consecutivas (rango 7 días)
+  const missedStreakCount = useMemo(() => {
+    let missed = 0
+    const todayD = startOfDay(new Date(state.todayTs))
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(todayD.getTime() - i * 86400000)
+      const hasAnyDue = prods.length > 0
+      if (!hasAnyDue) break
+      const anyTaken = prods.some((p) => doseTakenOnProduct(state, d, p))
+      const anySkipped = prods.some((p) => doseSkippedOnProduct(state, d, p))
+      if (!anyTaken && !anySkipped) missed++
+      else break
+    }
+    return missed
+  }, [state.log, state.protocols, state.todayTs, prods]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // color de la primera categoría activa para la barra de progreso
   const firstCat = PEPTIDES[prods[0]]?.cat ?? 'Explorar'
@@ -736,6 +828,12 @@ export function TodayDoses() {
                   // loop 139: mostrar picker de efecto si esta dosis acaba de ser registrada
                   const showEffectPicker = pendingEffectProduct === product && taken
 
+                  // n°419: presencia estimada del péptido (solo si > 0 y no tomada hoy)
+                  const presencePct = presenceByProduct[product] ?? 0
+
+                  // n°433: swipe horizontal para marcar/desmarcar (estado local por producto)
+                  // Se gestiona con drag inline en el botón Marcar
+
                   return (
                     <motion.div
                       key={product}
@@ -753,84 +851,103 @@ export function TodayDoses() {
                         // item 34 / skip: atenuar fila si tomada o saltada
                         opacity: (taken || skipped) ? 0.55 : 1,
                         transition: 'opacity 0.25s ease, border-left-color 0.3s ease',
+                        position: 'relative', overflow: 'hidden',
                       }}
                     >
-                      {/* fila principal: icono + info + botones */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
-                        {/* item 31: pill de categoría (gris si skip) */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                          <span style={{ width: 6, height: 6, borderRadius: 999, background: skipped ? 'var(--ink-300)' : color }} />
-                          <span style={{ fontSize: 9, color: 'var(--ink-400)', lineHeight: 1, textAlign: 'center', maxWidth: 36, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat}</span>
+                      {/* n°433: swipe-reveal panels */}
+                      {!taken && !skipped && (
+                        <div aria-hidden="true" style={{
+                          position: 'absolute', left: 0, top: 0, bottom: 0, width: 72,
+                          background: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 0,
+                        }}>
+                          <span style={{ color: '#fff', display: 'flex' }}><IcCheck size={22} /></span>
                         </div>
+                      )}
+                      {taken && (
+                        <div aria-hidden="true" style={{
+                          position: 'absolute', right: 0, top: 0, bottom: 0, width: 72,
+                          background: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 0,
+                        }}>
+                          <span style={{ color: '#fff', fontWeight: 700, fontSize: 11 }}>Deshacer</span>
+                        </div>
+                      )}
 
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {/* item 34 / skip: line-through y texto diferenciado */}
-                          <div className="body" style={{ fontWeight: 600, color: skipped ? 'var(--ink-400)' : 'var(--ink-900)', textDecoration: (taken || skipped) ? 'line-through' : 'none' }}>{product}</div>
-                          <div className="sm mono" style={{ color: 'var(--ink-400)' }}>
-                            {skipped
-                              ? 'Saltada hoy (intencional)'
-                              : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
-                            {/* item 32: hora del recordatorio (solo si no saltada) */}
-                            {!skipped && reminderLabel && (
-                              <span style={{ marginLeft: 4 }}>· {reminderLabel}</span>
+                      {/* fila principal: icono + info + botones — draggable (n°433) */}
+                      <motion.div
+                        drag={!skipped ? 'x' : false}
+                        dragConstraints={{ left: taken ? -80 : 0, right: taken ? 0 : 80 }}
+                        dragElastic={0.12}
+                        onDragEnd={(_, info) => {
+                          if (!taken && info.offset.x > 48) { markDone(product) }
+                          else if (taken && info.offset.x < -48) { undo(product) }
+                        }}
+                        style={{ position: 'relative', zIndex: 1, background: 'var(--card, var(--surface))' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                          {/* item 31: pill de categoría (gris si skip) */}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 999, background: skipped ? 'var(--ink-300)' : color }} />
+                            <span style={{ fontSize: 9, color: 'var(--ink-400)', lineHeight: 1, textAlign: 'center', maxWidth: 36, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat}</span>
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {/* item 34 / skip: line-through y texto diferenciado */}
+                            <div className="body" style={{ fontWeight: 600, color: skipped ? 'var(--ink-400)' : 'var(--ink-900)', textDecoration: (taken || skipped) ? 'line-through' : 'none' }}>{product}</div>
+                            <div className="sm mono" style={{ color: 'var(--ink-400)' }}>
+                              {skipped
+                                ? 'Saltada hoy (intencional)'
+                                : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
+                              {/* item 32: hora del recordatorio (solo si no saltada) */}
+                              {!skipped && reminderLabel && (
+                                <span style={{ marginLeft: 4 }}>· {reminderLabel}</span>
+                              )}
+                              {/* Loop 137: label de ventana */}
+                              {!skipped && !taken && win && hasReminder && (
+                                <span style={{ marginLeft: 4, color: WINDOW_COLOR[win!], fontWeight: 600 }}>
+                                  · {WINDOW_LABEL[win!]}
+                                </span>
+                              )}
+                            </div>
+                            {/* Item 119: badge ¡Perdida! cuando reminderTime ya pasó y no se ha tomado */}
+                            {!taken && !skipped && hasReminder && Date.now() > tsFor(product) && (
+                              <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', padding: '1px 7px', borderRadius: 99, marginTop: 3 }}>¡Perdida!</span>
                             )}
-                            {/* Loop 137: label de ventana */}
-                            {!skipped && !taken && win && hasReminder && (
-                              <span style={{ marginLeft: 4, color: WINDOW_COLOR[win!], fontWeight: 600 }}>
-                                · {WINDOW_LABEL[win!]}
-                              </span>
+                            {/* n°419: badge de presencia estimada (solo si hay presencia y no tomada hoy) */}
+                            {!taken && !skipped && presencePct > 2 && (
+                              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <div style={{ width: 40, height: 3, borderRadius: 2, background: 'var(--ink-100)', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${Math.min(100, presencePct)}%`, background: color, borderRadius: 2 }} />
+                                </div>
+                                <span style={{ fontSize: 9, color: 'var(--ink-400)' }}>
+                                  {presencePct >= 50 ? 'presente' : presencePct >= 20 ? 'disminuyendo' : 'casi eliminado'} ~{Math.round(presencePct)}%
+                                </span>
+                              </div>
                             )}
                           </div>
-                          {/* Item 119: badge ¡Perdida! cuando reminderTime ya pasó y no se ha tomado */}
-                          {!taken && !skipped && hasReminder && Date.now() > tsFor(product) && (
-                            <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', padding: '1px 7px', borderRadius: 99, marginTop: 3 }}>¡Perdida!</span>
-                          )}
-                        </div>
 
-                        {/* Botones de acción: taken → deshacer; skipped → deshacer skip; pending → "Marcar" + "No hoy" */}
-                        {skipped ? (
-                          <button
-                            onClick={() => undoSkip(product)}
-                            aria-label={`Deshacer saltar ${product}`}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px', borderRadius: 999,
-                              cursor: 'pointer', flexShrink: 0, fontWeight: 500, fontSize: 12,
-                              border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
-                            }}
-                          >
-                            Deshacer
-                          </button>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                            {/* Botón principal: Marcar / Hecho / Deshacer */}
+                          {/* Botones de acción: taken → deshacer; skipped → deshacer skip; pending → "Marcar" + "No hoy" */}
+                          {skipped ? (
                             <button
-                              onClick={() => (taken ? undo(product) : markDone(product))}
-                              aria-label={taken ? `Deshacer ${product}` : `Marcar ${product} como hecho`}
+                              onClick={() => undoSkip(product)}
+                              aria-label={`Deshacer saltar ${product}`}
                               style={{
-                                display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 999,
-                                cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                                border: taken ? 'none' : '1.5px solid var(--border)',
-                                background: taken ? 'var(--success)' : 'transparent',
-                                color: taken ? 'var(--ink-0)' : 'var(--ink-400)',
+                                display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px', borderRadius: 999,
+                                cursor: 'pointer', flexShrink: 0, fontWeight: 500, fontSize: 12,
+                                border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
                               }}
                             >
-                              {/* item 34: check entra con scale 0.6→1 (spring.ui) */}
-                              <AnimatePresence>
-                                {taken && (
-                                  <motion.span
-                                    initial={{ scale: 0.6, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.6, opacity: 0 }}
-                                    transition={spring.ui}
-                                    style={{ display: 'flex', alignItems: 'center' }}
-                                  >
-                                    <IcCheck size={15} />
-                                  </motion.span>
-                                )}
-                              </AnimatePresence>
-                              {taken ? 'Hecho' : 'Marcar'}
+                              Deshacer
                             </button>
-                            {/* Botón secundario "No hoy": solo visible si no tomada */}
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                              {/* n°434: botón Marcar: tap directo; long-press 500ms → DoseConfirm */}
+                              <LongPressButton
+                                onTap={() => taken ? undo(product) : markDone(product)}
+                                onLongPress={() => taken ? undo(product) : markDone(product, true)}
+                                ariaLabel={taken ? `Deshacer ${product}` : `Marcar ${product} como hecho`}
+                                active={taken}
+                                color={color}
+                              />
                             {!taken && (
                               <button
                                 onClick={() => skipDose(product)}
@@ -846,7 +963,8 @@ export function TodayDoses() {
                             )}
                           </div>
                         )}
-                      </div>
+                        </div>
+                      </motion.div>
 
                       {/* Loop 138 + Loop 140: campo de nota + selector de zona (aparecen tras pulsar "Marcar") */}
                       <AnimatePresence>
@@ -880,6 +998,42 @@ export function TodayDoses() {
                     </motion.div>
                   )
                 })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* n°484: CTA "Retomar protocolo" cuando hay ≥3 dosis perdidas consecutivas */}
+        <AnimatePresence>
+          {missedStreakCount >= 3 && !allDone && (
+            <motion.div
+              key="retomar-cta"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{
+                padding: '10px 16px', borderTop: '1px solid var(--border)',
+                background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <span className="sm" style={{ color: 'var(--warning)', fontWeight: 600 }}>
+                  {missedStreakCount} días sin dosis registradas
+                </span>
+                <button
+                  onClick={() => dispatch({ t: 'tab', tab: 'protocolo' })}
+                  aria-label="Ir a la sección de protocolo para retomar"
+                  style={{
+                    marginLeft: 8, color: 'var(--brand-700)', fontWeight: 700, fontSize: 12,
+                    background: 'none', border: '1.5px solid var(--brand-300)',
+                    borderRadius: 999, padding: '3px 10px', cursor: 'pointer',
+                    transition: 'background 0.15s ease',
+                  }}
+                >
+                  Retomar protocolo →
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

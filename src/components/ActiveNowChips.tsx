@@ -5,10 +5,11 @@
 // Loop 149: barra de washout con tiempo restante real
 // Loop 150: pulso del dot proporcional al % de presencia
 // Item 151: chip expandido con nota educativa + washout countdown
-import { useState, useEffect } from 'react'
+// n=486: tooltip flotante con mini-curva de decaimiento (6h) al long-press (o tap si chip único)
+import { useState, useEffect, useRef, useId } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { presenceNow, PRESENCE_FLOOR_PCT, HALF_LIFE_H, washoutMs, getProductNote } from '../lib/pharma'
+import { presenceNow, PRESENCE_FLOOR_PCT, HALF_LIFE_H, washoutMs, getProductNote, buildPharmaSeries } from '../lib/pharma'
 import { spring, staggerParent, staggerItem, dur, ease } from '../lib/motion'
 import { vialDaysLeft, vialExpiryStatus } from '../lib/calc'
 import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
@@ -28,6 +29,173 @@ function fmtDuration(ms: number): string {
   return `~${Math.round(h / 24)} d`
 }
 
+// n=486: mini-curva SVG de decaimiento para las próximas N horas
+function DecayCurve({
+  product,
+  state,
+  now,
+  hours = 6,
+  color,
+}: {
+  product: string
+  state: ReturnType<typeof useApp>['state']
+  now: number
+  hours?: number
+  color: string
+}) {
+  const W = 200
+  const H = 56
+  const PAD = 6
+  const windowMs = hours * 3_600_000
+
+  // Construir curva usando buildPharmaSeries mirando hacia adelante
+  const pharma = buildPharmaSeries(state, { now: now + windowMs / 2, windowMs: windowMs / 2, mode: 'percent' })
+  const serie = pharma.series.find((s) => s.product === product)
+
+  if (!serie || serie.points.length < 2) {
+    return (
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <text x={W / 2} y={H / 2} textAnchor="middle" fontSize={11} fill="var(--ink-300)">Sin datos</text>
+      </svg>
+    )
+  }
+
+  // Filtrar solo puntos desde ahora hasta ahora+hours
+  const pts = serie.points.filter(([t]) => t >= now && t <= now + windowMs)
+  if (pts.length < 2) {
+    return (
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <text x={W / 2} y={H / 2} textAnchor="middle" fontSize={11} fill="var(--ink-300)">Sin decaimiento</text>
+      </svg>
+    )
+  }
+
+  const maxY = Math.max(...pts.map(([, y]) => y as number), 1)
+
+  function toX(t: number) {
+    return PAD + ((t - now) / windowMs) * (W - PAD * 2)
+  }
+  function toY(y: number) {
+    return (H - PAD) - ((y as number) / maxY) * (H - PAD * 2)
+  }
+
+  const d = pts
+    .map(([t, y], i) => `${i === 0 ? 'M' : 'L'} ${toX(t).toFixed(1)} ${toY(y as number).toFixed(1)}`)
+    .join(' ')
+
+  // área bajo la curva
+  const area = `${d} L ${toX(pts[pts.length - 1][0]).toFixed(1)} ${H - PAD} L ${toX(pts[0][0]).toFixed(1)} ${H - PAD} Z`
+
+  // etiquetas de tiempo en eje X
+  const labels = [0, hours / 2, hours].map((h) => ({
+    x: toX(now + h * 3_600_000),
+    label: h === 0 ? 'Ahora' : `+${h}h`,
+  }))
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H + 14}`} style={{ display: 'block' }}>
+      {/* área */}
+      <path d={area} fill={color} fillOpacity={0.12} />
+      {/* línea */}
+      <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {/* etiquetas */}
+      {labels.map(({ x, label }) => (
+        <text key={label} x={x} y={H + 12} textAnchor="middle" fontSize={9} fill="var(--ink-400)">
+          {label}
+        </text>
+      ))}
+    </svg>
+  )
+}
+
+// n=486: popover flotante con mini-curva
+function DecayTooltip({
+  product,
+  state,
+  now,
+  color,
+  anchorEl,
+  onClose,
+}: {
+  product: string
+  state: ReturnType<typeof useApp>['state']
+  now: number
+  color: string
+  anchorEl: HTMLElement | null
+  onClose: () => void
+}) {
+  const id = useId()
+
+  // Cerrar al tap fuera
+  useEffect(() => {
+    const h = (e: PointerEvent) => {
+      const target = e.target as Node
+      if (anchorEl && !anchorEl.contains(target)) onClose()
+    }
+    document.addEventListener('pointerdown', h)
+    return () => document.removeEventListener('pointerdown', h)
+  }, [anchorEl, onClose])
+
+  return (
+    <motion.div
+      role="tooltip"
+      id={id}
+      initial={{ opacity: 0, y: 6, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 6, scale: 0.96 }}
+      transition={{ duration: 0.15 }}
+      style={{
+        position: 'absolute',
+        bottom: 'calc(100% + 10px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 50,
+        background: 'var(--card, var(--surface))',
+        border: `1px solid ${color}`,
+        borderRadius: 'var(--r-md)',
+        padding: '10px 12px',
+        boxShadow: 'var(--e3, var(--e2))',
+        minWidth: 200,
+        maxWidth: 240,
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      {/* triángulo señalador */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          bottom: -7,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 12,
+          height: 7,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: 10,
+            height: 10,
+            background: 'var(--card, var(--surface))',
+            border: `1px solid ${color}`,
+            transform: 'rotate(45deg)',
+            marginTop: -6,
+            marginLeft: 1,
+          }}
+        />
+      </div>
+      <p className="sm" style={{ margin: '0 0 6px', fontWeight: 600, color: 'var(--ink-900)' }}>
+        Decaimiento · próx. 6 h
+      </p>
+      <DecayCurve product={product} state={state} now={now} hours={6} color={color} />
+      <p style={{ margin: '6px 0 0', fontSize: 10, color: 'var(--ink-300)', lineHeight: 1.4 }}>
+        Estimación educativa. No es consejo médico.
+      </p>
+    </motion.div>
+  )
+}
+
 export function ActiveNowChips() {
   const { state, dispatch } = useApp()
   const [now, setNow] = useState(() => Date.now())
@@ -36,9 +204,20 @@ export function ActiveNowChips() {
   // item 151: producto expandido (null = ninguno)
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
+  // n=486: producto con tooltip de decaimiento visible
+  const [tooltipProduct, setTooltipProduct] = useState<string | null>(null)
+  const chipRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const longPressTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000)
     return () => clearInterval(id)
+  }, [])
+
+  // limpia timers de long-press pendientes al desmontar (evita setState tras unmount)
+  useEffect(() => () => {
+    const timers = longPressTimers.current
+    Object.values(timers).forEach((t) => clearTimeout(t))
   }, [])
 
   // presencia ≥ piso (% del pico) para no listar trazas irrelevantes; máximo 4 chips
@@ -58,6 +237,22 @@ export function ActiveNowChips() {
           lastDoseTs[it.product] = it.ts
         }
       }
+    }
+  }
+
+  // n=486: tap único muestra tooltip si hay un solo chip activo; long-press siempre
+  const singleChip = active.length === 1
+
+  function startLongPress(product: string) {
+    longPressTimers.current[product] = setTimeout(() => {
+      setTooltipProduct((prev) => (prev === product ? null : product))
+    }, 350)
+  }
+
+  function cancelLongPress(product: string) {
+    if (longPressTimers.current[product]) {
+      clearTimeout(longPressTimers.current[product])
+      delete longPressTimers.current[product]
     }
   }
 
@@ -131,11 +326,15 @@ export function ActiveNowChips() {
           const isExpanded = expandedProduct === p.product
           const productNote = getProductNote(p.product)
 
+          // n=486: tooltip visible
+          const isTooltipOpen = tooltipProduct === p.product
+
           return (
             <motion.div
               key={p.product}
               variants={staggerItem}
               layout
+              ref={(el) => { chipRefs.current[p.product] = el as HTMLDivElement | null }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -149,12 +348,38 @@ export function ActiveNowChips() {
                 boxSizing: 'border-box',
                 transition: `box-shadow ${dur.fast}s`,
                 boxShadow: isExpanded ? 'var(--e2)' : undefined,
+                position: 'relative',
               }}
             >
-              {/* Cara del chip = botón toggle (la nota/Ver-curva quedan FUERA del botón) */}
+              {/* n=486: tooltip de decaimiento */}
+              <AnimatePresence>
+                {isTooltipOpen && (
+                  <DecayTooltip
+                    product={p.product}
+                    state={state}
+                    now={now}
+                    color={p.color}
+                    anchorEl={chipRefs.current[p.product] ?? null}
+                    onClose={() => setTooltipProduct(null)}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Cara del chip = botón toggle + long-press para tooltip */}
               <button
                 type="button"
-                onClick={() => setExpandedProduct(isExpanded ? null : p.product)}
+                onClick={() => {
+                  // n=486: si chip único, tap alterna tooltip; si múltiples, tap expande
+                  if (singleChip) {
+                    setTooltipProduct((prev) => (prev === p.product ? null : p.product))
+                  } else {
+                    setExpandedProduct(isExpanded ? null : p.product)
+                  }
+                }}
+                onPointerDown={() => startLongPress(p.product)}
+                onPointerUp={() => cancelLongPress(p.product)}
+                onPointerLeave={() => cancelLongPress(p.product)}
+                onContextMenu={(e) => e.preventDefault()}
                 aria-expanded={isExpanded}
                 aria-label={`${p.product}: ${Math.round(p.pct)}% de presencia estimada.${isExpanded ? ' Contraer.' : ' Expandir para nota educativa.'}`}
                 style={{ all: 'unset', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, width: '100%', boxSizing: 'border-box' }}
@@ -176,15 +401,21 @@ export function ActiveNowChips() {
                 />
                 <span className="sm" style={{ color: 'var(--brand-900)', fontWeight: 500 }}>{p.product}</span>
                 <span className="sm mono" style={{ color: 'var(--brand-900)', fontWeight: 600 }}>~{Math.round(p.pct)}%</span>
-                {/* chevron de expansión */}
-                <motion.span
-                  animate={{ rotate: isExpanded ? 180 : 0 }}
-                  transition={{ duration: dur.fast }}
-                  aria-hidden="true"
-                  style={{ marginLeft: 'auto', color: 'var(--ink-400)', fontSize: 12, lineHeight: 1 }}
-                >
-                  ▾
-                </motion.span>
+                {/* chevron de expansión (solo en multi-chip) */}
+                {!singleChip && (
+                  <motion.span
+                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                    transition={{ duration: dur.fast }}
+                    aria-hidden="true"
+                    style={{ marginLeft: 'auto', color: 'var(--ink-400)', fontSize: 12, lineHeight: 1 }}
+                  >
+                    ▾
+                  </motion.span>
+                )}
+                {/* icono de curva si chip único */}
+                {singleChip && (
+                  <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--ink-400)', fontSize: 11 }}>≋</span>
+                )}
               </span>
 
               {/* Loop 149: barra de washout */}

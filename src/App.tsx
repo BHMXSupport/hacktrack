@@ -1,23 +1,60 @@
-import { useReducer, useEffect } from 'react'
+import { useReducer, useEffect, lazy, Suspense, type ComponentType } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { AppContext, reducer, initialState, useApp, hydrate } from './lib/store'
 import { upcomingDoses, doseTakenOnProduct } from './lib/calendar'
 import type { AppState } from './lib/store'
 import { startOfDay } from './lib/cadence'
-import { notifPermission, showReminder } from './lib/notifications'
+import { notifPermission, showReminder, registerSW } from './lib/notifications'
 import { sharedAxisX, spring } from './lib/motion'
 import { tapHaptic } from './lib/haptics'
 import { IcGear } from './components/icons'
 
-// ── persistencia local (PWA: no perder datos al refrescar) ──
-const STORAGE_KEY = 'hacktrack:v1'
+// ── Persistencia versionada con pipeline de migrations (item 408) ─────────────
+const STORAGE_KEY = 'hacktrack:v2'
+const STORAGE_KEY_LEGACY = 'hacktrack:v1'
+const SCHEMA_VERSION = 2
+
+type MigrateFn = (raw: Record<string, unknown>) => Record<string, unknown>
+
+const MIGRATIONS: Record<number, MigrateFn> = {
+  // v1 → v2: renombrar legacyProtocol → protocol cache; añadir campos aditivos
+  1: (raw) => {
+    const out = { ...raw }
+    // calcDraft / savedRecons / measureGoals / measureReminders / productAliases — ya manejados por spread con initialState
+    // dayNotes / achievements — se inicializan vacíos si no existen (retrocompatible)
+    if (!out.calcDraft) out.calcDraft = null
+    if (!out.savedRecons) out.savedRecons = []
+    if (!out.measureGoals) out.measureGoals = {}
+    if (!out.measureReminders) out.measureReminders = {}
+    if (!out.productAliases) out.productAliases = {}
+    if (out.fastStartTs === undefined) out.fastStartTs = null
+    if (out.showFirstDoseCelebration === undefined) out.showFirstDoseCelebration = false
+    if (!out.achievements) out.achievements = []
+    if (!out.dayNotes) out.dayNotes = {}
+    return out
+  },
+}
+
+function migrateState(raw: Record<string, unknown>, target: number): Record<string, unknown> {
+  let version = typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1
+  let state = { ...raw }
+  while (version < target) {
+    const fn = MIGRATIONS[version]
+    if (fn) state = fn(state)
+    version++
+  }
+  return { ...state, schemaVersion: target }
+}
+
 function loadState(): AppState {
-  const fresh = { ...initialState, todayTs: startOfDay(new Date()).getTime() }
+  const fresh = { ...initialState, todayTs: startOfDay(new Date()).getTime(), schemaVersion: SCHEMA_VERSION } as AppState
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    // intentar v2 primero; fallback a v1 (migración automática)
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY_LEGACY)
     if (!raw) return fresh
-    const saved = JSON.parse(raw)
-    const merged = { ...fresh, ...saved, sheet: null, toast: null, toastUndoId: null, todayTs: fresh.todayTs }
+    const saved = JSON.parse(raw) as Record<string, unknown>
+    const migrated = migrateState(saved, SCHEMA_VERSION)
+    const merged = { ...fresh, ...migrated, sheet: null, toast: null, toastUndoId: null, todayTs: fresh.todayTs } as AppState
     // normaliza estado de navegación legado (p.ej. tab 'ajustes' ya no existe → crash) tras el rediseño
     const TABS = ['inicio', 'diario', 'protocolo', 'vida', 'comida', 'semana']
     if (!TABS.includes(merged.tab)) merged.tab = 'inicio'
@@ -28,39 +65,50 @@ function loadState(): AppState {
     return fresh
   }
 }
-import { Splash } from './screens/Splash'
-import { Onboarding } from './screens/Onboarding'
-import { Goal } from './screens/Goal'
-import { Baseline } from './screens/Baseline'
-import { MeasurePicker } from './screens/MeasurePicker'
-import { Account } from './screens/Account'
-import { Login } from './screens/Login'
-import { Forgot } from './screens/Forgot'
-import { Welcome } from './screens/Welcome'
-import { Import } from './screens/Import'
-import { Home } from './screens/Home'
-import { Diario } from './screens/Diario'
-import { Progreso } from './screens/Progreso'
-import { Vida } from './screens/Vida'
-import { Alimentacion } from './screens/Alimentacion'
-import { ResumenSemanal } from './screens/ResumenSemanal'
-import { Ajustes } from './screens/Ajustes'
-import { Perfil } from './screens/Perfil'
-import { Paywall } from './screens/Paywall'
+// ── Lazy loading de tabs y sheets (item 491) ──────────────────────────────────
+// React.lazy + Suspense: carga diferida de cada pantalla. Prefetch on hover se
+// logra importando dinámicamente al onMouseEnter del nav (ver BottomNav).
+import { Splash } from './screens/Splash'                        // crítica — siempre eager
+const Onboarding   = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })))
+const Goal         = lazy(() => import('./screens/Goal').then((m) => ({ default: m.Goal })))
+const Baseline     = lazy(() => import('./screens/Baseline').then((m) => ({ default: m.Baseline })))
+const MeasurePicker= lazy(() => import('./screens/MeasurePicker').then((m) => ({ default: m.MeasurePicker })))
+const Account      = lazy(() => import('./screens/Account').then((m) => ({ default: m.Account })))
+const Login        = lazy(() => import('./screens/Login').then((m) => ({ default: m.Login })))
+const Forgot       = lazy(() => import('./screens/Forgot').then((m) => ({ default: m.Forgot })))
+const Welcome      = lazy(() => import('./screens/Welcome').then((m) => ({ default: m.Welcome })))
+const Import       = lazy(() => import('./screens/Import').then((m) => ({ default: m.Import })))
+// Tabs principales — lazy para reducir bundle inicial
+const Home         = lazy(() => import('./screens/Home').then((m) => ({ default: m.Home })))
+const Diario       = lazy(() => import('./screens/Diario').then((m) => ({ default: m.Diario })))
+const Progreso     = lazy(() => import('./screens/Progreso').then((m) => ({ default: m.Progreso })))
+const Vida         = lazy(() => import('./screens/Vida').then((m) => ({ default: m.Vida })))
+const Alimentacion = lazy(() => import('./screens/Alimentacion').then((m) => ({ default: m.Alimentacion })))
+const ResumenSemanal=lazy(() => import('./screens/ResumenSemanal').then((m) => ({ default: m.ResumenSemanal })))
+// Modales full-screen
+const Ajustes      = lazy(() => import('./screens/Ajustes').then((m) => ({ default: m.Ajustes })))
+const Perfil       = lazy(() => import('./screens/Perfil').then((m) => ({ default: m.Perfil })))
+const Paywall      = lazy(() => import('./screens/Paywall').then((m) => ({ default: m.Paywall })))
+// Sheets
 import { BottomNav } from './components/BottomNav'
-import { RegistrarSheet } from './sheets/Registrar'
-import { CalcSheet } from './sheets/Calc'
-import { MedidaSheet } from './sheets/Medida'
-import { ArcoSheet } from './sheets/Arco'
-import { ConfirmDeleteSheet } from './sheets/ConfirmDelete'
-import { ProtocoloEdit } from './sheets/ProtocoloEdit'
-import { Agregar } from './sheets/Agregar'
-import { Medidas } from './sheets/Medidas'
-import { CrearPlatillo } from './sheets/CrearPlatillo'
-import { Recetario } from './sheets/Recetario'
-import { DoseConfirm } from './sheets/DoseConfirm'
-import { MedidaDetailSheet } from './sheets/MedidaDetail'
-import { DayDetail } from './sheets/DayDetail'
+const RegistrarSheet  = lazy(() => import('./sheets/Registrar').then((m) => ({ default: m.RegistrarSheet })))
+const CalcSheet       = lazy(() => import('./sheets/Calc').then((m) => ({ default: m.CalcSheet })))
+const MedidaSheet     = lazy(() => import('./sheets/Medida').then((m) => ({ default: m.MedidaSheet })))
+const ArcoSheet       = lazy(() => import('./sheets/Arco').then((m) => ({ default: m.ArcoSheet })))
+const ConfirmDeleteSheet = lazy(() => import('./sheets/ConfirmDelete').then((m) => ({ default: m.ConfirmDeleteSheet })))
+const ProtocoloEdit   = lazy(() => import('./sheets/ProtocoloEdit').then((m) => ({ default: m.ProtocoloEdit })))
+const Agregar         = lazy(() => import('./sheets/Agregar').then((m) => ({ default: m.Agregar })))
+const Medidas         = lazy(() => import('./sheets/Medidas').then((m) => ({ default: m.Medidas })))
+const CrearPlatillo   = lazy(() => import('./sheets/CrearPlatillo').then((m) => ({ default: m.CrearPlatillo })))
+const Recetario       = lazy(() => import('./sheets/Recetario').then((m) => ({ default: m.Recetario })))
+const DoseConfirm     = lazy(() => import('./sheets/DoseConfirm').then((m) => ({ default: m.DoseConfirm })))
+const MedidaDetailSheet= lazy(() => import('./sheets/MedidaDetail').then((m) => ({ default: m.MedidaDetailSheet })))
+const DayDetail       = lazy(() => import('./sheets/DayDetail').then((m) => ({ default: m.DayDetail })))
+
+/** Fallback mínimo durante lazy-load (evita flash blanco) */
+function SheetFallback() {
+  return <div style={{ position: 'absolute', inset: 0, background: 'var(--bg)' }} />
+}
 
 const fade = sharedAxisX
 
@@ -129,7 +177,11 @@ function SheetHost() {
   const { state } = useApp()
   const id = state.sheet
   const Comp = id && id in SHEETS ? SHEETS[id as keyof typeof SHEETS] : null
-  return <AnimatePresence>{Comp && <Comp key={id} />}</AnimatePresence>
+  return (
+    <Suspense fallback={<SheetFallback />}>
+      <AnimatePresence>{Comp && <Comp key={id} />}</AnimatePresence>
+    </Suspense>
+  )
 }
 
 const TAB_SCREENS = { inicio: Home, diario: Diario, protocolo: Progreso, vida: Vida, comida: Alimentacion, semana: ResumenSemanal }
@@ -164,7 +216,9 @@ function AppShell() {
 
       <BottomNav />
       <SheetHost />
-      <AnimatePresence>{FullModal && <FullModal key={state.sheet} />}</AnimatePresence>
+      <Suspense fallback={<SheetFallback />}>
+        <AnimatePresence>{FullModal && <FullModal key={state.sheet} />}</AnimatePresence>
+      </Suspense>
       <Toast />
     </>
   )
@@ -181,7 +235,7 @@ function Root() {
   }, [state.screen, dispatch])
 
   const screen = state.screen
-  const FLOW: Record<string, () => JSX.Element> = {
+  const FLOW: Record<string, ComponentType> = {
     's-splash': Splash,
     's-onboarding': Onboarding,
     's-goal': Goal,
@@ -195,23 +249,55 @@ function Root() {
   }
   const Flow = FLOW[screen]
   return (
-    <AnimatePresence mode="wait">
-      <motion.div key={screen} variants={fade} initial="initial" animate="animate" exit="exit"
-        style={{ position: 'absolute', inset: 0 }}>
-        {screen === 's-app' ? <AppShell /> : Flow ? <Flow /> : <Splash />}
-      </motion.div>
-    </AnimatePresence>
+    <Suspense fallback={<SheetFallback />}>
+      <AnimatePresence mode="wait">
+        <motion.div key={screen} variants={fade} initial="initial" animate="animate" exit="exit"
+          style={{ position: 'absolute', inset: 0 }}>
+          {screen === 's-app' ? <AppShell /> : Flow ? <Flow /> : <Splash />}
+        </motion.div>
+      </AnimatePresence>
+    </Suspense>
   )
 }
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, initialState, loadState)
 
+  // registrar SW para push real (item 401) — una vez al montar
+  useEffect(() => {
+    void registerSW()
+  }, [])
+
+  // ── Deep-link desde App Shortcuts del manifest (items 314 + 438) ─────────────
+  // Captura ?action=log|medida|microlog al iniciar la app desde el shortcut del OS.
+  // Se ejecuta una sola vez al montar (el estado de screen puede estar en 's-app' o en el flow).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const action = params.get('action')
+    if (!action) return
+    // Limpiar el param de la URL sin recargar
+    const clean = window.location.pathname
+    window.history.replaceState({}, '', clean)
+    // Esperar a que la app esté en 's-app' para abrir la sheet
+    const open = () => {
+      if (action === 'log') dispatch({ t: 'sheet', sheet: 'registrar' })
+      else if (action === 'medida') dispatch({ t: 'sheet', sheet: 'medida' })
+      else if (action === 'microlog') dispatch({ t: 'sheet', sheet: 'agregar' })
+    }
+    // Si ya estamos en la app, abrir inmediatamente; si no, diferir 2.5 s (post-splash)
+    if (state.screen === 's-app') open()
+    else {
+      const t = window.setTimeout(open, 2500)
+      return () => clearTimeout(t)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // persistir estado (excepto efímeros) en cada cambio
   useEffect(() => {
     try {
       const { sheet: _s, toast: _t, ...persist } = state
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(persist))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...persist, schemaVersion: SCHEMA_VERSION }))
     } catch { /* almacenamiento lleno o no disponible */ }
   }, [state])
 

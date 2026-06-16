@@ -1,6 +1,9 @@
 // Registrar dosis — bottom-sheet. Un solo archivo, sin props, usa useApp().
 // Compliance: sin jeringas (IcDrop/IcLeaf), el usuario teclea su dosis,
 // calculadora solo convierte, sin venta in-app, disclaimers presentes.
+// Items: 301 (nota libre), 308 (picker con búsqueda + recientes), 309 (step adaptativo + long-press),
+//        310 (última dosis), 311 (wizard 3 pasos), 337 (sitio inyección), 424 (fecha reconstitución),
+//        428 (toggle unidad inline), 429 (recordar unidad), 430 (chips últimas 3 dosis)
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
@@ -12,17 +15,22 @@ import { useApp } from '../lib/store'
 import { PEPTIDES, WDS } from '../lib/catalog'
 import { presetCad, cadenceLabel } from '../lib/cadence'
 import { doseToMg, needsRecon } from '../lib/calc'
-import type { UserCadence, CadMode } from '../lib/types'
+import { tapHaptic } from '../lib/haptics'
+import type { UserCadence, CadMode, InjectionSite } from '../lib/types'
 
 // Unidades disponibles (el usuario elige — NUNCA precargamos dosis)
 type DoseUnit = 'UI' | 'clics' | 'mg' | 'mcg' | 'mL'
-// UI y clics son lo mismo (unidades de la jeringa/pluma) → un solo chip
 const UNITS: { value: DoseUnit; label: string }[] = [
   { value: 'UI',   label: 'UI/clics' },
   { value: 'mg',   label: 'mg' },
   { value: 'mcg',  label: 'mcg' },
   { value: 'mL',   label: 'mL' },
 ]
+
+// Step adaptativo por unidad (item 309)
+const UNIT_STEP: Record<DoseUnit, number> = {
+  mcg: 50, mg: 0.1, UI: 1, clics: 1, mL: 0.05,
+}
 
 const CADENCE_OPTS: { value: CadMode; label: string }[] = [
   { value: 'dia', label: 'Por día' },
@@ -31,14 +39,21 @@ const CADENCE_OPTS: { value: CadMode; label: string }[] = [
   { value: 'uso', label: 'Por uso' },
 ]
 
-// Catálogo + importados — para el picker de producto
+// Sitios de inyección disponibles (item 337)
+const INJECTION_SITES: { value: InjectionSite; label: string }[] = [
+  { value: 'abdomen-izq',  label: 'Abd. Izq' },
+  { value: 'abdomen-der',  label: 'Abd. Der' },
+  { value: 'muslo-izq',    label: 'Muslo Izq' },
+  { value: 'muslo-der',    label: 'Muslo Der' },
+  { value: 'gluteo-izq',   label: 'Glúteo Izq' },
+  { value: 'gluteo-der',   label: 'Glúteo Der' },
+]
+
 function buildProductList(importedProducts: string[]): string[] {
   const catalog = Object.keys(PEPTIDES)
-  const all = [...new Set([...importedProducts, ...catalog])]
-  return all
+  return [...new Set([...importedProducts, ...catalog])]
 }
 
-// parsea la etiqueta de la rueda ("9:05 AM") a un timestamp de hoy; 'Ahora' → undefined (usa now)
 function parseHora(label: string, todayTs: number): number | undefined {
   if (label === 'Ahora') return undefined
   const m = label.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
@@ -50,31 +65,99 @@ function parseHora(label: string, todayTs: number): number | undefined {
   return d.getTime()
 }
 
+// Chip de sitio de inyección sugerido (item 337)
+function nextSite(last?: InjectionSite): InjectionSite {
+  const sites = INJECTION_SITES.map((s) => s.value)
+  if (!last) return sites[0]
+  const idx = sites.indexOf(last)
+  return sites[(idx + 1) % sites.length]
+}
+
+// Obtiene las últimas 3 dosis únicas del producto (item 430)
+function lastDoses(
+  log: ReturnType<typeof useApp>['state']['log'],
+  product: string,
+): { value: number; unit: string }[] {
+  const seen = new Set<string>()
+  const out: { value: number; unit: string }[] = []
+  for (const group of log) {
+    for (const it of group.items) {
+      if (it.type !== 'dose' || it.product !== product || it.value == null) continue
+      const key = `${it.value}|${it.unit}`
+      if (!seen.has(key)) { seen.add(key); out.push({ value: it.value, unit: it.unit as string }) }
+      if (out.length >= 3) return out
+    }
+  }
+  return out
+}
+
+// Obtiene la última dosis del producto (item 310)
+function lastDoseInfo(
+  log: ReturnType<typeof useApp>['state']['log'],
+  product: string,
+): { value: number | null; unit: string; ts: number } | null {
+  for (const group of log) {
+    for (const it of group.items) {
+      if (it.type === 'dose' && it.product === product) {
+        return { value: it.value ?? null, unit: it.unit as string, ts: it.ts }
+      }
+    }
+  }
+  return null
+}
+
+function fmtRelative(ts: number): string {
+  const diff = (Date.now() - ts) / 3600000
+  if (diff < 1) return `hace ${Math.round(diff * 60)} min`
+  if (diff < 24) return `hace ${Math.round(diff)} h`
+  const days = Math.round(diff / 24)
+  return `hace ${days} ${days === 1 ? 'día' : 'días'}`
+}
+
+// Wizard steps (item 311)
+type WizardStep = 'producto' | 'cadencia' | 'dosis'
+
 export function RegistrarSheet() {
   const { state, dispatch } = useApp()
 
   // ── Producto ──────────────────────────────────────────────────────────────
-  // sin protocolo/importados → vacío: el usuario elige (no precargamos un producto del catálogo)
-  // sheetArg (cuando se abre desde "Tus dosis de hoy") manda: respeta la fila que tocó el usuario.
   const defaultProduct = state.sheetArg ?? state.protocol?.product ?? state.importedProducts[0] ?? ''
+  const isWizard = !defaultProduct  // item 311: sin producto → flujo wizard
 
   const [product, setProduct] = useState<string>(defaultProduct)
-  // cadencia adaptativa: si el producto YA tiene protocolo (cualquiera, no solo el activo), no re-pedirla
   const cadenceLocked = !!product && !!state.protocols[product]
-  const [showPicker, setShowPicker] = useState(!defaultProduct) // abre el picker si no hay producto
+  const [showPicker, setShowPicker] = useState(!defaultProduct)
   const [customProduct, setCustomProduct] = useState('')
   const [pickingCustom, setPickingCustom] = useState(false)
 
+  // item 308: búsqueda de producto
+  const [searchQuery, setSearchQuery] = useState('')
   const allProducts = buildProductList(state.importedProducts)
+  const recentProducts = (() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const group of state.log) {
+      for (const it of group.items) {
+        if (it.type === 'dose' && it.product && !seen.has(it.product)) {
+          seen.add(it.product); out.push(it.product)
+        }
+      }
+      if (out.length >= 5) break
+    }
+    return out.slice(0, 5)
+  })()
+  const filteredProducts = searchQuery.trim().length > 0
+    ? allProducts.filter((p) => p.toLowerCase().includes(searchQuery.toLowerCase()))
+    : allProducts
 
-  // ── Cadencia local (semilla: cadencia del protocolo de ESE producto ?? preset del catálogo) ─
+  // item 311: wizard step
+  const [wizardStep, setWizardStep] = useState<WizardStep>(isWizard ? 'producto' : 'dosis')
+
+  // ── Cadencia ──────────────────────────────────────────────────────────────
   const seedCad: UserCadence =
     state.protocols[product]?.cadence ?? presetCad(PEPTIDES[product])
-
   const [localCad, setLocalCad] = useState<UserCadence>(seedCad)
 
-  // Si se reabre el sheet apuntando a otro producto (p.ej. tocaste BPC en "Tus dosis de hoy")
-  // y el componente sigue montado (key estable), sincroniza producto + cadencia con el arg.
   useEffect(() => {
     const arg = state.sheetArg
     if (!arg || arg === product) return
@@ -82,88 +165,116 @@ export function RegistrarSheet() {
     setShowPicker(false)
     setPickingCustom(false)
     setLocalCad(state.protocols[arg]?.cadence ?? presetCad(PEPTIDES[arg]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.sheetArg])
 
-  // Cuando la cadencia es 'cadaN' o 'ciclo' (venida del catálogo),
-  // la UI la muestra como modo informativo (no editable en la segmentada de 4),
-  // pero el usuario puede cambiar a dia/sem/mes/uso.
-  const cadMode = (['dia', 'sem', 'mes', 'uso'] as CadMode[]).includes(
-    localCad.mode as CadMode,
-  )
+  const cadMode = (['dia', 'sem', 'mes', 'uso'] as CadMode[]).includes(localCad.mode as CadMode)
     ? (localCad.mode as CadMode)
     : 'dia'
 
   function setCadMode(m: CadMode) {
-    setLocalCad((prev) => ({
-      ...prev,
-      mode: m,
-      // reset every al cambiar entre sem/mes (bug P0-3)
-      every: m === 'sem' || m === 'mes' ? 1 : prev.every,
-    }))
+    setLocalCad((prev) => ({ ...prev, mode: m, every: m === 'sem' || m === 'mes' ? 1 : prev.every }))
   }
-
   function toggleDay(i: number) {
-    setLocalCad((prev) => {
-      const days = [...prev.days]
-      days[i] = !days[i]
-      return { ...prev, days }
-    })
+    setLocalCad((prev) => { const days = [...prev.days]; days[i] = !days[i]; return { ...prev, days } })
   }
 
-  // ── Dosis — campo controlado. Solo se precarga desde la calculadora del usuario (su propio cálculo) ──
+  // ── Dosis — campo controlado ──────────────────────────────────────────────
+  // item 429: recordar unidad por producto (localStorage)
+  function getStoredUnit(prod: string): DoseUnit | null {
+    try { return (localStorage.getItem(`ht_unit_${prod}`) as DoseUnit) || null } catch { return null }
+  }
+  const savedUnit = product ? getStoredUnit(product) : null
   const [dose, setDose] = useState(() => (state.draftDose ? String(state.draftDose.value) : ''))
-  const [unit, setUnit] = useState<DoseUnit>(() => (state.draftDose?.unit as DoseUnit) ?? 'mg')
+  const [unit, setUnit] = useState<DoseUnit>(() => (state.draftDose?.unit as DoseUnit) ?? savedUnit ?? 'mg')
+
+  // cuando cambia producto, restaurar unidad recordada
+  const prevProduct = useRef(product)
+  useEffect(() => {
+    if (product && product !== prevProduct.current) {
+      prevProduct.current = product
+      const pu = getStoredUnit(product)
+      if (pu) setUnit(pu)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product])
+
   useEffect(() => {
     if (state.draftDose) dispatch({ t: 'setDraftDose', draft: null })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // item 309: step adaptativo + long-press
+  const rampRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const rampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   function stepDose(delta: number) {
+    const step = UNIT_STEP[unit] ?? 1
+    const sign = delta > 0 ? 1 : -1
     const current = parseFloat(dose) || 0
-    const next = Math.max(0, current + delta)
-    setDose(String(next % 1 === 0 ? next : parseFloat(next.toFixed(2))))
+    const next = Math.max(0, current + sign * step)
+    setDose(String(next % 1 === 0 ? next : parseFloat(next.toFixed(4)).toString().replace(/\.?0+$/, '')))
   }
 
-  // ── Reconstitución del vial (solo para UI/clics/mL → convertir a mg) ──
-  // semilla: la reconstitución que vino de la calculadora, o la recordada del producto
+  function startRamp(delta: number) {
+    rampTimeoutRef.current = setTimeout(() => {
+      rampRef.current = setInterval(() => stepDose(delta), 200)
+    }, 300)
+  }
+  function stopRamp() {
+    if (rampRef.current) clearInterval(rampRef.current)
+    if (rampTimeoutRef.current) clearTimeout(rampTimeoutRef.current)
+    rampRef.current = null; rampTimeoutRef.current = null
+  }
+
+  // ── Reconstitución del vial ──────────────────────────────────────────────
   const seedRecon = state.draftDose?.recon ?? state.productRecon[defaultProduct]
   const [vialStr, setVialStr] = useState(() => (seedRecon ? String(seedRecon.vialMg) : ''))
   const [aguaStr, setAguaStr] = useState(() => (seedRecon ? String(seedRecon.aguaMl) : ''))
-  // al CAMBIAR de producto (no en el primer render), re-llena con la reconstitución recordada de ese producto
+  // item 424: fecha de reconstitución
+  const [reconDate, setReconDate] = useState<number | undefined>(() => state.productRecon[defaultProduct]?.reconDate)
+
   const reconFirst = useRef(true)
   useEffect(() => {
     if (reconFirst.current) { reconFirst.current = false; return }
     const rec = state.productRecon[product]
     setVialStr(rec ? String(rec.vialMg) : '')
     setAguaStr(rec ? String(rec.aguaMl) : '')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setReconDate(rec?.reconDate)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product])
   const showRecon = needsRecon(unit)
 
-  // ── Item 106: advertencia de doble dosis ─────────────────────────────────
+  // item 424: alerta de caducidad (>28 días)
+  const reconStale = reconDate != null && (Date.now() - reconDate) > 28 * 24 * 3600000
+
+  // ── item 301: nota libre ──────────────────────────────────────────────────
+  const [nota, setNota] = useState('')
+  const [showNota, setShowNota] = useState(false)
+
+  // ── item 337: sitio de inyección ──────────────────────────────────────────
+  const suggestedSite = product ? nextSite(state.lastInjectionSite?.[product]) : undefined
+  const [site, setSite] = useState<InjectionSite | undefined>(undefined)
+  const [showSites, setShowSites] = useState(false)
+  // reset sitio al cambiar producto
+  useEffect(() => { setSite(undefined) }, [product])
+
+  // ── Item 106: advertencia de doble dosis ──────────────────────────────────
   const doubleDoseWarning = (() => {
     if (!product) return null
     let lastTs: number | null = null
     for (const group of state.log) {
       for (const it of group.items) {
         if (it.type === 'dose' && it.product === product) {
-          if (lastTs === null || it.ts > lastTs) {
-            lastTs = it.ts
-          }
+          if (lastTs === null || it.ts > lastTs) lastTs = it.ts
         }
       }
     }
     if (!lastTs) return null
-    const cadMode = (['dia', 'sem', 'mes', 'uso'] as CadMode[]).includes(localCad.mode as CadMode)
-      ? (localCad.mode as CadMode)
-      : 'dia'
     const windowH = cadMode === 'dia' ? 8 : 12
     const elapsed = (Date.now() - lastTs) / 3600000
     if (elapsed >= windowH) return null
-    const elapsedText = elapsed < 1
-      ? `${Math.round(elapsed * 60)} min`
-      : `${elapsed.toFixed(1).replace('.0', '')} h`
+    const elapsedText = elapsed < 1 ? `${Math.round(elapsed * 60)} min` : `${elapsed.toFixed(1).replace('.0', '')} h`
     return { elapsedText, lastTs }
   })()
   const [dismissWarning, setDismissWarning] = useState(false)
@@ -177,8 +288,10 @@ export function RegistrarSheet() {
     setProduct(p)
     setShowPicker(false)
     setPickingCustom(false)
-    // Re-sembrar cadencia al cambiar producto
+    setSearchQuery('')
     setLocalCad(presetCad(PEPTIDES[p]))
+    // item 311: avanzar wizard
+    if (isWizard && wizardStep === 'producto') setWizardStep('cadencia')
   }
 
   function confirmCustom() {
@@ -188,9 +301,10 @@ export function RegistrarSheet() {
     setShowPicker(false)
     setPickingCustom(false)
     setLocalCad(presetCad(undefined))
+    if (isWizard && wizardStep === 'producto') setWizardStep('cadencia')
   }
 
-  // ── Guardar (con checkmark de confirmación — momento de conversión) ─────────
+  // ── Guardar ───────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false)
   const handleSave = useCallback(() => {
     if (saving) return
@@ -201,33 +315,42 @@ export function RegistrarSheet() {
       return
     }
     setSaving(true)
-    const ts = parseHora(hora, state.todayTs) // respeta la hora elegida en la rueda
+    tapHaptic()
+    const ts = parseHora(hora, state.todayTs)
     window.setTimeout(() => {
       if (state.protocols[finalProduct]) {
-        // ya tiene protocolo: solo re-persistir cadencia si es el activo (el editor estaba visible)
         if (state.activeProduct === finalProduct) dispatch({ t: 'setCadence', cadence: localCad })
       } else if (finalProduct in PEPTIDES) {
-        // producto nuevo del catálogo → créalo (lo activa) y aplica la cadencia elegida
         dispatch({ t: 'setProtocol', product: finalProduct })
         dispatch({ t: 'setCadence', cadence: localCad })
       }
-      // Convierte a mg canónicos (para vida media/presencia) y recuerda la reconstitución del producto
       const val = parseFloat(dose)
       const vialMg = parseFloat(vialStr)
       const aguaMl = parseFloat(aguaStr)
       const doseMg = doseToMg(val, unit, vialMg, aguaMl) ?? undefined
       const recon = needsRecon(unit) && vialMg > 0 && aguaMl > 0 ? { vialMg, aguaMl } : undefined
-      // Registrar dosis (P0-1: entra al diario + racha + activa dash)
-      dispatch({ t: 'logDose', product: finalProduct, value: val || null, unit, ts, doseMg, recon })
+      const noteStr = nota.trim().slice(0, 200) || undefined
+      dispatch({ t: 'logDose', product: finalProduct, value: val || null, unit, ts, doseMg, recon, site, note: noteStr })
+      // item 429: guardar unidad por producto en localStorage
+      try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
       dispatch({ t: 'sheet', sheet: null })
     }, 640)
-  }, [saving, state.protocols, state.activeProduct, localCad, product, dose, unit, vialStr, aguaStr, hora, state.todayTs, dispatch])
+  }, [saving, state.protocols, state.activeProduct, localCad, product, dose, unit, vialStr, aguaStr, hora, state.todayTs, nota, site, dispatch])
+
+  // ── item 310: última dosis del producto ──────────────────────────────────
+  const lastDoseData = product ? lastDoseInfo(state.log, product) : null
+
+  // ── item 430: chips de últimas 3 dosis ───────────────────────────────────
+  const doseChips = product ? lastDoses(state.log, product) : []
+
+  // ── Render: wizard step indicator (item 311) ──────────────────────────────
+  const WIZARD_STEPS: WizardStep[] = ['producto', 'cadencia', 'dosis']
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Sheet title="Registrar" onClose={() => dispatch({ t: 'sheet', sheet: null })}>
 
-      {/* Confirmación — checkmark draw-on (momento de conversión, celebra el PROGRESO) */}
+      {/* Confirmación — checkmark draw-on */}
       {saving && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -253,8 +376,20 @@ export function RegistrarSheet() {
         </motion.div>
       )}
 
-      {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 120px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {/* Item 311: barra de progreso del wizard */}
+        {isWizard && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+            {WIZARD_STEPS.map((s, i) => (
+              <div key={s} style={{
+                flex: 1, height: 3, borderRadius: 99,
+                background: WIZARD_STEPS.indexOf(wizardStep) >= i ? 'var(--brand-700)' : 'var(--ink-100)',
+                transition: 'background .2s',
+              }} />
+            ))}
+          </div>
+        )}
 
         {/* ── Item 106: advertencia de doble dosis ── */}
         {doubleDoseWarning && !dismissWarning && (
@@ -271,302 +406,398 @@ export function RegistrarSheet() {
               ¿Seguro que quieres registrar otra dosis?
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                className="btn btn-outline btn-sm"
+              <button className="btn btn-outline btn-sm"
                 style={{ width: 'auto', padding: '0 12px', color: 'var(--warning)', borderColor: 'color-mix(in srgb, var(--warning) 50%, transparent)' }}
-                onClick={() => setDismissWarning(true)}
-                aria-label="Sí, registrar de todas formas"
-              >
+                onClick={() => setDismissWarning(true)} aria-label="Sí, registrar de todas formas">
                 Sí, registrar igual
               </button>
-              <button
-                className="btn btn-ghost btn-sm"
+              <button className="btn btn-ghost btn-sm"
                 style={{ width: 'auto', padding: '0 12px' }}
-                onClick={() => dispatch({ t: 'sheet', sheet: null })}
-              >
+                onClick={() => dispatch({ t: 'sheet', sheet: null })}>
                 Cancelar
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Producto ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="sm" style={{ color: 'var(--ink-400)' }}>Producto</span>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '12px 16px', borderRadius: 12,
-            border: '1px solid var(--border)', background: 'var(--card)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'color-mix(in srgb, var(--brand-700) 10%, transparent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--brand-700)',
-              }}>
-                <IcDrop size={20} />
+        {/* ── Producto (siempre visible) ── */}
+        {(!isWizard || wizardStep === 'producto' || wizardStep === 'cadencia' || wizardStep === 'dosis') && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>Producto</span>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderRadius: 12,
+              border: '1px solid var(--border)', background: 'var(--card)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'color-mix(in srgb, var(--brand-700) 10%, transparent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--brand-700)',
+                }}>
+                  <IcDrop size={20} />
+                </div>
+                <span className="body" style={{ fontWeight: 500 }}>
+                  {product || 'Selecciona un producto'}
+                </span>
               </div>
-              <span className="body" style={{ fontWeight: 500 }}>
-                {product || 'Selecciona un producto'}
-              </span>
+              <button className="btn-ghost sm"
+                style={{ color: 'var(--brand-700)', fontWeight: 600 }}
+                onClick={() => setShowPicker((v) => !v)}>
+                Cambiar
+              </button>
             </div>
-            <button
-              className="btn-ghost sm"
-              style={{ color: 'var(--brand-700)', fontWeight: 600 }}
-              onClick={() => setShowPicker((v) => !v)}
-            >
-              Cambiar
-            </button>
-          </div>
 
-          {/* Picker de chips */}
-          {showPicker && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {allProducts.map((p) => (
-                <Chip
-                  key={p}
-                  label={p}
-                  active={p === product && !pickingCustom}
-                  onClick={() => pickProduct(p)}
+            {/* item 310: última dosis del producto */}
+            {lastDoseData && !showPicker && (
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', paddingLeft: 4 }}>
+                Última vez:{' '}
+                <span style={{ fontWeight: 600 }}>
+                  {lastDoseData.value != null ? `${lastDoseData.value} ${lastDoseData.unit}` : '(sin valor)'}
+                </span>
+                {' · '}{fmtRelative(lastDoseData.ts)}
+              </p>
+            )}
+
+            {/* item 308: picker con búsqueda + recientes */}
+            {showPicker && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+                {/* Campo de búsqueda */}
+                <input
+                  type="search"
+                  className="field sm"
+                  placeholder="Buscar producto…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                  style={{ padding: '8px 12px' }}
                 />
-              ))}
-              <Chip
-                label="Otro"
-                active={pickingCustom}
-                onClick={() => { setPickingCustom(true) }}
-              />
-              {pickingCustom && (
-                <div style={{ width: '100%', display: 'flex', gap: 8, marginTop: 4 }}>
-                  <input
-                    className="field body"
-                    placeholder="Nombre del producto"
-                    value={customProduct}
-                    onChange={(e) => setCustomProduct(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && confirmCustom()}
-                    style={{ flex: 1 }}
-                    autoFocus
-                  />
-                  <button className="btn btn-brand btn-sm" onClick={confirmCustom}>
-                    Listo
-                  </button>
+
+                {/* Recientes (solo si no hay query) */}
+                {!searchQuery && recentProducts.length > 0 && (
+                  <div>
+                    <p className="sm" style={{ margin: '0 0 6px', color: 'var(--ink-400)' }}>Recientes</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {recentProducts.map((p) => (
+                        <Chip key={p} label={p} active={p === product && !pickingCustom} onClick={() => pickProduct(p)} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lista filtrada */}
+                <div>
+                  {!searchQuery && <p className="sm" style={{ margin: '0 0 6px', color: 'var(--ink-400)' }}>Catálogo</p>}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {filteredProducts.map((p) => (
+                      <Chip key={p} label={p} active={p === product && !pickingCustom} onClick={() => pickProduct(p)} />
+                    ))}
+                    {filteredProducts.length === 0 && (
+                      <p className="sm" style={{ color: 'var(--ink-300)', margin: 0 }}>Sin resultados</p>
+                    )}
+                    <Chip label="Otro" active={pickingCustom} onClick={() => { setPickingCustom(true) }} />
+                  </div>
+                </div>
+
+                {pickingCustom && (
+                  <div style={{ width: '100%', display: 'flex', gap: 8 }}>
+                    <input
+                      className="field body"
+                      placeholder="Nombre del producto"
+                      value={customProduct}
+                      onChange={(e) => setCustomProduct(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && confirmCustom()}
+                      style={{ flex: 1 }}
+                      autoFocus
+                    />
+                    <button className="btn btn-brand btn-sm" onClick={confirmCustom}>Listo</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Cadencia (wizard: paso 2; normal: siempre) ── */}
+        {(!isWizard || wizardStep === 'cadencia') && (
+          <>
+            {cadenceLocked ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span className="sm" style={{ color: 'var(--ink-400)' }}>Cadencia</span>
+                  <span className="body" style={{ fontWeight: 600 }}>{cadenceLabel(localCad)}</span>
+                </div>
+                <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px' }}
+                  onClick={() => {
+                    dispatch({ t: 'setActiveProduct', product })
+                    dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
+                  }}>
+                  Editar
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>Cadencia</span>
+                <Segmented options={CADENCE_OPTS} value={cadMode} onChange={setCadMode} />
+                {cadMode === 'dia' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, marginTop: 4 }}>
+                    {WDS.map(([label], i) => (
+                      <button key={label} aria-pressed={!!localCad.days[i]} onClick={() => toggleDay(i)}
+                        style={{
+                          width: 40, height: 40, borderRadius: '50%',
+                          fontSize: 13, fontWeight: 600,
+                          background: localCad.days[i] ? 'var(--brand-700)' : 'var(--ink-100)',
+                          color: localCad.days[i] ? '#fff' : 'var(--ink-400)',
+                          border: 'none', cursor: 'pointer', transition: 'background .15s',
+                        }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {cadMode === 'sem' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span className="sm" style={{ color: 'var(--ink-400)' }}>Cada</span>
+                    <button className="stepbtn" aria-label="Menos"
+                      onClick={() => setLocalCad((p) => ({ ...p, every: Math.max(1, p.every - 1) }))}>−</button>
+                    <span className="mono" style={{ minWidth: 24, textAlign: 'center' }}>{localCad.every}</span>
+                    <button className="stepbtn" aria-label="Más"
+                      onClick={() => setLocalCad((p) => ({ ...p, every: p.every + 1 }))}>+</button>
+                    <span className="sm" style={{ color: 'var(--ink-400)' }}>{localCad.every === 1 ? 'semana' : 'semanas'}</span>
+                  </div>
+                )}
+                {cadMode === 'mes' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span className="sm" style={{ color: 'var(--ink-400)' }}>Cada</span>
+                    <button className="stepbtn" aria-label="Menos"
+                      onClick={() => setLocalCad((p) => ({ ...p, every: Math.max(1, p.every - 1) }))}>−</button>
+                    <span className="mono" style={{ minWidth: 24, textAlign: 'center' }}>{localCad.every}</span>
+                    <button className="stepbtn" aria-label="Más"
+                      onClick={() => setLocalCad((p) => ({ ...p, every: p.every + 1 }))}>+</button>
+                    <span className="sm" style={{ color: 'var(--ink-400)' }}>{localCad.every === 1 ? 'mes' : 'meses'}</span>
+                  </div>
+                )}
+                {cadMode === 'uso' && (
+                  <p className="sm" style={{ color: 'var(--ink-400)', margin: 0 }}>
+                    Sin horario fijo. Lo registras cuando lo usas — no programamos días.
+                  </p>
+                )}
+              </div>
+            )}
+            {/* Botón siguiente del wizard */}
+            {isWizard && wizardStep === 'cadencia' && (
+              <button className="btn btn-outline" onClick={() => setWizardStep('dosis')}>
+                Siguiente →
+              </button>
+            )}
+          </>
+        )}
+
+        {/* ── Dosis (wizard: paso 3; normal: siempre) ── */}
+        {(!isWizard || wizardStep === 'dosis') && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {/* Botón − con long-press (item 309) */}
+                <button
+                  className="stepbtn"
+                  aria-label="Disminuir dosis"
+                  style={{ width: 56, height: 56, borderRadius: '50%', border: '1px solid var(--border)', fontSize: 24 }}
+                  onClick={() => stepDose(-1)}
+                  onPointerDown={() => startRamp(-1)}
+                  onPointerUp={stopRamp}
+                  onPointerLeave={stopRamp}
+                >
+                  −
+                </button>
+
+                <input
+                  type="text" inputMode="decimal" aria-label="Cantidad de dosis"
+                  className="mono" placeholder="0" value={dose}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(',', '.')
+                    if (/^\d*\.?\d*$/.test(v)) setDose(v)
+                  }}
+                  style={{ width: 128, textAlign: 'center', fontSize: 40, fontWeight: 800, background: 'transparent', border: 'none', outline: 'none', color: 'var(--ink-900)' }}
+                />
+
+                {/* Botón + con long-press (item 309) */}
+                <button
+                  className="stepbtn"
+                  aria-label="Aumentar dosis"
+                  style={{ width: 56, height: 56, borderRadius: '50%', border: '1px solid var(--border)', fontSize: 24 }}
+                  onClick={() => stepDose(1)}
+                  onPointerDown={() => startRamp(1)}
+                  onPointerUp={stopRamp}
+                  onPointerLeave={stopRamp}
+                >
+                  +
+                </button>
+              </div>
+
+              {/* item 428: chips de unidad inline */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {UNITS.map((u) => (
+                  <Chip key={u.value} label={u.label} active={unit === u.value}
+                    onClick={() => {
+                      setUnit(u.value)
+                      // item 429: se persiste al guardar
+                    }} />
+                ))}
+              </div>
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', textAlign: 'center' }}>
+                Paso: {UNIT_STEP[unit]} {unit} · mantén presionado para rampa
+              </p>
+
+              {/* item 430: chips de últimas 3 dosis */}
+              {doseChips.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'center' }}>
+                  <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>Dosis recientes</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {doseChips.map((d, i) => (
+                      <button key={i}
+                        onClick={() => { setDose(String(d.value)); setUnit(d.unit as DoseUnit) }}
+                        style={{
+                          padding: '4px 12px', borderRadius: 99, fontSize: 13, fontWeight: 600,
+                          border: '1.5px solid var(--brand-300)',
+                          background: 'color-mix(in srgb, var(--brand-300) 10%, transparent)',
+                          color: 'var(--brand-700)', cursor: 'pointer',
+                        }}>
+                        {d.value} {d.unit}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Reconstitución del vial */}
+              {showRecon && (
+                <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--border)', width: '100%', boxSizing: 'border-box' }}>
+                  <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 10, textAlign: 'center' }}>
+                    Reconstitución del vial <span style={{ color: 'var(--ink-300)' }}>· para saber cuántos mg son tus {unit === 'mL' ? 'mL' : 'unidades'}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <label className="label" htmlFor="reg-vial">Vial (mg)</label>
+                      <input id="reg-vial" className="field" type="number" inputMode="decimal" min="0" placeholder="ej. 10"
+                        value={vialStr} onChange={(e) => setVialStr(e.target.value)} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label className="label" htmlFor="reg-agua">Agua (mL)</label>
+                      <input id="reg-agua" className="field" type="number" inputMode="decimal" min="0" placeholder="ej. 2"
+                        value={aguaStr} onChange={(e) => setAguaStr(e.target.value)} />
+                    </div>
+                  </div>
+                  {(() => {
+                    const mg = doseToMg(parseFloat(dose), unit, parseFloat(vialStr), parseFloat(aguaStr))
+                    return mg != null ? (
+                      <div className="sm mono" style={{ color: 'var(--brand-700)', textAlign: 'center', marginTop: 10, fontWeight: 600 }}>
+                        = {mg < 1 ? mg.toFixed(3) : mg < 10 ? mg.toFixed(2) : mg.toFixed(1)} mg
+                      </div>
+                    ) : (
+                      <div className="sm" style={{ color: 'var(--ink-300)', textAlign: 'center', marginTop: 10 }}>
+                        Ingresa vial y agua para convertir a mg
+                      </div>
+                    )
+                  })()}
+
+                  {/* item 424: fecha de reconstitución */}
+                  {reconStale && (
+                    <div style={{
+                      marginTop: 10, padding: '8px 10px', borderRadius: 'var(--r-sm)',
+                      background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
+                    }}>
+                      <p className="sm" style={{ margin: 0, color: 'var(--warning)', fontWeight: 600 }}>
+                        ⚠ Vial reconstituido hace más de 28 días — verifica la estabilidad antes de usar.
+                      </p>
+                      <p className="sm" style={{ margin: '4px 0 0', color: 'var(--ink-400)' }}>Dato orientativo. No es consejo médico.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* ── Cadencia: solo al ESTABLECER el producto. Si ya tiene protocolo → chip de solo-lectura. ── */}
-        {cadenceLocked ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span className="sm" style={{ color: 'var(--ink-400)' }}>Cadencia</span>
-              <span className="body" style={{ fontWeight: 600 }}>{cadenceLabel(localCad)}</span>
-            </div>
-            <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px' }}
-              onClick={() => {
-                dispatch({ t: 'setActiveProduct', product })
-                dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
-              }}>
-              Editar
-            </button>
-          </div>
-        ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <span className="sm" style={{ color: 'var(--ink-400)' }}>Cadencia</span>
-          <Segmented
-            options={CADENCE_OPTS}
-            value={cadMode}
-            onChange={setCadMode}
-          />
-
-          {/* Modo día: chips de día de semana */}
-          {cadMode === 'dia' && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, marginTop: 4 }}>
-              {WDS.map(([label], i) => (
-                <button
-                  key={label}
-                  aria-pressed={!!localCad.days[i]}
-                  onClick={() => toggleDay(i)}
-                  style={{
-                    width: 40, height: 40, borderRadius: '50%',
-                    fontSize: 13, fontWeight: 600,
-                    background: localCad.days[i] ? 'var(--brand-700)' : 'var(--ink-100)',
-                    color: localCad.days[i] ? '#fff' : 'var(--ink-400)',
-                    border: 'none', cursor: 'pointer',
-                    transition: 'background .15s',
-                  }}
-                >
-                  {label}
+            {/* ── item 337: sitio de inyección ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>Sitio de inyección</span>
+                <button className="btn-ghost sm" style={{ color: 'var(--brand-700)' }}
+                  onClick={() => setShowSites((v) => !v)}>
+                  {showSites ? 'Ocultar' : (site ? site.replace('-', ' ') : suggestedSite ? `Sugerido: ${suggestedSite.replace('-', ' ')}` : 'Elegir')}
                 </button>
-              ))}
+              </div>
+              {showSites && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {INJECTION_SITES.map((s) => (
+                    <Chip key={s.value} label={s.label}
+                      active={site === s.value || (!site && s.value === suggestedSite)}
+                      onClick={() => { setSite(s.value); setShowSites(false) }} />
+                  ))}
+                  <Chip label="Sin registrar" active={site === undefined && !showSites}
+                    onClick={() => { setSite(undefined); setShowSites(false) }} />
+                </div>
+              )}
+              {!showSites && (site || suggestedSite) && (
+                <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
+                  {site ? (
+                    <>Elegido: <strong>{INJECTION_SITES.find((s) => s.value === site)?.label}</strong></>
+                  ) : (
+                    <>Rotación sugerida: <strong>{INJECTION_SITES.find((s) => s.value === suggestedSite)?.label}</strong> — <button className="btn-ghost sm" style={{ color: 'var(--brand-700)' }} onClick={() => setSite(suggestedSite)}>Aceptar</button></>
+                  )}
+                </p>
+              )}
             </div>
-          )}
 
-          {/* Modo sem: cada N semanas */}
-          {cadMode === 'sem' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="sm" style={{ color: 'var(--ink-400)' }}>Cada</span>
-              <button className="stepbtn" aria-label="Menos"
-                onClick={() => setLocalCad((p) => ({ ...p, every: Math.max(1, p.every - 1) }))}>
-                −
+            {/* ── Link: calculadora de unidades ── */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button className="btn-ghost sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brand-700)', fontWeight: 500 }}
+                onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}>
+                <IcDrop size={16} />
+                Calculadora de unidades
               </button>
-              <span className="mono" style={{ minWidth: 24, textAlign: 'center' }}>
-                {localCad.every}
-              </span>
-              <button className="stepbtn" aria-label="Más"
-                onClick={() => setLocalCad((p) => ({ ...p, every: p.every + 1 }))}>
-                +
-              </button>
-              <span className="sm" style={{ color: 'var(--ink-400)' }}>
-                {localCad.every === 1 ? 'semana' : 'semanas'}
-              </span>
             </div>
-          )}
 
-          {/* Modo mes: cada N meses */}
-          {cadMode === 'mes' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="sm" style={{ color: 'var(--ink-400)' }}>Cada</span>
-              <button className="stepbtn" aria-label="Menos"
-                onClick={() => setLocalCad((p) => ({ ...p, every: Math.max(1, p.every - 1) }))}>
-                −
-              </button>
-              <span className="mono" style={{ minWidth: 24, textAlign: 'center' }}>
-                {localCad.every}
-              </span>
-              <button className="stepbtn" aria-label="Más"
-                onClick={() => setLocalCad((p) => ({ ...p, every: p.every + 1 }))}>
-                +
-              </button>
-              <span className="sm" style={{ color: 'var(--ink-400)' }}>
-                {localCad.every === 1 ? 'mes' : 'meses'}
-              </span>
+            {/* ── Hora de registro ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora de registro</span>
+                <Chip label="Ahora" active={hora === 'Ahora'} onClick={() => setHora('Ahora')} />
+              </div>
+              <TimeWheel onChange={(label) => setHora(label)} />
             </div>
-          )}
 
-          {/* Modo uso: sin horario */}
-          {cadMode === 'uso' && (
-            <p className="sm" style={{ color: 'var(--ink-400)', margin: 0 }}>
-              Sin horario fijo. Lo registras cuando lo usas — no programamos días.
-            </p>
-          )}
-        </div>
+            {/* ── item 301: nota libre ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button className="btn-ghost sm"
+                style={{ alignSelf: 'flex-start', color: 'var(--ink-400)', fontWeight: 500 }}
+                onClick={() => setShowNota((v) => !v)}>
+                {showNota ? '▲ Ocultar nota' : '✏ Añadir nota (opcional)'}
+              </button>
+              {showNota && (
+                <div style={{ position: 'relative' }}>
+                  <textarea
+                    className="field"
+                    rows={2}
+                    maxLength={200}
+                    placeholder="Sitio de inyección, notas personales, estado general…"
+                    value={nota}
+                    onChange={(e) => setNota(e.target.value)}
+                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 14, boxSizing: 'border-box' }}
+                    aria-label="Nota opcional del registro"
+                  />
+                  <span className="sm" style={{ position: 'absolute', bottom: 6, right: 10, color: 'var(--ink-300)' }}>
+                    {nota.length}/200
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <Disclaimer kind="dose" />
+          </>
         )}
-
-        {/* ── Dosis (el usuario teclea — NUNCA precargado) ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            {/* Botón − */}
-            <button
-              className="stepbtn"
-              aria-label="Disminuir dosis"
-              style={{ width: 56, height: 56, borderRadius: '50%', border: '1px solid var(--border)', fontSize: 24 }}
-              onClick={() => stepDose(-1)}
-            >
-              −
-            </button>
-
-            {/* Input grande controlado */}
-            <input
-              type="text"
-              inputMode="decimal"
-              aria-label="Cantidad de dosis"
-              className="mono"
-              placeholder="0"
-              value={dose}
-              onChange={(e) => {
-                // solo dígitos y punto/coma
-                const v = e.target.value.replace(',', '.')
-                if (/^\d*\.?\d*$/.test(v)) setDose(v)
-              }}
-              style={{
-                width: 128, textAlign: 'center', fontSize: 40, fontWeight: 800,
-                background: 'transparent', border: 'none', outline: 'none',
-                color: 'var(--ink-900)',
-              }}
-            />
-
-            {/* Botón + */}
-            <button
-              className="stepbtn"
-              aria-label="Aumentar dosis"
-              style={{ width: 56, height: 56, borderRadius: '50%', border: '1px solid var(--border)', fontSize: 24 }}
-              onClick={() => stepDose(1)}
-            >
-              +
-            </button>
-          </div>
-
-          {/* Chips de unidad */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {UNITS.map((u) => (
-              <Chip
-                key={u.value}
-                label={u.label}
-                active={unit === u.value}
-                onClick={() => setUnit(u.value)}
-              />
-            ))}
-          </div>
-
-          {/* Reconstitución del vial — necesaria para convertir UI/clics/mL a mg */}
-          {showRecon && (
-            <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--border)' }}>
-              <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 10, textAlign: 'center' }}>
-                Reconstitución del vial <span style={{ color: 'var(--ink-300)' }}>· para saber cuántos mg son tus {unit === 'mL' ? 'mL' : 'unidades'}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <label className="label" htmlFor="reg-vial">Vial (mg)</label>
-                  <input id="reg-vial" className="field" type="number" inputMode="decimal" min="0" placeholder="ej. 10"
-                    value={vialStr} onChange={(e) => setVialStr(e.target.value)} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label className="label" htmlFor="reg-agua">Agua (mL)</label>
-                  <input id="reg-agua" className="field" type="number" inputMode="decimal" min="0" placeholder="ej. 2"
-                    value={aguaStr} onChange={(e) => setAguaStr(e.target.value)} />
-                </div>
-              </div>
-              {(() => {
-                const mg = doseToMg(parseFloat(dose), unit, parseFloat(vialStr), parseFloat(aguaStr))
-                return mg != null ? (
-                  <div className="sm mono" style={{ color: 'var(--brand-700)', textAlign: 'center', marginTop: 10, fontWeight: 600 }}>
-                    = {mg < 1 ? mg.toFixed(3) : mg < 10 ? mg.toFixed(2) : mg.toFixed(1)} mg
-                  </div>
-                ) : (
-                  <div className="sm" style={{ color: 'var(--ink-300)', textAlign: 'center', marginTop: 10 }}>
-                    Ingresa vial y agua para convertir a mg
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* ── Link: calculadora de unidades ── */}
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <button
-            className="btn-ghost sm"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brand-700)', fontWeight: 500 }}
-            onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}
-          >
-            <IcDrop size={16} />
-            Calculadora de unidades
-          </button>
-        </div>
-
-        {/* ── Hora de registro (rueda tipo scroll) ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora de registro</span>
-            <Chip label="Ahora" active={hora === 'Ahora'} onClick={() => setHora('Ahora')} />
-          </div>
-          <TimeWheel onChange={(label) => setHora(label)} />
-        </div>
-
-        {/* ── Disclaimer (dose) — guardrail de compliance ── */}
-        <Disclaimer kind="dose" />
 
       </div>
 
@@ -576,13 +807,26 @@ export function RegistrarSheet() {
         padding: '16px 20px 24px',
         background: 'linear-gradient(to top, var(--card) 80%, transparent)',
       }}>
-        <button
-          className="btn btn-brand"
-          style={{ width: '100%', height: 52, borderRadius: 16, fontSize: 16, fontWeight: 600 }}
-          onClick={handleSave}
-        >
-          Guardar registro
-        </button>
+        {isWizard && wizardStep !== 'dosis' ? (
+          <button className="btn btn-brand"
+            style={{ width: '100%', height: 52, borderRadius: 16, fontSize: 16, fontWeight: 600 }}
+            onClick={() => {
+              if (wizardStep === 'producto') {
+                if (!product) { dispatch({ t: 'toast', msg: 'Elige un producto primero' }); return }
+                setWizardStep('cadencia')
+              } else {
+                setWizardStep('dosis')
+              }
+            }}>
+            Siguiente →
+          </button>
+        ) : (
+          <button className="btn btn-brand"
+            style={{ width: '100%', height: 52, borderRadius: 16, fontSize: 16, fontWeight: 600 }}
+            onClick={handleSave}>
+            Guardar registro
+          </button>
+        )}
       </div>
 
     </Sheet>

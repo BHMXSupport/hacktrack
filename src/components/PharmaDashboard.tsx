@@ -1,7 +1,7 @@
 // PharmaDashboard — "Vida del péptido en el cuerpo": decaimiento multi-producto desde las dosis registradas.
 // Estimación EDUCATIVA (vida media aproximada de literatura), NO consejo médico ni dosis.
 // (Síntesis del equipo: investigador PK + analista de datos + dashboard + diseñador + UX.)
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
 import {
@@ -161,6 +161,11 @@ export function PharmaDashboard() {
   const [showWeight, setShowWeight] = useState(false)
   // item 287/285/286/288/290/293/283 — panel análisis avanzado colapsable
   const [showAdvanced, setShowAdvanced] = useState(false)
+  // n°418: KPI overlay selector
+  const [kpiOverlay, setKpiOverlay] = useState<string | null>(null)
+  const [kpiTipIdx, setKpiTipIdx] = useState<number | null>(null)
+  // n°500: chart ref for sr-only table (prefers-reduced-motion handled by MultiLineChart internally)
+  const chartRef = useRef<HTMLDivElement>(null)
 
   // "ahora" en vivo (el punto de cada serie y la línea avanzan)
   useEffect(() => {
@@ -295,6 +300,36 @@ export function PharmaDashboard() {
     const lastDoseTs = Math.max(...doses.map((d) => d.ts))
     return lastDoseTs + washoutMs(HALF_LIFE_H[s.product] ?? 0)
   }, [data.series, hidden, state])
+
+  // ── n°418: KPI overlay — opciones y puntos ──
+  const kpiHistoryOptions = useMemo(
+    () => Object.keys(state.history).filter((k) => (state.history[k]?.length ?? 0) > 0),
+    [state.history],
+  )
+  const kpiPoints = useMemo(() => {
+    if (!kpiOverlay) return []
+    const samples = (state.history[kpiOverlay] ?? [])
+      .filter((s) => s.ts >= data.domainX[0] && s.ts <= data.domainX[1])
+      .sort((a, b) => a.ts - b.ts)
+    return samples
+  }, [kpiOverlay, state.history, data.domainX])
+
+  // ── n°500: datos de tabla sr-only (pico + presencia actual + t-max) ──
+  const srTableRows = useMemo(() => {
+    return data.series.map((s) => {
+      const peak = Math.max(...s.points.map((p) => p[1]))
+      const current = s.points.find((p) => Math.abs(p[0] - now) < 1_800_000)?.[1] ?? 0
+      const tMaxPt = s.points.reduce((best, p) => p[1] > best[1] ? p : best, s.points[0] ?? [0, 0])
+      const dh = tMaxPt ? (tMaxPt[0] - now) / H_MS : 0
+      const tMaxLabel = Math.abs(dh) < 0.5 ? 'ahora' : dh > 0 ? `+${dh.toFixed(1)}h` : `${dh.toFixed(1)}h`
+      return {
+        product: s.product,
+        peak: mode === 'percent' ? `${peak.toFixed(0)}%` : fmtApproxMg(peak),
+        current: mode === 'percent' ? `${Math.max(0, current).toFixed(0)}%` : fmtApproxMg(Math.max(0, current)),
+        tMax: tMaxLabel,
+      }
+    })
+  }, [data.series, now, mode])
 
   // ── Análisis avanzado (para el panel colapsable) ──
   const advancedMetrics = useMemo(() => {
@@ -477,6 +512,22 @@ export function PharmaDashboard() {
               Mostrar peso
             </button>
           )}
+          {/* n°418: KPI overlay selector */}
+          {kpiHistoryOptions.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+              <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 11, flexShrink: 0 }}>KPI:</span>
+              {kpiHistoryOptions.slice(0, 4).map((k) => (
+                <button
+                  key={k}
+                  className="chip"
+                  style={{ fontSize: 11, background: kpiOverlay === k ? 'var(--brand-100)' : undefined, color: kpiOverlay === k ? 'var(--brand-700)' : undefined }}
+                  onClick={() => setKpiOverlay((prev) => prev === k ? null : k)}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Mini-nota eje Y en modo mg */}
@@ -496,7 +547,13 @@ export function PharmaDashboard() {
         {/* Chart */}
         {visible.length > 0 ? (
           <>
-            <div style={{ marginTop: 10 }}>
+            {/* n°500: a11y wrapper with role="img" + aria-label describing the PK curve */}
+            <div
+              ref={chartRef}
+              role="img"
+              aria-label={`Curva PK para ${visible.map((s) => s.product).join(', ')} en ventana ${win}. ${srTableRows.map((r) => `${r.product}: pico ${r.peak}, presencia actual ${r.current}, t-max ${r.tMax}`).join('; ')}.`}
+              style={{ marginTop: 10, position: 'relative' }}
+            >
               <MultiLineChart
                 series={visible.map((s) => ({ ...s, dashed: s.isEstimatedOnly, halfLifeH: s.halfLifeH }))}
                 mode={mode}
@@ -535,7 +592,79 @@ export function PharmaDashboard() {
                 // item 280 — zona de washout sombreada
                 shadeFrom={washoutShadingTs}
               />
+
+              {/* n°418: KPI markers overlay — triangular points above chart */}
+              {kpiOverlay && kpiPoints.length > 0 && (
+                <div
+                  aria-hidden
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}
+                >
+                  {kpiPoints.map((pt, i) => {
+                    const [xMin, xMax] = data.domainX
+                    const xPct = xMax > xMin ? ((pt.ts - xMin) / (xMax - xMin)) * 100 : 50
+                    if (xPct < 0 || xPct > 100) return null
+                    return (
+                      <button
+                        key={i}
+                        aria-label={`${kpiOverlay}: ${pt.value}`}
+                        onClick={() => setKpiTipIdx((prev) => prev === i ? null : i)}
+                        style={{
+                          position: 'absolute',
+                          left: `${xPct}%`,
+                          top: '10%',
+                          transform: 'translateX(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                          zIndex: 10,
+                          pointerEvents: 'auto',
+                        }}
+                      >
+                        {/* Triangle marker */}
+                        <svg width="12" height="10" viewBox="0 0 12 10" fill="var(--success)" style={{ display: 'block' }}>
+                          <polygon points="6,0 12,10 0,10" />
+                        </svg>
+                        {kpiTipIdx === i && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '120%',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'var(--ink-900)',
+                            color: 'var(--surface)',
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                            pointerEvents: 'none',
+                            boxShadow: 'var(--e2)',
+                          }}>
+                            {kpiOverlay}: {pt.value}
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
+
+            {/* n°500: sr-only data table — screen reader alternative */}
+            <table style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' }} aria-label={`Datos de la curva PK — ${win}`}>
+              <thead>
+                <tr><th>Producto</th><th>Pico estimado</th><th>Presencia actual</th><th>T-máx relativo</th></tr>
+              </thead>
+              <tbody>
+                {srTableRows.map((r) => (
+                  <tr key={r.product}>
+                    <td>{r.product}</td><td>{r.peak}</td><td>{r.current}</td><td>{r.tMax}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
             {showWeight && hasGlp1 && (
               <p className="disclaimer" style={{ borderLeft: '2px solid var(--border)', paddingLeft: 10, marginTop: 8 }}>
                 Observacional — no implica causalidad entre la dosis y el cambio de peso.

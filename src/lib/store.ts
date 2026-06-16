@@ -167,7 +167,7 @@ export type Action =
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'logSkip'; product: string; ts?: number }                    // dosis intencional saltada (no penaliza adherencia)
   | { t: 'deleteLog'; id: string }                                    // P1-1
-  | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
+  | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string | number | null }
   | { t: 'setThemeMode'; mode: ThemeMode }                              // modo de tema: auto | light | dark
   | { t: 'setName'; name: string }
   | { t: 'setProfileFields'; patch: Partial<Profile> }                // edad/sexo/actividad/meta (TDEE/proyección)

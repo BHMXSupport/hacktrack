@@ -1,7 +1,7 @@
 // Alimentación — "Registro Relámpago": predicciones por franja horaria (1 toque), barra inteligente
 // con búsqueda en tu biblioteca, copiar de ayer, porciones, proteína + meta. (Torneo multiagente → audit.)
 import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, isoKey, mealSlot } from '../lib/store'
 import {
   dayMacros, predictions, predictionConfidence, fuzzySearch, protocolNumbers, anchorProduct,
@@ -118,6 +118,91 @@ export function Alimentacion() {
   const [showSlotDist, setShowSlotDist] = useState(false)
   const [showRecientes, setShowRecientes] = useState(false)
   const [showHeatmap, setShowHeatmap] = useState(false)
+
+  // n°356: tamaño de vaso configurable (ml), persiste en localStorage
+  const [glassMl, setGlassMl] = useState<number>(() => {
+    try { return Number(localStorage.getItem('hacktrack-glass-ml') ?? '250') || 250 } catch { return 250 }
+  })
+  const [showGlassConfig, setShowGlassConfig] = useState(false)
+  const GLASS_OPTIONS = [250, 330, 500] as const
+  const totalMl = day.water * glassMl
+  const totalL = (totalMl / 1000).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+
+  // n°476: barcode scanner (BarcodeDetector Web API)
+  const [scannerActive, setScannerActive] = useState(false)
+  const [scanResult, setScanResult] = useState<{ name: string; kcal: number; protein?: number; carbs?: number; fat?: number } | null>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
+
+  const openBarcodeScanner = async () => {
+    setScanError(null)
+    if (typeof (window as any).BarcodeDetector === 'undefined') {
+      setScanError('Tu navegador no soporta BarcodeDetector — escanea manualmente o usa Chrome en Android.')
+      return
+    }
+    setScannerActive(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      const video = document.createElement('video')
+      video.srcObject = stream
+      await video.play()
+      const detector = new (window as any).BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] })
+      const canvas = document.createElement('canvas')
+      let found = false
+      for (let i = 0; i < 30 && !found; i++) {
+        await new Promise((r) => setTimeout(r, 200))
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight
+        canvas.getContext('2d')?.drawImage(video, 0, 0)
+        const barcodes = await detector.detect(canvas)
+        if (barcodes.length > 0) {
+          found = true
+          const code = barcodes[0].rawValue
+          stream.getTracks().forEach((t: MediaStreamTrack) => t.stop())
+          // Query Open Food Facts
+          const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`)
+          const json = await res.json()
+          if (json.status === 1) {
+            const p = json.product
+            const kcalPer100 = p.nutriments?.['energy-kcal_100g'] ?? 0
+            const portionG = p.serving_quantity ?? 100
+            const factor = portionG / 100
+            setScanResult({
+              name: p.product_name_es ?? p.product_name ?? code,
+              kcal: Math.round(kcalPer100 * factor),
+              protein: p.nutriments?.proteins_100g != null ? Math.round(p.nutriments.proteins_100g * factor) : undefined,
+              carbs: p.nutriments?.carbohydrates_100g != null ? Math.round(p.nutriments.carbohydrates_100g * factor) : undefined,
+              fat: p.nutriments?.fat_100g != null ? Math.round(p.nutriments.fat_100g * factor) : undefined,
+            })
+          } else {
+            setScanError(`Código ${code} no encontrado en Open Food Facts`)
+          }
+        }
+      }
+      if (!found) {
+        stream.getTracks().forEach((t: MediaStreamTrack) => t.stop())
+        setScanError('No se detectó código — acércate más a la etiqueta')
+      }
+    } catch (e) {
+      setScanError('No se pudo acceder a la cámara')
+    } finally {
+      setScannerActive(false)
+    }
+  }
+
+  // n°477: electrolitos del día (localStorage por fecha, sin store)
+  const electroKey = `hacktrack-electro-${key}`
+  const [electrolytes, setElectrolytes] = useState<{ na: number; k: number; mg: number }>(() => {
+    try { return JSON.parse(localStorage.getItem(electroKey) ?? 'null') ?? { na: 0, k: 0, mg: 0 } } catch { return { na: 0, k: 0, mg: 0 } }
+  })
+  const updateElectrolyte = (field: 'na' | 'k' | 'mg', delta: number) => {
+    setElectrolytes((prev) => {
+      const next = { ...prev, [field]: Math.max(0, prev[field] + delta) }
+      try { localStorage.setItem(electroKey, JSON.stringify(next)) } catch { /* noop */ }
+      return next
+    })
+  }
+  // GLP-1 alert: bajo sodio es informativo (no consejo médico)
+  const GLP1_NAMES = ['Semaglutida', 'Tirzepatida', 'Retatrutide', 'Ozempic', 'Wegovy']
+  const hasGlp1Protocol = Object.keys(state.protocols).some((p) => GLP1_NAMES.some((g) => p.toLowerCase().includes(g.toLowerCase())))
 
   const goalKcal = state.kcalGoal ?? tdee(state)
   const goalP = state.macroGoals?.protein ?? null
@@ -283,22 +368,107 @@ export function Alimentacion() {
       <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '20px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <motion.h1 variants={staggerItem} className="h1" style={{ margin: 0 }}>Alimentación</motion.h1>
 
-        {/* ── Strip de hidratación ── */}
-        <motion.section variants={staggerItem} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
-          <IcDrop size={20} style={{ color: 'var(--brand-700)', flexShrink: 0 }} />
-          <span className="sm mono" style={{ color: day.water >= waterGoal ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700 }}>{day.water}/{waterGoal} vasos</span>
-          <div
-            role="progressbar"
-            aria-valuenow={day.water}
-            aria-valuemin={0}
-            aria-valuemax={waterGoal}
-            aria-label="Meta de hidratación"
-            style={{ flex: 1, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}
-          >
-            <div style={{ width: `${Math.min(100, (day.water / waterGoal) * 100)}%`, height: '100%', background: 'var(--brand-500)', borderRadius: 999, transition: 'width 0.25s ease, background 0.25s ease' }} />
+        {/* ── Strip de hidratación (#356 tamaño de vaso configurable) ── */}
+        <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <IcDrop size={20} style={{ color: 'var(--brand-700)', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+              <span className="sm mono" style={{ color: day.water >= waterGoal ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700 }}>{day.water}/{waterGoal} vasos</span>
+              <span className="xs" style={{ color: 'var(--ink-400)', fontSize: 11 }}>{totalL} L hoy · {glassMl} ml/vaso</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuenow={day.water}
+              aria-valuemin={0}
+              aria-valuemax={waterGoal}
+              aria-label="Meta de hidratación"
+              style={{ flex: 1, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}
+            >
+              <div style={{ width: `${Math.min(100, (day.water / waterGoal) * 100)}%`, height: '100%', background: 'var(--brand-500)', borderRadius: 999, transition: 'width 0.25s ease, background 0.25s ease' }} />
+            </div>
+            <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer' }}>−</button>
+            <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoal * 2} style={{ width: 34, height: 34, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoal * 2 ? 0.4 : 1, cursor: day.water >= waterGoal * 2 ? 'not-allowed' : 'pointer' }}>+</button>
+            <button
+              className="iconbtn"
+              aria-label="Configurar tamaño de vaso"
+              onClick={() => setShowGlassConfig((p) => !p)}
+              style={{ width: 34, height: 34, fontSize: 16, color: showGlassConfig ? 'var(--brand-700)' : 'var(--ink-400)' }}
+            >⚙</button>
           </div>
-          <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer' }}>−</button>
-          <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoal * 2} style={{ width: 34, height: 34, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoal * 2 ? 0.4 : 1, cursor: day.water >= waterGoal * 2 ? 'not-allowed' : 'pointer' }}>+</button>
+          <AnimatePresence>
+            {showGlassConfig && (
+              <motion.div
+                key="glass-config"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                  <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>Tamaño de vaso:</span>
+                  {GLASS_OPTIONS.map((ml) => (
+                    <button
+                      key={ml}
+                      className="chip sm"
+                      onClick={() => {
+                        setGlassMl(ml)
+                        try { localStorage.setItem('hacktrack-glass-ml', String(ml)) } catch { /* noop */ }
+                      }}
+                      style={{
+                        padding: '4px 12px',
+                        background: glassMl === ml ? 'var(--brand-700)' : 'var(--bg)',
+                        color: glassMl === ml ? '#fff' : 'var(--ink-700)',
+                        border: `1px solid ${glassMl === ml ? 'var(--brand-700)' : 'var(--border)'}`,
+                        borderRadius: 'var(--r-sm)',
+                        cursor: 'pointer',
+                        fontWeight: glassMl === ml ? 700 : 400,
+                      }}
+                    >{ml} ml</button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
+
+        {/* ── Electrolitos del día (#477) ── */}
+        <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)' }}>⚡ Electrolitos del día</span>
+            <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 11 }}>mg estimados</span>
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {([
+              { key: 'na' as const, label: 'Sodio', daily: 2300, color: 'var(--warning)' },
+              { key: 'k' as const, label: 'Potasio', daily: 3500, color: 'var(--brand-500)' },
+              { key: 'mg' as const, label: 'Magnesio', daily: 400, color: 'var(--success)' },
+            ] as const).map(({ key, label, daily, color }) => {
+              const val = electrolytes[key]
+              const pct = Math.min(100, (val / daily) * 100)
+              return (
+                <div key={key} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span className="xs" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>{label}</span>
+                  <span className="sm mono" style={{ fontWeight: 700, color }}>{val} mg</span>
+                  <div style={{ height: 4, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.25s ease' }} />
+                  </div>
+                  <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 10 }}>{Math.round(pct)}% de {daily} mg</span>
+                  <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
+                    <button className="iconbtn" style={{ flex: 1, height: 28, fontSize: 14 }} onClick={() => updateElectrolyte(key, -100)} disabled={val === 0}>−</button>
+                    <button className="iconbtn" style={{ flex: 1, height: 28, fontSize: 13, background: color, color: '#fff' }} onClick={() => updateElectrolyte(key, 100)}>+100</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {hasGlp1Protocol && electrolytes.na < 1000 && (
+            <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in srgb, var(--warning) 10%, transparent)', border: '1px solid var(--warning)', borderRadius: 'var(--r-sm)' }}>
+              <span className="xs" style={{ color: 'var(--ink-700)' }}>
+                💧 <strong>Info educativa:</strong> Con GLP-1 el apetito disminuye, lo que puede reducir la ingesta de sodio. Asegúrate de consumir alimentos ricos en electrolitos. Consulta a tu médico.
+              </span>
+            </div>
+          )}
         </motion.section>
 
         {/* ── Resumen del día ── */}
@@ -495,9 +665,52 @@ export function Alimentacion() {
             </div>
           )}
 
-          {/* Barra inteligente: busca en tu biblioteca o crea */}
+          {/* Barra inteligente: busca en tu biblioteca o crea (#476 barcode scanner) */}
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-            <input className="field" placeholder="¿Qué comiste? Busca o crea…" value={query} onChange={(e) => { setQuery(e.target.value); setCreating(false) }} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input className="field" placeholder="¿Qué comiste? Busca o crea…" value={query} onChange={(e) => { setQuery(e.target.value); setCreating(false); setScanResult(null) }} style={{ flex: 1 }} />
+              <button
+                className="iconbtn"
+                aria-label="Escanear código de barras"
+                title="Escanear código de barras"
+                onClick={openBarcodeScanner}
+                disabled={scannerActive}
+                style={{ width: 40, height: 40, flexShrink: 0, background: scannerActive ? 'var(--ink-100)' : 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: scannerActive ? 'wait' : 'pointer' }}
+              >{scannerActive ? '⏳' : '📷'}</button>
+            </div>
+            {scanError && (
+              <div style={{ marginTop: 6, padding: '6px 10px', background: 'color-mix(in srgb, var(--error) 8%, transparent)', border: '1px solid var(--error)', borderRadius: 'var(--r-sm)' }}>
+                <span className="xs" style={{ color: 'var(--ink-700)' }}>{scanError}</span>
+              </div>
+            )}
+            {scanResult && (
+              <div style={{ marginTop: 6, padding: '10px 12px', background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)', border: '1px solid var(--brand-500)', borderRadius: 'var(--r-sm)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-900)' }}>{scanResult.name}</span>
+                  <button className="xs" onClick={() => setScanResult(null)} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer' }}>✕</button>
+                </div>
+                <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>{scanResult.kcal} kcal por porción</span>
+                {(scanResult.protein != null || scanResult.carbs != null || scanResult.fat != null) && (
+                  <span className="xs" style={{ color: 'var(--ink-400)' }}>
+                    {[scanResult.protein != null && `P: ${scanResult.protein}g`, scanResult.carbs != null && `C: ${scanResult.carbs}g`, scanResult.fat != null && `G: ${scanResult.fat}g`].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+                <button
+                  className="btn btn-brand"
+                  style={{ marginTop: 4, height: 36 }}
+                  onClick={() => {
+                    setQuery(scanResult.name)
+                    setKcalStr(String(scanResult.kcal))
+                    if (scanResult.protein != null) setPStr(String(scanResult.protein))
+                    if (scanResult.carbs != null) setCStr(String(scanResult.carbs))
+                    if (scanResult.fat != null) setFStr(String(scanResult.fat))
+                    setCreating(true)
+                    setShowMacros(scanResult.protein != null || scanResult.carbs != null || scanResult.fat != null)
+                    setScanResult(null)
+                  }}
+                >Usar estos datos</button>
+              </div>
+            )}
             {query.trim() && (
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {results.map((f) => (

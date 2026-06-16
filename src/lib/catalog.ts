@@ -1424,6 +1424,163 @@ const FIBER_MAP: Record<string, number> = {
   'Licuado de nopal, piña y limón': 4, 'Tacos de coliflor asada estilo birria': 8,
 }
 
+// ── Temperatura corporal y HRV como medidas de primera clase (item 478) ─────
+// Añadidas a MEASURE_META (sin modificar el objeto arriba para no duplicar):
+// El merge se hace en tiempo de módulo con Object.assign.
+Object.assign(MEASURE_META, {
+  'Temperatura corporal': { kind: 'num' as const, unit: '°C' },
+  'HRV': { kind: 'num' as const, unit: 'ms' },
+} satisfies Record<string, MeasureMeta>)
+
+// Añadir a MEASURES_BY['Anti-Aging'] (Recuperación cardiovascular / longevidad)
+if (!MEASURES_BY['Anti-Aging'].includes('HRV'))          MEASURES_BY['Anti-Aging'].push('HRV')
+if (!MEASURES_BY['Anti-Aging'].includes('Temperatura corporal')) MEASURES_BY['Anti-Aging'].push('Temperatura corporal')
+// HRV también relevante para Recuperación
+if (!MEASURES_BY['Recuperación'].includes('HRV'))        MEASURES_BY['Recuperación'].push('HRV')
+
+// ── Panel educativo de almacenamiento y vida útil (item 425) ─────────────────
+// Dato de manejo (no consejo médico). Temperaturas de referencia del fabricante.
+export interface StoragePanel {
+  lyoC: string            // temperatura de almacenamiento en polvo liofilizado
+  reconC: string          // temperatura del vial reconstituido
+  shelfDays: number       // días en refrigeración reconstituido
+  neverFreeze: boolean    // nunca congelar el vial reconstituido
+  notes: string           // nota adicional de manejo
+}
+
+export const DEFAULT_STORAGE: StoragePanel = {
+  lyoC:       'Temp. ambiente (≤25 °C) o refrigerado (2–8 °C) · lejos de luz directa',
+  reconC:     'Refrigerado 2–8 °C',
+  shelfDays:  DEFAULT_SHELF_DAYS,
+  neverFreeze: true,
+  notes:      'No exponer a calor ni luz directa. El vial reconstituido es frágil.',
+}
+
+export const STORAGE_PANELS: Record<string, StoragePanel> = {
+  'Retatrutide':       { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 28, neverFreeze: true,  notes: 'Sensible a ciclos de congelación-descongelación.' },
+  'Tirzepatida':       { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 28, neverFreeze: true,  notes: 'Proteger de la luz UV.' },
+  'Semaglutida':       { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 28, neverFreeze: true,  notes: 'Mantener cadena de frío.' },
+  'BPC-157':           { lyoC: 'Temp. ambiente o refrigerado', reconC: 'Refrigerado 2–8 °C', shelfDays: 21, neverFreeze: false, notes: 'Estable como liofilizado a temp. ambiente breve.' },
+  'TB-500':            { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 28, neverFreeze: true,  notes: 'Muy sensible a temperatura.' },
+  'NAD+':              { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 14, neverFreeze: true,  notes: 'Degradación rápida fuera de frío; usar en los primeros 7 días si es posible.' },
+  'Semax':             { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 14, neverFreeze: false, notes: 'Solución estable 14 días refrigerada.' },
+  'Selank':            { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 14, neverFreeze: false, notes: 'Similar a Semax en estabilidad.' },
+  'L-Glutathione':     { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 14, neverFreeze: true,  notes: 'Oxidación acelerada fuera de frío.' },
+  'GHK-Cu':            { lyoC: 'Temp. ambiente',              reconC: 'Refrigerado 2–8 °C', shelfDays: 21, neverFreeze: false, notes: 'El cobre le da estabilidad relativa como liofilizado.' },
+  'CJC 1295 (No DAC)': { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 21, neverFreeze: true,  notes: 'Mantener frío en todo momento.' },
+  'Ipamorelin':        { lyoC: 'Refrigerado 2–8 °C',          reconC: 'Refrigerado 2–8 °C', shelfDays: 21, neverFreeze: true,  notes: 'Muy estable si se mantiene en frío.' },
+}
+
+/** Devuelve el panel de almacenamiento para un producto (con defaults si no tiene entrada específica). */
+export function storagePanel(product: string): StoragePanel {
+  return STORAGE_PANELS[product] ?? { ...DEFAULT_STORAGE, shelfDays: VIAL_SHELF_DAYS[product] ?? DEFAULT_SHELF_DAYS }
+}
+
+// ── Etiquetas semánticas de rango para KPI de escala (item 319) ──────────────
+// En lugar de 'bajo/medio/alto' genérico, cada KPI tiene etiquetas propias.
+export interface ScaleLabels { low: string; mid: string; high: string }
+
+export const SCALE_LABELS: Record<string, ScaleLabels> = {
+  'Energía':               { low: 'Sin energía',      mid: 'Regular',        high: 'Muy energético' },
+  'Estado de ánimo':       { low: 'Bajo',             mid: 'Estable',        high: 'Excelente' },
+  'Sueño':                 { low: 'Mal descanso',     mid: 'Aceptable',      high: 'Descanso profundo' },
+  'Dolor':                 { low: 'Sin dolor',        mid: 'Molesto',        high: 'Intenso' },
+  'Foco':                  { low: 'Disperso',         mid: 'Regular',        high: 'Muy enfocado' },
+  'Libido':                { low: 'Baja',             mid: 'Normal',         high: 'Alta' },
+  'Elasticidad piel':      { low: 'Reseca/rígida',    mid: 'Normal',         high: 'Muy elástica' },
+  'Recuperación muscular': { low: 'Muy dolorido',     mid: 'Regular',        high: 'Recuperado al 100%' },
+  'Efecto secundario':     { low: 'Sin efecto',       mid: 'Leve',           high: 'Intenso' },
+  'Apetito':               { low: 'Sin apetito',      mid: 'Normal',         high: 'Mucho apetito' },
+  'Movilidad':             { low: 'Muy limitada',     mid: 'Regular',        high: 'Total' },
+  'Textura piel':          { low: 'Áspera/irregular', mid: 'Normal',         high: 'Suave/uniforme' },
+  'Hidratación':           { low: 'Muy seca',         mid: 'Normal',         high: 'Muy hidratada' },
+  'Saciedad':              { low: 'Hambrienta',       mid: 'Regular',        high: 'Muy saciada' },
+  'Náusea':                { low: 'Sin náusea',       mid: 'Leve',           high: 'Intensa' },
+  'Inflamación':           { low: 'Sin inflamación',  mid: 'Leve',           high: 'Severa' },
+  'Manchas / tono':        { low: 'Manchas notorias', mid: 'Mejorando',      high: 'Tono uniforme' },
+  'Cicatrices':            { low: 'Muy visibles',     mid: 'Mejorando',      high: 'Casi invisibles' },
+  'Firmeza':               { low: 'Muy flácida',      mid: 'Regular',        high: 'Muy firme' },
+  'Niebla mental':         { low: 'Sin niebla',       mid: 'Leve',           high: 'Muy intensa' },
+  'Resistencia':           { low: 'Muy baja',         mid: 'Regular',        high: 'Alta' },
+  'Ansiedad':              { low: 'Tranquila',        mid: 'Algo ansiosa',   high: 'Muy ansiosa' },
+  'Memoria':               { low: 'Muy mala',         mid: 'Regular',        high: 'Excelente' },
+  'Fuerza percibida':      { low: 'Sin fuerza',       mid: 'Regular',        high: 'Muy fuerte' },
+  'Retención hídrica':     { low: 'Sin retención',    mid: 'Leve',           high: 'Mucha' },
+  'Función / excitación':  { low: 'Muy baja',         mid: 'Normal',         high: 'Alta' },
+  'Rubor post-dosis':      { low: 'Sin rubor',        mid: 'Leve',           high: 'Intenso' },
+}
+
+/** Etiqueta semántica para un valor numérico en escala 0–max. */
+export function scaleLabel(measureName: string, value: number, max = 100): string {
+  const labels = SCALE_LABELS[measureName]
+  if (!labels) return value <= max / 3 ? 'Bajo' : value <= (max * 2) / 3 ? 'Medio' : 'Alto'
+  if (value <= max / 3) return labels.low
+  if (value <= (max * 2) / 3) return labels.mid
+  return labels.high
+}
+
+// ── Stacks de biohacking pre-curados (item 480) ──────────────────────────────
+// Dato educativo de referencia. No prescriptivo. El usuario adapta a su protocolo.
+export interface ProtocolStack {
+  id: string
+  name: string
+  description: string
+  products: string[]
+  category: string
+  disclaimer: string
+}
+
+export const PROTOCOL_STACKS: ProtocolStack[] = [
+  {
+    id: 'recuperacion-base',
+    name: 'Recuperación Base',
+    description: 'Apoyo a la recuperación muscular y reducción de inflamación.',
+    products: ['BPC-157', 'TB-500'],
+    category: 'Recuperación',
+    disclaimer: 'Información de referencia general. Consulta a tu profesional de salud.',
+  },
+  {
+    id: 'metabolismo-glp1',
+    name: 'Metabolismo GLP-1',
+    description: 'Soporte metabólico y composición corporal.',
+    products: ['Retatrutide', 'NAD+'],
+    category: 'Metabolismo',
+    disclaimer: 'Información de referencia general. Consulta a tu profesional de salud.',
+  },
+  {
+    id: 'cognitivo-foco',
+    name: 'Cognitivo & Foco',
+    description: 'Claridad mental y rendimiento cognitivo sostenido.',
+    products: ['Semax', 'Selank'],
+    category: 'Cognitivo',
+    disclaimer: 'Información de referencia general. Consulta a tu profesional de salud.',
+  },
+  {
+    id: 'longevidad',
+    name: 'Longevidad',
+    description: 'Antienvejecimiento y bienestar celular.',
+    products: ['NAD+', 'SS-31', 'L-Glutathione', 'MOTS-c'],
+    category: 'Anti-Aging',
+    disclaimer: 'Información de referencia general. Consulta a tu profesional de salud.',
+  },
+  {
+    id: 'crecimiento-composicion',
+    name: 'Crecimiento & Composición',
+    description: 'Masa muscular y rendimiento físico.',
+    products: ['CJC 1295 (No DAC)', 'Ipamorelin'],
+    category: 'Crecimiento',
+    disclaimer: 'Información de referencia general. Consulta a tu profesional de salud.',
+  },
+  {
+    id: 'piel-colágeno',
+    name: 'Piel & Colágeno',
+    description: 'Salud y aspecto de la piel.',
+    products: ['GHK-Cu', 'GLOW 70'],
+    category: 'Piel',
+    disclaimer: 'Información de referencia general. Consulta a tu profesional de salud.',
+  },
+]
+
 // Enriquecer RECIPES con prepMin, proteinSource, fiber + auto-tags alto en fibra / colación saciante
 // Esto se hace en tiempo de módulo (O(n)) — sin overhead en runtime.
 function enrichRecipes(recipes: Recipe[]): Recipe[] {

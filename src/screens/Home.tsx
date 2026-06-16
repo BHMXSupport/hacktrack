@@ -11,8 +11,9 @@ import { UserAvatar, TrustChip } from '../components/identity'
 import { TodayDoses } from '../components/TodayDoses'
 import { ActiveNowChips } from '../components/ActiveNowChips'
 import { LastDoseLine } from '../components/LastDoseLine'
-import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, dayStatusEx } from '../lib/calendar'
-import { startOfDay } from '../lib/cadence'
+import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, dayStatusEx, doseTakenOnProduct } from '../lib/calendar'
+import { startOfDay, fmtTime } from '../lib/cadence'
+import { presenceNow, collectDosesByProduct, HALF_LIFE_H, nextDoseWindow } from '../lib/pharma'
 import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
 import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs } from '../lib/nutrition'
 import { vialDaysLeft, vialExpiryStatus, vialMgConsumed, vialMgRemaining, vialDosesRemaining } from '../lib/calc'
@@ -334,6 +335,160 @@ export function Home() {
   const barPos = minsUntilDose !== null
     ? Math.max(0, Math.min(1, (windowMinutes - minsUntilDose) / (windowMinutes * 2)))
     : 0
+
+  // ── n°366: banner de ventana horaria típica por patrón real del log ──────
+  // Detecta la hora modal de toma de cada producto; si ya pasó sin registro, muestra banner.
+  const typicalWindowAlert = useMemo((): { product: string; minsAgo: number } | null => {
+    const todayD = startOfDay(new Date(state.todayTs))
+    for (const product of state.importedProducts) {
+      // Si ya se tomó hoy → skip
+      if (doseTakenOnProduct(state, todayD, product)) continue
+      // Recopilar horas (en minutos desde medianoche) del historial de este producto
+      const doses: number[] = []
+      for (const g of state.log) {
+        for (const it of g.items) {
+          if (it.type === 'dose' && it.product === product && it.ts) {
+            const d = new Date(it.ts)
+            const dDate = startOfDay(d)
+            if (dDate.getTime() !== todayD.getTime()) {
+              doses.push(d.getHours() * 60 + d.getMinutes())
+            }
+          }
+        }
+      }
+      if (doses.length < 3) continue // necesita al menos 3 registros para detectar patrón
+      // Calcular hora modal: redondear al bloque de 30 min y tomar la más frecuente
+      const buckets: Record<number, number> = {}
+      for (const m of doses) { const b = Math.round(m / 30) * 30; buckets[b] = (buckets[b] ?? 0) + 1 }
+      const [modalBucket] = Object.entries(buckets).sort((a, b) => b[1] - a[1])[0]
+      const typicalMins = Number(modalBucket)
+      const nowMins = now.getHours() * 60 + now.getMinutes()
+      const minsAgo = nowMins - typicalMins
+      if (minsAgo >= 30 && minsAgo <= 240) { // ventana: 30 min–4h después de la hora habitual
+        return { product, minsAgo }
+      }
+    }
+    return null
+  }, [state.log, state.importedProducts, state.todayTs, now]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [dismissedWindowAlert, setDismissedWindowAlert] = useState<string | null>(null)
+
+  // ── n°394: Cierre del día — tarjeta inline a las 22:00+ si hay ≥1 dosis ─
+  // (Omite notificaciones nativas; muestra inline cuando el usuario abre la app)
+  const nowH = now.getHours()
+  const loggedToday = useMemo(() => {
+    const todayD = startOfDay(new Date(state.todayTs))
+    return state.log.some((g) =>
+      g.items.some((it) => it.type === 'dose' && doseTakenOnProduct(state, todayD, it.product ?? ''))
+    )
+  }, [state.log, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+  const showDayClosure = nowH >= 22 && loggedToday
+  const [dayClosed, setDayClosed] = useState(false)
+  const [dayNote, setDayNote] = useState('')
+
+  // ── n°420: Semáforo de seguridad anti-doble-dosis ─────────────────────────
+  // Para cada producto activo: tiempo desde última dosis + ventana next dose (PK)
+  const dosingSemaphores = useMemo(() => {
+    const results: Array<{
+      product: string
+      lastDoseTs: number | null
+      nextSafeTs: number | null
+      status: 'red' | 'yellow' | 'green'
+    }> = []
+    const dosesByProduct = collectDosesByProduct(state)
+    for (const product of state.importedProducts) {
+      const doses = dosesByProduct.get(product) ?? []
+      const lastDose = doses.length > 0 ? [...doses].sort((a, b) => b.ts - a.ts)[0] : null
+      const hl = HALF_LIFE_H[product]
+      const halfMs = hl ? hl * 3600000 : null
+      let nextSafeTs: number | null = null
+      if (halfMs && doses.length > 0) {
+        try { nextSafeTs = nextDoseWindow(doses as any, halfMs) } catch { /* skip */ }
+      }
+      const nowTs = Date.now()
+      let status: 'red' | 'yellow' | 'green' = 'green'
+      if (nextSafeTs !== null) {
+        const minsUntilSafe = (nextSafeTs - nowTs) / 60000
+        if (minsUntilSafe > 60) status = 'red'
+        else if (minsUntilSafe > 0) status = 'yellow'
+        else status = 'green'
+      } else if (lastDose) {
+        // sin PK data: compara con interval de cadencia
+        const prot = state.protocols[product]
+        const intervalH = prot?.cadence?.mode === 'cadaN' ? (prot.cadence.n ?? 24) : 24
+        const hSinceLastDose = (nowTs - lastDose.ts) / 3600000
+        if (hSinceLastDose < intervalH * 0.5) status = 'red'
+        else if (hSinceLastDose < intervalH * 0.8) status = 'yellow'
+        else status = 'green'
+      }
+      results.push({ product, lastDoseTs: lastDose?.ts ?? null, nextSafeTs, status })
+    }
+    return results
+  }, [state.log, state.importedProducts, state.protocols]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── n°427: Atajo a CalcSheet si algún producto tiene reconstitución ────────
+  const hasRecon = state.importedProducts.some((p) => {
+    const r = state.productRecon?.[p]
+    return r?.vialMg && r?.aguaMl
+  })
+
+  // ── n°455: Heatmap 13 semanas × 7 días ────────────────────────────────────
+  const heatmapData = useMemo(() => {
+    const todayD = startOfDay(new Date(state.todayTs))
+    const rows: Array<{ date: Date; count: number; isFuture: boolean }[]> = []
+    for (let w = 12; w >= 0; w--) {
+      const week: { date: Date; count: number; isFuture: boolean }[] = []
+      for (let d = 0; d < 7; d++) {
+        const offset = -(w * 7 + (6 - d))
+        const date = new Date(todayD.getTime() + offset * 86400000)
+        const isFuture = date > todayD
+        let count = 0
+        if (!isFuture) {
+          for (const g of state.log) {
+            for (const it of g.items) {
+              if (it.ts) {
+                const itDate = startOfDay(new Date(it.ts))
+                if (itDate.getTime() === date.getTime()) count++
+              }
+            }
+          }
+        }
+        week.push({ date, count, isFuture })
+      }
+      rows.push(week)
+    }
+    return rows
+  }, [state.log, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── n°466: Cockpit de stack completo ──────────────────────────────────────
+  const stackCockpit = useMemo(() => {
+    try {
+      const presences = presenceNow(state, Date.now())
+      const presMap: Record<string, number> = {}
+      for (const p of presences) presMap[p.product] = p.pct
+      return state.importedProducts.map((product) => {
+        const prot = state.protocols[product]
+        const cat = PEPTIDES[product]?.cat ?? '—'
+        const catColor2 = CATEGORY_COLOR[cat] ?? 'var(--brand-500)'
+        const pct = presMap[product] ?? 0
+        const upcoming = upcomingDoses(state, now, 1).find((u) => u.product === product)
+        return { product, cat, catColor: catColor2, pct, nextDose: upcoming?.date ?? null }
+      })
+    } catch { return [] }
+  }, [state.protocols, state.log, state.importedProducts, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── n°470: Mini-check matutino (primeras 2h del día, sin registros aún) ───
+  const [morningCheckDone, setMorningCheckDone] = useState(false)
+  const [morningAnswers, setMorningAnswers] = useState<Record<string, number>>({})
+  const isEarlyMorning = nowH < 10  // hasta las 10 AM
+  const morningCheckMeasures = state.selectedMeasures.slice(0, 3)
+  const hasMorningData = morningCheckMeasures.every((m) => {
+    const series = state.history[m] ?? []
+    if (series.length === 0) return false
+    const last = Math.max(...series.map((s) => s.ts))
+    const todayD = startOfDay(new Date(state.todayTs))
+    return new Date(last) >= todayD
+  })
+  const showMorningCheck = isEarlyMorning && !hasMorningData && morningCheckMeasures.length > 0 && !morningCheckDone
 
   return (
     <div className="scroll has-nav" style={{ position: 'relative' }}>
@@ -675,6 +830,217 @@ export function Home() {
         <motion.div variants={staggerItem}>
           <LastDoseLine />
         </motion.div>
+
+        {/* ── n°366: Banner "hora habitual pasó — ¿ya tomaste?" ─────── */}
+        <AnimatePresence>
+          {typicalWindowAlert && dismissedWindowAlert !== typicalWindowAlert.product && (
+            <motion.div
+              key={`window-alert-${typicalWindowAlert.product}`}
+              variants={staggerItem}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              style={{
+                background: 'color-mix(in srgb, var(--warning) 10%, transparent)',
+                border: '1px solid var(--warning)',
+                borderRadius: 'var(--r-md)', padding: '10px 14px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+              }}
+            >
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-700)', flex: 1 }}>
+                Tu hora habitual de <strong>{typicalWindowAlert.product}</strong> fue hace{' '}
+                {typicalWindowAlert.minsAgo < 60
+                  ? `${typicalWindowAlert.minsAgo} min`
+                  : `${Math.round(typicalWindowAlert.minsAgo / 60 * 10) / 10}h`} — ¿ya lo tomaste?
+              </p>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button
+                  className="sm"
+                  style={{ fontWeight: 600, color: 'var(--brand-700)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  onClick={() => dispatch({ t: 'sheet', sheet: 'registrar', arg: typicalWindowAlert.product })}
+                >
+                  Registrar
+                </button>
+                <button
+                  className="sm"
+                  style={{ color: 'var(--ink-400)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  onClick={() => setDismissedWindowAlert(typicalWindowAlert.product)}
+                  aria-label="Cerrar alerta"
+                >
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── n°420: Semáforo de seguridad anti-doble-dosis ──────────── */}
+        {dosingSemaphores.length > 0 && (
+          <motion.div
+            variants={staggerItem}
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
+            <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+              Ventana de dosificación
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {dosingSemaphores.map(({ product, lastDoseTs, nextSafeTs, status }) => {
+                const statusColor = status === 'green' ? 'var(--success)' : status === 'yellow' ? 'var(--warning)' : 'var(--error)'
+                const statusLabel = status === 'green' ? 'Ok para tomar' : status === 'yellow' ? 'Pronto disponible' : 'Espera aún'
+                const lastDoseLabel = lastDoseTs ? `Última: ${fmtTime(new Date(lastDoseTs))}` : 'Sin dosis reciente'
+                const nextLabel = nextSafeTs && nextSafeTs > Date.now()
+                  ? `Próxima ventana: ${fmtTime(new Date(nextSafeTs))}`
+                  : ''
+                return (
+                  <div key={product} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} aria-hidden="true" />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{product}</span>
+                      <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 6 }}>{lastDoseLabel}</span>
+                      {nextLabel && <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 6 }}>{nextLabel}</span>}
+                    </div>
+                    <span className="sm" style={{ color: statusColor, fontWeight: 700, flexShrink: 0 }}>{statusLabel}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 10 }}>
+              Guía educativa basada en PK estimada — no es consejo médico.
+            </p>
+          </motion.div>
+        )}
+
+        {/* ── n°427: Atajo a CalcSheet cuando hay reconstituciones ─── */}
+        {hasRecon && (
+          <motion.div variants={staggerItem}>
+            <motion.button
+              className="btn"
+              style={{ width: '100%', height: 40, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--brand-700)', fontWeight: 600, fontSize: 13, borderRadius: 'var(--r-md)' }}
+              whileTap={{ scale: 0.97 }}
+              transition={spring.ui}
+              onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}
+              aria-label="Abrir calculadora de reconstitución"
+            >
+              🧮 Calculadora de reconstitución
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* ── n°470: Mini-check matutino (3 preguntas rápidas) ───────── */}
+        <AnimatePresence>
+          {showMorningCheck && (
+            <motion.div
+              key="morning-check"
+              variants={staggerItem}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8, height: 0 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="card"
+              style={{ display: 'flex', flexDirection: 'column', gap: 12, borderLeft: '3px solid var(--brand-500)' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>3 preguntas rápidas — buenos días</p>
+                <button onClick={() => setMorningCheckDone(true)} aria-label="Omitir chequeo matutino"
+                  style={{ background: 'none', border: 'none', color: 'var(--ink-300)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+              </div>
+              {morningCheckMeasures.map((m) => {
+                const meta = MEASURE_META[m]
+                const v = morningAnswers[m] ?? ''
+                return (
+                  <div key={m} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label className="sm" style={{ color: 'var(--ink-400)', fontWeight: 500 }}>{m}{meta?.unit ? ` (${meta.unit})` : ''}</label>
+                    {meta?.kind === 'scale' ? (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {Array.from({ length: (meta.max ?? 10) }, (_, i) => {
+                          const val = i + 1
+                          const selected = morningAnswers[m] === val
+                          return (
+                            <button key={val}
+                              onClick={() => setMorningAnswers((prev) => ({ ...prev, [m]: val }))}
+                              aria-label={`${m}: ${val}`}
+                              style={{
+                                width: 34, height: 34, borderRadius: '50%', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                                background: selected ? 'var(--brand-500)' : 'var(--ink-100)',
+                                color: selected ? '#fff' : 'var(--ink-700)',
+                              }}>
+                              {val}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <input type="number" inputMode="decimal" value={v}
+                        onChange={(e) => setMorningAnswers((prev) => ({ ...prev, [m]: Number(e.target.value) }))}
+                        placeholder={meta?.unit ?? ''}
+                        aria-label={`${m} valor`}
+                        style={{ height: 40, padding: '0 12px', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--ink-900)', fontSize: 16, fontFamily: 'inherit', outline: 'none' }}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+              <motion.button
+                className="btn btn-brand"
+                style={{ height: 44, width: '100%' }}
+                whileTap={{ scale: 0.97 }}
+                transition={spring.ui}
+                onClick={() => {
+                  for (const [name, value] of Object.entries(morningAnswers)) {
+                    if (value != null && !isNaN(Number(value)) && Number(value) !== 0) {
+                      dispatch({ t: 'saveMeasure', name, value: Number(value) })
+                    }
+                  }
+                  setMorningCheckDone(true)
+                  setMorningAnswers({})
+                }}
+              >
+                Guardar y cerrar
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── n°466: Cockpit de mi stack completo ──────────────────── */}
+        {stackCockpit.length > 0 && (
+          <motion.div
+            variants={staggerItem}
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+          >
+            <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+              Mi stack activo
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {stackCockpit.map(({ product, cat, catColor: cc, pct, nextDose }) => (
+                <div key={product} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: cc, flexShrink: 0 }} aria-hidden="true" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{product}</span>
+                    <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 6 }}>{cat}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    {pct > 2 && (
+                      <span className="sm mono" style={{ fontSize: 10, color: pct >= 50 ? 'var(--success)' : 'var(--warning)' }}>
+                        ~{Math.round(pct)}%
+                      </span>
+                    )}
+                    {nextDose && (
+                      <span className="sm" style={{ fontSize: 10, color: 'var(--ink-400)' }}>
+                        próx. {fmtTime(nextDose)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 9 }}>
+              Presencia estimada: educativo, no clínico.
+            </p>
+          </motion.div>
+        )}
 
         {/* ── 2. HÉROE: próxima toma con cuenta regresiva real ────────── */}
         {!state.logged && !hasProtocol && (
@@ -1161,8 +1527,12 @@ export function Home() {
                         whileHover={!reduce ? { scale: 1.02 } : undefined}
                         whileTap={!reduce ? { scale: 0.97 } : undefined}
                         transition={spring.ui}
-                        onClick={() => dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m })}
-                        aria-label={`${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para ver detalle.`}
+                        // n°313: Peso → directo a entrada; resto → detalle
+                        onClick={() => m === 'Peso'
+                          ? dispatch({ t: 'sheet', sheet: 'medida', arg: 'Peso' })
+                          : dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m })
+                        }
+                        aria-label={m === 'Peso' ? `${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para registrar.` : `${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para ver detalle.`}
                         style={{
                           scrollSnapAlign: 'start',
                           flexShrink: 0,
@@ -1243,9 +1613,18 @@ export function Home() {
                       whileHover={!reduce ? { scale: 1.02 } : undefined}
                       whileTap={!reduce ? { scale: 0.97 } : undefined}
                       transition={spring.ui}
-                      onClick={() => dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m })}
-                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') ? dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m }) : undefined}
-                      aria-label={`${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para ver detalle.`}
+                      // n°313: toca Peso → abre MedidaSheet directo (sin pasar por grilla KPIs)
+                      onClick={() => m === 'Peso'
+                        ? dispatch({ t: 'sheet', sheet: 'medida', arg: 'Peso' })
+                        : dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m })
+                      }
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ')
+                        ? (m === 'Peso'
+                          ? dispatch({ t: 'sheet', sheet: 'medida', arg: 'Peso' })
+                          : dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m }))
+                        : undefined
+                      }
+                      aria-label={m === 'Peso' ? `${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para registrar peso.` : `${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para ver detalle.`}
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
@@ -1449,6 +1828,207 @@ export function Home() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </motion.div>
+        )}
+
+        {/* ── n°378: Indicador de fase de ciclo/titulación ────────── */}
+        {Object.values(state.protocols).filter((p) =>
+          p.cadence.mode === 'ciclo' || (p.progOn && p.progN > 1)
+        ).map((prot) => {
+          const isCiclo = prot.cadence.mode === 'ciclo'
+          const key = prot.product
+          if (isCiclo && prot.startDate) {
+            const cad = prot.cadence
+            const start = new Date(prot.startDate)
+            const on = cad.on ?? 1; const off = cad.off ?? 0
+            const cycleLen = on + off
+            if (cycleLen === 0) return null
+            const elapsed = Math.floor((startOfDay(today).getTime() - startOfDay(start).getTime()) / 86400000)
+            if (elapsed < 0) return null
+            const pos = elapsed % cycleLen
+            const phase = pos < on ? 'ON' : 'OFF'
+            const dayInPhase = pos < on ? pos + 1 : pos - on + 1
+            const totalInPhase = pos < on ? on : off
+            const phasePct = (dayInPhase / totalInPhase) * 100
+            return (
+              <motion.div key={key} variants={staggerItem} className="card"
+                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+                    {prot.product} · Ciclo {phase}
+                  </p>
+                  <span className="sm mono" style={{ color: phase === 'ON' ? 'var(--success)' : 'var(--ink-400)' }}>
+                    Día {dayInPhase} de {totalInPhase}
+                  </span>
+                </div>
+                <div style={{ height: 4, borderRadius: 999, background: 'var(--ink-100)', overflow: 'hidden' }}>
+                  <motion.div
+                    animate={{ width: `${phasePct}%` }}
+                    transition={spring.ui}
+                    style={{ height: '100%', borderRadius: 999, background: phase === 'ON' ? 'var(--success)' : 'var(--ink-300)' }}
+                  />
+                </div>
+              </motion.div>
+            )
+          }
+          if (!isCiclo && prot.progOn && prot.progN > 1 && prot.startDate) {
+            // Titulación por fases: curPhase (0-based), progN = total de fases
+            const totalPhases = prot.progN
+            const curPhase = prot.curPhase ?? 0
+            const start = new Date(prot.startDate)
+            const weeksSinceStart = Math.max(0, Math.floor((today.getTime() - start.getTime()) / (7 * 86400000)))
+            // Estimar semanas por fase: 4 semanas por defecto
+            const weeksPerPhase = 4
+            const weekInPhase = (weeksSinceStart % weeksPerPhase) + 1
+            return (
+              <motion.div key={key} variants={staggerItem} className="card"
+                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+                    {prot.product} · Fase {curPhase + 1} de {totalPhases}
+                  </p>
+                  <span className="sm mono" style={{ color: 'var(--brand-700)' }}>
+                    Semana {weekInPhase} de {weeksPerPhase}
+                  </span>
+                </div>
+                <div style={{ height: 4, borderRadius: 999, background: 'var(--ink-100)', overflow: 'hidden' }}>
+                  <motion.div
+                    animate={{ width: `${((curPhase) / totalPhases) * 100}%` }}
+                    transition={spring.ui}
+                    style={{ height: '100%', borderRadius: 999, background: 'var(--brand-500)' }}
+                  />
+                </div>
+              </motion.div>
+            )
+          }
+          return null
+        })}
+
+        {/* ── n°455: Heatmap 13 semanas (estilo GitHub) ───────────── */}
+        {heatmapData.length > 0 && (
+          <motion.div
+            variants={staggerItem}
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+          >
+            <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+              Adherencia · 13 semanas
+            </p>
+            <div
+              style={{ overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}
+              role="img"
+              aria-label="Heatmap de adherencia de las últimas 13 semanas"
+            >
+              <div style={{ display: 'flex', gap: 3, minWidth: 'max-content' }}>
+                {heatmapData.map((week, wi) => (
+                  <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {week.map(({ date, count, isFuture }, di) => {
+                      const opacity = isFuture ? 0.15 : count === 0 ? 0.08 : Math.min(1, 0.25 + count * 0.25)
+                      const isToday = date.toDateString() === today.toDateString()
+                      return (
+                        <motion.button
+                          key={di}
+                          title={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} — ${count} registro${count !== 1 ? 's' : ''}`}
+                          aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}: ${count} registros`}
+                          onClick={() => !isFuture && dispatch({ t: 'sheet', sheet: 'day-detail', arg: date.toISOString().slice(0, 10) })}
+                          whileTap={!reduce && !isFuture ? { scale: 1.3 } : undefined}
+                          style={{
+                            width: 10, height: 10, borderRadius: 2, border: 'none',
+                            background: count > 0 ? catColor : isFuture ? 'var(--ink-100)' : 'var(--ink-100)',
+                            opacity,
+                            cursor: isFuture ? 'default' : 'pointer',
+                            outline: isToday ? `1.5px solid ${catColor}` : 'none',
+                            outlineOffset: 1,
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 10 }}>Hace 13 semanas</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 10 }}>Hoy</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── n°394: Cierre del día (22:00+, si hay dosis hoy) ─────── */}
+        <AnimatePresence>
+          {showDayClosure && !dayClosed && (
+            <motion.div
+              key="day-closure"
+              variants={staggerItem}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10, height: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="card"
+              style={{ display: 'flex', flexDirection: 'column', gap: 12, borderLeft: '3px solid var(--brand-500)' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>Cierre del día 🌙</p>
+                <button onClick={() => setDayClosed(true)} aria-label="Cerrar resumen del día"
+                  style={{ background: 'none', border: 'none', color: 'var(--ink-300)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+              </div>
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
+                ¿Cómo te sentiste hoy? (opcional, 120 char max)
+              </p>
+              <input
+                type="text"
+                maxLength={120}
+                value={dayNote}
+                onChange={(e) => setDayNote(e.target.value)}
+                placeholder="ej: energía alta, recuperación buena, sin efectos adversos…"
+                aria-label="Nota subjetiva del día"
+                style={{
+                  height: 40, padding: '0 12px', borderRadius: 'var(--r-sm)',
+                  border: '1.5px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--ink-900)', fontSize: 14, fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+              <motion.button
+                className="btn btn-brand"
+                style={{ height: 44, width: '100%' }}
+                whileTap={{ scale: 0.97 }}
+                transition={spring.ui}
+                onClick={() => {
+                  if (dayNote.trim()) {
+                    // Guarda como nota diaria en el store (dayNotes[dateKey])
+                    const dateKey = new Date(state.todayTs).toISOString().slice(0, 10)
+                    dispatch({ t: 'setDayNote', dateKey, text: dayNote.trim() })
+                  }
+                  setDayClosed(true)
+                  setDayNote('')
+                }}
+              >
+                Guardar y cerrar
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── n°483: Modo "Día de inyección" — placeholder web ────── */}
+        {/* Full fullscreen flow (L effort) omitido; implementado como CTA a 1-tap */}
+        {hasDosesToday && (
+          <motion.div variants={staggerItem}>
+            <motion.button
+              className="btn"
+              style={{
+                width: '100%', height: 44,
+                background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)',
+                border: '1.5px solid var(--brand-300)',
+                color: 'var(--brand-700)', fontWeight: 600, fontSize: 13,
+                borderRadius: 'var(--r-md)',
+              }}
+              whileTap={{ scale: 0.97 }}
+              transition={spring.ui}
+              onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
+              aria-label="Iniciar flujo de día de inyección"
+            >
+              💉 Flujo de hoy — dosis + KPI + peso
+            </motion.button>
           </motion.div>
         )}
 

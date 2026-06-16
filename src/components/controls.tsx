@@ -1,8 +1,12 @@
 // Controles compartidos: Segmented, Chip, Toggle, Stepper, Disclaimer, PasswordStrength.
+// n=431: Stepper tap-and-hold con aceleración continua + aria-live.
+// n=495: Segmented roving tabindex (ArrowLeft/ArrowRight) + ARIA correcta.
+import { useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { DISCLAIMER } from '../lib/catalog'
 import { spring } from '../lib/motion'
 
+// n=495: Segmented con roving tabindex ARIA-conforme
 export function Segmented<T extends string | number>({
   options,
   value,
@@ -12,19 +16,44 @@ export function Segmented<T extends string | number>({
   value: T
   onChange: (v: T) => void
 }) {
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent, idx: number) => {
+      let next = -1
+      if (e.key === 'ArrowRight') next = (idx + 1) % options.length
+      else if (e.key === 'ArrowLeft') next = (idx - 1 + options.length) % options.length
+      else return
+      e.preventDefault()
+      const target = btnRefs.current[next]
+      if (target) {
+        target.focus()
+        onChange(options[next].value)
+      }
+    },
+    [options, onChange],
+  )
+
   return (
     <div className="segmented" role="tablist">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          role="tab"
-          aria-selected={value === o.value}
-          className={value === o.value ? 'active' : ''}
-          onClick={() => onChange(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
+      {options.map((o, idx) => {
+        const active = value === o.value
+        return (
+          <button
+            key={o.value}
+            ref={(el) => { btnRefs.current[idx] = el }}
+            role="tab"
+            aria-selected={active}
+            className={active ? 'active' : ''}
+            // n=495: roving tabindex — solo el activo recibe Tab
+            tabIndex={active ? 0 : -1}
+            onClick={() => onChange(o.value)}
+            onKeyDown={(e) => handleKeyDown(e, idx)}
+          >
+            {o.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -68,6 +97,8 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
   )
 }
 
+// n=431: Stepper con tap-and-hold para incremento continuo acelerado.
+// Arranca a 200ms, acelera a 100ms y luego 50ms tras ~1.5s de presión.
 export function Stepper({
   value,
   onChange,
@@ -81,13 +112,83 @@ export function Stepper({
   max?: number
   step?: number
 }) {
+  // Refs para el intervalo de auto-incremento
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pressStartRef = useRef(0)
+
+  const stopRepeat = useCallback(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null }
+  }, [])
+
+  // Ref para acceder al valor actual en el closure del interval sin stale closure
+  const valueRef = useRef(value)
+  valueRef.current = value
+
+  function startRepeatDir(dir: 1 | -1) {
+    stopRepeat()
+    pressStartRef.current = Date.now()
+
+    function tick(delay: number) {
+      intervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - pressStartRef.current
+        const cur = valueRef.current
+        const next = cur + dir * step
+        onChange(dir === 1 ? Math.min(max, next) : Math.max(min, next))
+        if (elapsed > 1500) {
+          clearInterval(intervalRef.current!)
+          tick(50)
+        } else if (elapsed > 700 && delay > 100) {
+          clearInterval(intervalRef.current!)
+          tick(100)
+        }
+      }, delay)
+    }
+
+    timeoutRef.current = setTimeout(() => tick(200), 350)
+  }
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-      <motion.button className="stepbtn" aria-label="Restar" whileTap={{ scale: 0.9 }} transition={spring.ui} onClick={() => onChange(Math.max(min, value - step))}>−</motion.button>
-      <div className="mono" style={{ fontSize: 30, fontWeight: 700, minWidth: 64, textAlign: 'center', overflow: 'hidden' }}>
-        <motion.div key={value} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={spring.ui}>{value}</motion.div>
+      <motion.button
+        className="stepbtn"
+        aria-label="Restar"
+        whileTap={{ scale: 0.9 }}
+        transition={spring.ui}
+        onClick={() => onChange(Math.max(min, value - step))}
+        onPointerDown={() => startRepeatDir(-1)}
+        onPointerUp={stopRepeat}
+        onPointerLeave={stopRepeat}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        −
+      </motion.button>
+      {/* n=431: aria-live para anunciar cambios a lectores de pantalla */}
+      <div
+        className="mono"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={`Valor: ${value}`}
+        style={{ fontSize: 30, fontWeight: 700, minWidth: 64, textAlign: 'center', overflow: 'hidden' }}
+      >
+        <motion.div key={value} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={spring.ui}>
+          {value}
+        </motion.div>
       </div>
-      <motion.button className="stepbtn" aria-label="Sumar" whileTap={{ scale: 0.9 }} transition={spring.ui} onClick={() => onChange(Math.min(max, value + step))}>+</motion.button>
+      <motion.button
+        className="stepbtn"
+        aria-label="Sumar"
+        whileTap={{ scale: 0.9 }}
+        transition={spring.ui}
+        onClick={() => onChange(Math.min(max, value + step))}
+        onPointerDown={() => startRepeatDir(1)}
+        onPointerUp={stopRepeat}
+        onPointerLeave={stopRepeat}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        +
+      </motion.button>
     </div>
   )
 }

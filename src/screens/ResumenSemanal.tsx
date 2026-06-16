@@ -13,7 +13,7 @@ import { PremiumGate } from '../components/PremiumGate'
 import type { Actividad, Sexo } from '../lib/types'
 import { staggerParent, staggerItem, dur, ease } from '../lib/motion'
 import { dayStatusEx } from '../lib/calendar'
-import { WDS, MEASURES_BY, MEASURE_META } from '../lib/catalog'
+import { WDS, MEASURES_BY, MEASURE_META, PEPTIDES } from '../lib/catalog'
 
 const DAY = 86_400_000
 const ACT_LABEL: { v: Actividad; l: string }[] = [
@@ -285,10 +285,40 @@ function AdherenciaProyeccionCard() {
 }
 
 // ── Tarjeta PER-PRODUCTO: cada producto con tap-to-expand (n=296) ──
+// ── n°352: ventana de tiempo para ProductCards ──────────────────────────────
+const PROD_WINDOWS = [
+  { v: 7, l: '7d' }, { v: 30, l: '30d' }, { v: 0, l: 'Protocolo' },
+] as const
+
+// n°352: productKpis con ventana de tiempo (usa MEASURES_BY/MEASURE_META/PEPTIDES ya importados)
+function productKpisWindowed(
+  state: Parameters<typeof productKpis>[0],
+  product: string,
+  windowDays: number,
+): ReturnType<typeof productKpis> {
+  const proto = state.protocols[product]
+  if (!proto) return []
+  const startOverride = state.todayTs - windowDays * 86400000
+  const startDate = Math.max(proto.startDate, startOverride)
+  const cat = PEPTIDES[product]?.cat ?? 'Explorar'
+  const measures = (MEASURES_BY[cat] ?? MEASURES_BY['Explorar']).slice(0, 4)
+  return measures.map((m: string) => {
+    const meta = MEASURE_META[m]
+    const allPts = [...(state.history[m] ?? [])].sort((a: { ts: number }, b: { ts: number }) => a.ts - b.ts)
+    const series = allPts.filter((p: { ts: number }) => p.ts >= startDate)
+    const last = series.length ? series[series.length - 1].value : null
+    const delta = series.length >= 2 ? series[series.length - 1].value - series[0].value : null
+    const unit = meta?.kind === 'num' ? (meta.unit ? ` ${meta.unit}` : '') : meta?.max ? `/${meta.max}` : ''
+    return { measure: m, unit, last, delta: delta != null ? Math.round(delta * 10) / 10 : null, points: series.slice(-8).map((p: { value: number }) => p.value), down: !!meta?.down }
+  })
+}
+
 function ProductCards() {
   const { state, dispatch } = useApp()
   const protos = protocolList(state)
   const [expandedProto, setExpandedProto] = useState<string | null>(null)
+  // n°352: ventana de tiempo por producto (0 = protocolo completo)
+  const [productWindow, setProductWindow] = useState<Record<string, number>>({})
 
   if (protos.length === 0) return (
     <motion.div variants={staggerItem} className="card">
@@ -302,12 +332,38 @@ function ProductCards() {
     </motion.div>
   )
 
+  // n°96: delta vs. semana anterior por KPI para cada producto
+  const allWeeklyDeltas = useMemo(() => {
+    const out: Record<string, Record<string, number | null>> = {}
+    for (const pr of protos) {
+      const kpis = productKpis(state, pr.product)
+      const result: Record<string, number | null> = {}
+      for (const k of kpis) {
+        const series = [...(state.history[k.measure] ?? [])].sort((a, b) => a.ts - b.ts)
+        const nowTs = state.todayTs
+        const weekAgoTs = nowTs - 7 * 86400000
+        const twoWeeksAgoTs = nowTs - 14 * 86400000
+        const thisWeek = series.filter((p) => p.ts >= weekAgoTs)
+        const prevWeek = series.filter((p) => p.ts >= twoWeeksAgoTs && p.ts < weekAgoTs)
+        const thisVal = thisWeek.length ? thisWeek[thisWeek.length - 1].value : null
+        const prevVal = prevWeek.length ? prevWeek[prevWeek.length - 1].value : null
+        result[k.measure] = thisVal != null && prevVal != null
+          ? Math.round((thisVal - prevVal) * 10) / 10
+          : null
+      }
+      out[pr.product] = result
+    }
+    return out
+  }, [protos, state.history, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <>
       {protos.map((pr) => {
-        const kpis = productKpis(state, pr.product)
+        const win = productWindow[pr.product] ?? 0 // default: protocolo completo
+        const kpis = win === 0 ? productKpis(state, pr.product) : productKpisWindowed(state, pr.product, win)
         const isExpanded = expandedProto === pr.product
         const primaryKpi = kpis[0]
+        const weeklyDeltas = allWeeklyDeltas[pr.product] ?? {}
 
         // Insight cruzado: pérdida simultánea de músculo y grasa (n=298) — observacional
         const musKpi = kpis.find((k) => k.measure === '% músculo')
@@ -324,6 +380,20 @@ function ProductCards() {
               <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{pr.product}</span>
               <span className="sm" style={{ background: pr.color + '18', color: pr.color, padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>{pr.cat}</span>
               <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>{pr.daysActive} d activo</span>
+              {/* n°352: selector de ventana temporal por producto */}
+              <div style={{ display: 'flex', gap: 3, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                {PROD_WINDOWS.map((w) => (
+                  <button key={w.v} onClick={() => setProductWindow((prev) => ({ ...prev, [pr.product]: w.v }))}
+                    className="sm"
+                    style={{
+                      padding: '2px 6px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 10,
+                      background: win === w.v ? 'var(--brand-500)' : 'var(--ink-100)',
+                      color: win === w.v ? '#fff' : 'var(--ink-400)',
+                    }}>
+                    {w.l}
+                  </button>
+                ))}
+              </div>
               {/* chevron */}
               <span style={{
                 display: 'inline-block', color: 'var(--ink-300)', fontSize: 12, lineHeight: 1,
@@ -347,6 +417,18 @@ function ProductCards() {
                       const dUnit = primaryKpi.unit.startsWith('/') ? '' : primaryKpi.unit
                       return <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{primaryKpi.delta > 0 ? '+' : ''}{primaryKpi.delta}{dUnit}</span>
                     })()}
+                    {/* n°96: delta vs. semana anterior */}
+                    {weeklyDeltas[primaryKpi.measure] != null && (() => {
+                      const wd = weeklyDeltas[primaryKpi.measure]!
+                      const good = primaryKpi.down ? wd < 0 : wd > 0
+                      const col = good ? 'var(--success)' : 'var(--warning)'
+                      const dUnit = primaryKpi.unit.startsWith('/') ? '' : primaryKpi.unit
+                      return (
+                        <span className="sm" style={{ color: col, fontSize: 10 }}>
+                          {wd > 0 ? '▲' : '▼'} {Math.abs(wd)}{dUnit} vs sem. ant.
+                        </span>
+                      )
+                    })()}
                   </>
                 )}
               </div>
@@ -361,13 +443,18 @@ function ProductCards() {
                   transition={{ duration: dur.base, ease: ease.decelerate }}
                   style={{ overflow: 'hidden' }}
                 >
-                  <div className="sm" style={{ color: 'var(--ink-400)', margin: '6px 0 10px' }}>Tus lecturas durante este protocolo</div>
+                  <div className="sm" style={{ color: 'var(--ink-400)', margin: '6px 0 10px' }}>
+                    {win === 0 ? 'Tus lecturas durante este protocolo' : `Últimos ${win} días`}
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {kpis.map((k) => {
                       const good = k.delta != null && k.delta !== 0 && ((k.down && k.delta < 0) || (!k.down && k.delta > 0))
                       const bad = k.delta != null && k.delta !== 0 && !good
                       const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
                       const dUnit = k.unit.startsWith('/') ? '' : k.unit
+                      // n°96: weekly delta for each KPI
+                      const wd = weeklyDeltas[k.measure]
+                      const wdGood = wd != null && (k.down ? wd < 0 : wd > 0)
                       return (
                         <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.measure}</span>
@@ -377,6 +464,11 @@ function ProductCards() {
                             <>
                               <span className="mono sm" style={{ fontWeight: 700 }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
                               {k.delta != null && <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{k.delta > 0 ? '+' : ''}{k.delta}{dUnit}</span>}
+                              {wd != null && (
+                                <span className="sm" style={{ fontSize: 10, color: wdGood ? 'var(--success)' : 'var(--warning)', flexShrink: 0 }}>
+                                  {wd > 0 ? '▲' : '▼'}{Math.abs(wd)}{dUnit} 7d
+                                </span>
+                              )}
                               {k.points.length >= 2 && (
                                 <Sparkline
                                   data={k.points}
@@ -474,6 +566,21 @@ function TrendsCard() {
     })
   }, [state.todayTs, state.nutrition, state.log])
 
+  // n°345: overlay multi-métrica (normalizada 0–100%) — toggle
+  const [overlayActive, setOverlayActive] = useState(false)
+  const [overlayMetric2, setOverlayMetric2] = useState<string>('Calorías')
+  const OVERLAY_METRICS = ['Calorías', 'Hidratación', 'Peso', ...state.selectedMeasures.slice(0, 3)]
+  const normalize = (arr: number[]): number[] => {
+    if (arr.length < 2) return arr
+    const min = Math.min(...arr), max = Math.max(...arr)
+    const range = max - min || 1
+    return arr.map((v) => Math.round(((v - min) / range) * 100))
+  }
+  const metric2Pts = overlayMetric2 === 'Calorías' ? kcalPts
+    : overlayMetric2 === 'Hidratación' ? waterPts.filter((w) => w > 0)
+    : overlayMetric2 === 'Peso' ? pesoPts
+    : (state.history[overlayMetric2] ?? []).filter((s) => s.ts >= state.todayTs - effectiveWin * DAY).map((s) => s.value)
+
   const hasAnyData = pesoPts.length >= 2 || kcalPts.length >= 2 || waterPts.some((w) => w > 0)
 
   const Row = ({ label, pts, unit, color, animKeyPrefix, refY }: {
@@ -500,7 +607,7 @@ function TrendsCard() {
   return (
     <Card title="Tendencias">
       {/* Selector ampliado 7/14/30/60/Todo (n=350) */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
         {WINDOWS.map((o) => (
           <button key={o.v} className="chip" style={{
             flex: 1, justifyContent: 'center', minWidth: 36,
@@ -508,7 +615,50 @@ function TrendsCard() {
             color: win === o.v ? '#fff' : undefined,
           }} onClick={() => setWin(o.v)}>{o.l}</button>
         ))}
+        {/* n°345: toggle de superposición multi-métrica */}
+        <button className="chip" style={{
+          flexShrink: 0, background: overlayActive ? 'var(--brand-500)' : undefined,
+          color: overlayActive ? '#fff' : undefined,
+        }} onClick={() => setOverlayActive((v) => !v)} aria-pressed={overlayActive}>
+          Superponer
+        </button>
       </div>
+      {/* n°345: selector de 2ª métrica + overlay normalizado */}
+      <AnimatePresence>
+        {overlayActive && (
+          <motion.div
+            key="overlay-panel"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            style={{ overflow: 'hidden', marginBottom: 10 }}
+          >
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+              {OVERLAY_METRICS.filter((m, i, arr) => arr.indexOf(m) === i).slice(0, 6).map((m) => (
+                <button key={m} className="chip" style={{
+                  background: overlayMetric2 === m ? 'var(--warning)' : undefined,
+                  color: overlayMetric2 === m ? '#fff' : undefined,
+                  fontSize: 10,
+                }} onClick={() => setOverlayMetric2(m)}>{m}</button>
+              ))}
+            </div>
+            {pesoPts.length >= 2 && metric2Pts.length >= 2 && (
+              <div style={{ position: 'relative' }}>
+                <Sparkline data={normalize(pesoPts)} color="var(--brand-700)" w={280} h={40} animKey={`overlay-peso-${win}`} />
+                <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+                  <Sparkline data={normalize(metric2Pts)} color="var(--warning)" w={280} h={40} animKey={`overlay-m2-${win}-${overlayMetric2}`} />
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 10 }}>● Peso (norm.)</span>
+                  <span className="sm" style={{ color: 'var(--warning)', fontSize: 10 }}>● {overlayMetric2} (norm.)</span>
+                  <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 9 }}>0–100% normalizado</span>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {!hasAnyData ? (
         <EmptyState glyph="medidas" title="Sin datos todavía" subtitle="Registra peso, comidas o agua para ver tus tendencias." />
       ) : (

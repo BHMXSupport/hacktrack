@@ -256,8 +256,17 @@ export function tdeeChip(kcal: number, tdeeVal: number): TdeeChip {
   }
 }
 
-// ── Proyección de meta de peso (regresión lineal sobre history.Peso) ──
-export interface WeightProjection { current: number; goal: number; slopePerDay: number; etaTs: number | null; points: number[] }
+// ── Proyección de meta de peso (regresión lineal sobre history.Peso) — item 461 ──
+// `etaTs` ya existía. Se añade `etaLabel` (fecha estimada formateada) y `weeksLeft`.
+export interface WeightProjection {
+  current: number
+  goal: number
+  slopePerDay: number   // kg/día (negativo = bajando)
+  etaTs: number | null  // epoch ms de llegada estimada a la meta (null = no proyectable)
+  etaLabel: string | null // 'ene 2027' | '3 semanas' | null
+  weeksLeft: number | null // semanas completas hasta la meta (null si no proyectable)
+  points: number[]       // últimos puntos de peso para la gráfica
+}
 export function weightProjection(s: AppState): WeightProjection | null {
   const goal = s.profile.metaPesoKg
   const series = sortedAsc(s.history['Peso'])
@@ -280,7 +289,21 @@ export function weightProjection(s: AppState): WeightProjection | null {
     const days = need / slope
     if (days > 0 && days < 365 * 2) etaTs = s.todayTs + days * DAY
   }
-  return { current, goal, slopePerDay: slope, etaTs, points: recent.map((p) => p.value) }
+  // etaLabel + weeksLeft (item 461)
+  let etaLabel: string | null = null
+  let weeksLeft: number | null = null
+  if (etaTs != null) {
+    const daysToEta = Math.round((etaTs - s.todayTs) / DAY)
+    weeksLeft = Math.ceil(daysToEta / 7)
+    if (daysToEta <= 28) {
+      etaLabel = `${weeksLeft} ${weeksLeft === 1 ? 'semana' : 'semanas'}`
+    } else {
+      const d = new Date(etaTs)
+      const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+      etaLabel = `${MESES[d.getMonth()]} ${d.getFullYear()}`
+    }
+  }
+  return { current, goal, slopePerDay: slope, etaTs, etaLabel, weeksLeft, points: recent.map((p) => p.value) }
 }
 
 // ── Racha compuesta: días consecutivos (hasta hoy) con ≥1 dosis y ≥1 comida y agua≥meta ──
