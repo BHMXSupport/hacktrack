@@ -108,12 +108,12 @@ export function Alimentacion() {
             </div>
           )}
           {(macros.hasMacros || goalP) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
               <span className="sm mono" style={{ color: 'var(--ink-900)', fontWeight: 700, background: 'var(--brand-100)', padding: '3px 10px', borderRadius: 999 }}>
-                P {macros.protein}{goalP ? ` / ${goalP}` : ''} g
+                Proteína {macros.protein}{goalP ? ` / ${goalP}` : ''} g
               </span>
-              {goalP != null && macros.protein < goalP && <span className="sm" style={{ color: 'var(--ink-400)' }}>te faltan {goalP - macros.protein} g</span>}
-              {macros.hasMacros && <span className="sm mono" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>C {macros.carbs} · G {macros.fat}</span>}
+              {goalP != null && macros.protein < goalP && <span className="sm" style={{ color: 'var(--ink-400)' }}>faltan {goalP - macros.protein} g</span>}
+              {macros.hasMacros && <span className="sm mono" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>Carbos {macros.carbs} g · Grasa {macros.fat} g</span>}
             </div>
           )}
         </motion.section>
