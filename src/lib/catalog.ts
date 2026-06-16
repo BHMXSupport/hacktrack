@@ -64,41 +64,59 @@ export const MEASURES_ALL = [
 ] as const
 
 // MEASURES_BY — Crecimiento y Reproductivo AÑADIDOS (faltaban en el prototipo, audit P2)
+// Orden = relevancia por categoría; las primeras 4-5 alimentan la tarjeta per-producto (equipo multiagente)
 export const MEASURES_BY: Record<string, string[]> = {
-  'Metabolismo':  ['Peso', 'Cintura', '% grasa', 'Energía', 'Apetito'],
-  'Recuperación': ['Dolor', 'Movilidad', 'Sueño', 'Energía'],
-  'Cognitivo':    ['Foco', 'Estado de ánimo', 'Sueño', 'Energía'],
-  'Piel':         ['Textura piel', 'Hidratación', 'Sueño'],
-  'Anti-Aging':   ['Energía', 'Sueño', 'Textura piel'],
-  'Crecimiento':  ['Sueño', 'Energía', 'Movilidad'],
-  'Reproductivo': ['Libido', 'Estado de ánimo', 'Energía'],
-  'Explorar':     ['Peso', 'Energía', 'Sueño'],
+  'Metabolismo':  ['Peso', 'Cintura', '% grasa', 'Apetito', 'Saciedad', 'Glucosa ayunas', 'Energía', 'Náusea'],
+  'Recuperación': ['Dolor', 'Recuperación muscular', 'Movilidad', 'Inflamación', 'Sueño', 'Energía'],
+  'Cognitivo':    ['Foco', 'Ansiedad', 'Estado de ánimo', 'Memoria', 'Niebla mental', 'Sueño', 'Energía'],
+  'Piel':         ['Hidratación', 'Elasticidad piel', 'Textura piel', 'Firmeza', 'Manchas / tono', 'Cicatrices'],
+  'Anti-Aging':   ['Energía', 'Recuperación muscular', 'Niebla mental', 'Foco', 'Resistencia', 'Sueño'],
+  'Crecimiento':  ['Recuperación muscular', '% músculo', '% grasa', 'Fuerza percibida', 'Sueño', 'Dolor', 'Retención hídrica'],
+  'Reproductivo': ['Libido', 'Función / excitación', 'Estado de ánimo', 'Energía', 'Frecuencia sexual', 'Rubor post-dosis'],
+  'Explorar':     ['Peso', 'Energía', 'Sueño', 'Foco'],
 }
 
 // Escalas subjetivas: 1–100 (decisión de Jan). Medidas objetivas: num → perfil.
 export const MEASURE_META: Record<string, MeasureMeta> = {
   // objetivas (van al perfil; se capturan en "Cambio de medidas")
-  'Peso':         { kind: 'num',   unit: 'kg', prof: 'peso' },
+  'Peso':         { kind: 'num',   unit: 'kg', prof: 'peso', down: true },
   'Altura':       { kind: 'num',   unit: 'cm', prof: 'est' },
-  'Cintura':      { kind: 'num',   unit: 'cm' },
-  '% grasa':      { kind: 'num',   unit: '%',  prof: 'grasa' },
+  'Cintura':      { kind: 'num',   unit: 'cm', down: true },
+  '% grasa':      { kind: 'num',   unit: '%',  prof: 'grasa', down: true },
   '% músculo':    { kind: 'num',   unit: '%',  prof: 'musculo' },
-  'IMC':          { kind: 'num' },
+  'IMC':          { kind: 'num', down: true },
   // subjetivas 1–100
   'Energía':            { kind: 'scale', max: 100 },
   'Estado de ánimo':    { kind: 'scale', max: 100 },
   'Sueño':              { kind: 'scale', max: 100 },
-  'Dolor':              { kind: 'scale', max: 100 },
+  'Dolor':              { kind: 'scale', max: 100, down: true },
   'Foco':               { kind: 'scale', max: 100 },
   'Libido':             { kind: 'scale', max: 100 },
   'Elasticidad piel':   { kind: 'scale', max: 100 },
   'Recuperación muscular': { kind: 'scale', max: 100 },
-  'Efecto secundario':  { kind: 'scale', max: 100 },
+  'Efecto secundario':  { kind: 'scale', max: 100, down: true },
   // otras (compatibilidad)
-  'Apetito':      { kind: 'scale', max: 100 },
+  'Apetito':      { kind: 'scale', max: 100, down: true },
   'Movilidad':    { kind: 'scale', max: 100 },
   'Textura piel': { kind: 'scale', max: 100 },
   'Hidratación':  { kind: 'scale', max: 100 },
+  // ── KPIs por categoría (equipo multiagente) ──
+  'Saciedad':            { kind: 'scale', max: 100 },                    // Metabolismo
+  'Náusea':              { kind: 'scale', max: 100, down: true },        // Metabolismo
+  'Glucosa ayunas':      { kind: 'num', unit: 'mg/dL', down: true },     // Metabolismo
+  'Inflamación':         { kind: 'scale', max: 100, down: true },        // Recuperación
+  'Manchas / tono':      { kind: 'scale', max: 100 },                    // Piel
+  'Cicatrices':          { kind: 'scale', max: 100 },                    // Piel
+  'Firmeza':             { kind: 'scale', max: 100 },                    // Piel
+  'Niebla mental':       { kind: 'scale', max: 100, down: true },        // Anti-Aging / Cognitivo
+  'Resistencia':         { kind: 'scale', max: 100 },                    // Anti-Aging
+  'Ansiedad':            { kind: 'scale', max: 100, down: true },        // Cognitivo
+  'Memoria':             { kind: 'scale', max: 100 },                    // Cognitivo
+  'Fuerza percibida':    { kind: 'scale', max: 100 },                    // Crecimiento
+  'Retención hídrica':   { kind: 'scale', max: 100, down: true },        // Crecimiento
+  'Función / excitación': { kind: 'scale', max: 100 },                   // Reproductivo
+  'Frecuencia sexual':   { kind: 'num', unit: '/sem' },                  // Reproductivo
+  'Rubor post-dosis':    { kind: 'scale', max: 100, down: true },        // Reproductivo
 }
 
 // Icono (id de glyph) + color por medida para el diario/dashboard

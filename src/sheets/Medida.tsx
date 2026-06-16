@@ -24,6 +24,7 @@ export function MedidaSheet() {
   const [value, setValue] = useState<number>(Math.round(maxVal / 2))
   const [nota, setNota] = useState<string>('')
   const [touched, setTouched] = useState(false) // sin precarga implícita: exige elección explícita
+  const [numStr, setNumStr] = useState('')
 
   const qual = qualLabel(value)
 
@@ -41,6 +42,34 @@ export function MedidaSheet() {
   function handleSave() {
     dispatch({ t: 'saveMeasure', name, value, nota: isEfecto && nota.trim() ? nota.trim() : undefined })
     dispatch({ t: 'sheet', sheet: null })
+  }
+
+  // ── Medida NUMÉRICA (Peso, Cintura, Glucosa, Frecuencia, etc.) → input numérico ──
+  const meta = MEASURE_META[name]
+  if (meta?.kind === 'num') {
+    const v = parseFloat(numStr)
+    const saveNum = () => {
+      if (!(v >= 0)) return
+      dispatch({ t: 'saveMeasure', name, value: v })
+      dispatch({ t: 'sheet', sheet: null })
+    }
+    return (
+      <Sheet title={name} onClose={() => dispatch({ t: 'sheet', sheet: null })}>
+        <div style={{ padding: '0 20px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input
+              className="field mono" type="number" inputMode="decimal" step="any" min="0" autoFocus
+              placeholder="0" value={numStr} onChange={(e) => setNumStr(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveNum() }}
+              style={{ flex: 1, fontSize: 28, fontWeight: 700, textAlign: 'center' }}
+            />
+            {meta.unit && <span className="body" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>{meta.unit}</span>}
+          </div>
+          <button className="btn btn-brand" disabled={!(v >= 0)} onClick={saveNum}>Guardar</button>
+          <Disclaimer kind="general" />
+        </div>
+      </Sheet>
+    )
   }
 
   return (

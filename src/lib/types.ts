@@ -37,6 +37,7 @@ export interface MeasureMeta {
   unit?: string            // para kind='num'
   max?: number             // para kind='scale'
   prof?: keyof Profile     // enlaza a campo de perfil
+  down?: boolean           // true = la dirección deseada es BAJAR (peso, dolor, náusea) — para tinte de tendencia
 }
 
 export interface Profile {
