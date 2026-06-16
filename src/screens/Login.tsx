@@ -8,15 +8,37 @@ import { Disclaimer } from '../components/controls'
 import { AppleLogo, GoogleLogo } from '../components/SocialAuth'
 import { TrustBadge } from '../components/identity'
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export function Login() {
   const { dispatch } = useApp()
   const [showPw, setShowPw] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [emailError, setEmailError] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [loginError, setLoginError] = useState(false)
 
-  function enter() {
-    dispatch({ t: 'tab', tab: 'inicio' })
-    dispatch({ t: 'go', screen: 's-app' })
+  function handleEmailBlur() {
+    setEmailError(email.trim() !== '' && !EMAIL_RE.test(email.trim()))
+  }
+
+  function handleEmailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setEmail(e.target.value)
+    if (emailError && EMAIL_RE.test(e.target.value.trim())) setEmailError(false)
+  }
+
+  function enter(e: React.FormEvent) {
+    e.preventDefault()
+    if (loading) return
+    setLoginError(false)
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+      // En el futuro: si auth falla → setLoginError(true); return
+      dispatch({ t: 'tab', tab: 'inicio' })
+      dispatch({ t: 'go', screen: 's-app' })
+    }, 600)
   }
 
   return (
@@ -69,10 +91,26 @@ export function Login() {
         </motion.div>
 
         <motion.div variants={staggerItem}>
-          <form onSubmit={(e) => { e.preventDefault(); enter() }} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+          <form onSubmit={enter} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
             <div>
               <label className="label" htmlFor="lg-email">Correo electrónico</label>
-              <input id="lg-email" className="field" type="email" autoComplete="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input
+                id="lg-email"
+                className={'field' + (emailError ? ' error' : '')}
+                type="email"
+                autoComplete="email"
+                placeholder="tu@correo.com"
+                value={email}
+                onChange={handleEmailChange}
+                onBlur={handleEmailBlur}
+                aria-describedby={emailError ? 'lg-email-error' : undefined}
+                aria-invalid={emailError ? 'true' : undefined}
+              />
+              {emailError && (
+                <p id="lg-email-error" role="alert" className="field-error sm" style={{ color: 'var(--error)', marginTop: 4 }}>
+                  Ingresa un correo electrónico válido.
+                </p>
+              )}
             </div>
             <div>
               <label className="label" htmlFor="lg-password">Contraseña</label>
@@ -88,8 +126,20 @@ export function Login() {
               </div>
             </div>
             <button type="button" className="sm" style={{ alignSelf: 'flex-end', background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => dispatch({ t: 'go', screen: 's-forgot' })}>¿Olvidaste tu contraseña?</button>
-            <button type="submit" className="btn btn-brand" style={{ height: 52, borderRadius: 16, fontSize: 16, marginTop: 4 }}>
-              Iniciar sesión
+            {loginError && (
+              <p role="alert" className="field-error sm" style={{ color: 'var(--error)', textAlign: 'center' }}>
+                No pudimos iniciar sesión. Verifica tus datos e intenta de nuevo.
+              </p>
+            )}
+            <button
+              type="submit"
+              className="btn btn-brand"
+              style={{ height: 52, borderRadius: 16, fontSize: 16, marginTop: 4, opacity: loading ? 0.7 : 1 }}
+              disabled={loading}
+              aria-disabled={loading}
+              aria-busy={loading}
+            >
+              {loading ? 'Entrando…' : 'Iniciar sesión'}
             </button>
           </form>
         </motion.div>

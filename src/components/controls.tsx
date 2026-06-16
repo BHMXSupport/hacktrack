@@ -1,4 +1,4 @@
-// Controles compartidos: Segmented, Chip, Toggle, Stepper, Disclaimer.
+// Controles compartidos: Segmented, Chip, Toggle, Stepper, Disclaimer, PasswordStrength.
 import { motion } from 'framer-motion'
 import { DISCLAIMER } from '../lib/catalog'
 import { spring } from '../lib/motion'
@@ -95,4 +95,67 @@ export function Stepper({
 // Disclaimer legal — usa una de las constantes unificadas (NO reducir instancias, audit guardrail)
 export function Disclaimer({ kind = 'general' }: { kind?: keyof typeof DISCLAIMER }) {
   return <p className="disclaimer">{DISCLAIMER[kind]}</p>
+}
+
+// Barra de fortaleza de contraseña — 4 niveles, accesible, no bloquea el submit.
+function scorePassword(value: string): { level: 0 | 1 | 2 | 3; label: string } {
+  if (!value) return { level: 0, label: '' }
+  let score = 0
+  if (value.length >= 8) score++
+  if (value.length >= 12) score++
+  if (/[A-Z]/.test(value) && /[a-z]/.test(value)) score++
+  if (/\d/.test(value)) score++
+  if (/[^A-Za-z0-9]/.test(value)) score++
+  if (score <= 1) return { level: 1, label: 'Débil' }
+  if (score <= 2) return { level: 2, label: 'Media' }
+  if (score <= 3) return { level: 2, label: 'Media' }
+  return { level: 3, label: 'Fuerte' }
+}
+
+const PW_COLORS: Record<1 | 2 | 3, string> = {
+  1: 'var(--error)',
+  2: 'var(--warning)',
+  3: 'var(--success)',
+}
+
+export function PasswordStrength({ value }: { value: string }) {
+  if (!value) return null
+  const { level, label } = scorePassword(value)
+  const pct = (level / 3) * 100
+  const color = PW_COLORS[level as 1 | 2 | 3]
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        role="meter"
+        aria-label="Fortaleza de contraseña"
+        aria-valuenow={level}
+        aria-valuemin={0}
+        aria-valuemax={3}
+        aria-valuetext={label}
+        style={{
+          height: 4,
+          borderRadius: 2,
+          background: 'var(--border)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            background: color,
+            borderRadius: 2,
+            transition: 'width 0.25s ease, background 0.25s ease',
+          }}
+        />
+      </div>
+      <p
+        aria-live="polite"
+        className="sm"
+        style={{ marginTop: 4, color, fontWeight: 600 }}
+      >
+        {label}
+      </p>
+    </div>
+  )
 }

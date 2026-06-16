@@ -4,7 +4,7 @@ import { useApp } from '../lib/store'
 import { IcDrop, IcBack } from '../components/icons'
 import { staggerParent, staggerItem } from '../lib/motion'
 import { BiohackmxConnect } from '../components/BiohackmxConnect'
-import { Disclaimer } from '../components/controls'
+import { Disclaimer, PasswordStrength } from '../components/controls'
 import { AppleLogo, GoogleLogo } from '../components/SocialAuth'
 import { TrustBadge } from '../components/identity'
 import { OnboardingProgress } from '../components/OnboardingProgress'
@@ -18,6 +18,18 @@ export function Account() {
   const [password, setPassword] = useState('')
   const [tried, setTried] = useState(false)
   const [accepted, setAccepted] = useState(false)
+  const [emailError, setEmailError] = useState(false)
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  function handleEmailBlur() {
+    setEmailError(email.trim() !== '' && !EMAIL_RE.test(email.trim()))
+  }
+
+  function handleEmailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setEmail(e.target.value)
+    if (emailError && EMAIL_RE.test(e.target.value.trim())) setEmailError(false)
+  }
 
   const canCreate = name.trim() !== '' && accepted
 
@@ -156,6 +168,11 @@ export function Account() {
               Escribe tu nombre para continuar.
             </p>
           )}
+          {name.trim() && (
+            <p aria-live="polite" className="sm" style={{ color: 'var(--brand-700)', marginTop: 6, fontWeight: 600 }}>
+              Hola, {name.trim()} 👋
+            </p>
+          )}
         </div>
 
         {/* Campo correo */}
@@ -165,13 +182,21 @@ export function Account() {
           </label>
           <input
             id="ht-email"
-            className="field"
+            className={'field' + (emailError ? ' error' : '')}
             type="email"
             autoComplete="email"
             placeholder="tu@correo.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
+            aria-describedby={emailError ? 'ht-email-error' : undefined}
+            aria-invalid={emailError ? 'true' : undefined}
           />
+          {emailError && (
+            <p id="ht-email-error" role="alert" className="field-error sm" style={{ color: 'var(--error)', marginTop: 4 }}>
+              Ingresa un correo electrónico válido.
+            </p>
+          )}
         </div>
 
         {/* Campo contraseña */}
@@ -223,6 +248,7 @@ export function Account() {
               )}
             </button>
           </div>
+          {password && <PasswordStrength value={password} />}
         </div>
 
         <button
