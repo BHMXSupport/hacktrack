@@ -173,6 +173,35 @@ export function PharmaDashboard() {
           })}
         </div>
 
+        {/* Exposición acumulada (AUC) en la ventana — barras relativas por producto */}
+        {(() => {
+          const withAuc = visible.filter((s) => s.aucMgH > 0)
+          if (withAuc.length === 0) return null
+          const maxAuc = Math.max(...withAuc.map((s) => s.aucMgH))
+          const fmtAuc = (v: number) => (v < 1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : String(Math.round(v)))
+          return (
+            <div style={{ marginTop: 18 }}>
+              <div className="sm" style={{ textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--ink-400)', marginBottom: 8 }}>
+                Exposición acumulada <span style={{ color: 'var(--ink-300)' }}>· en esta ventana</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {withAuc.map((s) => (
+                  <div key={s.product} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="sm" style={{ width: 92, flexShrink: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.product}</span>
+                    <div style={{ flex: 1, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ width: `${(s.aucMgH / maxAuc) * 100}%`, height: '100%', background: s.color, borderRadius: 999 }} />
+                    </div>
+                    <span className="sm mono" style={{ width: 76, textAlign: 'right', flexShrink: 0, color: 'var(--ink-900)', fontWeight: 600 }}>{fmtAuc(s.aucMgH)} mg·h</span>
+                  </div>
+                ))}
+              </div>
+              <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 8, lineHeight: 1.4 }}>
+                Estimación teórica de exposición (área bajo la curva), no un nivel en sangre.
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Micro-ayuda: los GLP-1 suben antes de llegar a su punto máximo */}
         {data.series.some((s) => isBiphasic(s.product)) && (
           <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 12, lineHeight: 1.4 }}>

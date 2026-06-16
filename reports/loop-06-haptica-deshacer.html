@@ -1,0 +1,23 @@
+<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hacktrack · Loop 06</title>
+<style>:root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--dim:#64748b;--mint:#5eead4;--good:#34d399;--line:#334155}
+body{margin:0;background:linear-gradient(160deg,#0f172a,#0b1220);color:var(--ink);font:15px/1.6 -apple-system,Inter,sans-serif;padding:32px 18px 80px}
+.w{max-width:860px;margin:0 auto}h1{font-size:28px;margin:0 0 2px}.s{color:var(--mut);margin:0 0 4px}.m{color:var(--dim);font-size:13px;font-family:'JetBrains Mono',monospace;margin-bottom:24px}
+h2{font-size:18px;margin:28px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line)}.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px}
+ul{margin:6px 0;padding-left:20px}li{margin:4px 0}code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--mint)}
+.p{display:inline-block;font-size:12px;font-family:'JetBrains Mono',monospace;padding:2px 9px;border-radius:999px;border:1px solid #14532d;background:#052e1a;color:var(--good)}.f li{font-family:'JetBrains Mono',monospace;font-size:13px}</style></head>
+<body><div class="w">
+<h1>Hacktrack · Loop 06</h1><p class="s"><b>Confirmación háptica + "Deshacer" al registrar dosis 1-tap</b></p>
+<p class="m">equipo multiagente · roadmap 3 lentes → síntesis Opus · red-team Codex (2 fixes) · self-audit</p>
+<h2>Qué se hizo</h2><div class="c"><ul>
+<li>Al registrar una dosis con un toque, el toast muestra <b>"Deshacer"</b> por 5 s (vs 2.4 s normal) — quita el miedo a doble-tap/error.</li>
+<li>Háptica sutil (<code>navigator.vibrate(10)</code>) en marcar hecho / deshacer / registro rápido del día.</li>
+<li><code>toastUndoId</code> apunta al log recién creado; el botón hace <code>deleteLog</code>.</li>
+</ul></div>
+<h2>Red-team Codex</h2><div class="c"><ul>
+<li><span class="p">fix</span> <code>saveMeasure/saveMedidas/deleteLog</code> no limpiaban <code>toastUndoId</code> → un "Deshacer" obsoleto podía quedar sobre otro toast. Corregido.</li>
+<li><span class="p">fix</span> <code>loadState</code> resetea <code>toastUndoId</code>; <code>deleteLog</code> con id ya borrado = no-op seguro.</li>
+</ul></div>
+<h2>Archivos</h2><div class="c f"><ul>
+<li>+ src/lib/haptics.ts</li><li>~ src/lib/store.ts (toastUndoId), src/App.tsx (Toast), src/components/TodayDoses.tsx, src/sheets/DayDetail.tsx</li>
+</ul></div>
+</div></body></html>

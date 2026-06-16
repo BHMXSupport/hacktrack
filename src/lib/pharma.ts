@@ -46,6 +46,7 @@ export interface PharmaSeries {
   markers: Pt[]       // inyecciones dentro de la ventana (mismo eje y que points)
   currentMg: number   // mg estimados presentes AHORA (siempre en mg, para la leyenda)
   peakMg: number      // pico de mg en todo el historial (para normalizar)
+  aucMgH: number      // exposición acumulada en la ventana = ∫ mg dt (mg·h) — estimación teórica
 }
 
 export interface PharmaData {
@@ -207,6 +208,10 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
     const points: Pt[] = ts.map((t, i) => [t, toY(rawByT[i])])
     const markers: Pt[] = dosesInWindow.map((d) => [d.ts, toY(amountAt(r.doses, r.product, r.halfMs, d.ts))])
 
+    // exposición acumulada en la ventana = ∫ mg dt (trapezoidal sobre los mg crudos) → mg·h
+    let auc = 0
+    for (let i = 1; i < ts.length; i++) auc += ((rawByT[i - 1] + rawByT[i]) / 2) * (ts[i] - ts[i - 1])
+
     series.push({
       product: r.product,
       color,
@@ -215,6 +220,7 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
       markers,
       currentMg: amountAt(r.doses, r.product, r.halfMs, now),
       peakMg,
+      aucMgH: auc / 3_600_000,
     })
   }
 
