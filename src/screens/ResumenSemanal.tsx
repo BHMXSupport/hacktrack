@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, adherence, isoKey } from '../lib/store'
 import {
-  compositionDeltas, protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights,
+  compositionDeltas, protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries,
 } from '../lib/nutrition'
 import { Sparkline } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
@@ -30,6 +30,51 @@ const disc = (t: string) => (
   <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 12, lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>{t}</div>
 )
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+
+// ── Tendencias: selector de ventana con sparkline de peso, calorías/día e hidratación ──
+function TrendsCard() {
+  const { state } = useApp()
+  const [win, setWin] = useState<number>(7)
+  const kcal = kcalSeries(state, win).filter((d) => d.has)
+  const kcalPts = kcal.map((d) => d.kcal)
+  const waterPts = kcalSeries(state, win).map((d) => state.nutrition[isoKey(d.ts)]?.water ?? 0).filter((_, i, arr) => arr.some((w) => w > 0))
+  const pesoAll = [...(state.history['Peso'] ?? [])].sort((a, b) => a.ts - b.ts)
+  const pesoWin = pesoAll.filter((p) => p.ts >= state.todayTs - win * DAY)
+  const pesoPts = (pesoWin.length >= 2 ? pesoWin : pesoAll).map((p) => p.value)
+
+  const Row = ({ label, pts, unit, color }: { label: string; pts: number[]; unit: string; color: string }) => {
+    if (pts.length < 2) return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span className="sm" style={{ width: 96, color: 'var(--ink-700)' }}>{label}</span>
+        <span className="sm" style={{ color: 'var(--ink-300)' }}>Registra unos días más</span>
+      </div>
+    )
+    const d = Math.round((pts[pts.length - 1] - pts[0]) * 10) / 10
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span className="sm" style={{ width: 96, color: 'var(--ink-700)' }}>{label}</span>
+        <span className="sm mono" style={{ width: 64, color: 'var(--ink-400)' }}>{d > 0 ? '+' : ''}{d}{unit}</span>
+        <div style={{ marginLeft: 'auto' }}><Sparkline data={pts} color={color} w={120} h={26} /></div>
+      </div>
+    )
+  }
+
+  return (
+    <Card title="Tendencias">
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        {[{ v: 7, l: '7 d' }, { v: 30, l: '30 d' }, { v: 90, l: 'Todo' }].map((o) => (
+          <button key={o.v} className="chip" style={{ flex: 1, justifyContent: 'center', background: win === o.v ? 'var(--brand-700)' : undefined, color: win === o.v ? '#fff' : undefined }} onClick={() => setWin(o.v)}>{o.l}</button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Row label="Peso" pts={pesoPts} unit=" kg" color="var(--brand-700)" />
+        <Row label="Calorías/día" pts={kcalPts} unit="" color="var(--brand-500)" />
+        <Row label="Hidratación" pts={waterPts} unit="" color="var(--brand-300)" />
+      </div>
+      {disc('Tendencia de tus registros personales. No es evidencia clínica.')}
+    </Card>
+  )
+}
 
 export function ResumenSemanal() {
   const { state, dispatch } = useApp()
@@ -194,6 +239,9 @@ export function ResumenSemanal() {
             ) : (
               <Card title="Proyección de meta"><div className="sm" style={{ color: 'var(--ink-400)' }}>Registra tu peso unos días más para construir tu tendencia.</div></Card>
             )}
+
+            {/* Tendencias */}
+            <TrendsCard />
 
             {/* Señales de la semana */}
             {insights.length > 0 && (
