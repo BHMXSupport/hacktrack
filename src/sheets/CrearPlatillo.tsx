@@ -114,8 +114,8 @@ export function CrearPlatillo() {
 
   // Ratio kcal/g P (item 249)
   const pRatio = total.protein > 0 ? (total.kcal / total.protein).toFixed(1) : null
-  const pRatioLabel = pRatio == null ? null : Number(pRatio) < 8 ? '⚡ Excelente' : Number(pRatio) <= 12 ? 'Bueno' : 'Bajo en P'
-  const pRatioColor = pRatio == null ? 'var(--ink-400)' : Number(pRatio) < 8 ? 'var(--success)' : Number(pRatio) <= 12 ? 'var(--warning)' : 'var(--error)'
+  const pRatioLabel = pRatio == null ? null : Number(pRatio) < 8 ? '⚡ Densidad proteica alta' : Number(pRatio) <= 12 ? 'Densidad proteica media' : 'Densidad proteica baja'
+  const pRatioColor = pRatio == null ? 'var(--ink-400)' : Number(pRatio) < 8 ? 'var(--success)' : 'var(--ink-400)'
 
   // Indicadores gluten/lácteos (item 253): se considera el platillo libre si TODOS los ingredientes anotados son true
   // Si algún ingrediente no tiene anotación, se muestra "?" para no dar falsos negativos.
@@ -410,7 +410,7 @@ export function CrearPlatillo() {
             {/* Ratio kcal/g P (item 249) */}
             {pRatio != null && (
               <div className="sm" style={{ color: pRatioColor }}>
-                {pRatioLabel} · {pRatio} kcal/g proteína
+                {pRatioLabel} · {pRatio} kcal por g de proteína
               </div>
             )}
 

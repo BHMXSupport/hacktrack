@@ -41,7 +41,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'none',         label: 'Relevancia' },
   { value: 'protein-desc', label: '↑ Proteína' },
   { value: 'kcal-asc',     label: '↓ Calorías' },
-  { value: 'ratio-desc',   label: '↑ Ratio P/kcal' },
+  { value: 'ratio-desc',   label: '↑ Densidad proteica' },
 ]
 
 // Opciones de filtro rápido de proteína (item 247)
@@ -155,7 +155,7 @@ function RecipeComparator({ a, b, onClose }: { a: Recipe; b: Recipe; onClose: ()
     { label: 'G (g)',    get: (r) => r.fat },
     { label: 'P %',      get: (r) => Math.round((r.protein * 4) / (r.kcal || 1) * 100) },
     { label: 'Fibra (g)', get: (r) => r.fiber ?? '—' },
-    { label: 'kcal/g P', get: (r) => r.protein > 0 ? (r.kcal / r.protein).toFixed(1) : '—' },
+    { label: 'kcal/g prot', get: (r) => r.protein > 0 ? (r.kcal / r.protein).toFixed(1) : '—' },
   ]
   return (
     <div
@@ -484,8 +484,8 @@ export function Recetario() {
 
                 // Ratio kcal/g P (item 249)
                 const ratio = r.protein > 0 ? (r.kcal / r.protein).toFixed(1) : null
-                const ratioLabel = ratio == null ? null : Number(ratio) < 8 ? '⚡ Excelente' : Number(ratio) <= 12 ? 'Bueno' : 'Bajo en P'
-                const ratioColor = ratio == null ? 'var(--ink-400)' : Number(ratio) < 8 ? 'var(--success)' : Number(ratio) <= 12 ? 'var(--warning)' : 'var(--error)'
+                const ratioLabel = ratio == null ? null : Number(ratio) < 8 ? '⚡ Densidad proteica alta' : Number(ratio) <= 12 ? 'Densidad proteica media' : 'Densidad proteica baja'
+                const ratioColor = ratio == null ? 'var(--ink-400)' : Number(ratio) < 8 ? 'var(--success)' : 'var(--ink-400)'
 
                 // Badge proteína principal (item 264)
                 let topIngredient: string | null = null
@@ -562,7 +562,7 @@ export function Recetario() {
                       {/* Ratio kcal/g P (item 249) */}
                       {ratio != null && (
                         <div className="sm" style={{ color: ratioColor, marginTop: 4 }}>
-                          {ratioLabel} · {ratio} kcal/g P
+                          {ratioLabel} · {ratio} kcal por g de proteína
                         </div>
                       )}
 
