@@ -349,9 +349,13 @@ export function reducer(s: AppState, a: Action): AppState {
       const y = s.nutrition[isoKey(yd.getTime())]
       if (!y || y.meals.length === 0) return s
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
-      const now = Date.now()
-      const copied: Meal[] = y.meals.map((m, i) => ({ ...m, id: genId(), ts: now - i }))
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals] } }, lastMealTs: now }
+      // conserva la hora del día de cada comida de ayer, trasladada a hoy (mantiene su franja)
+      const copied: Meal[] = y.meals.map((m) => {
+        const o = new Date(m.ts)
+        const d = new Date(s.todayTs); d.setHours(o.getHours(), o.getMinutes(), o.getSeconds(), 0)
+        return { ...m, id: genId(), ts: d.getTime() }
+      })
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals] } }, lastMealTs: Date.now() }
     }
     case 'delMeal': {
       const nutrition: AppState['nutrition'] = {}

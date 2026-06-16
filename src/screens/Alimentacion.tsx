@@ -13,20 +13,7 @@ import type { FoodFav } from '../lib/types'
 
 const WATER_GOAL = 8
 const PORTIONS: (number | null)[] = [null, 0.5, 1, 1.5, 2] // null = "auto" (porción aprendida)
-// franjas seleccionables (key = lo que devuelve mealSlot) + hora representativa para backfill
-const SLOTS: { key: string; short: string; hour: number }[] = [
-  { key: 'desayuno', short: 'Desayuno', hour: 8 },
-  { key: 'colación de la mañana', short: 'Colación AM', hour: 11 },
-  { key: 'comida', short: 'Comida', hour: 14 },
-  { key: 'colación de la tarde', short: 'Colación PM', hour: 17 },
-  { key: 'cena', short: 'Cena', hour: 21 },
-  { key: 'antojo nocturno', short: 'Antojo', hour: 23 },
-]
-function slotTimeToday(key: string, todayTs: number): number {
-  const hour = SLOTS.find((s) => s.key === key)?.hour ?? 12
-  const d = new Date(todayTs); d.setHours(hour, 0, 0, 0)
-  return d.getTime()
-}
+const hm = (ts: number) => new Date(ts).toTimeString().slice(0, 5) // 'HH:MM'
 // copy del estado vacío según la franja del día
 const SLOT_PROMPT: Record<string, string> = {
   'desayuno': '¿Qué desayunas? Regístralo abajo y lo recordaré.',
@@ -48,7 +35,7 @@ export function Alimentacion() {
   const macros = dayMacros(day.meals)
 
   const [portion, setPortion] = useState<number | null>(null)
-  const [whenKey, setWhenKey] = useState<string>(() => mealSlot(now))
+  const [timeStr, setTimeStr] = useState<string | null>(null) // null = ahora; 'HH:MM' = hora elegida hoy
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const [kcalStr, setKcalStr] = useState('')
@@ -60,11 +47,14 @@ export function Alimentacion() {
 
   const goalKcal = state.kcalGoal ?? tdee(state)
   const goalP = state.macroGoals?.protein ?? null
-  // franja elegida → hora de registro (ahora si es la franja actual, o la hora representativa para backfill)
-  const isNow = whenKey === mealSlot(now)
-  const slotTs = slotTimeToday(whenKey, state.todayTs)
-  const whenTs = isNow ? now : slotTs
-  const whenTag = isNow ? '' : slotTs < now ? ' · atrás' : ' · próxima'
+  // hora de registro elegida (ahora, o una hora de HOY para backfill); la franja se DERIVA de la hora
+  const whenTs = (() => {
+    if (!timeStr) return now
+    const [h, m] = timeStr.split(':').map(Number)
+    const d = new Date(state.todayTs); d.setHours(h || 0, m || 0, 0, 0)
+    return d.getTime()
+  })()
+  const whenSlot = mealSlot(whenTs)
   const preds = predictions(state, whenTs, 3)
   const results = fuzzySearch(state.foodLibrary, query)
   const yd = new Date(state.todayTs); yd.setDate(yd.getDate() - 1)
@@ -124,23 +114,20 @@ export function Alimentacion() {
 
         {/* ── Predicciones por franja + barra inteligente ── */}
         <motion.section variants={staggerItem} className="card">
-          {/* Selector de franja (permite backfill: agregar a desayuno aunque sea de noche) */}
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 8, paddingBottom: 2 }}>
-            {SLOTS.map((s) => (
-              <button key={s.key} onClick={() => setWhenKey(s.key)} className="sm" style={{ flexShrink: 0, border: 0, borderRadius: 999, padding: '5px 12px', cursor: 'pointer', fontWeight: 600, background: whenKey === s.key ? 'var(--brand-700)' : 'var(--ink-100)', color: whenKey === s.key ? '#fff' : 'var(--ink-400)' }}>
-                {s.short}
+          {/* Hora del registro (elige la hora → backfill; la franja se deriva sola) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora</span>
+            <input className="field mono" type="time" value={timeStr ?? hm(now)} onChange={(e) => setTimeStr(e.target.value)} style={{ width: 110, padding: '6px 10px' }} />
+            {timeStr != null && <button className="chip" style={{ height: 30 }} onClick={() => setTimeStr(null)}>Ahora</button>}
+            <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600, marginLeft: 'auto', textAlign: 'right' }}>Para tu {whenSlot}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 10 }}>
+            <span className="sm" style={{ color: 'var(--ink-400)', marginRight: 'auto' }}>Porción</span>
+            {PORTIONS.map((p) => (
+              <button key={String(p)} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 7px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
+                {porLabel(p)}
               </button>
             ))}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>Para tu {whenKey}<span style={{ color: 'var(--ink-400)' }}>{whenTag}</span></span>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {PORTIONS.map((p) => (
-                <button key={String(p)} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 7px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
-                  {porLabel(p)}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Tarjetas de predicción (1 toque) */}
@@ -160,7 +147,7 @@ export function Alimentacion() {
               })}
             </div>
           ) : (
-            <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>{SLOT_PROMPT[whenKey] ?? 'Registra tu comida abajo y la recordaré.'}</div>
+            <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>{SLOT_PROMPT[whenSlot] ?? 'Registra tu comida abajo y la recordaré.'}</div>
           )}
 
           {/* Acciones rápidas */}
