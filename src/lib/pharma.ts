@@ -11,8 +11,8 @@ const H = 3_600_000 // ms por hora
 // es precursor/metabolito, no modela decaimiento plasmático estándar → se marca como "no graficable".
 export const HALF_LIFE_H: Record<string, number> = {
   'Retatrutide': 144,   // ~6 días (mediana fase 1, Coskun 2022)
-  'Tirzepatida': 120,
-  'Semaglutida': 165,
+  'Tirzepatida': 120,   // ~5 días (Frias 2021)
+  'Semaglutida': 168,   // ~7 días (SmPC Ozempic/Wegovy)
   'Tesamorelin': 0.15,
   'MOTS-c': 1,
   '5-Amino-1MQ': 3,
@@ -35,6 +35,23 @@ export const HALF_LIFE_H: Record<string, number> = {
   'PT-141': 2,
 }
 
+// Productos SIN farmacocinética humana publicada: su curva es una estimación de referencia
+// (se dibuja punteada y su chip lleva "~"). No omitimos a Tesamorelin de BIPHASIC porque con t½
+// ~10 min su absorción es indistinguible de un bolo en ventanas ≥24h (se modela instantáneo).
+export const NO_HUMAN_PK_DATA = new Set<string>(['SLU-PP-332'])
+
+// t½ formateada legible (min / h / d) para la leyenda
+export function formatHalfLife(h: number): string {
+  if (h < 1) return `${Math.round(h * 60)} min`
+  if (h < 48) return `${h % 1 === 0 ? h : h.toFixed(1)} h`
+  return `${Math.round(h / 24)} d`
+}
+
+// tiempo (ms) hasta ~5% restante (≈4.32 vidas medias) — "washout" práctico
+export function washoutMs(halfLifeH: number): number {
+  return halfLifeH * 4.32 * H
+}
+
 export type Mode = 'percent' | 'absolute'
 export type Pt = [number, number] // [epoch ms, y]
 
@@ -47,6 +64,7 @@ export interface PharmaSeries {
   currentMg: number   // mg estimados presentes AHORA (siempre en mg, para la leyenda)
   peakMg: number      // pico de mg en todo el historial (para normalizar)
   aucMgH: number      // exposición acumulada en la ventana = ∫ mg dt (mg·h) — estimación teórica
+  isEstimatedOnly: boolean // sin PK humana publicada (p.ej. SLU-PP-332) → curva punteada + "~"
 }
 
 export interface PharmaData {
@@ -223,6 +241,7 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
       currentMg: amountAt(r.doses, r.product, r.halfMs, now),
       peakMg,
       aucMgH: auc / 3_600_000,
+      isEstimatedOnly: NO_HUMAN_PK_DATA.has(r.product),
     })
   }
 

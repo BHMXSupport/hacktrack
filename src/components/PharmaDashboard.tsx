@@ -2,9 +2,9 @@
 // Estimación EDUCATIVA (vida media aproximada de literatura), NO consejo médico ni dosis.
 // (Síntesis del equipo: investigador PK + analista de datos + dashboard + diseñador + UX.)
 import { useMemo, useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { buildPharmaSeries, fmtApproxMg, HALF_LIFE_H, type Mode } from '../lib/pharma'
+import { buildPharmaSeries, fmtApproxMg, formatHalfLife, HALF_LIFE_H, type Mode } from '../lib/pharma'
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
@@ -23,7 +23,7 @@ const PRODUCT_NOTE: Record<string, string> = {
   'MOTS-c': 'Péptido mitocondrial; vida media corta (~1 h): presente solo unas horas. PK extrapolada de modelos animales.',
   '5-Amino-1MQ': 'Molécula pequeña; vida media corta (~3 h): presencia de pocas horas tras la toma.',
   'SLU-PP-332': 'Agonista ERR (investigación); sin farmacocinética humana publicada — su curva es una estimación de referencia, no un dato clínico.',
-  'BPC-157': 'Péptido de acción local; vida media plasmática muy corta (minutos–½ h): desaparece rápido de la sangre tras la dosis.',
+  'BPC-157': 'Péptido de acción local; vida media plasmática muy corta (minutos–½ h): desaparece rápido de la sangre tras la dosis. Efectos principalmente locales; la curva refleja presencia sistémica, no acción tisular.',
   'TB-500': 'Fracción de timosina β4; vida media corta (~1.5 h): se elimina del plasma en pocas horas.',
   'GHK-Cu': 'Péptido de cobre; vida media muy corta (~45 min): presencia plasmática breve tras la dosis.',
   'ARA 290': 'Péptido derivado de EPO; vida media muy corta (~45 min): la curva cae en menos de una hora.',
@@ -35,7 +35,7 @@ const PRODUCT_NOTE: Record<string, string> = {
   'Semax': 'Péptido derivado de ACTH; vida media muy corta (~20 min): presencia plasmática fugaz tras la dosis.',
   'Selank': 'Péptido análogo de tuftsina; vida media muy corta (~20 min): se elimina del plasma en minutos.',
   'DSIP': 'Péptido (delta sleep); vida media corta (~45 min): presencia plasmática breve.',
-  'Oxytocin': 'Hormona peptídica; vida media ultracorta (~3 min): la curva cae a cero en minutos; sus efectos centrales pueden durar más que su presencia en sangre.',
+  'Oxytocin': 'Hormona peptídica; vida media ultracorta (~3 min): la curva cae a cero en minutos; sus efectos centrales pueden durar más que su presencia en sangre. Efectos centrales por liberación neuronal endógena, ~30–60 min tras intranasal.',
   'CJC 1295 (No DAC)': 'Análogo de GHRH sin DAC; vida media corta (~30 min): pulso breve, la curva desciende rápido.',
   'Ipamorelin': 'Secretagogo de GH; vida media corta (~2 h): presente unas horas tras la dosis.',
   'Kisspeptin-10': 'Péptido del eje reproductivo; vida media muy corta (~12 min): la curva cae en minutos.',
@@ -48,6 +48,16 @@ function fallbackNote(h: number | undefined): string {
   if (h < 6) return `Vida media corta (~${h} h): presente unas horas tras la dosis.`
   return `Vida media larga (~${Math.round(h / 24)} días): la curva baja lento y sigue presente varios días.`
 }
+
+// SVG ojo barrado para estado vacío
+const EyeOffIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ink-300)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 8px', display: 'block' }}>
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+    <path d="M1 1l22 22" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+)
 
 export function PharmaDashboard() {
   const { state, dispatch } = useApp()
@@ -90,15 +100,24 @@ export function PharmaDashboard() {
     }
     return out
   })()
+
   const notesBlock = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-      {noteProducts.map((n) => (
-        <div key={n.product} className="sm" style={{ color: 'var(--ink-400)', lineHeight: 1.4, display: 'flex', gap: 7 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 999, background: n.color, flexShrink: 0, marginTop: 5 }} />
-          <span><strong style={{ color: 'var(--ink-700)', fontWeight: 600 }}>{n.product}:</strong> {n.text}</span>
-        </div>
-      ))}
-    </div>
+    <AnimatePresence>
+      <motion.div
+        key="notes-block"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 7 }}
+      >
+        {noteProducts.map((n) => (
+          <div key={n.product} className="sm" style={{ color: 'var(--ink-400)', lineHeight: 1.4, display: 'flex', gap: 7 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 999, background: n.color, flexShrink: 0, marginTop: 5 }} />
+            <span><strong style={{ color: 'var(--ink-700)', fontWeight: 600 }}>{n.product}:</strong> {n.text}</span>
+          </div>
+        ))}
+      </motion.div>
+    </AnimatePresence>
   )
 
   // ── Eje Y ──
@@ -156,7 +175,7 @@ export function PharmaDashboard() {
             Ver 7 días
           </button>
         )}
-        <p className="sm" style={{ color: 'var(--ink-300)', marginTop: 14, lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
+        <p className="disclaimer" style={{ borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
           Estimación educativa. No es consejo médico ni recomendación de dosis.
         </p>
       </motion.div>
@@ -168,11 +187,9 @@ export function PharmaDashboard() {
       <motion.div variants={staggerItem} className="card" style={{ marginTop: 16, padding: 20 }}>
         {/* Cabecera */}
         <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Vida del péptido en el cuerpo</div>
-        <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>
-          Estimado de cuánto sigue activo después de cada dosis
-        </div>
-        <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 2, marginBottom: 14 }}>
-          Toca el chart para ver el detalle en cualquier momento.
+        <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2, marginBottom: 14 }}>
+          Estimado de cuánto sigue activo después de cada dosis{' '}
+          <span style={{ color: 'var(--ink-300)' }}>(dosis-equivalente residual, no concentración plasmática)</span>
         </div>
 
         {/* Controles: ventana + escala */}
@@ -193,20 +210,33 @@ export function PharmaDashboard() {
           </div>
         </div>
 
+        {/* Mini-nota eje Y en modo mg */}
+        {mode === 'absolute' && (
+          <div className="sm" style={{ color: 'var(--ink-300)', marginBottom: 8, lineHeight: 1.4 }}>
+            Eje Y en mg · dosis-equivalente residual (no concentración plasmática)
+          </div>
+        )}
+
         {/* Chart */}
         {visible.length > 0 ? (
           <MultiLineChart
-            series={visible}
+            series={visible.map((s) => ({ ...s, dashed: s.isEstimatedOnly, halfLifeH: s.halfLifeH }))}
+            mode={mode}
             domainX={data.domainX}
             domainY={data.domainY}
             nowTs={data.nowTs}
             yTicks={yTicks}
             formatY={formatY}
             xTicks={xTicks}
-            refLines={mode === 'percent' ? [{ y: 25, label: '25%' }] : []}
+            refLines={
+              mode === 'percent'
+                ? [{ y: 25, label: '25%' }, { y: 50, label: 't½' }]
+                : []
+            }
           />
         ) : (
-          <div className="sm" style={{ color: 'var(--ink-300)', textAlign: 'center', padding: '40px 0' }}>
+          <div className="sm" style={{ color: 'var(--ink-400)', textAlign: 'center', padding: '40px 0' }}>
+            <EyeOffIcon />
             Toca un producto abajo para mostrar su curva.
           </div>
         )}
@@ -215,26 +245,40 @@ export function PharmaDashboard() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
           {data.series.map((s) => {
             const off = hidden.has(s.product)
+            const displayName = s.isEstimatedOnly ? `~${s.product}` : s.product
             return (
-              <button
+              <motion.button
                 key={s.product}
                 type="button"
                 onClick={() => toggle(s.product)}
                 aria-pressed={!off}
                 aria-label={`${s.product}: ${fmtApproxMg(s.currentMg)} ahora`}
+                whileTap={{ scale: 0.93 }}
+                animate={{ opacity: off ? 0.45 : 1 }}
+                transition={{ duration: 0.15 }}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 40, padding: '6px 12px',
-                  borderRadius: 'var(--r-sm)', cursor: 'pointer', background: 'var(--border)',
-                  border: `1px solid ${off ? 'var(--border)' : s.color}`, opacity: off ? 0.5 : 1,
+                  borderRadius: 'var(--r-sm)', cursor: 'pointer', background: 'var(--ink-100)',
+                  border: `1.5px solid ${s.color}`,
                 }}
               >
-                <span style={{ width: 9, height: 9, borderRadius: 999, background: off ? 'var(--ink-300)' : s.color, flexShrink: 0 }} />
-                <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 500 }}>{s.product}</span>
+                <span style={{ width: 10, height: 10, borderRadius: 999, background: off ? 'var(--ink-300)' : s.color, flexShrink: 0 }} />
+                <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 500 }}>
+                  {displayName}
+                  {s.isEstimatedOnly && (
+                    <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 400 }}> (estimación)</span>
+                  )}
+                </span>
+                <span className="sm mono" style={{ color: 'var(--ink-400)', fontWeight: 400 }}>
+                  {formatHalfLife(s.halfLifeH)}
+                </span>
                 <span className="sm mono" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>{fmtApproxMg(s.currentMg)}</span>
-              </button>
+              </motion.button>
             )
           })}
         </div>
+
+        <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '16px 0' }} />
 
         {/* Exposición acumulada (AUC) en la ventana — barras relativas por producto */}
         {(() => {
@@ -243,16 +287,21 @@ export function PharmaDashboard() {
           const maxAuc = Math.max(...withAuc.map((s) => s.aucMgH))
           const fmtAuc = (v: number) => (v < 1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : String(Math.round(v)))
           return (
-            <div style={{ marginTop: 18 }}>
+            <div>
               <div className="sm" style={{ textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--ink-400)', marginBottom: 8 }}>
                 Exposición acumulada <span style={{ color: 'var(--ink-300)' }}>· en esta ventana</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {withAuc.map((s) => (
+                {withAuc.map((s, i) => (
                   <div key={s.product} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span className="sm" style={{ width: 92, flexShrink: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.product}</span>
                     <div style={{ flex: 1, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
-                      <div style={{ width: `${(s.aucMgH / maxAuc) * 100}%`, height: '100%', background: s.color, borderRadius: 999 }} />
+                      <motion.div
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 0.45, delay: i * 0.07, ease: 'easeOut' }}
+                        style={{ width: `${(s.aucMgH / maxAuc) * 100}%`, height: '100%', background: s.color, borderRadius: 999, transformOrigin: 'left center' }}
+                      />
                     </div>
                     <span className="sm mono" style={{ width: 76, textAlign: 'right', flexShrink: 0, color: 'var(--ink-900)', fontWeight: 600 }}>{fmtAuc(s.aucMgH)} mg·h</span>
                   </div>
@@ -265,11 +314,13 @@ export function PharmaDashboard() {
           )
         })()}
 
+        <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '16px 0' }} />
+
         {/* Notas educativas POR PRODUCTO — solo del producto activo al que aplican */}
-        {noteProducts.length > 0 && <div style={{ marginTop: 12 }}>{notesBlock}</div>}
+        {noteProducts.length > 0 && notesBlock}
 
         {/* Disclaimer de cumplimiento */}
-        <p className="sm" style={{ color: 'var(--ink-300)', marginTop: 14, lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
+        <p className="disclaimer" style={{ borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
           Estimación educativa basada en vidas medias aproximadas de la literatura científica. No representa tu
           farmacocinética individual, no es consejo médico ni recomendación de dosis.
         </p>

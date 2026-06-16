@@ -3,15 +3,18 @@
 // líneas de referencia y tooltip táctil (valor de cada serie en el instante tocado).
 // (Optimizador de dashboards + diseñador del equipo multiagente — Loop 02.)
 import { useRef, useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
-import { dur, ease } from '../lib/motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { dur, ease, spring } from '../lib/motion'
 import type { Pt } from '../lib/pharma'
+import { washoutMs } from '../lib/pharma'
 
 export interface ChartSeries {
   product: string
   color: string
   points: Pt[]
   markers: Pt[]
+  dashed?: boolean
+  halfLifeH?: number
 }
 
 interface Props {
@@ -24,10 +27,11 @@ interface Props {
   formatY?: (v: number) => string
   xTicks?: { t: number; label: string }[]
   refLines?: { y: number; label: string }[]   // líneas horizontales de referencia (p.ej. 25%)
+  mode?: 'percent' | 'absolute'
 }
 
 const W = 360
-const PAD = { l: 36, r: 14, t: 16, b: 26 }
+const PAD = { l: 42, r: 14, t: 16, b: 28 }
 
 function linePath(pts: [number, number][]): string {
   if (!pts.length) return ''
@@ -51,8 +55,16 @@ function valueAt(points: Pt[], t: number): number | null {
   return lastP[1]
 }
 
+// formatea washoutMs en días/horas legibles
+function formatWashout(halfLifeH: number): string {
+  const ms = washoutMs(halfLifeH)
+  const totalH = ms / 3_600_000
+  if (totalH >= 48) return `~${Math.round(totalH / 24)}d`
+  return `~${Math.round(totalH)}h`
+}
+
 export function MultiLineChart({
-  series, domainX, domainY, nowTs, height = 200, yTicks = [], formatY = (v) => String(Math.round(v)), xTicks = [], refLines = [],
+  series, domainX, domainY, nowTs, height = 200, yTicks = [], formatY = (v) => String(Math.round(v)), xTicks = [], refLines = [], mode,
 }: Props) {
   const reduce = useReducedMotion()
   const svgRef = useRef<SVGSVGElement>(null)
@@ -82,11 +94,35 @@ export function MultiLineChart({
   // tooltip: valor de cada serie en hoverT
   const hover = hoverT == null ? null : {
     t: hoverT,
-    rows: series.map((s) => ({ product: s.product, color: s.color, v: valueAt(s.points, hoverT) })).filter((r) => r.v != null),
+    rows: series.map((s) => ({
+      product: s.product,
+      color: s.color,
+      v: valueAt(s.points, hoverT),
+      halfLifeH: s.halfLifeH,
+    })).filter((r) => r.v != null),
   }
-  const boxW = 132
-  const boxH = hover ? 14 + hover.rows.length * 13 : 0
+
+  // box height con líneas de washout (approx 12px por fila extra)
+  const rowH = 16
+  const boxW = 140
+  const boxH = hover
+    ? 14 + hover.rows.reduce((acc, r) => {
+        const hasWashout = mode === 'percent' && r.halfLifeH != null
+        return acc + rowH + (hasWashout ? 11 : 0)
+      }, 0)
+    : 0
   const boxX = hover ? (sx(hover.t) > W / 2 ? Math.max(PAD.l, sx(hover.t) - boxW - 8) : Math.min(W - PAD.r - boxW, sx(hover.t) + 8)) : 0
+
+  // calcular offsets de fila para el tooltip
+  const rowOffsets: number[] = []
+  if (hover) {
+    let yOff = 16
+    for (const r of hover.rows) {
+      rowOffsets.push(yOff)
+      const hasWashout = mode === 'percent' && r.halfLifeH != null
+      yOff += rowH + (hasWashout ? 11 : 0)
+    }
+  }
 
   return (
     <svg
@@ -131,11 +167,16 @@ export function MultiLineChart({
         </text>
       ))}
 
-      {/* línea "ahora" */}
+      {/* línea "ahora" — motion.line para deslizar al cambiar ventana */}
       {nowTs >= x0 && nowTs <= x1 && (
         <g>
-          <line x1={nowX} y1={PAD.t} x2={nowX} y2={PAD.t + plotH} stroke="var(--ink-300)" strokeWidth={1} strokeDasharray="2 4" />
-          <text x={nowX} y={PAD.t - 5} textAnchor="middle" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-400)">
+          <motion.line
+            x1={nowX} y1={PAD.t} x2={nowX} y2={PAD.t + plotH}
+            stroke="var(--brand-500)" strokeWidth={1} strokeDasharray="3 3"
+            animate={{ x1: nowX, x2: nowX }}
+            transition={{ duration: dur.base, ease: ease.standard }}
+          />
+          <text x={nowX} y={PAD.t - 5} textAnchor="middle" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--brand-500)">
             ahora
           </text>
         </g>
@@ -149,6 +190,7 @@ export function MultiLineChart({
         const baseY = PAD.t + plotH
         const gid = `pharmaFill${si}`
         const areaD = px.length ? `${linePath(px)} L ${px[px.length - 1][0].toFixed(1)} ${baseY} L ${px[0][0].toFixed(1)} ${baseY} Z` : ''
+        const haloDelay = si * 0.4
         return (
           <g key={s.product}>
             {/* relleno de área (suave) para distinguir cada curva */}
@@ -156,7 +198,7 @@ export function MultiLineChart({
               <>
                 <defs>
                   <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={s.color} stopOpacity={0.18} />
+                    <stop offset="0%" stopColor={s.color} stopOpacity={s.dashed ? 0.10 : 0.18} />
                     <stop offset="100%" stopColor={s.color} stopOpacity={0} />
                   </linearGradient>
                 </defs>
@@ -164,9 +206,9 @@ export function MultiLineChart({
                   d={areaD}
                   fill={`url(#${gid})`}
                   stroke="none"
-                  initial={reduce ? false : { opacity: 0 }}
+                  initial={reduce ? { opacity: 1 } : { opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: dur.base, delay: reduce ? 0 : dur.draw * 0.5 }}
+                  transition={reduce ? { duration: 0 } : { duration: dur.base, delay: dur.draw * 0.5 }}
                 />
               </>
             )}
@@ -177,21 +219,34 @@ export function MultiLineChart({
               strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
+              strokeDasharray={s.dashed ? '6 4' : undefined}
               initial={reduce ? false : { pathLength: 0 }}
               animate={{ pathLength: 1 }}
               transition={{ duration: dur.draw, ease: ease.decelerate }}
             />
+            {/* marcadores de inyección — motion.circle con pop escalonado */}
             {s.markers.map((m, i) => (
-              <circle key={i} cx={sx(m[0])} cy={sy(m[1])} r={3.5} fill={s.color} stroke="var(--card)" strokeWidth={1.5} />
+              <motion.circle
+                key={i}
+                cx={sx(m[0])} cy={sy(m[1])} r={3.5}
+                fill={s.color} stroke="var(--card)" strokeWidth={1.5}
+                style={{ transformOrigin: `${sx(m[0])}px ${sy(m[1])}px` }}
+                initial={reduce ? false : { scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={reduce ? { duration: 0 } : {
+                  ...spring.ui,
+                  delay: dur.draw * 0.6 + i * 0.07 + si * 0.12,
+                }}
+              />
             ))}
-            {/* punto de presencia AHORA, con halo pulsante "vivo" */}
+            {/* punto de presencia AHORA, con halo pulsante "vivo" desfasado por serie */}
             {showNowDot && (
               <g>
                 {!reduce && (
                   <motion.circle
                     cx={sx(nowTs)} cy={sy(nowY!)} fill={s.color}
                     animate={{ r: [4, 9], opacity: [0.35, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: haloDelay }}
                   />
                 )}
                 <circle cx={sx(nowTs)} cy={sy(nowY!)} r={4} fill={s.color} stroke="var(--card)" strokeWidth={1.5} />
@@ -201,27 +256,45 @@ export function MultiLineChart({
         )
       })}
 
-      {/* tooltip táctil */}
-      {hover && (
-        <g pointerEvents="none">
-          <line x1={sx(hover.t)} y1={PAD.t} x2={sx(hover.t)} y2={PAD.t + plotH} stroke="var(--ink-400)" strokeWidth={1} />
-          {hover.rows.map((r, i) => (
-            <circle key={r.product} cx={sx(hover.t)} cy={sy(r.v!)} r={3} fill={r.color} stroke="var(--card)" strokeWidth={1.5} />
-          ))}
-          <rect x={boxX} y={PAD.t} width={boxW} height={boxH} rx={6} fill="var(--card)" stroke="var(--border)" strokeWidth={1} opacity={0.97} />
-          {hover.rows.map((r, i) => (
-            <g key={r.product} transform={`translate(${boxX + 8}, ${PAD.t + 14 + i * 13})`}>
-              <circle cx={3} cy={-3} r={3.5} fill={r.color} />
-              <text x={12} y={0} fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-700)">
-                {r.product.length > 12 ? r.product.slice(0, 11) + '…' : r.product}
-              </text>
-              <text x={boxW - 16} y={0} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-900)" fontWeight={600}>
-                {formatY(r.v!)}
-              </text>
-            </g>
-          ))}
-        </g>
-      )}
+      {/* tooltip táctil — AnimatePresence para fade/slide suave */}
+      <AnimatePresence>
+        {hover && (
+          <motion.g
+            key="tooltip"
+            pointerEvents="none"
+            initial={reduce ? { opacity: 1 } : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
+            transition={{ duration: dur.fast, ease: ease.standard }}
+          >
+            <line x1={sx(hover.t)} y1={PAD.t} x2={sx(hover.t)} y2={PAD.t + plotH} stroke="var(--ink-400)" strokeWidth={1} />
+            {hover.rows.map((r) => (
+              <circle key={r.product} cx={sx(hover.t)} cy={sy(r.v!)} r={3} fill={r.color} stroke="var(--card)" strokeWidth={1.5} />
+            ))}
+            <rect x={boxX} y={PAD.t} width={boxW} height={boxH} rx={6} fill="var(--card)" stroke="var(--border)" strokeWidth={1} opacity={0.97} />
+            {hover.rows.map((r, i) => {
+              const yOff = rowOffsets[i] ?? (14 + i * rowH)
+              const hasWashout = mode === 'percent' && r.halfLifeH != null
+              return (
+                <g key={r.product} transform={`translate(${boxX + 8}, ${PAD.t + yOff})`}>
+                  <circle cx={3} cy={-3} r={3.5} fill={r.color} />
+                  <text x={12} y={0} fontSize={10} fontFamily="JetBrains Mono, monospace" fill="var(--ink-700)">
+                    {r.product.length > 12 ? r.product.slice(0, 11) + '…' : r.product}
+                  </text>
+                  <text x={boxW - 16} y={0} textAnchor="end" fontSize={10.5} fontFamily="JetBrains Mono, monospace" fill="var(--ink-900)" fontWeight={700}>
+                    {formatY(r.v!)}
+                  </text>
+                  {hasWashout && (
+                    <text x={12} y={10} fontSize={8.5} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
+                      washout {formatWashout(r.halfLifeH!)}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+          </motion.g>
+        )}
+      </AnimatePresence>
 
       {/* capa de captura del pointer (encima de todo) */}
       <rect
