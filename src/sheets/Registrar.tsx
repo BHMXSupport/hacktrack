@@ -11,6 +11,7 @@ import { spring, ease } from '../lib/motion'
 import { useApp } from '../lib/store'
 import { PEPTIDES, WDS } from '../lib/catalog'
 import { presetCad, cadenceLabel } from '../lib/cadence'
+import { doseToMg, needsRecon } from '../lib/calc'
 import type { UserCadence, CadMode } from '../lib/types'
 
 // Unidades disponibles (el usuario elige — NUNCA precargamos dosis)
@@ -124,6 +125,18 @@ export function RegistrarSheet() {
     setDose(String(next % 1 === 0 ? next : parseFloat(next.toFixed(2))))
   }
 
+  // ── Reconstitución del vial (solo para UI/clics/mL → convertir a mg) ──
+  const [vialStr, setVialStr] = useState('')
+  const [aguaStr, setAguaStr] = useState('')
+  // pre-llena con la reconstitución recordada del producto seleccionado
+  useEffect(() => {
+    const rec = state.productRecon[product]
+    setVialStr(rec ? String(rec.vialMg) : '')
+    setAguaStr(rec ? String(rec.aguaMl) : '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product])
+  const showRecon = needsRecon(unit)
+
   // ── Hora ──────────────────────────────────────────────────────────────────
   const [hora, setHora] = useState('Ahora')
 
@@ -166,11 +179,17 @@ export function RegistrarSheet() {
         dispatch({ t: 'setProtocol', product: finalProduct })
         dispatch({ t: 'setCadence', cadence: localCad })
       }
+      // Convierte a mg canónicos (para vida media/presencia) y recuerda la reconstitución del producto
+      const val = parseFloat(dose)
+      const vialMg = parseFloat(vialStr)
+      const aguaMl = parseFloat(aguaStr)
+      const doseMg = doseToMg(val, unit, vialMg, aguaMl) ?? undefined
+      const recon = needsRecon(unit) && vialMg > 0 && aguaMl > 0 ? { vialMg, aguaMl } : undefined
       // Registrar dosis (P0-1: entra al diario + racha + activa dash)
-      dispatch({ t: 'logDose', product: finalProduct, value: parseFloat(dose) || null, unit, ts })
+      dispatch({ t: 'logDose', product: finalProduct, value: val || null, unit, ts, doseMg, recon })
       dispatch({ t: 'sheet', sheet: null })
     }, 640)
-  }, [saving, state.protocols, state.activeProduct, localCad, product, dose, unit, hora, state.todayTs, dispatch])
+  }, [saving, state.protocols, state.activeProduct, localCad, product, dose, unit, vialStr, aguaStr, hora, state.todayTs, dispatch])
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -424,6 +443,39 @@ export function RegistrarSheet() {
               />
             ))}
           </div>
+
+          {/* Reconstitución del vial — necesaria para convertir UI/clics/mL a mg */}
+          {showRecon && (
+            <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--border)' }}>
+              <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 10, textAlign: 'center' }}>
+                Reconstitución del vial <span style={{ color: 'var(--ink-300)' }}>· para saber cuántos mg son tus {unit === 'mL' ? 'mL' : 'unidades'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label className="label" htmlFor="reg-vial">Vial (mg)</label>
+                  <input id="reg-vial" className="field" type="number" inputMode="decimal" min="0" placeholder="ej. 10"
+                    value={vialStr} onChange={(e) => setVialStr(e.target.value)} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="label" htmlFor="reg-agua">Agua (mL)</label>
+                  <input id="reg-agua" className="field" type="number" inputMode="decimal" min="0" placeholder="ej. 2"
+                    value={aguaStr} onChange={(e) => setAguaStr(e.target.value)} />
+                </div>
+              </div>
+              {(() => {
+                const mg = doseToMg(parseFloat(dose), unit, parseFloat(vialStr), parseFloat(aguaStr))
+                return mg != null ? (
+                  <div className="sm mono" style={{ color: 'var(--brand-700)', textAlign: 'center', marginTop: 10, fontWeight: 600 }}>
+                    = {mg < 1 ? mg.toFixed(3) : mg < 10 ? mg.toFixed(2) : mg.toFixed(1)} mg
+                  </div>
+                ) : (
+                  <div className="sm" style={{ color: 'var(--ink-300)', textAlign: 'center', marginTop: 10 }}>
+                    Ingresa vial y agua para convertir a mg
+                  </div>
+                )
+              })()}
+            </div>
+          )}
         </div>
 
         {/* ── Link: calculadora de unidades ── */}

@@ -67,12 +67,18 @@ export function collectDosesByProduct(s: AppState): Map<string, Dose[]> {
   for (const g of s.log) {
     for (const it of g.items) {
       if (it.type !== 'dose' || it.product == null) continue
-      const m = it.u.match(/·\s*([\d.]+)\s*([^\s·]*)/)
-      let value = m ? parseFloat(m[1]) : NaN
-      const unit = (m?.[2] ?? '').toLowerCase()
-      if (unit === 'mcg' || unit === 'µg' || unit === 'ug' || unit === 'μg') value = value / 1000
-      else if (unit === 'g') value = value * 1000
-      else if (!(unit === 'mg' || unit === '')) continue
+      let value: number
+      if (it.doseMg != null) {
+        value = it.doseMg // mg canónicos ya convertidos (incluye UI/mL con reconstitución)
+      } else {
+        // legado: parsear mg desde `u`. mg/mcg/g convertibles; UI/mL sin doseMg no se pueden graficar.
+        const m = it.u.match(/·\s*([\d.]+)\s*([^\s·]*)/)
+        value = m ? parseFloat(m[1]) : NaN
+        const unit = (m?.[2] ?? '').toLowerCase()
+        if (unit === 'mcg' || unit === 'µg' || unit === 'ug' || unit === 'μg') value = value / 1000
+        else if (unit === 'g') value = value * 1000
+        else if (!(unit === 'mg' || unit === '')) continue
+      }
       if (!isFinite(value) || value <= 0) continue
       const arr = byProduct.get(it.product) ?? []
       arr.push({ product: it.product, value, ts: it.ts })

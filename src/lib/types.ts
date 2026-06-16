@@ -66,6 +66,7 @@ export interface LogItem {
   type: LogItemType
   ts: number       // timestamp epoch (ms) del registro real
   product?: string // producto de la dosis (para adherencia por producto)
+  doseMg?: number  // dosis en mg CANÓNICOS (convertida desde UI/mL con la reconstitución) — para vida media/presencia
 }
 
 export interface LogGroup {

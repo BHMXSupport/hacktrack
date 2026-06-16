@@ -35,6 +35,7 @@ export interface AppState {
   measureValues: Record<string, number>
   history: Record<string, MeasureSample[]>   // serie temporal por KPI/medida (dashboard)
   productDoses: Record<string, { value: number; unit: string }>  // dosis recordada por producto (para "hecho hoy")
+  productRecon: Record<string, { vialMg: number; aguaMl: number }> // reconstitución recordada por producto (UI/mL → mg)
   settings: UserSettings
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
@@ -61,6 +62,7 @@ export const initialState: AppState = {
   measureValues: {},
   history: {},
   productDoses: {},
+  productRecon: {},
   settings: {
     pinEnabled: false,
     darkMode: false,
@@ -90,7 +92,7 @@ export type Action =
   | { t: 'setProgresoView'; view: ProgresoView }                      // cambia el segmento de Progreso (deep-link)
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
-  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number } // P0-1
+  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number } } // P0-1
   | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'deleteLog'; id: string }                                    // P1-1
@@ -314,12 +316,15 @@ export function reducer(s: AppState, a: Action): AppState {
         type: 'dose',
         ts: now.getTime(),
         product: a.product,
+        doseMg: a.doseMg, // mg canónicos (para vida media/presencia); undefined si no se pudo convertir
       }
       return {
         ...s,
         log: prependToLog(s.log, item),
         // recuerda la dosis tecleada por producto (alimenta "tus dosis de hoy")
         productDoses: a.value != null ? { ...s.productDoses, [a.product]: { value: a.value, unit: a.unit } } : s.productDoses,
+        // recuerda la reconstitución del producto (para pre-llenar y para "hecho hoy" en UI/mL)
+        productRecon: a.recon ? { ...s.productRecon, [a.product]: a.recon } : s.productRecon,
         logged: true,
         sheet: null,
         toast: 'Registro guardado',

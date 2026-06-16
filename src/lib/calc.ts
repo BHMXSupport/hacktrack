@@ -49,3 +49,31 @@ export function calcRecon(i: ReconInput): ReconResult | null {
 export function copyToRegisterToast(r: ReconResult): string {
   return `Copiado a tu registro: ${r.ui} UI (jeringa U-100) — verifica con tu jeringa`
 }
+
+// ¿la unidad necesita la reconstitución del vial para convertirse a mg?
+export function needsRecon(unit: string): boolean {
+  return unit === 'UI' || unit === 'clics' || unit === 'mL'
+}
+
+// convierte una dosis a mg CANÓNICOS (para chart de vida media, presencia, etc.).
+// mg/mcg/g se convierten directo. UI/clics y mL requieren la reconstitución (vial mg + agua mL).
+// Devuelve null si no se puede convertir (UI/mL sin reconstitución válida).
+export function doseToMg(value: number, unit: string, vialMg?: number, aguaMl?: number): number | null {
+  if (!(value > 0)) return null
+  switch (unit) {
+    case 'mg':  return value
+    case 'mcg': return value / 1000
+    case 'g':   return value * 1000
+    case 'UI':
+    case 'clics': {
+      if (!(vialMg! > 0) || !(aguaMl! > 0)) return null
+      const conc = vialMg! / aguaMl!        // mg/mL
+      return (value / 100) * conc           // U-100: value U = value/100 mL
+    }
+    case 'mL': {
+      if (!(vialMg! > 0) || !(aguaMl! > 0)) return null
+      return value * (vialMg! / aguaMl!)
+    }
+    default: return null
+  }
+}

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useApp, doseForProduct } from '../lib/store'
 import { dayProducts, doseTakenOnProduct, loggedItemsForDay } from '../lib/calendar'
 import { startOfDay } from '../lib/cadence'
+import { doseToMg } from '../lib/calc'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { IcCheck } from './icons'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -25,8 +26,12 @@ export function TodayDoses() {
 
   function markDone(product: string) {
     const dose = doseForProduct(state, product)
-    if (dose) dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: tsFor(product) })
-    else dispatch({ t: 'sheet', sheet: 'registrar', arg: product }) // sin dosis aún → abre en ESE producto
+    if (dose) {
+      // mg canónicos: directo si mg/mcg, o con la reconstitución recordada si la dosis es en UI/mL
+      const rec = state.productRecon[product]
+      const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
+      dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: tsFor(product), doseMg })
+    } else dispatch({ t: 'sheet', sheet: 'registrar', arg: product }) // sin dosis aún → abre en ESE producto
   }
   function undo(product: string) {
     const item = loggedItemsForDay(state, today).find((it) => it.type === 'dose' && it.product === product)
