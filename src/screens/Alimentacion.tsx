@@ -2,7 +2,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey } from '../lib/store'
-import { dayMacros } from '../lib/nutrition'
+import { dayMacros, protocolNumbers } from '../lib/nutrition'
+import { Sparkline } from '../components/charts'
+import { PremiumGate } from '../components/PremiumGate'
 import { IcDrop, IcClose } from '../components/icons'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -28,6 +30,9 @@ export function Alimentacion() {
   const [fStr, setFStr] = useState('')
   const [label, setLabel] = useState('')
   const [fav, setFav] = useState(false)
+  const [editGoals, setEditGoals] = useState(false)
+  const goals = state.macroGoals
+  const pn = protocolNumbers(state)
 
   const water = (delta: number) => { tapHaptic(); dispatch({ t: 'water', delta }) }
   const quickKcal = (n: number) => { tapHaptic(); dispatch({ t: 'addMeal', kcal: n }) }
@@ -134,6 +139,80 @@ export function Alimentacion() {
             </div>
           )}
         </motion.section>
+
+        {/* ── Metas de macros (Plus) ── */}
+        <motion.section variants={staggerItem}>
+          <PremiumGate label="Metas de macros — Plus">
+            <div className="card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Macros vs tus metas</span>
+                <button className="sm" style={{ background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => setEditGoals((v) => !v)}>
+                  {editGoals ? 'Listo' : goals ? 'Editar metas' : 'Definir metas'}
+                </button>
+              </div>
+
+              {editGoals || !goals ? (
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  {([['protein', 'Proteína'], ['carbs', 'Carbos'], ['fat', 'Grasa']] as const).map(([k, lbl]) => (
+                    <div key={k} style={{ flex: 1 }}>
+                      <label className="sm" style={{ color: 'var(--ink-400)' }}>{lbl} (g)</label>
+                      <input
+                        className="field" type="number" inputMode="numeric" placeholder="0"
+                        defaultValue={goals?.[k] ?? ''}
+                        onBlur={(e) => {
+                          const v = Math.max(0, parseFloat(e.target.value) || 0)
+                          const next = { protein: goals?.protein ?? 0, carbs: goals?.carbs ?? 0, fat: goals?.fat ?? 0, [k]: v }
+                          dispatch({ t: 'setMacroGoals', goals: next.protein || next.carbs || next.fat ? next : null })
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                  {([['protein', 'Proteína', 'var(--brand-700)'], ['carbs', 'Carbos', 'var(--warning)'], ['fat', 'Grasa', 'var(--brand-300)']] as const).map(([k, lbl, color]) => {
+                    const cur = macros[k]; const goal = goals[k] || 0
+                    const pct = goal > 0 ? Math.min(100, (cur / goal) * 100) : 0
+                    return (
+                      <div key={k}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span className="sm" style={{ color: 'var(--ink-700)' }}>{lbl}</span>
+                          <span className="sm mono" style={{ color: 'var(--ink-900)' }}>{cur} / {goal} g</span>
+                        </div>
+                        <div style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999 }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="sm" style={{ color: 'var(--ink-300)', lineHeight: 1.4 }}>Tú defines tus metas. La app no prescribe cuánto comer.</div>
+                </div>
+              )}
+            </div>
+          </PremiumGate>
+        </motion.section>
+
+        {/* ── Tu protocolo en números (mini · Plus) ── */}
+        {pn && (pn.deltaKcal != null || pn.weightDelta != null) && (
+          <motion.section variants={staggerItem}>
+            <PremiumGate label="Tu protocolo en números — Plus">
+              <div className="card">
+                <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Tu protocolo en números</span>
+                <span className="sm" style={{ color: 'var(--ink-400)', display: 'block', marginTop: 2, marginBottom: 10 }}>Desde tu fecha de inicio</span>
+                <div style={{ display: 'flex', gap: 20, marginBottom: 8 }}>
+                  {pn.deltaKcal != null && (
+                    <div><div className="mono" style={{ fontSize: 24, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div></div>
+                  )}
+                  {pn.weightDelta != null && (
+                    <div><div className="mono" style={{ fontSize: 24, fontWeight: 800, color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kg</div></div>
+                  )}
+                </div>
+                {pn.kcalPoints.length >= 2 && <Sparkline data={pn.kcalPoints.map((x) => x.kcal)} color="var(--brand-500)" w={280} h={32} />}
+                <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 10, lineHeight: 1.4 }}>Datos observacionales de lo que registraste. No implican causalidad ni eficacia clínica.</div>
+              </div>
+            </PremiumGate>
+          </motion.section>
+        )}
 
         <motion.p variants={staggerItem} className="sm" style={{ color: 'var(--ink-300)', lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
           Registro personal de hidratación y nutrición. No es consejo nutricional ni médico.
