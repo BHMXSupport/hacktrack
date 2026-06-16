@@ -3,28 +3,34 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, adherence } from '../lib/store'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { cadenceLabel } from '../lib/cadence'
-import { dur, ease } from '../lib/motion'
+import { dur, ease, spring, sharedAxisX, staggerParent, staggerItem } from '../lib/motion'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
 import { DoseCalendar } from '../components/DoseCalendar'
 import { ProgressDashboard } from '../components/ProgressDashboard'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { BiohackmxFlask } from '../components/BiohackmxFlask'
 import { IcDrop, IcBack, IcChevron } from '../components/icons'
-
-const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
-const item = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
-const fade = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.18 } }
+import { EmptyState } from '../components/EmptyState'
 
 // ── Barra de adherencia semanal compacta, con hitos 25/50/75% ────────────────
 function AdherenceBar({ pct }: { pct: number }) {
   const clamped = Math.max(0, Math.min(100, pct))
+  const fillColor =
+    clamped >= 75 ? 'var(--success)' : clamped >= 50 ? 'var(--brand-500)' : 'var(--brand-700)'
   return (
-    <div style={{ position: 'relative', height: 8, background: 'var(--ink-100)', borderRadius: 99, marginTop: 10 }}>
+    <div
+      role="progressbar"
+      aria-valuenow={clamped}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Adherencia semanal"
+      style={{ position: 'relative', height: 8, background: 'var(--ink-100)', borderRadius: 99, marginTop: 10 }}
+    >
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${clamped}%` }}
-        transition={{ duration: dur.draw, ease: ease.decelerate }}
-        style={{ height: '100%', background: 'var(--brand-700)', borderRadius: 99 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
+        style={{ height: '100%', background: fillColor, borderRadius: 99 }}
       />
       {/* hitos pasivos: marca alcanzada = blanca sobre el fill; no alcanzada = tenue */}
       {[25, 50, 75].map((mk) => (
@@ -43,13 +49,26 @@ function AdherenceBar({ pct }: { pct: number }) {
 }
 
 // ── Resumen semanal ───────────────────────────────────────────────────────────
-function WeeklySummary() {
+function WeeklySummary({ onAddProtocol }: { onAddProtocol: () => void }) {
   const { state } = useApp()
   const adh = adherence(state, 7)
-  if (!adh) return null
+  const hasProtocol = Object.keys(state.protocols).length > 0
+
+  if (!adh || !hasProtocol) {
+    return (
+      <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
+        <EmptyState
+          glyph="check"
+          title="Sin protocolo activo"
+          subtitle="Registra tu primera dosis para ver el resumen semanal aquí."
+          cta={{ label: '+ Agregar producto', onClick: onAddProtocol }}
+        />
+      </motion.div>
+    )
+  }
 
   return (
-    <motion.div variants={item} className="card" style={{ marginTop: 16 }}>
+    <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Esta semana
@@ -75,7 +94,7 @@ function TitrationPhasesAll() {
 
   return (
     <>
-      {withPhases.map((protocol) => {
+      {withPhases.map((protocol, idx) => {
         const entry = PEPTIDES[protocol.product]
         const n = protocol.progN ?? entry?.phases ?? 2
         const phaseWeeks = entry?.phaseWeeks ?? null
@@ -83,7 +102,7 @@ function TitrationPhasesAll() {
         const setPhase = (i: number) =>
           dispatch({ t: 'updateProtocolFor', product: protocol.product, patch: { curPhase: Math.max(0, Math.min(n - 1, i)) } })
         return (
-          <motion.div key={protocol.product} variants={item} className="card" style={{ marginTop: 16 }}>
+          <motion.div key={protocol.product} variants={staggerItem} className="card" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 Titulación · {protocol.product}
@@ -95,40 +114,46 @@ function TitrationPhasesAll() {
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
               {Array.from({ length: n }, (_, i) => {
-                const dose = protocol.phaseDoses?.[i]
                 const weeksPart = phaseWeeks ? ` · sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}` : ''
-                const dosePart = dose != null ? ` · ${dose} mg` : ''
+                const levelPart = ` · nivel ${i + 1}`
                 return (
-                  <Chip
-                    key={i}
-                    label={`Fase ${i + 1}${weeksPart}${dosePart}`}
-                    active={i === cur}
-                    color="var(--brand-700)"
-                    onClick={() => setPhase(i)}
-                  />
+                  <motion.div key={i} whileTap={{ scale: 0.94 }} transition={spring.ui} style={{ display: 'inline-flex' }}>
+                    <Chip
+                      label={`Fase ${i + 1}${weeksPart}${levelPart}`}
+                      active={i === cur}
+                      color="var(--brand-700)"
+                      onClick={() => setPhase(i)}
+                    />
+                  </motion.div>
                 )
               })}
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
+              <motion.button
                 className="btn btn-outline btn-sm"
                 style={{ width: 'auto', padding: '0 12px', gap: 4, display: 'flex', alignItems: 'center' }}
                 disabled={cur === 0}
                 onClick={() => setPhase(cur - 1)}
+                whileTap={{ scale: 0.97 }}
+                transition={spring.ui}
+                aria-label={`Fase anterior de ${protocol.product}`}
               >
                 <IcBack size={15} />
                 Fase anterior
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 className="btn btn-brand btn-sm"
                 style={{ width: 'auto', padding: '0 12px', gap: 4, display: 'flex', alignItems: 'center' }}
                 disabled={cur >= n - 1}
                 onClick={() => setPhase(cur + 1)}
+                whileTap={{ scale: 0.97 }}
+                transition={spring.ui}
+                aria-label={`Siguiente fase de ${protocol.product}`}
               >
                 Siguiente fase
                 <IcChevron size={15} />
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         )
@@ -148,28 +173,20 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
 
   if (products.length === 0) {
     return (
-      <motion.div variants={item} className="card" style={{ marginTop: 16, textAlign: 'center' }}>
-        <div className="body" style={{ marginBottom: 12 }}>Aún no tienes un protocolo</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-          <button
-            className="btn btn-brand"
-            style={{ gap: 8 }}
-            onClick={() => dispatch({ t: 'go', screen: 's-import' })}
-          >
-            <BiohackmxFlask size={18} style={{ filter: 'brightness(0) invert(1)' }} />
-            Importar de BiohackMX
-          </button>
-          <button className="btn btn-outline" onClick={() => setPickerOpen((v) => !v)}>
-            {pickerOpen ? 'Cerrar catálogo' : 'Elegir del catálogo'}
-          </button>
-        </div>
+      <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
+        <EmptyState
+          glyph="dose"
+          title="Aún no tienes un protocolo"
+          subtitle="Agrega tu primer producto para comenzar el seguimiento."
+          cta={{ label: 'Elegir del catálogo', onClick: () => setPickerOpen((v) => !v) }}
+        />
         {ProductPicker}
       </motion.div>
     )
   }
 
   return (
-    <motion.div variants={item} style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <motion.div variants={staggerItem} style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="sm" style={{ textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--ink-400)' }}>
           Tus productos
@@ -187,7 +204,13 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
         const entry = PEPTIDES[p.product]
         const accentColor = entry ? CATEGORY_COLOR[entry.cat] : 'var(--brand-700)'
         return (
-          <div key={p.product} className="card" style={{ borderLeft: `3px solid ${accentColor}` }}>
+          <motion.div
+            key={p.product}
+            className="card"
+            style={{ borderLeft: `3px solid ${accentColor}` }}
+            whileTap={{ scale: 0.985 }}
+            transition={spring.ui}
+          >
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div style={{ minWidth: 0 }}>
                 <div className="body" style={{ fontWeight: 600 }}>{p.product}</div>
@@ -198,7 +221,7 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
               {entry && (
                 <span
                   className="sm"
-                  style={{ background: accentColor + '18', color: accentColor, padding: '2px 10px', borderRadius: 99, fontWeight: 600, whiteSpace: 'nowrap', marginLeft: 12 }}
+                  style={{ background: accentColor + '18', color: accentColor, padding: '2px 10px', borderRadius: 99, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   {entry.cat}
                 </span>
@@ -206,25 +229,30 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
+              <motion.button
                 className="btn btn-brand btn-sm"
                 style={{ width: 'auto', padding: '0 14px' }}
                 onClick={() => {
                   dispatch({ t: 'setActiveProduct', product: p.product })
                   dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
                 }}
+                whileTap={{ scale: 0.97 }}
+                transition={spring.ui}
               >
                 Editar protocolo
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 className="btn btn-ghost btn-sm"
                 style={{ width: 'auto', padding: '0 12px', marginLeft: 'auto', color: 'var(--error)' }}
                 onClick={() => dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: `product:${p.product}` })}
+                whileTap={{ scale: 0.97 }}
+                transition={spring.ui}
+                aria-label={`Quitar ${p.product}`}
               >
                 Quitar
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
         )
       })}
       {ProductPicker}
@@ -236,17 +264,19 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
 function ReconstitutionButton() {
   const { dispatch } = useApp()
   return (
-    <motion.div variants={item} style={{ marginTop: 16 }}>
-      <button
+    <motion.div variants={staggerItem} style={{ marginTop: 16 }}>
+      <motion.button
         className="btn btn-outline"
         style={{ gap: 10, justifyContent: 'flex-start', textAlign: 'left' }}
         onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}
+        whileTap={{ scale: 0.97 }}
+        transition={spring.ui}
       >
         <span
           style={{
             width: 36,
             height: 36,
-            borderRadius: 10,
+            borderRadius: 'var(--r-sm)',
             background: 'var(--brand-100)',
             display: 'flex',
             alignItems: 'center',
@@ -260,11 +290,11 @@ function ReconstitutionButton() {
         <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <span className="body" style={{ fontWeight: 600 }}>Calculadora de reconstitución</span>
           <span className="sm" style={{ color: 'var(--ink-400)' }}>
-            Convierte mg a unidades de aplicación
+            Convierte unidades de aplicación
           </span>
         </span>
         <IcChevron size={18} style={{ marginLeft: 'auto', color: 'var(--ink-300)', flexShrink: 0 }} />
-      </button>
+      </motion.button>
     </motion.div>
   )
 }
@@ -286,40 +316,46 @@ export function Progreso() {
     dispatch({ t: 'toast', msg: `${product} agregado` })
   }
 
+  function openAddProduct() {
+    setPickerOpen(true)
+  }
+
+
   const ProductPicker = (
     <AnimatePresence>
       {pickerOpen && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          style={{ overflow: 'hidden' }}
-        >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-            {Object.keys(PEPTIDES).map((name) => (
-              <Chip
-                key={name}
-                label={name}
-                color={CATEGORY_COLOR[PEPTIDES[name].cat]}
-                active={!!state.protocols[name]}
-                onClick={() => pick(name)}
-              />
-            ))}
-          </div>
-        </motion.div>
+        <div style={{ overflow: 'hidden' }}>
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: ease.standard }}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+              {Object.keys(PEPTIDES).map((name) => (
+                <Chip
+                  key={name}
+                  label={name}
+                  color={CATEGORY_COLOR[PEPTIDES[name].cat]}
+                  active={!!state.protocols[name]}
+                  onClick={() => pick(name)}
+                />
+              ))}
+            </div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   )
 
   return (
     <div className="scroll has-nav">
-      <motion.div variants={stagger} initial="initial" animate="animate">
-        <motion.div variants={item}>
+      <motion.div variants={staggerParent} initial="initial" animate="animate">
+        <motion.div variants={staggerItem}>
           <h1 className="h1" style={{ marginBottom: 12 }}>Progreso</h1>
         </motion.div>
 
-        <motion.div variants={item} style={{ marginBottom: 16 }}>
+        <motion.div variants={staggerItem} style={{ marginBottom: 16 }}>
           <Segmented
             value={view}
             onChange={setView}
@@ -332,12 +368,21 @@ export function Progreso() {
 
         <AnimatePresence mode="wait">
           {view === 'cal' ? (
-            <motion.div key="cal" {...fade}>
+            <motion.div
+              key="cal"
+              role="tabpanel"
+              id="panel-cal"
+              aria-label="Calendario"
+              variants={sharedAxisX}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
               {/* Calendario de dosis */}
               <DoseCalendar />
 
               {/* Resumen semanal de adherencia */}
-              <WeeklySummary />
+              <WeeklySummary onAddProtocol={openAddProduct} />
 
               {/* Lista de productos — cada uno con su protocolo editable */}
               <ProductsList
@@ -353,13 +398,22 @@ export function Progreso() {
               <ReconstitutionButton />
             </motion.div>
           ) : (
-            <motion.div key="avances" {...fade}>
+            <motion.div
+              key="avances"
+              role="tabpanel"
+              id="panel-avances"
+              aria-label="Avances"
+              variants={sharedAxisX}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
               <ProgressDashboard />
             </motion.div>
           )}
         </AnimatePresence>
 
-        <motion.div variants={item} style={{ marginTop: 24 }}>
+        <motion.div variants={staggerItem} style={{ marginTop: 24 }}>
           <Disclaimer kind="proto" />
         </motion.div>
       </motion.div>

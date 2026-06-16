@@ -2,13 +2,12 @@
 import { motion } from 'framer-motion'
 import { MEASURE_META, MEASURE_ICON } from '../lib/catalog'
 import { useApp } from '../lib/store'
+import { staggerParent, staggerItem } from '../lib/motion'
 import { LineChart } from '../components/charts'
 import { Disclaimer } from '../components/controls'
 import { Glyph } from '../components/glyphs'
+import { EmptyState } from '../components/EmptyState'
 import type { MeasureSample } from '../lib/types'
-
-const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
-const item = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
 
 function formatValue(name: string, value: number): string {
   const meta = MEASURE_META[name]
@@ -45,22 +44,44 @@ function KpiCard({ name, samples }: KpiCardProps) {
       ? [fmtDate(sorted[0].ts), fmtDate(sorted[sorted.length - 1].ts)]
       : undefined
 
+  // Delta de tendencia (tarea 58)
+  let deltaEl: React.ReactNode = null
+  if (sorted.length >= 2) {
+    const prev = sorted[sorted.length - 2].value
+    const delta = Math.round((last.value - prev) * 10) / 10
+    const down = MEASURE_META[name]?.down
+    let deltaColor = 'var(--ink-400)'
+    if (delta !== 0) {
+      const good = down ? delta < 0 : delta > 0
+      deltaColor = good ? 'var(--success)' : 'var(--error)'
+    }
+    const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '→'
+    const label = delta > 0 ? `+${delta}` : String(delta)
+    deltaEl = (
+      <span className="mono" style={{ fontSize: 11, color: deltaColor, marginLeft: 6 }}>
+        {arrow}{label}
+      </span>
+    )
+  }
+
   return (
-    <motion.div variants={item} className="card" style={{ marginBottom: 12 }}>
+    <motion.div variants={staggerItem} className="card" style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
         <Glyph name={glyphId} size={20} color={color} />
         <span className="body" style={{ flex: 1, color: 'var(--ink-700)' }}>{name}</span>
         <span className="mono" style={{ color, fontVariantNumeric: 'tabular-nums' }}>
           {formatValue(name, last.value)}
         </span>
+        {deltaEl}
       </div>
 
       {sorted.length >= 2 ? (
-        <div style={{ marginTop: 4, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ marginTop: 4, borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
           <LineChart
             data={values}
             color={color}
             labels={timeLabels}
+            h={Math.max(90, Math.min(160, 70 + sorted.length * 6))}
           />
         </div>
       ) : (
@@ -100,29 +121,19 @@ function SectionHeader({ glyphId, title, count }: SectionHeaderProps) {
 }
 
 export function ProgressDashboard() {
-  const { state } = useApp()
+  const { state, dispatch } = useApp()
   const history = state.history
 
   const allKeys = Object.keys(history).filter(k => history[k] && history[k].length > 0)
 
   if (allKeys.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '48px 24px',
-          textAlign: 'center',
-          gap: 12,
-        }}
-      >
-        <Glyph name="medidas" size={40} color="var(--ink-300)" />
-        <p className="body" style={{ color: 'var(--ink-700)', margin: 0 }}>
-          Aún no hay datos. Toca + para registrar y ver tu progreso.
-        </p>
-      </div>
+      <EmptyState
+        glyph="medidas"
+        title="Aún no hay medidas"
+        subtitle="Registra tu primera medida para ver tu progreso aquí."
+        cta={{ label: 'Registrar medida', onClick: () => dispatch({ t: 'sheet', sheet: 'medida' }) }}
+      />
     )
   }
 
@@ -139,13 +150,9 @@ export function ProgressDashboard() {
 
   return (
     <div style={{ padding: '4px 0 8px' }}>
-      <p className="sm" style={{ color: 'var(--ink-400)', marginBottom: 20 }}>
-        tus datos
-      </p>
-
       {/* Sección: Medidas corporales */}
       {corporalesOrdenadas.length > 0 && (
-        <motion.div variants={stagger} initial="initial" animate="animate" style={{ marginBottom: 24 }}>
+        <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ marginBottom: 24 }}>
           <SectionHeader
             glyphId="medidas"
             title="Medidas corporales"
@@ -159,7 +166,7 @@ export function ProgressDashboard() {
 
       {/* Sección: Bienestar */}
       {bienestar.length > 0 && (
-        <motion.div variants={stagger} initial="initial" animate="animate" style={{ marginBottom: 8 }}>
+        <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ marginBottom: 8 }}>
           <SectionHeader
             glyphId="animo"
             title="Bienestar"
