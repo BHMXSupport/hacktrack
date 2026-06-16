@@ -14,9 +14,16 @@ export function dayProducts(s: AppState, d: Date): string[] {
 }
 
 // ¿se registró una dosis de ESTE producto ese día? (las dosis legado ya se estamparon en hydrate)
+// NOTA: un skip intencional NO cuenta como dosis tomada.
 export function doseTakenOnProduct(s: AppState, d: Date, product: string): boolean {
   const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
   return !!g?.items.some((it) => it.type === 'dose' && it.product === product)
+}
+
+// ¿se marcó como skip intencional ESTE producto ese día?
+export function doseSkippedOnProduct(s: AppState, d: Date, product: string): boolean {
+  const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
+  return !!g?.items.some((it) => it.type === 'skip' && it.product === product)
 }
 
 // hora de la toma ese día según el reminderTime DE ESE producto (cada uno puede tener el suyo)
@@ -34,7 +41,10 @@ function dueTime(s: AppState, d: Date, product?: string): Date {
 export function dayStatus(s: AppState, d: Date, now: Date): DayState {
   const prods = dayProducts(s, d)
   if (prods.length === 0) return 'none'
-  const unfulfilled = prods.filter((p) => !doseTakenOnProduct(s, d, p))
+  // Los productos con skip intencional se excluyen: no cuentan ni como tomados ni como pendientes.
+  const effective = prods.filter((p) => doseTakenOnProduct(s, d, p) || !doseSkippedOnProduct(s, d, p))
+  if (effective.length === 0) return 'none'  // todos saltados → día neutral
+  const unfulfilled = effective.filter((p) => !doseTakenOnProduct(s, d, p))
   if (unfulfilled.length === 0) return 'taken'
   const allPast = unfulfilled.every((p) => now.getTime() > dueTime(s, d, p).getTime())
   return allPast ? 'missed' : 'scheduled'
@@ -62,6 +72,7 @@ export function weekAdherencePct(s: AppState, weekDays: Date[], now: Date): numb
   let taken = 0
   for (const d of weekDays) {
     for (const p of dayProducts(s, d)) {
+      if (doseSkippedOnProduct(s, d, p) && !doseTakenOnProduct(s, d, p)) continue  // skip sin toma real: ignorar (la toma gana)
       if (doseTakenOnProduct(s, d, p)) { due++; taken++ }
       else if (now.getTime() > dueTime(s, d, p).getTime()) { due++ }
     }

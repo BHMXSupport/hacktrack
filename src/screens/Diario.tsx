@@ -61,7 +61,12 @@ function CatCircle({ item }: { item: LogItem }) {
   const glyphId: string =
     item.type === 'dose'
       ? 'dose'
-      : (MEASURE_ICON[item.n]?.icon ?? item.ic ?? 'medidas')
+      : item.type === 'skip'
+        ? 'skip'
+        : (MEASURE_ICON[item.n]?.icon ?? item.ic ?? 'medidas')
+
+  // Los skips usan color neutro
+  const cat = item.type === 'skip' ? '#94A3B8' : item.cat
 
   return (
     <div
@@ -70,15 +75,16 @@ function CatCircle({ item }: { item: LogItem }) {
         width: 36,
         height: 36,
         borderRadius: '50%',
-        background: `color-mix(in srgb, ${item.cat} 13%, transparent)`,
-        border: `1.5px solid color-mix(in srgb, ${item.cat} 28%, transparent)`,
+        background: `color-mix(in srgb, ${cat} 13%, transparent)`,
+        border: `1.5px solid color-mix(in srgb, ${cat} 28%, transparent)`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
+        opacity: item.type === 'skip' ? 0.7 : 1,
       }}
     >
-      <Glyph name={glyphId} color={item.cat} size={18} />
+      <Glyph name={glyphId} color={cat} size={18} />
     </div>
   )
 }
@@ -148,25 +154,26 @@ function TimelineItem({
           alignItems: 'center',
           gap: 12,
           padding: '12px 14px',
+          opacity: item.type === 'skip' ? 0.65 : 1,
         }}
       >
         <CatCircle item={item} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* #45: quita fontSize inline; la clase .body ya da el tamaño */}
-          <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>
-            {item.n}
+          <div className="body" style={{ fontWeight: 600, color: item.type === 'skip' ? 'var(--ink-400)' : 'var(--ink-900)' }}>
+            {item.type === 'skip' ? 'Dosis saltada (intencional)' : item.n}
           </div>
           {/* #45: quita fontSize inline; .mono .sm ya da el tamaño */}
           <div className="mono sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>
-            {item.u}
+            {item.type === 'skip' ? item.u : item.u}
           </div>
         </div>
 
         {/* botón papelera — siempre visible, aria-label descriptivo */}
         <button
           type="button"
-          aria-label={`Eliminar ${item.n}`}
+          aria-label={`Eliminar ${item.type === 'skip' ? 'dosis saltada de ' + item.u : item.n}`}
           onClick={() => onDelete(item.id)}
           style={{
             background: 'none',
@@ -277,7 +284,7 @@ export function Diario() {
     () => [
       ...new Set(
         state.log.flatMap((g) =>
-          g.items.filter((it) => it.type === 'dose' && it.product).map((it) => it.product!),
+          g.items.filter((it) => (it.type === 'dose' || it.type === 'skip') && it.product).map((it) => it.product!),
         ),
       ),
     ],
@@ -298,8 +305,10 @@ export function Diario() {
           ...g,
           items: g.items.filter((it) => {
             if (it.ts < cutoff) return false
+            // 'skip' solo aparece en 'todo', no en 'dose' ni 'medida'
             if (typeFilter !== 'todo' && it.type !== typeFilter) return false
-            if (pf !== 'todos' && (it.type !== 'dose' || it.product !== pf)) return false
+            // filtro de producto: dose o skip del producto seleccionado
+            if (pf !== 'todos' && ((it.type !== 'dose' && it.type !== 'skip') || it.product !== pf)) return false
             return true
           }),
         }))

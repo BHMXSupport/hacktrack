@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { useApp, doseForProduct } from '../lib/store'
-import { dayProducts, doseTakenOnProduct, loggedItemsForDay, upcomingDoses } from '../lib/calendar'
+import { dayProducts, doseTakenOnProduct, doseSkippedOnProduct, loggedItemsForDay, upcomingDoses } from '../lib/calendar'
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { doseToMg } from '../lib/calc'
 import { tapHaptic } from '../lib/haptics'
@@ -137,8 +137,11 @@ export function TodayDoses() {
   const greeting = getTimeGreeting()
 
   // doneCount/allDone + hooks ANTES de cualquier early-return (regla de hooks de React)
-  const doneCount = prods.filter((p) => doseTakenOnProduct(state, today, p)).length
-  const allDone = prods.length > 0 && doneCount === prods.length
+  // Los productos con skip intencional se excluyen del denominador y no cuentan como pendientes.
+  const skippedProds = prods.filter((p) => doseSkippedOnProduct(state, today, p))
+  const activeProds = prods.filter((p) => !doseSkippedOnProduct(state, today, p))
+  const doneCount = activeProds.filter((p) => doseTakenOnProduct(state, today, p)).length
+  const allDone = activeProds.length > 0 && doneCount === activeProds.length
   const collapseKey = `hacktrack-doses-collapsed-${today.toISOString().slice(0, 10)}`
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return sessionStorage.getItem(collapseKey) === '1' } catch { return false }
@@ -210,6 +213,15 @@ export function TodayDoses() {
   function undo(product: string) {
     tapHaptic()
     const item = loggedItemsForDay(state, today).find((it) => it.type === 'dose' && it.product === product)
+    if (item) dispatch({ t: 'deleteLog', id: item.id })
+  }
+  function skipDose(product: string) {
+    tapHaptic()
+    dispatch({ t: 'logSkip', product })
+  }
+  function undoSkip(product: string) {
+    tapHaptic()
+    const item = loggedItemsForDay(state, today).find((it) => it.type === 'skip' && it.product === product)
     if (item) dispatch({ t: 'deleteLog', id: item.id })
   }
 
@@ -285,7 +297,12 @@ export function TodayDoses() {
             )}
           </AnimatePresence>
           <span className="sm mono" style={{ color: allDone ? 'var(--success)' : 'var(--ink-400)' }}>
-            {doneCount}/{prods.length}
+            {doneCount}/{activeProds.length}
+            {skippedProds.length > 0 && (
+              <span style={{ color: 'var(--ink-300)', marginLeft: 4 }}>
+                +{skippedProds.length} saltada{skippedProds.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </span>
         </motion.div>
 
@@ -314,12 +331,12 @@ export function TodayDoses() {
         <motion.div layout="position"
           role="progressbar"
           aria-valuenow={doneCount}
-          aria-valuemax={prods.length}
+          aria-valuemax={activeProds.length}
           style={{ height: 3, background: 'var(--border)', margin: '0 0 2px' }}
         >
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${(doneCount / prods.length) * 100}%` }}
+            animate={{ width: activeProds.length > 0 ? `${(doneCount / activeProds.length) * 100}%` : '0%' }}
             transition={prefersReduced ? { duration: 0 } : { duration: 0.4, ease: 'easeOut' }}
             style={{ height: '100%', background: progressColor, borderRadius: 999 }}
           />
@@ -342,8 +359,9 @@ export function TodayDoses() {
                 padding: '10px 16px', borderTop: '1px solid var(--border)',
               }}>
                 <span className="sm" style={{ color: 'var(--success)', fontWeight: 600 }}>
-                  {prods.length}/{prods.length} completadas
+                  {activeProds.length}/{activeProds.length} completadas
                   {lastDoneTs ? ` · hoy a las ${fmtTime(new Date(lastDoneTs))}` : ''}
+                  {skippedProds.length > 0 ? ` · ${skippedProds.length} saltada${skippedProds.length !== 1 ? 's' : ''}` : ''}
                 </span>
                 <button
                   onClick={() => {
@@ -368,13 +386,14 @@ export function TodayDoses() {
               {prods
                 .slice()
                 .sort((a, b) => {
-                  // done rows sink to bottom
-                  const aDone = doseTakenOnProduct(state, today, a) ? 1 : 0
-                  const bDone = doseTakenOnProduct(state, today, b) ? 1 : 0
-                  return aDone - bDone
+                  // done/skipped rows sink to bottom
+                  const aResolved = (doseTakenOnProduct(state, today, a) || doseSkippedOnProduct(state, today, a)) ? 1 : 0
+                  const bResolved = (doseTakenOnProduct(state, today, b) || doseSkippedOnProduct(state, today, b)) ? 1 : 0
+                  return aResolved - bResolved
                 })
                 .map((product) => {
                   const taken = doseTakenOnProduct(state, today, product)
+                  const skipped = doseSkippedOnProduct(state, today, product)
                   const dose = doseForProduct(state, product)
                   const cat = PEPTIDES[product]?.cat ?? 'Explorar'
                   const color = CATEGORY_COLOR[cat] ?? 'var(--brand-700)'
@@ -386,7 +405,7 @@ export function TodayDoses() {
                   // Loop 137: window status (refreshes on 30s tick — tick used as render trigger)
                   void tick
                   const scheduled = tsFor(product)
-                  const win = windowStatus(scheduled, Date.now(), taken ? scheduled : undefined)
+                  const win = (!skipped && !taken) ? windowStatus(scheduled, Date.now(), undefined) : null
 
                   return (
                     <motion.div
@@ -398,64 +417,100 @@ export function TodayDoses() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
                         borderTop: '1px solid var(--border)',
-                        // Loop 137: left-border semáforo when not taken and reminder exists
-                        borderLeft: (!taken && win && hasReminder) ? `3px solid ${WINDOW_COLOR[win]}` : '3px solid transparent',
-                        // item 34: atenuar fila completa si tomada
-                        opacity: taken ? 0.65 : 1,
+                        // Loop 137: left-border semáforo; skip muestra borde neutro atenuado
+                        borderLeft: skipped
+                          ? '3px solid var(--border)'
+                          : (!taken && win && hasReminder) ? `3px solid ${WINDOW_COLOR[win!]}` : '3px solid transparent',
+                        // item 34 / skip: atenuar fila si tomada o saltada
+                        opacity: (taken || skipped) ? 0.55 : 1,
                         transition: 'opacity 0.25s ease, border-left-color 0.3s ease',
                       }}
                     >
-                      {/* item 31: pill de categoría */}
+                      {/* item 31: pill de categoría (gris si skip) */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: 999, background: color }} />
+                        <span style={{ width: 6, height: 6, borderRadius: 999, background: skipped ? 'var(--ink-300)' : color }} />
                         <span style={{ fontSize: 9, color: 'var(--ink-400)', lineHeight: 1, textAlign: 'center', maxWidth: 36, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat}</span>
                       </div>
 
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        {/* item 34: line-through cuando taken */}
-                        <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', textDecoration: taken ? 'line-through' : 'none' }}>{product}</div>
+                        {/* item 34 / skip: line-through y texto diferenciado */}
+                        <div className="body" style={{ fontWeight: 600, color: skipped ? 'var(--ink-400)' : 'var(--ink-900)', textDecoration: (taken || skipped) ? 'line-through' : 'none' }}>{product}</div>
                         <div className="sm mono" style={{ color: 'var(--ink-400)' }}>
-                          {dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
-                          {/* item 32: hora del recordatorio */}
-                          {reminderLabel && (
+                          {skipped
+                            ? 'Saltada hoy (intencional)'
+                            : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
+                          {/* item 32: hora del recordatorio (solo si no saltada) */}
+                          {!skipped && reminderLabel && (
                             <span style={{ marginLeft: 4 }}>· {reminderLabel}</span>
                           )}
                           {/* Loop 137: label de ventana */}
-                          {!taken && win && hasReminder && (
-                            <span style={{ marginLeft: 4, color: WINDOW_COLOR[win], fontWeight: 600 }}>
-                              · {WINDOW_LABEL[win]}
+                          {!skipped && !taken && win && hasReminder && (
+                            <span style={{ marginLeft: 4, color: WINDOW_COLOR[win!], fontWeight: 600 }}>
+                              · {WINDOW_LABEL[win!]}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => (taken ? undo(product) : markDone(product))}
-                        aria-label={taken ? `Deshacer ${product}` : `Marcar ${product} como hecho`}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 999,
-                          cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 13,
-                          border: taken ? 'none' : '1.5px solid var(--border)',
-                          background: taken ? 'var(--success)' : 'transparent',
-                          color: taken ? 'var(--ink-0)' : 'var(--ink-400)',
-                        }}
-                      >
-                        {/* item 34: check entra con scale 0.6→1 (spring.ui) */}
-                        <AnimatePresence>
-                          {taken && (
-                            <motion.span
-                              initial={{ scale: 0.6, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0.6, opacity: 0 }}
-                              transition={spring.ui}
-                              style={{ display: 'flex', alignItems: 'center' }}
+                      {/* Botones de acción: taken → deshacer; skipped → deshacer skip; pending → "Marcar" + "No hoy" */}
+                      {skipped ? (
+                        <button
+                          onClick={() => undoSkip(product)}
+                          aria-label={`Deshacer saltar ${product}`}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px', borderRadius: 999,
+                            cursor: 'pointer', flexShrink: 0, fontWeight: 500, fontSize: 12,
+                            border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
+                          }}
+                        >
+                          Deshacer
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          {/* Botón principal: Marcar / Hecho / Deshacer */}
+                          <button
+                            onClick={() => (taken ? undo(product) : markDone(product))}
+                            aria-label={taken ? `Deshacer ${product}` : `Marcar ${product} como hecho`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 999,
+                              cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                              border: taken ? 'none' : '1.5px solid var(--border)',
+                              background: taken ? 'var(--success)' : 'transparent',
+                              color: taken ? 'var(--ink-0)' : 'var(--ink-400)',
+                            }}
+                          >
+                            {/* item 34: check entra con scale 0.6→1 (spring.ui) */}
+                            <AnimatePresence>
+                              {taken && (
+                                <motion.span
+                                  initial={{ scale: 0.6, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  exit={{ scale: 0.6, opacity: 0 }}
+                                  transition={spring.ui}
+                                  style={{ display: 'flex', alignItems: 'center' }}
+                                >
+                                  <IcCheck size={15} />
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
+                            {taken ? 'Hecho' : 'Marcar'}
+                          </button>
+                          {/* Botón secundario "No hoy": solo visible si no tomada */}
+                          {!taken && (
+                            <button
+                              onClick={() => skipDose(product)}
+                              aria-label={`No tomar ${product} hoy (intencional)`}
+                              style={{
+                                height: 34, padding: '0 10px', borderRadius: 999,
+                                cursor: 'pointer', fontWeight: 500, fontSize: 12,
+                                border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
+                              }}
                             >
-                              <IcCheck size={15} />
-                            </motion.span>
+                              No hoy
+                            </button>
                           )}
-                        </AnimatePresence>
-                        {taken ? 'Hecho' : 'Marcar'}
-                      </button>
+                        </div>
+                      )}
                     </motion.div>
                   )
                 })}

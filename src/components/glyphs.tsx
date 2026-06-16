@@ -19,6 +19,7 @@ export const GLYPHS: Record<string, (p: GP) => JSX.Element> = {
   peso: svg(<><path d="M12 4v16" /><path d="M6 20h12" /><path d="M4.5 8h15" /><path d="M4.5 8 2 14a3 3 0 0 0 6 0L4.5 8Z" /><path d="M19.5 8 17 14a3 3 0 0 0 6 0l-2.5-6Z" /></>),
   altura: svg(<><path d="M12 3v18" /><path d="m8 6 4-3 4 3" /><path d="m8 18 4 3 4-3" /><path d="M19 8h2M19 12h2M19 16h2" /></>),
   cintura: svg(<><rect x="3" y="8" width="18" height="8" rx="1.5" /><path d="M7 8v3M11 8v4M15 8v3" /></>),
+  skip: svg(<><circle cx="12" cy="12" r="9" /><path d="M8 8l4 4-4 4M15 8v8" /></>),
   medidas: svg(<><path d="M3.5 14.5 14.5 3.5l6 6L9.5 20.5l-6-6Z" /><path d="m7 11 2 2M10 8l2 2M13 5l2 2" /></>),
   grasa: svg(<><path d="M19 5 5 19" /><circle cx="6.5" cy="6.5" r="1.5" /><circle cx="17.5" cy="17.5" r="1.5" /></>),
   musculo: svg(<><path d="M3 9v6M6 7.5v9M18 7.5v9M21 9v6M6 12h12" /></>),

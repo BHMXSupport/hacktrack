@@ -136,6 +136,7 @@ export type Action =
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number } } // P0-1
   | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
+  | { t: 'logSkip'; product: string; ts?: number }                    // dosis intencional saltada (no penaliza adherencia)
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
   | { t: 'setName'; name: string }
@@ -491,6 +492,29 @@ export function reducer(s: AppState, a: Action): AppState {
       }
     }
 
+    // Skip intencional: inserta un LogItem type:'skip' sin contar como dosis ni como perdida
+    case 'logSkip': {
+      const now = a.ts ? new Date(a.ts) : new Date()
+      const item: LogItem = {
+        id: genId(),
+        t: fmtTime(now),
+        n: 'Dosis saltada',
+        u: a.product,
+        cat: '#94A3B8',   // gris neutro — no usa color de categoría
+        ic: 'skip',
+        type: 'skip',
+        ts: now.getTime(),
+        product: a.product,
+      }
+      return {
+        ...s,
+        log: prependToLog(s.log, item),
+        sheet: null,
+        toast: 'Dosis marcada como "No hoy"',
+        toastUndoId: item.id, // permite "Deshacer" desde el toast
+      }
+    }
+
     // P0-1 + P1-5: las medidas también entran al diario y activan el dashboard
     case 'saveMeasure': {
       const now = a.ts ? new Date(a.ts) : new Date()
@@ -672,6 +696,9 @@ function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseT
       const dKey = isoKey(ms)
       const g = s.log.find((x) => x.dateKey === dKey)
       const took = !!g?.items.some((it) => it.type === 'dose' && it.product === t.product)
+      // si hay un skip intencional ese día para este producto → excluir de due/missed/upcoming
+      const skipped = !!g?.items.some((it) => it.type === 'skip' && it.product === t.product)
+      if (skipped && !took) continue // skip intencional sin toma real: ni cumplida ni debida (la toma real SIEMPRE gana)
       const past = dKey === todayKey ? todayPassed : ms < todayMs
       if (took) taken++
       else if (past) missed++

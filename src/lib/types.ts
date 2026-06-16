@@ -83,7 +83,7 @@ export interface FoodFav {
   defaultMultiplier?: number           // porción aprendida
 }
 
-export type LogItemType = 'dose' | 'medida' | 'none'
+export type LogItemType = 'dose' | 'medida' | 'none' | 'skip'
 
 export interface LogItem {
   id: string
