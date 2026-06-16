@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { Chip, Segmented, Disclaimer } from '../components/controls'
 import { dayLabel } from '../lib/cadence'
-import { MON, WD, MEASURE_ICON, CATEGORY_COLOR } from '../lib/catalog'
+import { MON, WD, MEASURE_ICON, CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { Glyph } from '../components/glyphs'
 import { EmptyState } from '../components/EmptyState'
 import type { LogItem } from '../lib/types'
@@ -150,16 +150,25 @@ export function Diario() {
   const { state, dispatch } = useApp()
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todo')
   const [rangeFilter, setRangeFilter] = useState<RangeFilter>(7)
+  const [productFilter, setProductFilter] = useState<string>('todos')
 
-  // filtrado por FECHA real (item.ts) dentro del rango, luego por tipo
+  // productos con dosis registradas (para el filtro por producto)
+  const products = [...new Set(state.log.flatMap((g) => g.items.filter((it) => it.type === 'dose' && it.product).map((it) => it.product!)))]
+  const showProductFilter = products.length >= 2 && typeFilter !== 'medida'
+
+  // filtro de producto EFECTIVO: no aplica si la fila está oculta o si el producto ya no existe
+  const pf = showProductFilter && products.includes(productFilter) ? productFilter : 'todos'
+
+  // filtrado por FECHA real (item.ts) dentro del rango, luego por tipo y producto
   const cutoff = state.todayTs - rangeFilter * 86400000
   const filtered = state.log
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
         if (it.ts < cutoff) return false
-        if (typeFilter === 'todo') return true
-        return it.type === typeFilter
+        if (typeFilter !== 'todo' && it.type !== typeFilter) return false
+        if (pf !== 'todos' && (it.type !== 'dose' || it.product !== pf)) return false
+        return true
       }),
     }))
     .filter((g) => g.items.length > 0)
@@ -203,6 +212,22 @@ export function Diario() {
           />
         ))}
       </motion.div>
+
+      {/* chips de filtro — producto (solo si hay 2+ productos y no estás viendo medidas) */}
+      {showProductFilter && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          <Chip label="Todos" active={productFilter === 'todos'} onClick={() => setProductFilter('todos')} />
+          {products.map((p) => (
+            <Chip
+              key={p}
+              label={p}
+              color={CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar']}
+              active={productFilter === p}
+              onClick={() => setProductFilter(p)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* segmented — rango */}
       <motion.div
