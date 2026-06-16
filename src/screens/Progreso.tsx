@@ -58,7 +58,7 @@ function WeeklySummary({ onAddProtocol }: { onAddProtocol: () => void }) {
     return (
       <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
         <EmptyState
-          glyph="check"
+          glyph="recuperacion"
           title="Sin protocolo activo"
           subtitle="Registra tu primera dosis para ver el resumen semanal aquí."
           cta={{ label: '+ Agregar producto', onClick: onAddProtocol }}

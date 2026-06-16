@@ -8,6 +8,7 @@ import {
   protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct, protocolList, productKpis,
 } from '../lib/nutrition'
 import { Sparkline, TrendChart } from '../components/charts'
+import { EmptyState } from '../components/EmptyState'
 import { PremiumGate } from '../components/PremiumGate'
 import type { Actividad, Sexo } from '../lib/types'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -20,7 +21,7 @@ const ACT_LABEL: { v: Actividad; l: string }[] = [
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <motion.div variants={staggerItem} className="card">
-      <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{title}</div>
+      <div className="h2" style={{ color: 'var(--ink-900)' }}>{title}</div>
       {subtitle && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>{subtitle}</div>}
       <div style={{ marginTop: 12 }}>{children}</div>
     </motion.div>
@@ -28,11 +29,30 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 }
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 
+// ── ProgressBar reutilizable ──
+function ProgressBar({ pct, color = 'var(--brand-700)' }: { pct: number; color?: string }) {
+  return (
+    <div style={{ height: 6, background: 'var(--ink-100)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
+      <div style={{ width: `${Math.max(0, Math.min(100, pct))}%`, height: '100%', background: color, borderRadius: 'var(--r-sm)', transition: 'width 0.3s ease' }} />
+    </div>
+  )
+}
+
 // ── Tarjeta PER-PRODUCTO: cada producto que consumes con sus KPIs de categoría ──
 function ProductCards() {
   const { state, dispatch } = useApp()
   const protos = protocolList(state)
-  if (protos.length === 0) return null
+  if (protos.length === 0) return (
+    <motion.div variants={staggerItem} className="card">
+      <div className="h2" style={{ color: 'var(--ink-900)' }}>Progreso por producto</div>
+      <EmptyState
+        glyph="dose"
+        title="Sin protocolos activos"
+        subtitle="Añade un protocolo para ver tus métricas por producto."
+        cta={{ label: '+ Añadir protocolo', onClick: () => dispatch({ t: 'tab', tab: 'protocolo' }) }}
+      />
+    </motion.div>
+  )
   return (
     <>
       {protos.map((pr) => {
@@ -55,7 +75,7 @@ function ProductCards() {
                   <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.measure}</span>
                     {k.last == null ? (
-                      <button className="chip" style={{ height: 28, fontSize: 12.5 }} onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: k.measure })}>+ Registrar</button>
+                      <button className="btn btn-outline btn-sm" onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: k.measure })}>+ Registrar</button>
                     ) : (
                       <>
                         <span className="mono sm" style={{ fontWeight: 700 }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
@@ -78,14 +98,15 @@ function ProductCards() {
 function TrendsCard() {
   const { state } = useApp()
   const [win, setWin] = useState<number>(7)
-  const kcal = kcalSeries(state, win).filter((d) => d.has)
-  const kcalPts = kcal.map((d) => d.kcal)
-  const waterPts = kcalSeries(state, win).map((d) => state.nutrition[isoKey(d.ts)]?.water ?? 0).filter((_, i, arr) => arr.some((w) => w > 0))
+  const kcalAll = kcalSeries(state, win)
+  const kcalPts = kcalAll.filter((d) => d.has).map((d) => d.kcal)
+  // No se filtran ceros — un día con 0 vasos es dato válido
+  const waterPts = kcalAll.map((d) => state.nutrition[isoKey(d.ts)]?.water ?? 0)
   const pesoAll = [...(state.history['Peso'] ?? [])].sort((a, b) => a.ts - b.ts)
   const pesoWin = pesoAll.filter((p) => p.ts >= state.todayTs - win * DAY)
   const pesoPts = (pesoWin.length >= 2 ? pesoWin : pesoAll).map((p) => p.value)
 
-  const Row = ({ label, pts, unit, color }: { label: string; pts: number[]; unit: string; color: string }) => {
+  const Row = ({ label, pts, unit, color, animKeyPrefix }: { label: string; pts: number[]; unit: string; color: string; animKeyPrefix: string }) => {
     if (pts.length < 2) return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className="sm" style={{ width: 96, color: 'var(--ink-700)' }}>{label}</span>
@@ -97,10 +118,12 @@ function TrendsCard() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className="sm" style={{ width: 96, color: 'var(--ink-700)' }}>{label}</span>
         <span className="sm mono" style={{ width: 64, color: 'var(--ink-400)' }}>{d > 0 ? '+' : ''}{d}{unit}</span>
-        <div style={{ marginLeft: 'auto' }}><Sparkline data={pts} color={color} w={120} h={26} /></div>
+        <div style={{ marginLeft: 'auto' }}><Sparkline data={pts} color={color} w={120} h={26} animKey={`${animKeyPrefix}-${win}`} /></div>
       </div>
     )
   }
+
+  const hasAnyData = pesoPts.length >= 2 || kcalPts.length >= 2 || waterPts.some((w) => w > 0)
 
   return (
     <Card title="Tendencias">
@@ -109,11 +132,15 @@ function TrendsCard() {
           <button key={o.v} className="chip" style={{ flex: 1, justifyContent: 'center', background: win === o.v ? 'var(--brand-700)' : undefined, color: win === o.v ? '#fff' : undefined }} onClick={() => setWin(o.v)}>{o.l}</button>
         ))}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Row label="Peso" pts={pesoPts} unit=" kg" color="var(--brand-700)" />
-        <Row label="Calorías/día" pts={kcalPts} unit="" color="var(--brand-500)" />
-        <Row label="Hidratación" pts={waterPts} unit="" color="var(--brand-300)" />
-      </div>
+      {!hasAnyData ? (
+        <EmptyState glyph="medidas" title="Sin datos todavía" subtitle="Registra peso, comidas o agua para ver tus tendencias." />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Row label="Peso" pts={pesoPts} unit=" kg" color="var(--brand-700)" animKeyPrefix="peso" />
+          <Row label="Calorías/día" pts={kcalPts} unit="" color="var(--brand-500)" animKeyPrefix="kcal" />
+          <Row label="Hidratación" pts={waterPts} unit=" vasos" color="var(--brand-300)" animKeyPrefix="agua" />
+        </div>
+      )}
     </Card>
   )
 }
@@ -129,18 +156,23 @@ export function ResumenSemanal() {
     else if (it.type === 'medida') measures++
   }
   const adh = adherence(state, 7)
-  let water = 0, kcalTot = 0
+  // Promedios en lugar de totales: más honestos con semanas incompletas
+  const waterDays: number[] = [], kcalDays: number[] = []
   for (let i = 0; i < 7; i++) {
     const d = state.nutrition[isoKey(state.todayTs - i * DAY)]
     if (!d) continue
-    water += d.water; kcalTot += d.meals.reduce((s, m) => s + m.kcal, 0)
+    waterDays.push(d.water)
+    const dayKcalVal = d.meals.reduce((s, m) => s + m.kcal, 0)
+    if (d.meals.length > 0) kcalDays.push(dayKcalVal)
   }
+  const waterAvg = waterDays.length ? Math.round(waterDays.reduce((a, b) => a + b, 0) / waterDays.length) : 0
+  const avg7 = avgKcal(state, 7)
   const streak = compositeStreak(state)
   const sd = streakDetail(state)
 
   // datos premium
   const pn = protocolNumbers(state)
-  const t = tdee(state); const avg7 = avgKcal(state, 7)
+  const t = tdee(state)
   const proj = weightProjection(state)
   const insights = weeklyInsights(state)
   const p = state.profile
@@ -168,20 +200,48 @@ export function ResumenSemanal() {
         <Card title="Adherencia" subtitle={adh ? `${adh.taken} de ${adh.due} dosis cumplidas` : 'Sin protocolo activo'}>
           <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: 'var(--brand-700)', lineHeight: 1 }}>{adh ? `${adh.pct}%` : '—'}</div>
         </Card>
+
+        {/* Rejilla 2+1: Dosis + Hidratación arriba al 50/50, Calorías full-width abajo */}
         <div style={{ display: 'flex', gap: 12 }}>
           <div style={{ flex: 1 }}><Card title="Dosis"><div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>{doses}</div></Card></div>
-          <div style={{ flex: 1 }}><Card title="Hidratación"><div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>{water}<span className="sm" style={{ color: 'var(--ink-400)' }}> vasos</span></div></Card></div>
-          <div style={{ flex: 1 }}><Card title="Calorías"><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{kcalTot >= 1000 ? `${(kcalTot / 1000).toFixed(1)}k` : kcalTot}</div></Card></div>
+          <div style={{ flex: 1 }}>
+            <Card title="Hidratación" subtitle="Promedio/día vs meta (8)">
+              <div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>
+                {waterAvg}<span className="sm" style={{ color: 'var(--ink-400)' }}> / 8 vasos</span>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <ProgressBar pct={(waterAvg / 8) * 100} color="var(--brand-300)" />
+              </div>
+            </Card>
+          </div>
         </div>
+        <Card title="Calorías" subtitle="Promedio de días con registro">
+          {avg7 != null ? (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <div className="mono" style={{ fontSize: 26, fontWeight: 800 }}>
+                {avg7 >= 1000 ? `${(avg7 / 1000).toFixed(1)}k` : avg7}
+                <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 4 }}>kcal/día</span>
+              </div>
+              {t != null && (() => {
+                const delta = avg7 - t
+                return <span className="mono sm" style={{ color: delta < 0 ? 'var(--brand-700)' : 'var(--warning)' }}>{delta > 0 ? '+' : ''}{delta} {delta < 0 ? 'déficit' : 'superávit'}</span>
+              })()}
+            </div>
+          ) : (
+            <div className="sm" style={{ color: 'var(--ink-400)' }}>Sin registros esta semana</div>
+          )}
+        </Card>
 
-        {/* ── Señales + Tendencias (gratis) ── */}
-        {insights.length > 0 && (
-          <Card title="Señales de la semana">
+        {/* ── Señales siempre visible (con estado vacío honesto) ── */}
+        <Card title="Señales de la semana">
+          {insights.length > 0 ? (
             <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {insights.map((s, i) => (<li key={i} className="sm" style={{ color: 'var(--ink-700)', lineHeight: 1.4 }}>{s}</li>))}
             </ul>
-          </Card>
-        )}
+          ) : (
+            <EmptyState glyph="energia" title="Aún sin señales" subtitle="Registra comidas, agua y peso durante la semana para ver observaciones personalizadas." />
+          )}
+        </Card>
         <TrendsCard />
 
         {/* ── Perspectivas Plus (premium) ── */}
@@ -196,7 +256,7 @@ export function ResumenSemanal() {
             {!profileComplete && (
               <Card title="Completa tu perfil" subtitle="Para calcular tu gasto energético y proyección">
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <input className="field" type="number" inputMode="numeric" placeholder="Edad" defaultValue={p.edad ?? ''} onBlur={(e) => dispatch({ t: 'setProfileFields', patch: { edad: parseFloat(e.target.value) || null } })} style={{ flex: 1 }} />
+                  <input className="field" type="number" inputMode="numeric" placeholder="Edad" defaultValue={p.edad ?? ''} onBlur={(e) => { const v = parseFloat(e.target.value); dispatch({ t: 'setProfileFields', patch: { edad: Number.isFinite(v) && v > 0 ? v : null } }) }} style={{ flex: 1 }} />
                   <div style={{ display: 'flex', gap: 6, flex: 1 }}>
                     {(['H', 'M'] as Sexo[]).map((sx) => (
                       <button key={sx} className={'chip' + (p.sexo === sx ? ' chip-active' : '')} style={{ flex: 1, justifyContent: 'center', background: p.sexo === sx ? 'var(--brand-700)' : undefined, color: p.sexo === sx ? '#fff' : undefined }} onClick={() => dispatch({ t: 'setProfileFields', patch: { sexo: sx } })}>{sx === 'H' ? 'Hombre' : 'Mujer'}</button>
@@ -275,8 +335,8 @@ export function ResumenSemanal() {
                   const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0
                   return (
                     <>
-                      <div style={{ height: 8, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden', marginBottom: 8 }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: 'var(--brand-700)', borderRadius: 999 }} />
+                      <div style={{ marginBottom: 8 }}>
+                        <ProgressBar pct={pct} />
                       </div>
                       <div className="sm" style={{ color: 'var(--ink-700)' }}>
                         {proj.current} kg → {proj.goal} kg · {proj.etaTs ? `~${fmtDate(proj.etaTs)}` : 'tendencia aún no apunta a la meta'}
@@ -309,8 +369,8 @@ export function ResumenSemanal() {
                 const pct = span > 0 ? ((sd.streak - sd.prevMilestone) / span) * 100 : 0
                 return (
                   <>
-                    <div style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden', marginBottom: 6 }}>
-                      <div style={{ width: `${Math.max(0, Math.min(100, pct))}%`, height: '100%', background: 'var(--brand-700)', borderRadius: 999 }} />
+                    <div style={{ marginBottom: 6 }}>
+                      <ProgressBar pct={pct} />
                     </div>
                     <div className="sm" style={{ color: 'var(--ink-700)' }}>Próximo hito: {sd.nextMilestone} días · faltan {sd.nextMilestone - sd.streak}</div>
                   </>

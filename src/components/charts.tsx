@@ -1,4 +1,5 @@
 // Gráficas suaves "tus datos": Sparkline (mini) y LineChart (con área + draw-on).
+import { useId, useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { dur, ease, spring } from '../lib/motion'
 
@@ -22,8 +23,8 @@ function toPoints(data: number[], w: number, h: number, pad = 4): [number, numbe
   return data.map((v, i) => [pad + i * step, h - pad - ((v - min) / span) * (h - pad * 2)])
 }
 
-export function Sparkline({ data, color = 'var(--brand-500)', w = 76, h = 30 }: {
-  data: number[]; color?: string; w?: number; h?: number
+export function Sparkline({ data, color = 'var(--brand-500)', w = 76, h = 30, animKey }: {
+  data: number[]; color?: string; w?: number; h?: number; animKey?: string | number
 }) {
   const reduce = useReducedMotion()
   if (!data.length) return <svg width={w} height={h} />
@@ -31,6 +32,7 @@ export function Sparkline({ data, color = 'var(--brand-500)', w = 76, h = 30 }: 
   return (
     <svg width={w} height={h} aria-hidden>
       <motion.path
+        key={animKey}
         d={smoothPath(pts)}
         fill="none"
         stroke={color}
@@ -61,14 +63,16 @@ export function TrendChart({
   labels?: [string, string]
 }) {
   const reduce = useReducedMotion()
-  if (data.length < 2) return <svg width={w} height={h} />
   const n = data.length
-  // regresión lineal (x = índice)
-  let sx = 0, sy = 0, sxx = 0, sxy = 0
-  for (let i = 0; i < n; i++) { sx += i; sy += data[i]; sxx += i * i; sxy += i * data[i] }
-  const den = n * sxx - sx * sx
-  const slope = den ? (n * sxy - sx * sy) / den : 0
-  const intercept = (sy - slope * sx) / n
+  // regresión lineal memoizada (x = índice) — hook ANTES de cualquier early-return
+  const { slope, intercept } = useMemo(() => {
+    let sx = 0, sy = 0, sxx = 0, sxy = 0
+    for (let i = 0; i < n; i++) { sx += i; sy += data[i]; sxx += i * i; sxy += i * data[i] }
+    const den = n * sxx - sx * sx
+    const sl = den ? (n * sxy - sx * sy) / den : 0
+    return { slope: sl, intercept: n ? (sy - sl * sx) / n : 0 }
+  }, [data, n])
+  if (data.length < 2) return <svg width={w} height={h} />
   const tyA = intercept, tyB = intercept + slope * (n - 1)
   // escala incluyendo los extremos de la tendencia para no recortar
   const pad = 8
@@ -81,7 +85,7 @@ export function TrendChart({
   const Y = (v: number) => ch - pad - ((v - min) / span) * (ch - pad * 2)
   const pts = data.map((v, i) => [X(i), Y(v)] as [number, number])
   return (
-    <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" aria-hidden>
       {/* serie real (tenue) */}
       <motion.path
         d={smoothPath(pts)}
@@ -104,8 +108,8 @@ export function TrendChart({
         animate={{ opacity: 1 }}
         transition={{ duration: dur.base, delay: reduce ? 0 : dur.draw * 0.5 }}
       />
-      <circle cx={X(0)} cy={Y(data[0])} r={3} fill={lineColor} />
-      <circle cx={X(n - 1)} cy={Y(data[n - 1])} r={3.5} fill={trendColor} />
+      <circle cx={X(0)} cy={Y(data[0])} r={3} fill={lineColor} vectorEffect="non-scaling-stroke" />
+      <circle cx={X(n - 1)} cy={Y(data[n - 1])} r={3.5} fill={trendColor} vectorEffect="non-scaling-stroke" />
       {labels && (
         <>
           <text x="2" y={h - 2} fontSize="10" fontFamily="JetBrains Mono" fill="var(--ink-400)">{labels[0]}</text>
@@ -131,14 +135,15 @@ export function LineChart({
   labels?: [string, string]
 }) {
   const reduce = useReducedMotion()
+  const uid = useId()
   if (data.length < 2) return <svg width={w} height={h} />
   const ch = h - 22
   const pts = toPoints(data, w, ch, 6)
-  const id = 'lg' + Math.round(data[0] * 1000)
+  const id = `lg-${uid}`
   const area = `${smoothPath(pts)} L ${pts[pts.length - 1][0]} ${ch} L ${pts[0][0]} ${ch} Z`
   const last = pts[pts.length - 1]
   return (
-    <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.16" />
@@ -171,6 +176,7 @@ export function LineChart({
         cy={last[1]}
         r={4}
         fill={color}
+        vectorEffect="non-scaling-stroke"
         initial={reduce ? false : { scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ ...spring.ui, delay: reduce ? 0 : dur.draw }}

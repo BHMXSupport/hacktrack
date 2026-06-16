@@ -3,15 +3,17 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey, mealSlot } from '../lib/store'
-import { dayMacros, predictions, fuzzySearch, protocolNumbers, anchorProduct, tdee } from '../lib/nutrition'
+import { dayMacros, predictions, fuzzySearch, protocolNumbers, anchorProduct, tdee, kcalFromMacros, proteinSuggestion, waterGoalGlasses } from '../lib/nutrition'
 import { Sparkline, TrendChart } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
 import { TimeWheel } from '../components/TimeWheel'
+import { EmptyState } from '../components/EmptyState'
 import { IcDrop, IcClose } from '../components/icons'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
 import type { FoodFav } from '../lib/types'
 
+// WATER_GOAL is now dynamic (waterGoalGlasses), kept for backwards-compat w/ compositeStreak
 const WATER_GOAL = 8
 const PORTIONS: (number | null)[] = [null, 0.5, 1, 1.5, 2] // null = "auto" (porción aprendida)
 // "9:05 AM" → ts de hoy; 'Ahora' → null
@@ -33,6 +35,8 @@ const SLOT_PROMPT: Record<string, string> = {
   'cena': '¿Qué cenas? Regístralo abajo y lo recordaré.',
   'antojo nocturno': '¿Algún antojo nocturno? Regístralo abajo y lo recordaré.',
 }
+// toastId for undo operations
+let _toastUndoId: ReturnType<typeof setTimeout> | null = null
 const porLabel = (p: number | null) => (p == null ? 'auto' : p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}×`)
 const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
 
@@ -55,9 +59,14 @@ export function Alimentacion() {
   const [cStr, setCStr] = useState('')
   const [fStr, setFStr] = useState('')
   const [manageFav, setManageFav] = useState(false)
+  const [macroWarning, setMacroWarning] = useState<string | null>(null)
+  const [kcalWarning, setKcalWarning] = useState<string | null>(null)
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [undoPending, setUndoPending] = useState<boolean>(false)
 
   const goalKcal = state.kcalGoal ?? tdee(state)
   const goalP = state.macroGoals?.protein ?? null
+  const peso = state.profile?.peso ?? null
   // hora de registro elegida (ahora, o una hora de HOY para backfill); la franja se DERIVA de la hora
   const whenTs = parseHoraLabel(horaLabel, state.todayTs) ?? now
   const whenSlot = mealSlot(whenTs)
@@ -66,16 +75,84 @@ export function Alimentacion() {
   const yd = new Date(state.todayTs); yd.setDate(yd.getDate() - 1)
   const hasYesterday = (state.nutrition[isoKey(yd.getTime())]?.meals.length ?? 0) > 0
 
+  // Derived water goal from weight (§82)
+  const waterGoal = peso ? waterGoalGlasses(peso) : WATER_GOAL
+  // Suggested protein from weight (§82)
+  const suggestedProtein = (!goalP && peso) ? proteinSuggestion(peso) : null
+
+  // Caloric balance label (§83)
+  const deficitLabel = goalKcal
+    ? kcal >= goalKcal * 0.97 && kcal <= goalKcal * 1.03
+      ? { text: 'En meta', color: 'var(--success)' }
+      : kcal > goalKcal
+        ? { text: `Superávit +${kcal - goalKcal} kcal`, color: 'var(--warning)' }
+        : { text: `Déficit −${goalKcal - kcal} kcal`, color: 'var(--brand-700)' }
+    : null
+
+  // Totals footer for meals list (§83)
+  const hasDayMacros = macros.hasMacros
+  const dayTotals = hasDayMacros ? `${kcal} kcal · P: ${macros.protein} g · C: ${macros.carbs} g · G: ${macros.fat} g` : null
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), 3000)
+  }
+
   const addWater = (d: number) => { tapHaptic(); dispatch({ t: 'water', delta: d }) }
-  const logFav = (f: FoodFav) => { tapHaptic(); dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined, ts: whenTs }); setQuery('') }
+  const logFav = (f: FoodFav) => {
+    tapHaptic()
+    dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined, ts: whenTs })
+    showToast(`✓ ${f.label} — ${Math.round(f.kcal * (portion ?? (f.defaultMultiplier && f.defaultMultiplier > 0 ? f.defaultMultiplier : 1)))} kcal`)
+    setQuery('')
+  }
   const multOf = (f: FoodFav) => portion ?? (f.defaultMultiplier && f.defaultMultiplier > 0 ? f.defaultMultiplier : 1)
 
   const createAndLog = () => {
     const k = parseFloat(kcalStr)
     if (!(k > 0)) return
+    // Guardrails §85 — non-blocking
+    if (k < 20) { setKcalWarning('¿unidad o porción pequeña?'); return }
+    if (k > 2000) { setKcalWarning('¿una comida o todo el día?') } else { setKcalWarning(null) }
+    // Macro-kcal coherence check §81
+    const p = parseFloat(pStr) || 0
+    const c = parseFloat(cStr) || 0
+    const f = parseFloat(fStr) || 0
+    if (p || c || f) {
+      const computed = kcalFromMacros(p, c, f)
+      const diff = Math.abs(computed - k) / k
+      setMacroWarning(diff > 0.15 ? 'Las kcal no cuadran con los macros' : null)
+    } else {
+      setMacroWarning(null)
+    }
     tapHaptic()
-    dispatch({ t: 'addMeal', kcal: k, protein: parseFloat(pStr) || null, carbs: parseFloat(cStr) || null, fat: parseFloat(fStr) || null, label: query.trim() || undefined, fav: !!query.trim(), ts: whenTs })
-    setQuery(''); setKcalStr(''); setPStr(''); setCStr(''); setFStr(''); setShowMacros(false); setCreating(false)
+    const label = query.trim() || undefined
+    dispatch({ t: 'addMeal', kcal: k, protein: parseFloat(pStr) || null, carbs: parseFloat(cStr) || null, fat: parseFloat(fStr) || null, label, fav: !!query.trim(), ts: whenTs })
+    showToast(`✓ ${label ?? 'Comida'} — ${k} kcal`)
+    setQuery(''); setKcalStr(''); setPStr(''); setCStr(''); setFStr(''); setShowMacros(false); setCreating(false); setMacroWarning(null); setKcalWarning(null)
+  }
+
+  // §84 — Repetir última: meal with highest ts
+  const lastMeal = day.meals.length > 0 ? day.meals.reduce((a, b) => (a.ts > b.ts ? a : b)) : null
+
+  // §89 — Copiar de ayer with undo
+  const copyYesterday = () => {
+    if (day.meals.length > 0) {
+      setUndoPending(true)
+      showToast('Comidas de ayer copiadas — Deshacer')
+      if (_toastUndoId) clearTimeout(_toastUndoId)
+      _toastUndoId = setTimeout(() => {
+        dispatch({ t: 'copyYesterday' })
+        setUndoPending(false)
+      }, 3500)
+    } else {
+      tapHaptic()
+      dispatch({ t: 'copyYesterday' })
+    }
+  }
+  const undoCopy = () => {
+    if (_toastUndoId) clearTimeout(_toastUndoId)
+    setUndoPending(false)
+    setToastMsg(null)
   }
 
   return (
@@ -86,12 +163,19 @@ export function Alimentacion() {
         {/* ── Strip de hidratación ── */}
         <motion.section variants={staggerItem} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
           <IcDrop size={20} style={{ color: 'var(--brand-700)', flexShrink: 0 }} />
-          <span className="sm mono" style={{ color: day.water >= WATER_GOAL ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700 }}>{day.water}/{WATER_GOAL}</span>
-          <div style={{ flex: 1, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
-            <div style={{ width: `${Math.min(100, (day.water / WATER_GOAL) * 100)}%`, height: '100%', background: 'var(--brand-500)', borderRadius: 999 }} />
+          <span className="sm mono" style={{ color: day.water >= waterGoal ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700 }}>{day.water}/{waterGoal} vasos</span>
+          <div
+            role="progressbar"
+            aria-valuenow={day.water}
+            aria-valuemin={0}
+            aria-valuemax={waterGoal}
+            aria-label="Meta de hidratación"
+            style={{ flex: 1, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}
+          >
+            <div style={{ width: `${Math.min(100, (day.water / waterGoal) * 100)}%`, height: '100%', background: 'var(--brand-500)', borderRadius: 999, transition: 'width 0.25s ease, background 0.25s ease' }} />
           </div>
-          <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34 }}>−</button>
-          <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} style={{ width: 34, height: 34, background: 'var(--brand-700)', color: '#fff' }}>+</button>
+          <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer' }}>−</button>
+          <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoal * 2} style={{ width: 34, height: 34, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoal * 2 ? 0.4 : 1, cursor: day.water >= waterGoal * 2 ? 'not-allowed' : 'pointer' }}>+</button>
         </motion.section>
 
         {/* ── Resumen del día ── */}
@@ -103,18 +187,40 @@ export function Alimentacion() {
             <GoalEditor />
           </div>
           {goalKcal && (
-            <div style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden', margin: '10px 0' }}>
-              <div style={{ width: `${Math.min(100, (kcal / goalKcal) * 100)}%`, height: '100%', background: kcal > goalKcal ? 'var(--warning)' : 'var(--brand-700)', borderRadius: 999 }} />
-            </div>
+            <>
+              <div
+                role="progressbar"
+                aria-valuenow={kcal}
+                aria-valuemin={0}
+                aria-valuemax={goalKcal}
+                aria-label="Meta calórica del día"
+                style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden', margin: '10px 0' }}
+              >
+                <div style={{ width: `${Math.min(100, (kcal / goalKcal) * 100)}%`, height: '100%', background: kcal > goalKcal ? 'var(--warning)' : 'var(--brand-700)', borderRadius: 999, transition: 'width 0.3s ease, background 0.3s ease' }} />
+              </div>
+              {deficitLabel && (
+                <span className="sm" style={{ color: deficitLabel.color, fontWeight: 600 }}>{deficitLabel.text}</span>
+              )}
+            </>
           )}
           {(macros.hasMacros || goalP) && (
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
               <span className="sm mono" style={{ color: 'var(--ink-900)', fontWeight: 700, background: 'var(--brand-100)', padding: '3px 10px', borderRadius: 999 }}>
-                Proteína {macros.protein}{goalP ? ` / ${goalP}` : ''} g
+                P: {macros.protein}{goalP ? ` / ${goalP}` : ''} g
               </span>
               {goalP != null && macros.protein < goalP && <span className="sm" style={{ color: 'var(--ink-400)' }}>faltan {goalP - macros.protein} g</span>}
-              {macros.hasMacros && <span className="sm mono" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>Carbos {macros.carbs} g · Grasa {macros.fat} g</span>}
+              {macros.hasMacros && <span className="sm mono" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>C: {macros.carbs} g · G: {macros.fat} g</span>}
             </div>
+          )}
+          {/* §82 — Chip sugerencia de proteína si no hay meta y hay peso */}
+          {suggestedProtein != null && (
+            <button
+              className="chip"
+              style={{ marginTop: 8, background: 'var(--brand-100)', color: 'var(--brand-700)', fontWeight: 600, border: '1px dashed var(--brand-300)', cursor: 'pointer' }}
+              onClick={() => dispatch({ t: 'setMacroGoals', goals: { protein: suggestedProtein, carbs: (state.macroGoals?.carbs ?? 0), fat: (state.macroGoals?.fat ?? 0) } })}
+            >
+              Meta sugerida: {suggestedProtein} g proteína →
+            </button>
           )}
         </motion.section>
 
@@ -125,7 +231,7 @@ export function Alimentacion() {
             <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora</span>
             <button className="chip mono" onClick={() => setShowWheel((v) => !v)} style={{ fontWeight: 700 }}>{horaLabel} ▾</button>
             {horaLabel !== 'Ahora' && <button className="chip" style={{ height: 30 }} onClick={() => { setHoraLabel('Ahora'); setShowWheel(false) }}>Ahora</button>}
-            <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600, marginLeft: 'auto', textAlign: 'right' }}>Para tu {whenSlot}</span>
+            <span className="sm" aria-live="polite" style={{ color: 'var(--brand-700)', fontWeight: 600, marginLeft: 'auto', textAlign: 'right' }}>Para tu {whenSlot}</span>
           </div>
           {showWheel && <div style={{ marginBottom: 10 }}><TimeWheel initial={new Date(whenTs)} onChange={setHoraLabel} /></div>}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 10 }}>
@@ -154,7 +260,12 @@ export function Alimentacion() {
               })}
             </div>
           ) : (
-            <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>{SLOT_PROMPT[whenSlot] ?? 'Registra tu comida abajo y la recordaré.'}</div>
+            <EmptyState
+              glyph="apetito"
+              title={`Tu ${whenSlot}`}
+              subtitle={SLOT_PROMPT[whenSlot] ?? 'Registra tu comida abajo y la recordaré.'}
+              cta={{ label: 'Registrar comida', onClick: () => { const el = document.querySelector<HTMLInputElement>('.field[placeholder*="Qué comiste"]'); el?.focus() } }}
+            />
           )}
 
           {/* Crear platillo + Recetario — destacados */}
@@ -163,10 +274,10 @@ export function Alimentacion() {
             <button className="btn btn-brand" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'recetario', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}>✦ Recetario</button>
           </div>
           {/* Acciones rápidas (chips pequeños) */}
-          {(hasYesterday || day.meals[0]) && (
+          {(hasYesterday || lastMeal) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-              {hasYesterday && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'copyYesterday' }) }}>Copiar de ayer</button>}
-              {day.meals[0] && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: day.meals[0].kcal, protein: day.meals[0].protein, carbs: day.meals[0].carbs, fat: day.meals[0].fat, label: (day.meals[0].label ?? undefined), ts: whenTs }) }}>Repetir última</button>}
+              {hasYesterday && <button className="chip" onClick={copyYesterday}>Copiar de ayer</button>}
+              {lastMeal && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: lastMeal.kcal, protein: lastMeal.protein, carbs: lastMeal.carbs, fat: lastMeal.fat, label: (lastMeal.label ?? undefined), ts: whenTs }); showToast(`✓ ${lastMeal.label ?? 'Última comida'} — ${lastMeal.kcal} kcal`) }}>Repetir última</button>}
             </div>
           )}
 
@@ -186,15 +297,31 @@ export function Alimentacion() {
                 )}
                 {creating && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <input className="field mono" type="number" inputMode="numeric" autoFocus placeholder="0" value={kcalStr} onChange={(e) => setKcalStr(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createAndLog() }} style={{ flex: 1, fontSize: 24, fontWeight: 700, textAlign: 'center' }} />
-                      <span className="sm" style={{ color: 'var(--ink-400)' }}>kcal</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label className="sm" style={{ color: 'var(--ink-400)' }} htmlFor="kcal-input">Calorías</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <input id="kcal-input" className="field mono" type="number" inputMode="numeric" autoFocus placeholder="0" value={kcalStr} aria-label="Calorías (kcal)" onChange={(e) => { setKcalStr(e.target.value); setKcalWarning(null) }} onKeyDown={(e) => { if (e.key === 'Enter') createAndLog() }} style={{ flex: 1, fontSize: 24, fontWeight: 700, textAlign: 'center' }} />
+                        <span className="sm" style={{ color: 'var(--ink-400)' }}>kcal</span>
+                      </div>
+                      {/* §81 macro-kcal mismatch warning */}
+                      {macroWarning && <span className="sm" style={{ color: 'var(--warning)', marginTop: 2 }}>{macroWarning}</span>}
+                      {/* §85 kcal guardrail */}
+                      {kcalWarning && <span className="sm" style={{ color: 'var(--warning)', marginTop: 2 }}>{kcalWarning}</span>}
                     </div>
                     {showMacros ? (
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <input className="field" type="number" inputMode="numeric" placeholder="P (g)" value={pStr} onChange={(e) => setPStr(e.target.value)} style={{ flex: 1 }} />
-                        <input className="field" type="number" inputMode="numeric" placeholder="C (g)" value={cStr} onChange={(e) => setCStr(e.target.value)} style={{ flex: 1 }} />
-                        <input className="field" type="number" inputMode="numeric" placeholder="G (g)" value={fStr} onChange={(e) => setFStr(e.target.value)} style={{ flex: 1 }} />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label className="sm" style={{ color: 'var(--ink-400)' }} htmlFor="p-input">Proteína (g)</label>
+                          <input id="p-input" className="field" type="number" inputMode="numeric" placeholder="Proteína (g)" aria-label="Proteína (g)" value={pStr} onChange={(e) => setPStr(e.target.value)} style={{ flex: 1 }} />
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label className="sm" style={{ color: 'var(--ink-400)' }} htmlFor="c-input">Carbos (g)</label>
+                          <input id="c-input" className="field" type="number" inputMode="numeric" placeholder="Carbos (g)" aria-label="Carbos (g)" value={cStr} onChange={(e) => setCStr(e.target.value)} style={{ flex: 1 }} />
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <label className="sm" style={{ color: 'var(--ink-400)' }} htmlFor="g-input">Grasa (g)</label>
+                          <input id="g-input" className="field" type="number" inputMode="numeric" placeholder="Grasa (g)" aria-label="Grasa (g)" value={fStr} onChange={(e) => setFStr(e.target.value)} style={{ flex: 1 }} />
+                        </div>
                       </div>
                     ) : (
                       <button className="sm" style={{ background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left' }} onClick={() => setShowMacros(true)}>+ Macros (opcional)</button>
@@ -206,6 +333,22 @@ export function Alimentacion() {
             )}
           </div>
         </motion.section>
+
+        {/* ── Toast no-bloqueante ── */}
+        {toastMsg && (
+          <motion.div
+            key={toastMsg}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink-900)', color: '#fff', borderRadius: 12, padding: '10px 18px', zIndex: 999, display: 'flex', alignItems: 'center', gap: 12, maxWidth: 340, boxShadow: '0 4px 20px rgba(0,0,0,0.18)' }}
+          >
+            <span className="sm" style={{ fontWeight: 600 }}>{toastMsg}</span>
+            {undoPending && (
+              <button onClick={undoCopy} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, color: '#fff', fontWeight: 700, cursor: 'pointer', padding: '2px 8px', fontSize: 12 }}>Deshacer</button>
+            )}
+          </motion.div>
+        )}
 
         {/* ── Comidas de hoy ── */}
         {day.meals.length > 0 && (
@@ -226,18 +369,42 @@ export function Alimentacion() {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {day.meals.map((m) => (
-                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span className="body mono" style={{ fontWeight: 600 }}>{m.kcal}</span>
-                    <span className="sm" style={{ color: 'var(--ink-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.label || 'kcal'}{m.protein ? ` · P${m.protein}` : ''}</span>
-                    <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 'auto', flexShrink: 0 }}>{fmtTime(m.ts)}</span>
-                    <button aria-label="Eliminar" onClick={() => { tapHaptic(); dispatch({ t: 'delMeal', id: m.id }) }} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><IcClose size={16} /></button>
-                  </div>
-                ))}
-              </div>
-            )}
+            ) : (() => {
+              // §86 — Agrupar por mealSlot
+              const slots = Object.keys(SLOT_PROMPT)
+              const grouped: Record<string, typeof day.meals> = {}
+              for (const m of day.meals) {
+                const s = mealSlot(m.ts)
+                if (!grouped[s]) grouped[s] = []
+                grouped[s].push(m)
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {slots.filter((s) => grouped[s]?.length).map((s) => (
+                    <div key={s}>
+                      <div className="agenda__day-label sm" style={{ color: 'var(--ink-400)', textTransform: 'capitalize', fontWeight: 700, padding: '4px 0 2px', letterSpacing: '0.01em' }}>{s}</div>
+                      {grouped[s].map((m) => (
+                        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                          <span className="body mono" style={{ fontWeight: 600 }}>{m.kcal}</span>
+                          <span className="sm" style={{ color: 'var(--ink-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {m.label || 'kcal'}
+                            {m.protein ? ` · P: ${m.protein} g` : ''}
+                            {m.carbs ? ` · C: ${m.carbs} g` : ''}
+                            {m.fat ? ` · G: ${m.fat} g` : ''}
+                          </span>
+                          <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 'auto', flexShrink: 0 }}>{fmtTime(m.ts)}</span>
+                          <button aria-label="Eliminar" onClick={() => { tapHaptic(); dispatch({ t: 'delMeal', id: m.id }) }} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><IcClose size={16} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  {/* §83 — Footer totales del día cuando hay macros */}
+                  {dayTotals && (
+                    <div className="sm mono" style={{ color: 'var(--ink-400)', borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4, fontWeight: 600 }}>{dayTotals}</div>
+                  )}
+                </div>
+              )
+            })()}
           </motion.section>
         )}
 
@@ -263,12 +430,24 @@ export function Alimentacion() {
 function GoalEditor() {
   const { state, dispatch } = useApp()
   const [edit, setEdit] = useState(false)
+  const [unusualToast, setUnusualToast] = useState(false)
   const goal = state.kcalGoal
   if (edit) {
     return (
-      <input className="field" type="number" inputMode="numeric" autoFocus placeholder="kcal/día" defaultValue={goal ?? ''}
-        onBlur={(e) => { dispatch({ t: 'setKcalGoal', value: parseFloat(e.target.value) || null }); setEdit(false) }}
-        style={{ width: 110 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+        <input
+          className="field" type="number" inputMode="numeric" autoFocus placeholder="kcal/día"
+          defaultValue={goal ?? ''} min={500} max={9999}
+          aria-label="Meta calórica diaria"
+          onBlur={(e) => {
+            const v = parseFloat(e.target.value) || null
+            if (v != null && (v < 500 || v > 9999)) setUnusualToast(true)
+            dispatch({ t: 'setKcalGoal', value: v }); setEdit(false)
+          }}
+          style={{ width: 110 }}
+        />
+        {unusualToast && <span className="sm" style={{ color: 'var(--warning)' }}>Meta inusual</span>}
+      </div>
     )
   }
   return (
@@ -311,8 +490,15 @@ function MacroGoals() {
                   <span className="sm" style={{ color: 'var(--ink-700)' }}>{lbl}</span>
                   <span className="sm mono" style={{ color: 'var(--ink-900)' }}>{cur} / {goal} g</span>
                 </div>
-                <div style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
-                  <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999 }} />
+                <div
+                  role="progressbar"
+                  aria-valuenow={cur}
+                  aria-valuemin={0}
+                  aria-valuemax={goal}
+                  aria-label={`Meta de ${lbl}`}
+                  style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}
+                >
+                  <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.28s ease, background 0.28s ease' }} />
                 </div>
               </div>
             )

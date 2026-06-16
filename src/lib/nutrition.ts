@@ -266,6 +266,17 @@ export function streakDetail(s: AppState, waterGoal = 8): StreakDetail {
   return { streak, today, prevMilestone: prev, nextMilestone: next }
 }
 
+// ── Utilidades de metas personales ──
+export function kcalFromMacros(p: number, c: number, f: number): number {
+  return Math.round(p * 4 + c * 4 + f * 9)
+}
+export function proteinSuggestion(pesoKg: number): number {
+  return Math.round(pesoKg * 1.6)
+}
+export function waterGoalGlasses(pesoKg: number): number {
+  return Math.max(8, Math.round(pesoKg * 0.033))
+}
+
 // ── Señales de la semana: observaciones por plantilla fija (cumplimiento) ──
 export function weeklyInsights(s: AppState): string[] {
   const out: string[] = []
@@ -289,5 +300,19 @@ export function weeklyInsights(s: AppState): string[] {
   if (daysHydrated > 0) out.push(`Cumpliste tu meta de hidratación en ${daysHydrated} de 7 días.`)
   const macro = dayMacros((s.nutrition[isoKey(s.todayTs)]?.meals) ?? [])
   if (macro.hasMacros && macro.protein > 0) out.push(`Hoy llevas ${macro.protein} g de proteína registrada.`)
+  // Insight semanal de proteína: si hay meta y ≥3 días con datos
+  if (s.macroGoals?.protein) {
+    const goalProt = s.macroGoals.protein
+    const last7Keys = kcalSeries(s, 7).map((d) => isoKey(d.ts))
+    const protDays = last7Keys
+      .map((k) => s.nutrition[k])
+      .filter((d) => d && d.meals.length > 0 && d.meals.some((m) => m.protein != null && m.protein > 0))
+    if (protDays.length >= 3) {
+      const avgProt = Math.round(protDays.reduce((sum, d) => {
+        const pm = dayMacros(d!.meals); return sum + pm.protein
+      }, 0) / protDays.length)
+      out.push(`Promediaste ${avgProt} g de proteína/día (meta ${goalProt} g).`)
+    }
+  }
   return out
 }
