@@ -13,6 +13,15 @@ import type { FoodFav } from '../lib/types'
 
 const WATER_GOAL = 8
 const PORTIONS: (number | null)[] = [null, 0.5, 1, 1.5, 2] // null = "auto" (porción aprendida)
+// copy del estado vacío según la franja del día
+const SLOT_PROMPT: Record<string, string> = {
+  'desayuno': '¿Qué desayunas? Regístralo abajo y lo recordaré.',
+  'colación de la mañana': '¿Una colación? Regístrala abajo y la recordaré.',
+  'comida': '¿Qué comes hoy? Regístralo abajo y lo recordaré.',
+  'colación de la tarde': '¿Una colación? Regístrala abajo y la recordaré.',
+  'cena': '¿Qué cenas? Regístralo abajo y lo recordaré.',
+  'antojo nocturno': '¿Algún antojo nocturno? Regístralo abajo y lo recordaré.',
+}
 const porLabel = (p: number | null) => (p == null ? 'auto' : p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}×`)
 const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
 
@@ -96,7 +105,7 @@ export function Alimentacion() {
         {/* ── Predicciones por franja + barra inteligente ── */}
         <motion.section variants={staggerItem} className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600, textTransform: 'capitalize' }}>Para tu {mealSlot(now)}</span>
+            <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>Para tu {mealSlot(now)}</span>
             <div style={{ display: 'flex', gap: 4 }}>
               {PORTIONS.map((p) => (
                 <button key={String(p)} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 7px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
@@ -123,7 +132,7 @@ export function Alimentacion() {
               })}
             </div>
           ) : (
-            <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>El día empieza aquí — registra tu primera comida abajo.</div>
+            <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>{SLOT_PROMPT[mealSlot(now)] ?? 'Registra tu comida abajo y la recordaré.'}</div>
           )}
 
           {/* Acciones rápidas */}

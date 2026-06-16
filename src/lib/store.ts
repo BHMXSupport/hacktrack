@@ -138,14 +138,16 @@ export function isoKey(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// franja horaria de una comida (para predicción contextual)
+// franja horaria de una comida (para predicción contextual) — frases es-MX
 export function mealSlot(ts: number): string {
   const h = new Date(ts).getHours()
-  if (h >= 6 && h < 10) return 'desayuno'
-  if (h >= 10 && h < 12) return 'media mañana'
-  if (h >= 12 && h < 16) return 'almuerzo'
-  if (h >= 16 && h < 19) return 'tarde'
-  return 'cena'
+  if (h < 6) return 'antojo nocturno'
+  if (h < 10) return 'desayuno'
+  if (h < 12) return 'colación de la mañana'
+  if (h < 16) return 'comida'
+  if (h < 19) return 'colación de la tarde'
+  if (h < 23) return 'cena'
+  return 'antojo nocturno'
 }
 
 const HISTORY_CAP = 365
