@@ -14,7 +14,7 @@ const MEALS: { value: RecipeMeal; label: string }[] = [
   { value: 'cena', label: 'Cena' },
   { value: 'colacion', label: 'Colaciones' },
 ]
-const TAGS: RecipeTag[] = ['keto-friendly', 'fácil y rápido', 'bajo en calorías', 'alto en proteína', 'vegetariano', 'post-entreno']
+const TAGS: RecipeTag[] = ['keto-friendly', 'fácil y rápido', 'bajo en calorías', 'alto en proteína', 'vegetariano', 'vegano', 'post-entreno']
 
 export function Recetario() {
   const { state, dispatch } = useApp()
