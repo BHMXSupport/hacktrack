@@ -4,7 +4,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { buildPharmaSeries, fmtApproxMg, formatHalfLife, HALF_LIFE_H, type Mode } from '../lib/pharma'
+import { buildPharmaSeries, fmtApproxMg, formatHalfLife, HALF_LIFE_H, getProductNote, type Mode } from '../lib/pharma'
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
@@ -13,41 +13,7 @@ import { staggerParent, staggerItem } from '../lib/motion'
 type Win = '24h' | '72h' | '7d'
 const WIN_MS: Record<Win, number> = { '24h': 24 * 3_600_000, '72h': 72 * 3_600_000, '7d': 7 * 86_400_000 }
 
-// Notas educativas por producto (se muestran SOLO debajo del producto al que aplican y cuando está activo).
-// Describen la clase y el comportamiento de su curva (velocidad de eliminación) — estimación educativa, sin claims.
-const PRODUCT_NOTE: Record<string, string> = {
-  'Retatrutide': 'Triple agonista incretina; vida media larga (~6 días): la curva arranca alta y baja lento, sigue presente varios días tras la inyección.',
-  'Tirzepatida': 'Doble agonista GIP/GLP-1; vida media ~5 días: presencia prolongada, la curva desciende de forma gradual.',
-  'Semaglutida': 'Agonista GLP-1; vida media ~7 días: de las curvas más largas, permanece presente casi una semana tras la dosis.',
-  'Tesamorelin': 'Análogo de GHRH; vida media muy corta (~10 min): se elimina del plasma casi de inmediato, la curva cae de golpe.',
-  'MOTS-c': 'Péptido mitocondrial; vida media corta (~1 h): presente solo unas horas. PK extrapolada de modelos animales.',
-  '5-Amino-1MQ': 'Molécula pequeña; vida media corta (~3 h): presencia de pocas horas tras la toma.',
-  'SLU-PP-332': 'Agonista ERR (investigación); sin farmacocinética humana publicada — su curva es una estimación de referencia, no un dato clínico.',
-  'BPC-157': 'Péptido de acción local; vida media plasmática muy corta (minutos–½ h): desaparece rápido de la sangre tras la dosis. Efectos principalmente locales; la curva refleja presencia sistémica, no acción tisular.',
-  'TB-500': 'Fracción de timosina β4; vida media corta (~1.5 h): se elimina del plasma en pocas horas.',
-  'GHK-Cu': 'Péptido de cobre; vida media muy corta (~45 min): presencia plasmática breve tras la dosis.',
-  'ARA 290': 'Péptido derivado de EPO; vida media muy corta (~45 min): la curva cae en menos de una hora.',
-  'GLOW 70': 'Blend (BPC-157 + TB-500 + GHK-Cu); curva estimada con la vida media del componente más largo (TB-500, ~1.5 h).',
-  'KLOW 80': 'Blend (KPV + BPC-157 + TB-500 + GHK-Cu); curva estimada con la vida media del componente más largo (TB-500, ~1.5 h).',
-  'NAD+': 'Coenzima, no un péptido con eliminación de primer orden: no se grafica su decaimiento plasmático.',
-  'SS-31': 'Péptido mitocondrial (Elamipretida); vida media corta (~2 h): presente unas horas tras la dosis.',
-  'L-Glutathione': 'Antioxidante; vida media plasmática muy corta (~10–15 min, vía parenteral): la curva cae casi de inmediato; la vía oral no es graficable.',
-  'Semax': 'Péptido derivado de ACTH; vida media muy corta (~20 min): presencia plasmática fugaz tras la dosis.',
-  'Selank': 'Péptido análogo de tuftsina; vida media muy corta (~20 min): se elimina del plasma en minutos.',
-  'DSIP': 'Péptido (delta sleep); vida media corta (~45 min): presencia plasmática breve.',
-  'Oxytocin': 'Hormona peptídica; vida media ultracorta (~3 min): la curva cae a cero en minutos; sus efectos centrales pueden durar más que su presencia en sangre. Efectos centrales por liberación neuronal endógena, ~30–60 min tras intranasal.',
-  'CJC 1295 (No DAC)': 'Análogo de GHRH sin DAC; vida media corta (~30 min): pulso breve, la curva desciende rápido.',
-  'Ipamorelin': 'Secretagogo de GH; vida media corta (~2 h): presente unas horas tras la dosis.',
-  'Kisspeptin-10': 'Péptido del eje reproductivo; vida media muy corta (~12 min): la curva cae en minutos.',
-  'PT-141': 'Análogo de melanocortina (Bremelanotida); vida media corta (~2 h): presencia de pocas horas tras la dosis.',
-}
-// fallback por si se agrega un producto sin nota curada
-function fallbackNote(h: number | undefined): string {
-  if (h == null) return 'Sin vida media de eliminación estándar — no se grafica su decaimiento.'
-  if (h < 0.5) return `Vida media muy corta (~${Math.round(h * 60)} min): presencia plasmática fugaz tras la dosis.`
-  if (h < 6) return `Vida media corta (~${h} h): presente unas horas tras la dosis.`
-  return `Vida media larga (~${Math.round(h / 24)} días): la curva baja lento y sigue presente varios días.`
-}
+// Notas educativas movidas a pharma.ts (getProductNote). Ver item 151.
 
 // SVG ojo barrado para estado vacío
 const EyeOffIcon = () => (
@@ -94,7 +60,7 @@ export function PharmaDashboard() {
     Object.keys(state.protocols).forEach((p) => set.add(p))
     const out: { product: string; color: string; text: string }[] = []
     for (const p of set) {
-      const text = PRODUCT_NOTE[p] ?? fallbackNote(HALF_LIFE_H[p])
+      const text = getProductNote(p)
       const color = data.series.find((s) => s.product === p)?.color ?? CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
       out.push({ product: p, color, text })
     }

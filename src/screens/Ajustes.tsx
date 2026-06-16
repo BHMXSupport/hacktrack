@@ -321,6 +321,84 @@ export function Ajustes() {
               </span>
             </div>
 
+            {/* Fila: Ventana de rescate (item 168) — solo visible si los recordatorios están activos */}
+            {settings.remindersEnabled && (
+              <div className="row" style={{ alignItems: 'flex-start', minHeight: 56 }}>
+                <RowIcon>
+                  {/* icono timer */}
+                  <svg
+                    width={20} height={20} viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+                    style={{ color: 'var(--brand-700)' }}
+                  >
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l2 2" />
+                    <path d="M9 2h6M12 2v3" />
+                  </svg>
+                </RowIcon>
+                <span className="row-main" style={{ flex: 1 }}>
+                  <span className="row-label">Aviso de rescate</span>
+                  <span className="row-sub" style={{ color: 'var(--ink-400)' }}>
+                    Segundo aviso si no registras a tiempo
+                  </span>
+                </span>
+                <span className="row-end" style={{ alignSelf: 'center' }}>
+                  {/* Control segmentado: Sin · 15m · 30m · 1h */}
+                  {(() => {
+                    type RW = 0 | 15 | 30 | 60
+                    const current: RW = (settings.rescueWindowMin as RW) ?? 0
+                    const opts: { key: RW; label: string }[] = [
+                      { key: 0,  label: 'Sin' },
+                      { key: 15, label: '15m' },
+                      { key: 30, label: '30m' },
+                      { key: 60, label: '1h' },
+                    ]
+                    return (
+                      <span
+                        role="group"
+                        aria-label="Ventana de rescate"
+                        style={{
+                          display: 'inline-flex',
+                          borderRadius: 10,
+                          border: '1px solid var(--border)',
+                          overflow: 'hidden',
+                          background: 'var(--surface)',
+                        }}
+                      >
+                        {opts.map(({ key, label }) => {
+                          const active = current === key
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              aria-pressed={active}
+                              aria-label={key === 0 ? 'Sin aviso de rescate' : `Aviso de rescate a los ${label}`}
+                              onClick={() => dispatch({ t: 'setRescueWindow', minutes: key })}
+                              style={{
+                                padding: '5px 9px',
+                                fontSize: 12,
+                                fontWeight: active ? 700 : 500,
+                                border: 'none',
+                                borderRight: key !== 60 ? '1px solid var(--border)' : 'none',
+                                cursor: 'pointer',
+                                background: active ? 'var(--brand-700)' : 'transparent',
+                                color: active ? '#fff' : 'var(--ink-700)',
+                                transition: 'background 0.15s, color 0.15s',
+                                lineHeight: 1.4,
+                                fontFamily: 'JetBrains Mono, monospace',
+                              }}
+                            >
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </span>
+                    )
+                  })()}
+                </span>
+              </div>
+            )}
+
             {/* Fila 3: Resumen semanal */}
             <div className="row">
               <RowIcon>

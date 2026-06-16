@@ -30,6 +30,8 @@ export function DoseCalendar() {
   const [view, setView] = useState<View>('mes')
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState(false)
+  // Loop 170: toggle heat-map de adherencia
+  const [heatmap, setHeatmap] = useState(false)
 
   const tracked = trackedProtocols(state)
   // próxima toma REAL entre TODOS los productos (fecha y producto de la MISMA fuente, no mezcladas)
@@ -141,47 +143,92 @@ export function DoseCalendar() {
 
       {/* ── (#10) NAV RÁPIDA (solo en vista Mes) ───────────────────── */}
       {view === 'mes' && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 16px 4px',
-          }}
-        >
-          <button
-            className="iconbtn"
-            onClick={prevMonth}
-            aria-label="Mes anterior"
-            style={{ color: 'var(--ink-700)' }}
+        <>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 16px 4px',
+            }}
           >
-            <IcBack size={20} />
-          </button>
+            <button
+              className="iconbtn"
+              onClick={prevMonth}
+              aria-label="Mes anterior"
+              style={{ color: 'var(--ink-700)' }}
+            >
+              <IcBack size={20} />
+            </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="h2" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>
-              {MONTH_NAMES[month]} {year}
-            </span>
-            {!isCurrentMonth && (
-              <button
-                className="chip"
-                onClick={goToday}
-                style={{ fontSize: 12, padding: '2px 10px', cursor: 'pointer' }}
-              >
-                Hoy
-              </button>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="h2" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>
+                {MONTH_NAMES[month]} {year}
+              </span>
+              {!isCurrentMonth && (
+                <button
+                  className="chip"
+                  onClick={goToday}
+                  style={{ fontSize: 12, padding: '2px 10px', cursor: 'pointer' }}
+                >
+                  Hoy
+                </button>
+              )}
+            </div>
+
+            <button
+              className="iconbtn"
+              onClick={nextMonth}
+              aria-label="Mes siguiente"
+              style={{ color: 'var(--ink-700)' }}
+            >
+              <IcChevron size={20} />
+            </button>
           </div>
 
-          <button
-            className="iconbtn"
-            onClick={nextMonth}
-            aria-label="Mes siguiente"
-            style={{ color: 'var(--ink-700)' }}
+          {/* Loop 170: Toggle Vista Estados / Mapa de calor */}
+          <div
+            style={{ padding: '0 16px 6px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}
           >
-            <IcChevron size={20} />
-          </button>
-        </div>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>Vista:</span>
+            <div
+              role="group"
+              aria-label="Modo de vista del calendario"
+              style={{
+                display: 'flex',
+                gap: 2,
+                background: 'var(--ink-100)',
+                borderRadius: 'var(--r-sm, 8px)',
+                padding: 3,
+              }}
+            >
+              {([false, true] as const).map((isHeat) => (
+                <button
+                  key={String(isHeat)}
+                  type="button"
+                  role="radio"
+                  aria-checked={heatmap === isHeat}
+                  onClick={() => setHeatmap(isHeat)}
+                  className="sm"
+                  style={{
+                    background: heatmap === isHeat ? 'var(--surface, #fff)' : 'none',
+                    border: 0,
+                    borderRadius: 'calc(var(--r-sm, 8px) - 2px)',
+                    color: heatmap === isHeat ? 'var(--ink-900)' : 'var(--ink-400)',
+                    fontWeight: heatmap === isHeat ? 600 : 400,
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    boxShadow: heatmap === isHeat ? 'var(--e1)' : 'none',
+                    transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isHeat ? 'Mapa de calor' : 'Estados'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* ── GRILLA (con swipe) / AGENDA ─────────────────────────── */}
@@ -201,7 +248,7 @@ export function DoseCalendar() {
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.22, ease: 'easeInOut' }}
             >
-              <CalendarMonth year={year} month={month} hidden={hidden} />
+              <CalendarMonth year={year} month={month} hidden={hidden} heatmap={heatmap} />
             </motion.div>
           </AnimatePresence>
         </motion.div>

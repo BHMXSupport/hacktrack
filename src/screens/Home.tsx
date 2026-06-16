@@ -1003,8 +1003,8 @@ export function Home() {
                         whileHover={!reduce ? { scale: 1.02 } : undefined}
                         whileTap={!reduce ? { scale: 0.97 } : undefined}
                         transition={spring.ui}
-                        onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
-                        aria-label={`${m}: ${hero}${unit ? ' ' + unit : ''}`}
+                        onClick={() => dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m })}
+                        aria-label={`${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para ver detalle.`}
                         style={{
                           scrollSnapAlign: 'start',
                           flexShrink: 0,
@@ -1085,9 +1085,9 @@ export function Home() {
                       whileHover={!reduce ? { scale: 1.02 } : undefined}
                       whileTap={!reduce ? { scale: 0.97 } : undefined}
                       transition={spring.ui}
-                      onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
-                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') ? dispatch({ t: 'sheet', sheet: 'registrar' }) : undefined}
-                      aria-label={`${m}: ${hero}${unit ? ' ' + unit : ''}`}
+                      onClick={() => dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m })}
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') ? dispatch({ t: 'sheet', sheet: 'medida-detail', arg: m }) : undefined}
+                      aria-label={`${m}: ${hero}${unit ? ' ' + unit : ''}. Toca para ver detalle.`}
                       style={{
                         display: 'flex',
                         flexDirection: 'column',

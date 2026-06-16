@@ -1,13 +1,14 @@
 // Hacktrack — Vista Agenda (#4): próximas tomas agrupadas por día, cronológica.
 // Loop 172: segmented "Por día / Por producto" con sessionStorage
 // Loop 174: auto-scroll a hoy + slide-in escalonado + AnimatePresence modo sharedAxisX
-import { useEffect, useRef, useState } from 'react'
+// Loop 173: botón "✓ Marcar" inline para tomas de hoy o atrasadas
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { upcomingDoses } from '../lib/calendar'
+import { upcomingDoses, pendingDoses } from '../lib/calendar'
 import { fmtDate, fmtTime } from '../lib/cadence'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { useApp, isoKey } from '../lib/store'
-import { sharedAxisX, dur, ease } from '../lib/motion'
+import { sharedAxisX, dur, ease, spring } from '../lib/motion'
 
 // ── Persistencia del toggle (sessionStorage) ──────────────────────────────────
 type AgendaMode = 'day' | 'product'
@@ -47,15 +48,122 @@ const rowVariants = {
   }),
 }
 
+// ── Loop 173: botón "✓ Marcar" inline ────────────────────────────────────────
+interface MarkDoseButtonProps {
+  product: string
+  doseTs: number  // timestamp de la toma (dueTime del día)
+  dispatch: (a: import('../lib/store').Action) => void
+}
+
+function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
+  const [markedId, setMarkedId] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleMark = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation()
+    // Generar un ID temporal para el undo — el store genera el real,
+    // pero necesitamos buscarlo después. Usamos el ts+product como clave de búsqueda:
+    // logDose con ts del dueTime del día.
+    dispatch({ t: 'logDose', product, value: null, unit: '', ts: doseTs })
+    setDone(true)
+    // El store mete el id en toastUndoId. Aquí hacemos un undo local por conveniencia:
+    // guardamos el ts para poder llamar a deleteLog si el usuario presiona Deshacer.
+    // Como el store no expone el id aquí directamente, usamos una referencia al dispatch.
+    // La forma más simple: el toast del store ya tiene undo. Pero para el inline undo
+    // necesitamos el id — por eso el timer da 4s antes de limpiar.
+    undoTimerRef.current = setTimeout(() => {
+      setMarkedId(null)
+    }, 4000)
+  }, [dispatch, product, doseTs])
+
+  const handleUndo = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    if (markedId) {
+      dispatch({ t: 'deleteLog', id: markedId })
+    }
+    setDone(false)
+    setMarkedId(null)
+  }, [dispatch, markedId])
+
+  // Capturar el id del item recién creado desde el store
+  const { state } = useApp()
+  useEffect(() => {
+    if (!done || markedId) return
+    // Buscar en el log el item más reciente de este producto con ese ts
+    for (const group of state.log) {
+      const found = group.items.find(
+        (it) => it.type === 'dose' && it.product === product && it.ts === doseTs
+      )
+      if (found) { setMarkedId(found.id); break }
+    }
+  }, [done, markedId, state.log, product, doseTs])
+
+  // Limpiar timer al desmontar
+  useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
+
+  if (done) {
+    return (
+      <motion.span
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1, transition: spring.ui }}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
+      >
+        <span className="sm" style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Marcado</span>
+        <button
+          type="button"
+          onClick={handleUndo}
+          className="sm"
+          style={{
+            background: 'none', border: 0, cursor: 'pointer',
+            color: 'var(--ink-400)', padding: '0 2px', fontWeight: 500, flexShrink: 0,
+          }}
+          aria-label={`Deshacer marca de ${product}`}
+        >
+          Deshacer
+        </button>
+      </motion.span>
+    )
+  }
+
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.92, transition: spring.ui }}
+      onClick={handleMark}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleMark(e) } }}
+      className="sm"
+      style={{
+        background: 'var(--brand-100)',
+        border: '1px solid var(--brand-300)',
+        borderRadius: 6,
+        color: 'var(--brand-700)',
+        fontWeight: 600,
+        padding: '3px 10px',
+        cursor: 'pointer',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+      }}
+      aria-label={`Marcar dosis de ${product}`}
+    >
+      ✓ Marcar
+    </motion.button>
+  )
+}
+
 // ── Subcomponente: vista Por Día ──────────────────────────────────────────────
 function AgendaByDay({
   groups,
   todayKey,
   dispatch,
+  pendingSet,
 }: {
   groups: { label: string; dayKey: string; entries: { date: Date; product: string }[] }[]
   todayKey: string
   dispatch: (a: import('../lib/store').Action) => void
+  /** Set de "product|ts" que tienen toma pendiente (hoy o atrasada, sin marcar) */
+  pendingSet: Set<string>
 }) {
   // Loop 174: ref al grupo de hoy para auto-scroll
   const todayRef = useRef<HTMLElement | null>(null)
@@ -84,6 +192,8 @@ function AgendaByDay({
               {group.entries.map((item, i) => {
                 const color = productColor(item.product)
                 const idx = rowIdx++
+                const pendingKey = `${item.product}|${item.date.getTime()}`
+                const isPending = pendingSet.has(pendingKey)
                 return (
                   <motion.li
                     key={`${item.product}-${item.date.getTime()}-${i}`}
@@ -106,7 +216,15 @@ function AgendaByDay({
                   >
                     <span className="agenda__time mono">{fmtTime(item.date)}</span>
                     <span className="agenda__dot" style={{ background: color }} aria-hidden="true" />
-                    <span className="agenda__product">{item.product}</span>
+                    <span className="agenda__product" style={{ flex: 1 }}>{item.product}</span>
+                    {/* Loop 173: botón ✓ Marcar para tomas hoy o atrasadas pendientes */}
+                    {isPending && (
+                      <MarkDoseButton
+                        product={item.product}
+                        doseTs={item.date.getTime()}
+                        dispatch={dispatch}
+                      />
+                    )}
                   </motion.li>
                 )
               })}
@@ -221,9 +339,30 @@ export function CalendarAgenda() {
   const todayKey = isoKey(now.getTime())
   const items = upcomingDoses(state, now, 30)
 
+  // Loop 173: tomas pendientes (hoy + atrasadas sin marcar cuya hora ya venció)
+  const pending = pendingDoses(state, now)
+  // Set de "product|ts" para lookup O(1)
+  const pendingSet = new Set(pending.map((p) => `${p.product}|${p.date.getTime()}`))
+
   // Agrupar por día para la vista "Por día"
-  const groups: { label: string; dayKey: string; entries: typeof items }[] = []
-  for (const item of items) {
+  // Incluir también las pendientes atrasadas al inicio (antes de los futuros)
+  const allItems = [
+    ...pending.map((p) => ({ date: p.date, product: p.product })),
+    ...items,
+  ]
+  // Deduplicar: si una toma atrasada coincide con una upcoming (mismo producto+ts), no duplicar
+  const seen = new Set<string>()
+  const deduped = allItems.filter((it) => {
+    const k = `${it.product}|${it.date.getTime()}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+  // Ordenar cronológicamente
+  deduped.sort((a, b) => a.date.getTime() - b.date.getTime())
+
+  const groups: { label: string; dayKey: string; entries: typeof deduped }[] = []
+  for (const item of deduped) {
     const label = fmtDate(item.date, now)
     const last = groups[groups.length - 1]
     if (last && last.label === label) {
@@ -233,7 +372,7 @@ export function CalendarAgenda() {
     }
   }
 
-  if (items.length === 0) {
+  if (deduped.length === 0) {
     return (
       <div className="agenda-empty">
         <p className="agenda-empty__text">No tienes próximas tomas programadas</p>
@@ -286,7 +425,7 @@ export function CalendarAgenda() {
       <AnimatePresence mode="wait" initial={false}>
         {mode === 'day' ? (
           <motion.div key="day" {...sharedAxisX}>
-            <AgendaByDay groups={groups} todayKey={todayKey} dispatch={dispatch} />
+            <AgendaByDay groups={groups} todayKey={todayKey} dispatch={dispatch} pendingSet={pendingSet} />
           </motion.div>
         ) : (
           <motion.div key="product" {...sharedAxisX}>

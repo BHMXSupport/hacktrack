@@ -1,13 +1,15 @@
 // ActiveNowChips — surfacing en Inicio de los péptidos con presencia estimada AHORA.
-// Tap → abre Progreso › Cuerpo (deep-link). Estimación educativa (ver disclaimer en Cuerpo).
+// Tap → expande a mini-tarjeta educativa con nota del producto + countdown de washout (item 151).
+// Segundo tap o botón Ver curva → Progreso › Cuerpo.
 // (UX/UI del equipo multiagente — Loop 02.)
 // Loop 149: barra de washout con tiempo restante real
 // Loop 150: pulso del dot proporcional al % de presencia
+// Item 151: chip expandido con nota educativa + washout countdown
 import { useState, useEffect } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { presenceNow, PRESENCE_FLOOR_PCT, HALF_LIFE_H, washoutMs } from '../lib/pharma'
-import { spring, staggerParent, staggerItem } from '../lib/motion'
+import { presenceNow, PRESENCE_FLOOR_PCT, HALF_LIFE_H, washoutMs, getProductNote } from '../lib/pharma'
+import { spring, staggerParent, staggerItem, dur, ease } from '../lib/motion'
 import { vialDaysLeft, vialExpiryStatus } from '../lib/calc'
 import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
 
@@ -30,6 +32,9 @@ export function ActiveNowChips() {
   const { state, dispatch } = useApp()
   const [now, setNow] = useState(() => Date.now())
   const prefersReduced = useReducedMotion()
+
+  // item 151: producto expandido (null = ninguno)
+  const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000)
@@ -122,29 +127,40 @@ export function ActiveNowChips() {
             ? { repeat: Infinity, repeatDelay: 1.4, duration: 0.5, ease: 'easeInOut' as const }
             : undefined
 
+          // item 151: estado expandido
+          const isExpanded = expandedProduct === p.product
+          const productNote = getProductNote(p.product)
+
           return (
-            <motion.button
+            <motion.div
               key={p.product}
-              type="button"
-              onClick={goToCuerpo}
               variants={staggerItem}
-              whileTap={{ scale: 0.94 }}
-              aria-label={`${p.product}: ${Math.round(p.pct)}% de presencia estimada.${washoutLabel ? ` ${washoutLabel}.` : ''} Ver curva de presencia en Cuerpo.`}
+              layout
               style={{
-                display: 'inline-flex',
+                display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-start',
                 gap: 5,
-                minHeight: 40,
                 padding: '7px 12px 8px',
                 borderRadius: 'var(--r-sm)',
-                cursor: 'pointer',
                 background: 'var(--brand-100)',
                 border: `1px solid ${p.color}`,
+                minWidth: isExpanded ? '100%' : undefined,
+                boxSizing: 'border-box',
+                transition: `box-shadow ${dur.fast}s`,
+                boxShadow: isExpanded ? 'var(--e2)' : undefined,
               }}
             >
+              {/* Cara del chip = botón toggle (la nota/Ver-curva quedan FUERA del botón) */}
+              <button
+                type="button"
+                onClick={() => setExpandedProduct(isExpanded ? null : p.product)}
+                aria-expanded={isExpanded}
+                aria-label={`${p.product}: ${Math.round(p.pct)}% de presencia estimada.${isExpanded ? ' Contraer.' : ' Expandir para nota educativa.'}`}
+                style={{ all: 'unset', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 5, width: '100%', boxSizing: 'border-box' }}
+              >
               {/* Fila superior: dot + nombre + % */}
-              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%' }}>
                 {/* Loop 150: dot con pulso */}
                 <motion.span
                   animate={dotAnimate}
@@ -160,6 +176,15 @@ export function ActiveNowChips() {
                 />
                 <span className="sm" style={{ color: 'var(--brand-900)', fontWeight: 500 }}>{p.product}</span>
                 <span className="sm mono" style={{ color: 'var(--brand-900)', fontWeight: 600 }}>~{Math.round(p.pct)}%</span>
+                {/* chevron de expansión */}
+                <motion.span
+                  animate={{ rotate: isExpanded ? 180 : 0 }}
+                  transition={{ duration: dur.fast }}
+                  aria-hidden="true"
+                  style={{ marginLeft: 'auto', color: 'var(--ink-400)', fontSize: 12, lineHeight: 1 }}
+                >
+                  ▾
+                </motion.span>
               </span>
 
               {/* Loop 149: barra de washout */}
@@ -202,7 +227,57 @@ export function ActiveNowChips() {
                   {expiryLabel}
                 </span>
               )}
-            </motion.button>
+              </button>
+
+              {/* item 151: mini-tarjeta expandida con nota educativa + countdown washout */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    key="expanded"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: dur.base, ease: ease.decelerate }}
+                    style={{ overflow: 'hidden', width: '100%' }}
+                    onClick={(e) => e.stopPropagation()} // evitar toggle al hacer tap en la tarjeta expandida
+                  >
+                    <div style={{ paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {/* Nota educativa PK */}
+                      <p
+                        className="sm"
+                        style={{ margin: 0, color: 'var(--ink-700)', lineHeight: 1.5 }}
+                        aria-label={`Nota educativa sobre ${p.product}`}
+                      >
+                        {productNote}
+                      </p>
+
+                      {/* Countdown de washout */}
+                      {remaining != null && (
+                        <p className="sm mono" style={{ margin: 0, color: 'var(--ink-400)' }}>
+                          Washout estimado: <strong style={{ color: isLow ? 'var(--warning)' : 'var(--ink-700)' }}>{fmtDuration(remaining)}</strong>
+                        </p>
+                      )}
+
+                      {/* Disclaimer compliance — educativo, nunca prescriptivo */}
+                      <p style={{ margin: 0, fontSize: 10, color: 'var(--ink-300)', lineHeight: 1.4 }}>
+                        Estimación educativa basada en vidas medias aproximadas. No es consejo médico.
+                      </p>
+
+                      {/* Botón Ver curva */}
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ marginTop: 4, height: 36, background: 'var(--brand-100)', color: 'var(--brand-700)', border: `1px solid ${p.color}`, fontWeight: 600, fontSize: 13 }}
+                        onClick={(e) => { e.stopPropagation(); goToCuerpo() }}
+                        aria-label={`Ver curva de ${p.product} en Cuerpo`}
+                      >
+                        Ver curva completa →
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           )
         })}
       </motion.div>

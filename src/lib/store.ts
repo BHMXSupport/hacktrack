@@ -14,6 +14,7 @@ export type ProgresoView = 'cal' | 'avances'
 export type SheetId =
   | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail' | 'crear-platillo' | 'recetario'
   | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit' | 'ajustes' | 'dose-confirm'
+  | 'medida-detail'  // item 146: detalle de KPI con historial + botón Registrar
 
 export interface AppState {
   todayTs: number
@@ -147,6 +148,7 @@ export type Action =
   | { t: 'setName'; name: string }
   | { t: 'setProfileFields'; patch: Partial<Profile> }                // edad/sexo/actividad/meta (TDEE/proyección)
   | { t: 'setReminderTime'; time: string }
+  | { t: 'setRescueWindow'; minutes: 0 | 15 | 30 | 60 }  // item 168: ventana de rescate de notificación
   | { t: 'setScale'; scale: SyringeScale }
   | { t: 'setDraftDose'; draft: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null }
   | { t: 'arcoDelete' }                                               // P0-5
@@ -665,6 +667,9 @@ export function reducer(s: AppState, a: Action): AppState {
       for (const [name, p] of Object.entries(s.protocols)) protocols[name] = { ...p, reminderTime: a.time }
       return syncActive({ ...s, protocols })
     }
+    case 'setRescueWindow':
+      return { ...s, settings: { ...s.settings, rescueWindowMin: a.minutes } }
+
     case 'setScale':
       return { ...s, scale: a.scale }
     case 'setDraftDose':

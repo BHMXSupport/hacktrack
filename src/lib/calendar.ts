@@ -29,7 +29,7 @@ export function doseSkippedOnProduct(s: AppState, d: Date, product: string): boo
 }
 
 // hora de la toma ese día según el reminderTime DE ESE producto (cada uno puede tener el suyo)
-function dueTime(s: AppState, d: Date, product?: string): Date {
+export function dueTime(s: AppState, d: Date, product?: string): Date {
   const rt = (product && s.protocols[product]?.reminderTime) || s.protocol?.reminderTime || '08:00'
   const [hh, mm] = rt.split(':').map(Number)
   const at = startOfDay(d)
@@ -145,6 +145,56 @@ export function weekAdherencePct(s: AppState, weekDays: Date[], now: Date): numb
     }
   }
   return due === 0 ? null : Math.round((taken / due) * 100)
+}
+
+/**
+ * dayAdherencePct: adherencia de UN día (0-100) o null si no hay dosis programadas ese día.
+ * Solo cuenta dosis cuyo dueTime ya venció (no cuenta tomas futuras).
+ * Usado por el heat-map de intensidad en CalendarMonth.
+ */
+export function dayAdherencePct(s: AppState, d: Date, now: Date): number | null {
+  const prods = dayProducts(s, d)
+  if (prods.length === 0) return null
+  // excluir skips sin toma real
+  const effective = prods.filter((p) => doseTakenOnProduct(s, d, p) || !doseSkippedOnProduct(s, d, p))
+  if (effective.length === 0) return null
+  // solo contar dosis cuya hora ya venció (como hace weekAdherencePct)
+  let due = 0
+  let taken = 0
+  for (const p of effective) {
+    if (doseTakenOnProduct(s, d, p)) { due++; taken++ }
+    else if (now.getTime() > dueTime(s, d, p).getTime()) { due++ }
+  }
+  return due === 0 ? null : Math.round((taken / due) * 100)
+}
+
+export interface PendingDose { date: Date; product: string; id?: string }
+
+/**
+ * pendingDoses: tomas de HOY o ATRASADAS que aún NO se han registrado y cuya dueTime ya venció.
+ * Usadas en CalendarAgenda para mostrar el botón "✓ Marcar".
+ * `now` = hora real. Retorna un array con { date (la dueTime exacta), product }.
+ */
+export function pendingDoses(s: AppState, now: Date): PendingDose[] {
+  const tracked = trackedProtocols(s)
+  if (!tracked.length) return []
+  const today = startOfDay(now)
+  const out: PendingDose[] = []
+  // Mirar desde (hoy - 30 días) hasta hoy para cubrir atrasos razonables
+  for (let offset = -30; offset <= 0; offset++) {
+    const d = new Date(today.getTime() + offset * 86400000)
+    for (const t of tracked) {
+      const prods = dayProducts(s, d)
+      if (!prods.includes(t.product)) continue
+      if (doseTakenOnProduct(s, d, t.product)) continue
+      if (doseSkippedOnProduct(s, d, t.product)) continue
+      const due = dueTime(s, d, t.product)
+      if (now.getTime() > due.getTime()) {
+        out.push({ date: due, product: t.product })
+      }
+    }
+  }
+  return out
 }
 
 export interface UpcomingDose { date: Date; product: string }

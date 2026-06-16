@@ -1,10 +1,11 @@
 // Hacktrack — CalendarMonth: grilla mensual con estados, fases, adherencia semanal y stagger.
 // Loop 171: whileTap por celda + check 'pop' en días tomados (spring.celebrate)
+// Loop 170: heat-map de adherencia (capa opcional; toggle en DoseCalendar)
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey } from '../lib/store'
 import { monthMatrix } from '../lib/cadence'
-import { dayStatus, dayProducts, phaseForDate, weekAdherencePct } from '../lib/calendar'
+import { dayStatus, dayProducts, phaseForDate, weekAdherencePct, dayAdherencePct } from '../lib/calendar'
 import { CATEGORY_COLOR, PEPTIDES, WDS } from '../lib/catalog'
 import { IcCheck } from './icons'
 import { dur, ease, spring } from '../lib/motion'
@@ -33,6 +34,16 @@ const cellVariants = {
   }),
 }
 
+// ── Heat-map: convierte pct 0-100 en color brand-100→brand-700 ───────────────
+// Interpolación lineal en lightness: brand-100 (alta L) → brand-700 (baja L).
+// Se usa opacity sobre var(--brand-500) para mantener soporte en dark mode.
+function heatmapBg(pct: number | null): string | undefined {
+  if (pct === null) return undefined
+  // 0% → opacity 0 (sin color), 100% → opacity 0.45 (brand-500 saturado)
+  const opacity = (pct / 100) * 0.45
+  return `rgba(27,138,125,${opacity.toFixed(3)})`  // brand-500 = #1B8A7D
+}
+
 // ── Subcomponente: celda de día ───────────────────────────────────────────────
 interface DayCellProps {
   d: Date
@@ -41,9 +52,10 @@ interface DayCellProps {
   dispatch: (a: import('../lib/store').Action) => void
   hidden: Set<string>
   cellIndex: number
+  heatmap?: boolean
 }
 
-function DayCell({ d, now, state, dispatch, hidden, cellIndex }: DayCellProps) {
+function DayCell({ d, now, state, dispatch, hidden, cellIndex, heatmap = false }: DayCellProps) {
   const status = dayStatus(state, d, now)
   const phase = phaseForDate(state, d)
 
@@ -58,8 +70,11 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex }: DayCellProps) {
 
   const dayNum = d.getDate()
 
-  // fondo de fase: tinte muy sutil si hay una fase activa
-  const bg = phase !== null ? phaseTint(phase) : undefined
+  // fondo: heat-map tiene prioridad sobre tinte de fase
+  const adhPct = heatmap ? dayAdherencePct(state, d, now) : null
+  const bg = heatmap
+    ? heatmapBg(adhPct)
+    : (phase !== null ? phaseTint(phase) : undefined)
 
   const handleClick = () => {
     dispatch({ t: 'sheet', sheet: 'day-detail', arg: isoKey(d.getTime()) })
@@ -68,7 +83,23 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex }: DayCellProps) {
   // ── renderizado del interior según estado ───────────────────────────────────
   let inner: React.ReactNode
 
-  if (status === 'taken') {
+  // Modo heat-map: mostrar solo el número; el fondo refleja el % de adherencia.
+  // Si el día no tiene dosis programadas (adhPct===null), se muestra tenue.
+  if (heatmap) {
+    const hasScheduled = allProds.length > 0
+    inner = (
+      <span style={{
+        fontSize: 13,
+        fontWeight: 500,
+        color: hasScheduled
+          ? (adhPct !== null && adhPct >= 80 ? 'var(--brand-900)' : 'var(--ink-700)')
+          : 'var(--ink-300)',
+        lineHeight: 1,
+      }}>
+        {dayNum}
+      </span>
+    )
+  } else if (status === 'taken') {
     // círculo relleno success con IcCheck blanco centrado
     // Loop 171: el círculo entra con scale 0→1 spring.celebrate (rebote al renderizar)
     inner = (
@@ -190,10 +221,12 @@ export function CalendarMonth({
   year,
   month,
   hidden,
+  heatmap = false,
 }: {
   year: number
   month: number
   hidden: Set<string>
+  heatmap?: boolean
 }) {
   const { state, dispatch } = useApp()
   const now = new Date()
@@ -274,6 +307,7 @@ export function CalendarMonth({
                   dispatch={dispatch}
                   hidden={hidden}
                   cellIndex={baseIdx + di}
+                  heatmap={heatmap}
                 />
               )
             })}
