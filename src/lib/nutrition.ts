@@ -145,6 +145,7 @@ export interface ProtocolNumbers {
   startTs: number
   preKcal: number | null; postKcal: number | null; deltaKcal: number | null
   weightDelta: number | null
+  weightPoints: number[]   // peso desde la basal de inicio → último (para la gráfica de tendencia)
   kcalPoints: { ts: number; kcal: number }[]
   enoughData: boolean   // ≥14 días con registro de kcal
 }
@@ -169,12 +170,17 @@ export function protocolNumbers(s: AppState): ProtocolNumbers | null {
   // delta de peso desde la basal al inicio
   const peso = sortedAsc(s.history['Peso'])
   let weightDelta: number | null = null
+  let weightPoints: number[] = []
   if (peso.length >= 2) {
     const base = baselineAt(peso, startTs)
     if (base) weightDelta = Math.round((peso[peso.length - 1].value - base.value) * 10) / 10
+    // serie para la gráfica: peso desde el inicio del protocolo, anclada en la basal
+    const since = peso.filter((p) => p.ts >= startTs)
+    weightPoints = since.map((p) => p.value)
+    if (base && base.ts < startTs) weightPoints = [base.value, ...weightPoints]
   }
   const daysWithKcal = kcalPoints.filter((p) => p.ts >= now - 30 * DAY).length
-  return { startTs, preKcal, postKcal, deltaKcal, weightDelta, kcalPoints, enoughData: postN >= 14 || daysWithKcal >= 14 }
+  return { startTs, preKcal, postKcal, deltaKcal, weightDelta, weightPoints, kcalPoints, enoughData: postN >= 14 || daysWithKcal >= 14 }
 }
 
 // ── TDEE (Mifflin-St Jeor) ──

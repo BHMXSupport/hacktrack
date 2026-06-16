@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey, mealSlot } from '../lib/store'
 import { dayMacros, predictions, fuzzySearch, protocolNumbers, anchorProduct, tdee } from '../lib/nutrition'
-import { Sparkline } from '../components/charts'
+import { Sparkline, TrendChart } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
 import { TimeWheel } from '../components/TimeWheel'
 import { IcDrop, IcClose } from '../components/icons'
@@ -341,7 +341,23 @@ function AnchorMini() {
             {pn.deltaKcal != null && <div><div className="mono" style={{ fontSize: 24, fontWeight: 800, color: pn.deltaKcal <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal/día prom.</div></div>}
             {pn.weightDelta != null && <div><div className="mono" style={{ fontSize: 24, fontWeight: 800, color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kg</div></div>}
           </div>
-          {pn.kcalPoints.length >= 2 && <Sparkline data={pn.kcalPoints.map((x) => x.kcal)} color="var(--brand-500)" w={280} h={32} />}
+          {pn.weightPoints.length >= 2 ? (() => {
+            const wp = pn.weightPoints
+            const net = wp[wp.length - 1] - wp[0]
+            const goal = state.profile.metaPesoKg
+            const towardGoal = goal != null ? (goal < wp[0] ? net <= 0 : net >= 0) : net <= 0
+            return (
+              <div style={{ marginTop: 4 }}>
+                <TrendChart data={wp} w={280} h={52} trendColor={towardGoal ? 'var(--success)' : 'var(--warning)'} labels={[`${wp[0]} kg`, `${wp[wp.length - 1]} kg`]} />
+                <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>Peso · línea de tendencia</div>
+              </div>
+            )
+          })() : pn.kcalPoints.length >= 2 ? (
+            <div style={{ marginTop: 4 }}>
+              <Sparkline data={pn.kcalPoints.map((x) => x.kcal)} color="var(--brand-500)" w={280} h={32} />
+              <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>kcal/día</div>
+            </div>
+          ) : null}
         </div>
       </PremiumGate>
     </motion.section>

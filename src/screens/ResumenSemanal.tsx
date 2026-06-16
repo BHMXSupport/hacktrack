@@ -7,7 +7,7 @@ import { useApp, adherence, isoKey } from '../lib/store'
 import {
   protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct, protocolList, productKpis,
 } from '../lib/nutrition'
-import { Sparkline } from '../components/charts'
+import { Sparkline, TrendChart } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
 import type { Actividad, Sexo } from '../lib/types'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -222,7 +222,23 @@ export function ResumenSemanal() {
                     <div><div className="mono" style={{ fontSize: 26, fontWeight: 800, color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--ink-900)' }}>{pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kg</div></div>
                   )}
                 </div>
-                {pn.kcalPoints.length >= 2 && <Sparkline data={pn.kcalPoints.map((x) => x.kcal)} color="var(--brand-500)" w={280} h={36} />}
+                {pn.weightPoints.length >= 2 ? (() => {
+                  const wp = pn.weightPoints
+                  const net = wp[wp.length - 1] - wp[0]
+                  const goal = state.profile.metaPesoKg
+                  const towardGoal = goal != null ? (goal < wp[0] ? net <= 0 : net >= 0) : net <= 0
+                  return (
+                    <div style={{ marginTop: 4 }}>
+                      <TrendChart data={wp} w={280} h={56} trendColor={towardGoal ? 'var(--success)' : 'var(--warning)'} labels={[`${wp[0]} kg`, `${wp[wp.length - 1]} kg`]} />
+                      <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>Peso · línea de tendencia</div>
+                    </div>
+                  )
+                })() : pn.kcalPoints.length >= 2 ? (
+                  <div style={{ marginTop: 4 }}>
+                    <Sparkline data={pn.kcalPoints.map((x) => x.kcal)} color="var(--brand-500)" w={280} h={36} />
+                    <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>kcal/día</div>
+                  </div>
+                ) : null}
                 {!pn.enoughData && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 8 }}>Registra ~14 días para una comparación más sólida.</div>}
               </Card>
             )}
