@@ -1,7 +1,7 @@
 // Tab 'inicio' — dashboard de wellness premium "Quiet Signal".
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useApp, adherenceMonth, nextDoseAt, weekStatus, computeStreak, STREAK_GOAL } from '../lib/store'
+import { useApp, adherenceMonth, weekStatus, computeStreak, STREAK_GOAL } from '../lib/store'
 import { CATEGORY_COLOR, CATEGORY_ICON, MEASURE_ICON, MEASURE_META, WDS } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
@@ -9,7 +9,7 @@ import { Sparkline } from '../components/charts'
 import { Glyph } from '../components/glyphs'
 import { UserAvatar, TrustChip } from '../components/identity'
 import { TodayDoses } from '../components/TodayDoses'
-import { dayProducts } from '../lib/calendar'
+import { dayProducts, upcomingDoses } from '../lib/calendar'
 import { startOfDay } from '../lib/cadence'
 import { staggerParent, staggerItem } from '../lib/motion'
 
@@ -77,8 +77,10 @@ export function Home() {
 
   // ¿hay dosis programadas hoy? → muestra el checklist "hecho hoy" en vez del countdown
   const hasDosesToday = dayProducts(state, startOfDay(now)).length > 0
-  // Próxima toma con cuenta regresiva real
-  const at = nextDoseAt(state, now)
+  // Próxima toma con cuenta regresiva real — la MÁS CERCANA entre TODOS los productos activos
+  const upNext = upcomingDoses(state, now, 1)[0]
+  const at = upNext?.date ?? null
+  const nextProduct = upNext?.product ?? ''
   const countdownText = at ? fmtCountdown(at, now) : null
   const isNow = at ? diffMinutes(at, now) <= 0 : false
 
@@ -275,7 +277,7 @@ export function Home() {
               className="h2"
               style={{ margin: '0 0 4px', color: 'var(--ink-900)' }}
             >
-              {state.protocol!.product}
+              {nextProduct || state.protocol?.product}
             </h2>
 
             {/* Cuenta regresiva hero */}

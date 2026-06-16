@@ -54,89 +54,74 @@ function WeeklySummary() {
   )
 }
 
-// ── Fases de titulación ───────────────────────────────────────────────────────
-function TitrationPhases() {
+// ── Fases de titulación (POR PRODUCTO) ────────────────────────────────────────
+// Renderiza una tarjeta por cada producto con titulación activa; navegación de fase por producto.
+function TitrationPhasesAll() {
   const { state, dispatch } = useApp()
-  const protocol = state.protocol
-  if (!protocol) return null
-
-  if (!protocol.progOn) {
-    const entry = PEPTIDES[protocol.product]
-    if (!entry?.phases) return null
-    return (
-      <motion.div variants={item} className="card" style={{ marginTop: 16 }}>
-        <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 8 }}>
-          Titulación por fases
-        </div>
-        <div className="body" style={{ color: 'var(--ink-700)', marginBottom: 12 }}>
-          Este protocolo tiene {entry.phases} fases disponibles. Actívalas para guiar tu progresión de dosis.
-        </div>
-        <button
-          className="btn btn-outline btn-sm"
-          style={{ width: 'auto', padding: '0 14px' }}
-          onClick={() => dispatch({ t: 'sheet', sheet: 'protocolo-edit' })}
-        >
-          Activar titulación por fases
-        </button>
-      </motion.div>
-    )
-  }
-
-  const entry = PEPTIDES[protocol.product]
-  const n = protocol.progN ?? entry?.phases ?? 2
-  const phaseWeeks = entry?.phaseWeeks ?? null
-  const cur = protocol.curPhase ?? 0
+  const withPhases = Object.values(state.protocols).filter((p) => p.progOn)
+  if (withPhases.length === 0) return null
 
   return (
-    <motion.div variants={item} className="card" style={{ marginTop: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          Titulación · {protocol.product}
-        </span>
-        <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>
-          Fase {cur + 1} de {n}
-        </span>
-      </div>
+    <>
+      {withPhases.map((protocol) => {
+        const entry = PEPTIDES[protocol.product]
+        const n = protocol.progN ?? entry?.phases ?? 2
+        const phaseWeeks = entry?.phaseWeeks ?? null
+        const cur = protocol.curPhase ?? 0
+        const setPhase = (i: number) =>
+          dispatch({ t: 'updateProtocolFor', product: protocol.product, patch: { curPhase: Math.max(0, Math.min(n - 1, i)) } })
+        return (
+          <motion.div key={protocol.product} variants={item} className="card" style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Titulación · {protocol.product}
+              </span>
+              <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>
+                Fase {cur + 1} de {n}
+              </span>
+            </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-        {Array.from({ length: n }, (_, i) => {
-          const dose = protocol.phaseDoses?.[i]
-          const weeksPart = phaseWeeks ? ` · sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}` : ''
-          const dosePart = dose != null ? ` · ${dose} mg` : ''
-          const label = `Fase ${i + 1}${weeksPart}${dosePart}`
-          return (
-            <Chip
-              key={i}
-              label={label}
-              active={i === cur}
-              color="var(--brand-700)"
-              onClick={() => dispatch({ t: 'updateProtocol', patch: { curPhase: i } })}
-            />
-          )
-        })}
-      </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              {Array.from({ length: n }, (_, i) => {
+                const dose = protocol.phaseDoses?.[i]
+                const weeksPart = phaseWeeks ? ` · sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}` : ''
+                const dosePart = dose != null ? ` · ${dose} mg` : ''
+                return (
+                  <Chip
+                    key={i}
+                    label={`Fase ${i + 1}${weeksPart}${dosePart}`}
+                    active={i === cur}
+                    color="var(--brand-700)"
+                    onClick={() => setPhase(i)}
+                  />
+                )
+              })}
+            </div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          className="btn btn-outline btn-sm"
-          style={{ width: 'auto', padding: '0 12px', gap: 4, display: 'flex', alignItems: 'center' }}
-          disabled={cur === 0}
-          onClick={() => dispatch({ t: 'updateProtocol', patch: { curPhase: Math.max(0, cur - 1) } })}
-        >
-          <IcBack size={15} />
-          Fase anterior
-        </button>
-        <button
-          className="btn btn-brand btn-sm"
-          style={{ width: 'auto', padding: '0 12px', gap: 4, display: 'flex', alignItems: 'center' }}
-          disabled={cur >= n - 1}
-          onClick={() => dispatch({ t: 'updateProtocol', patch: { curPhase: Math.min(n - 1, cur + 1) } })}
-        >
-          Siguiente fase
-          <IcChevron size={15} />
-        </button>
-      </div>
-    </motion.div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-outline btn-sm"
+                style={{ width: 'auto', padding: '0 12px', gap: 4, display: 'flex', alignItems: 'center' }}
+                disabled={cur === 0}
+                onClick={() => setPhase(cur - 1)}
+              >
+                <IcBack size={15} />
+                Fase anterior
+              </button>
+              <button
+                className="btn btn-brand btn-sm"
+                style={{ width: 'auto', padding: '0 12px', gap: 4, display: 'flex', alignItems: 'center' }}
+                disabled={cur >= n - 1}
+                onClick={() => setPhase(cur + 1)}
+              >
+                Siguiente fase
+                <IcChevron size={15} />
+              </button>
+            </div>
+          </motion.div>
+        )
+      })}
+    </>
   )
 }
 
@@ -189,15 +174,11 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
       {products.map((p) => {
         const entry = PEPTIDES[p.product]
         const accentColor = entry ? CATEGORY_COLOR[entry.cat] : 'var(--brand-700)'
-        const isActive = state.activeProduct === p.product
         return (
           <div key={p.product} className="card" style={{ borderLeft: `3px solid ${accentColor}` }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div style={{ minWidth: 0 }}>
-                <div className="body" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {p.product}
-                  {isActive && <span className="sm" style={{ color: accentColor, fontWeight: 600 }}>· activo</span>}
-                </div>
+                <div className="body" style={{ fontWeight: 600 }}>{p.product}</div>
                 <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>
                   {cadenceLabel(p.cadence)}
                 </div>
@@ -223,15 +204,6 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
               >
                 Editar protocolo
               </button>
-              {!isActive && (
-                <button
-                  className="btn btn-outline btn-sm"
-                  style={{ width: 'auto', padding: '0 12px' }}
-                  onClick={() => dispatch({ t: 'setActiveProduct', product: p.product })}
-                >
-                  Hacer activo
-                </button>
-              )}
               <button
                 className="btn btn-ghost btn-sm"
                 style={{ width: 'auto', padding: '0 12px', marginLeft: 'auto', color: 'var(--error)' }}
@@ -290,12 +262,15 @@ export function Progreso() {
   const { state, dispatch } = useApp()
   const [view, setView] = useState<'cal' | 'avances'>('cal')
   const [pickerOpen, setPickerOpen] = useState(false)
-  const protocol = state.protocol
 
   function pick(product: string) {
+    // solo-agregar: todos los productos quedan activos a la vez. Para quitar → botón "Quitar" (con confirmación).
+    if (state.protocols[product]) {
+      dispatch({ t: 'toast', msg: `${product} ya está en seguimiento` })
+      return
+    }
     dispatch({ t: 'setProtocol', product })
-    dispatch({ t: 'toast', msg: `Protocolo: ${product}` })
-    setPickerOpen(false)
+    dispatch({ t: 'toast', msg: `${product} agregado` })
   }
 
   const ProductPicker = (
@@ -314,7 +289,7 @@ export function Progreso() {
                 key={name}
                 label={name}
                 color={CATEGORY_COLOR[PEPTIDES[name].cat]}
-                active={protocol?.product === name}
+                active={!!state.protocols[name]}
                 onClick={() => pick(name)}
               />
             ))}
@@ -358,8 +333,8 @@ export function Progreso() {
                 ProductPicker={ProductPicker}
               />
 
-              {/* Fases de titulación (del producto activo) */}
-              {protocol && <TitrationPhases />}
+              {/* Fases de titulación — una por cada producto con titulación activa */}
+              <TitrationPhasesAll />
 
               {/* Calculadora de reconstitución — siempre visible */}
               <ReconstitutionButton />

@@ -14,20 +14,22 @@ export function TodayDoses() {
   const prods = dayProducts(state, today)
   if (prods.length === 0) return null
 
-  const [hh, mm] = (state.protocol?.reminderTime ?? '08:00').split(':').map(Number)
-  const dueAt = new Date(today)
-  dueAt.setHours(hh || 0, mm || 0, 0, 0)
-  const ts = dueAt.getTime()
+  // ts de la toma a la hora reminderTime DE ESE producto (cada uno puede tener la suya)
+  function tsFor(product: string): number {
+    const rt = state.protocols[product]?.reminderTime || state.protocol?.reminderTime || '08:00'
+    const [hh, mm] = rt.split(':').map(Number)
+    const at = new Date(today)
+    at.setHours(hh || 0, mm || 0, 0, 0)
+    return at.getTime()
+  }
 
   function markDone(product: string) {
     const dose = doseForProduct(state, product)
-    if (dose) dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts })
+    if (dose) dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: tsFor(product) })
     else dispatch({ t: 'sheet', sheet: 'registrar', arg: product }) // sin dosis aún → abre en ESE producto
   }
   function undo(product: string) {
-    const item = loggedItemsForDay(state, today).find(
-      (it) => it.type === 'dose' && (it.product === product || (it.product == null && product === state.protocol?.product)),
-    )
+    const item = loggedItemsForDay(state, today).find((it) => it.type === 'dose' && it.product === product)
     if (item) dispatch({ t: 'deleteLog', id: item.id })
   }
 

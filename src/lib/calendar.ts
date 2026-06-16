@@ -13,13 +13,10 @@ export function dayProducts(s: AppState, d: Date): string[] {
   return productsOnDay(d, trackedProtocols(s))
 }
 
-// ¿se registró una dosis de ESTE producto ese día?
-// La dosis legado (sin producto) solo cuenta para el producto principal — no para todos (evita doble conteo).
+// ¿se registró una dosis de ESTE producto ese día? (las dosis legado ya se estamparon en hydrate)
 export function doseTakenOnProduct(s: AppState, d: Date, product: string): boolean {
   const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
-  return !!g?.items.some(
-    (it) => it.type === 'dose' && (it.product === product || (it.product == null && product === s.protocol?.product)),
-  )
+  return !!g?.items.some((it) => it.type === 'dose' && it.product === product)
 }
 
 // hora de la toma ese día según el reminderTime DE ESE producto (cada uno puede tener el suyo)
@@ -48,9 +45,9 @@ export function loggedItemsForDay(s: AppState, d: Date) {
   return s.log.find((x) => x.dateKey === isoKey(d.getTime()))?.items ?? []
 }
 
-// fase de titulación a la que cae una fecha (null si no aplica) — por días de calendario (DST-safe)
-export function phaseForDate(s: AppState, d: Date): number | null {
-  const p = s.protocol
+// fase de titulación a la que cae una fecha para un PRODUCTO (null si no aplica) — DST-safe
+export function phaseForDate(s: AppState, d: Date, product?: string): number | null {
+  const p = product ? s.protocols[product] : s.protocol
   if (!p?.progOn) return null
   const phaseWeeks = PEPTIDES[p.product]?.phaseWeeks
   if (!phaseWeeks) return null

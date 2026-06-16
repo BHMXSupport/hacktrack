@@ -274,7 +274,11 @@ export function Ajustes() {
                 <span className="row-label" style={{ color: hasProtocol ? undefined : 'var(--ink-300)' }}>
                   Hora del recordatorio
                 </span>
-                {!hasProtocol && (
+                {hasProtocol ? (
+                  <span className="row-sub" style={{ color: 'var(--ink-400)' }}>
+                    Aplica a todas tus tomas
+                  </span>
+                ) : (
                   <span className="row-sub" style={{ color: 'var(--ink-300)', fontStyle: 'italic' }}>
                     Configura un protocolo primero
                   </span>

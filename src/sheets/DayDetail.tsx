@@ -12,9 +12,10 @@ import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
-// Construye el ts de registro para una toma del día 'd' a la hora reminderTime
-function doseTsForDay(state: ReturnType<typeof useApp>['state'], d: Date): number {
-  const [hh, mm] = (state.protocol?.reminderTime ?? '08:00').split(':').map(Number)
+// Construye el ts de registro para una toma del día 'd' a la hora reminderTime DEL producto
+function doseTsForDay(state: ReturnType<typeof useApp>['state'], d: Date, product?: string): number {
+  const rt = (product && state.protocols[product]?.reminderTime) || state.protocol?.reminderTime || '08:00'
+  const [hh, mm] = rt.split(':').map(Number)
   const at = new Date(d)
   at.setHours(hh ?? 0, mm ?? 0, 0, 0)
   return at.getTime()
@@ -41,12 +42,16 @@ export function DayDetail() {
 
   const prods = dayProducts(state, d)
   const items = loggedItemsForDay(state, d)
-  const phase = phaseForDate(state, d)
+  // fase de titulación POR producto ese día (cada producto puede estar en una fase distinta)
+  const phases = prods
+    .map((p) => {
+      const phase = phaseForDate(state, d, p)
+      return phase == null ? null : { product: p, phase, dose: state.protocols[p]?.phaseDoses?.[phase] }
+    })
+    .filter((x): x is { product: string; phase: number; dose: number | null | undefined } => x != null)
 
-  // ¿ya pasó la hora de toma de este día? (para distinguir "Pendiente" de "Programada")
-  const [rh, rm] = (state.protocol?.reminderTime ?? '08:00').split(':').map(Number)
-  const dueAt = new Date(d); dueAt.setHours(rh || 0, rm || 0, 0, 0)
-  const pastDue = now.getTime() > dueAt.getTime()
+  // ¿ya pasó la hora de toma de este día para UN producto? (cada producto tiene su hora)
+  const isPastDue = (product: string) => now.getTime() > doseTsForDay(state, d, product)
 
   const isEmpty = prods.length === 0 && items.length === 0
 
@@ -56,13 +61,13 @@ export function DayDetail() {
 
   // 1-tap: registra dosis a la hora reminderTime del día
   function handleQuickLog(product: string) {
-    const ts = doseTsForDay(state, d)
+    const ts = doseTsForDay(state, d, product)
     dispatch({ t: 'logDose', product, value: null, unit: 'mg', ts })
   }
 
-  // Registrar con detalle — abre el sheet de registro
-  function handleDetailLog() {
-    dispatch({ t: 'sheet', sheet: 'registrar' })
+  // Registrar con detalle — abre el sheet de registro EN ese producto
+  function handleDetailLog(product: string) {
+    dispatch({ t: 'sheet', sheet: 'registrar', arg: product })
   }
 
   // Borrar registro — delega a confirm-delete
@@ -101,7 +106,7 @@ export function DayDetail() {
               {prods.map((product, idx) => {
                 const taken = doseTakenOnProduct(state, d, product)
                 const catColor = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--ink-300)'
-                const missed = !taken && pastDue
+                const missed = !taken && isPastDue(product)
                 const showActions = !taken && isPastOrToday
 
                 return (
@@ -160,7 +165,7 @@ export function DayDetail() {
                         <button
                           className="btn btn-outline btn-sm"
                           style={{ flex: 1, height: 40, fontSize: 14, borderRadius: 'var(--r-sm)' }}
-                          onClick={handleDetailLog}
+                          onClick={() => handleDetailLog(product)}
                         >
                           Con detalle
                         </button>
@@ -173,31 +178,31 @@ export function DayDetail() {
           </section>
         )}
 
-        {/* ── § 2 FASE DE TITULACIÓN ────────────────────────────────────── */}
-        {phase !== null && (
+        {/* ── § 2 FASE DE TITULACIÓN (por producto) ─────────────────────── */}
+        {phases.length > 0 && (
           <section>
             <p className="label" style={{ marginBottom: 8 }}>Fase de titulación</p>
-            <div style={{
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--r-lg)',
-              padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              boxShadow: 'var(--e2)',
-            }}>
-              <GlyphCircle name="cat-metabolismo" color="var(--brand-500)" size={18} box={36} />
-              <div style={{ flex: 1 }}>
-                <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>
-                  Fase {phase + 1}
-                </span>
-                {state.protocol?.phaseDoses?.[phase] != null && (
-                  <span className="sm" style={{ marginLeft: 8, color: 'var(--ink-400)' }}>
-                    {state.protocol.phaseDoses[phase]} mg
-                  </span>
-                )}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {phases.map(({ product, phase, dose }) => (
+                <div key={product} style={{
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--r-lg)',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  boxShadow: 'var(--e2)',
+                }}>
+                  <GlyphCircle name="cat-metabolismo" color="var(--brand-500)" size={18} box={36} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{product}</span>
+                    <span className="sm" style={{ marginLeft: 8, color: 'var(--ink-400)' }}>
+                      Fase {phase + 1}{dose != null ? ` · ${dose} mg` : ''}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}

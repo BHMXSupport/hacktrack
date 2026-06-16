@@ -81,8 +81,9 @@ export type Action =
   | { t: 'pickGoal'; cat: Category }                                   // P0-4
   | { t: 'setProtocol'; product: string }
   | { t: 'setCadence'; cadence: UserCadence }                          // P0-3
-  | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar el protocolo ACTIVO (tunear)
-  | { t: 'setActiveProduct'; product: string }                        // enfocar un producto (para editarlo)
+  | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar el protocolo en foco de edición
+  | { t: 'updateProtocolFor'; product: string; patch: Partial<UserProtocol> } // editar un producto específico
+  | { t: 'setActiveProduct'; product: string }                        // foco de edición (interno, no "activo" visible)
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number } // P0-1
@@ -205,7 +206,19 @@ export function hydrate(s: AppState): AppState {
     }
   }
   const activeProduct = s.activeProduct ?? s.protocol?.product ?? Object.keys(protocols)[0] ?? null
-  return syncActive({ ...s, protocols, activeProduct })
+
+  // Estampa las dosis legado (sin producto) con un producto estable, una sola vez (idempotente).
+  // Así el match es EXACTO en toda la app y no se reatribuyen al cambiar el foco de edición.
+  let log = s.log
+  const anchor = s.protocol?.product ?? activeProduct
+  if (anchor && s.log.some((g) => g.items.some((it) => it.type === 'dose' && it.product == null))) {
+    log = s.log.map((g) => ({
+      ...g,
+      items: g.items.map((it) => (it.type === 'dose' && it.product == null ? { ...it, product: anchor } : it)),
+    }))
+  }
+
+  return syncActive({ ...s, protocols, log, activeProduct })
 }
 
 // ── reducer ──────────────────────────────────────────────────────────────────
@@ -254,10 +267,16 @@ export function reducer(s: AppState, a: Action): AppState {
         ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], cadence: a.cadence } } })
         : s
 
-    // tunear el protocolo ACTIVO (cadencia, fases, fechas, etc.)
+    // tunear el protocolo en foco de edición (cadencia, fases, fechas, etc.)
     case 'updateProtocol':
       return s.activeProduct && s.protocols[s.activeProduct]
         ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], ...a.patch } } })
+        : s
+
+    // tunear un producto específico (p.ej. navegar fases de titulación de ESE producto)
+    case 'updateProtocolFor':
+      return s.protocols[a.product]
+        ? syncActive({ ...s, protocols: { ...s.protocols, [a.product]: { ...s.protocols[a.product], ...a.patch } } })
         : s
 
     case 'importProducts': {
@@ -385,10 +404,13 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, settings: { ...s.settings, [a.key]: a.value } }
     case 'setName':
       return { ...s, profile: { ...s.profile, name: a.name.trim() || null } }
-    case 'setReminderTime':
-      return s.protocol && /^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)
-        ? { ...s, protocol: { ...s.protocol, reminderTime: a.time } }
-        : s
+    case 'setReminderTime': {
+      // hora global de recordatorio: se aplica a TODOS los productos (todos están activos)
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)) return s
+      const protocols: Record<string, UserProtocol> = {}
+      for (const [name, p] of Object.entries(s.protocols)) protocols[name] = { ...p, reminderTime: a.time }
+      return syncActive({ ...s, protocols })
+    }
     case 'setScale':
       return { ...s, scale: a.scale }
     case 'setDraftDose':
@@ -449,7 +471,6 @@ function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseT
   const tracked = trackedProtocols(s)
   const today = startOfDay(new Date(s.todayTs))
   const todayKey = isoKey(today.getTime())
-  const mainProduct = s.protocol?.product
 
   const todayMs = today.getTime()
   const fromDay = startOfDay(new Date(fromMs)).getTime()
@@ -472,10 +493,7 @@ function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseT
       if (!diaTocaCadence(d, t.cadence, new Date(tStart))) continue
       const dKey = isoKey(ms)
       const g = s.log.find((x) => x.dateKey === dKey)
-      // dosis null (legado) solo cuenta para el producto principal, no para todos
-      const took = !!g?.items.some(
-        (it) => it.type === 'dose' && (it.product === t.product || (it.product == null && t.product === mainProduct)),
-      )
+      const took = !!g?.items.some((it) => it.type === 'dose' && it.product === t.product)
       const past = dKey === todayKey ? todayPassed : ms < todayMs
       if (took) taken++
       else if (past) missed++

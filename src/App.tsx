@@ -1,6 +1,7 @@
 import { useReducer, useEffect } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
-import { AppContext, reducer, initialState, useApp, nextDoseAt, isoKey, hydrate } from './lib/store'
+import { AppContext, reducer, initialState, useApp, hydrate } from './lib/store'
+import { upcomingDoses, doseTakenOnProduct } from './lib/calendar'
 import type { AppState } from './lib/store'
 import { startOfDay } from './lib/cadence'
 import { notifPermission, showReminder } from './lib/notifications'
@@ -173,25 +174,21 @@ export function App() {
     document.documentElement.setAttribute('data-theme', state.settings.darkMode ? 'dark' : 'light')
   }, [state.settings.darkMode])
 
-  // recordatorio local de la próxima toma (con la app abierta)
+  // recordatorio local de la próxima toma (con la app abierta) — entre TODOS los productos activos
   useEffect(() => {
     if (!state.settings.remindersEnabled || notifPermission() !== 'granted') return
     const now = new Date()
-    const at = nextDoseAt(state, now)
-    if (!at) return
-    // si la próxima toma es hoy y ya registraste una dosis hoy, no recordar
-    const todayKey = isoKey(now.getTime())
-    const loggedToday = state.log.find((g) => g.dateKey === todayKey)?.items.some((it) => it.type === 'dose')
-    if (isoKey(at.getTime()) === todayKey && loggedToday) return
-    const delay = at.getTime() - now.getTime()
+    // primera toma futura que aún NO se ha registrado, de cualquier producto
+    const next = upcomingDoses(state, now, 16).find((u) => !doseTakenOnProduct(state, u.date, u.product))
+    if (!next) return
+    const delay = next.date.getTime() - now.getTime()
     if (delay <= 0 || delay > 24 * 86400000) return
-    const product = state.protocol?.product ?? 'tu dosis'
     const timer = window.setTimeout(() => {
-      void showReminder('Es hora de tu registro', `Es hora de tu registro de ${product} de hoy.`)
+      void showReminder('Es hora de tu registro', `Es hora de tu registro de ${next.product} de hoy.`)
     }, delay)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.settings.remindersEnabled, state.protocol?.reminderTime, state.protocol?.cadence, state.protocol?.startDate, state.protocol?.product, state.log, state.todayTs])
+  }, [state.settings.remindersEnabled, state.protocols, state.log, state.todayTs])
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
