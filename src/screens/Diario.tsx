@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { Chip, Segmented, Disclaimer } from '../components/controls'
 import { dayLabel } from '../lib/cadence'
-import { MON, WD, MEASURE_ICON } from '../lib/catalog'
+import { MON, WD, MEASURE_ICON, CATEGORY_COLOR } from '../lib/catalog'
 import { Glyph } from '../components/glyphs'
+import { EmptyState } from '../components/EmptyState'
 import type { LogItem } from '../lib/types'
 
 // etiqueta humana del grupo a partir de su clave de fecha estable
@@ -220,29 +221,16 @@ export function Diario() {
       {/* estado vacío */}
       <AnimatePresence mode="wait">
         {isEmpty ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '48px 24px',
-              gap: 12,
-              textAlign: 'center',
-            }}
-          >
-            <Glyph name="medidas" color="var(--ink-300)" size={40} />
-            <p className="body" style={{ color: 'var(--ink-400)', maxWidth: 240 }}>
-              {typeFilter === 'todo'
-                ? 'Aún no hay registros. Toca + para empezar.'
-                : typeFilter === 'dose'
-                ? 'Sin dosis en este rango. Toca + para registrar.'
-                : 'Sin medidas en este rango. Toca + para registrar.'}
-            </p>
+          <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <EmptyState
+              glyph={typeFilter === 'dose' ? 'hidratacion' : 'medidas'}
+              color={state.curGoal ? CATEGORY_COLOR[state.curGoal] : 'var(--brand-700)'}
+              title={typeFilter === 'todo' ? 'Tu diario está vacío' : typeFilter === 'dose' ? 'Sin dosis en este rango' : 'Sin medidas en este rango'}
+              subtitle={typeFilter === 'todo'
+                ? 'Cada dosis y medida que registres aparecerá aquí, en orden.'
+                : 'Cambia el rango o registra algo nuevo.'}
+              cta={{ label: typeFilter === 'medida' ? 'Registrar medida' : 'Registrar dosis', onClick: () => dispatch({ t: 'sheet', sheet: typeFilter === 'medida' ? 'medida' : 'registrar' }) }}
+            />
           </motion.div>
         ) : (
           /* timeline */
