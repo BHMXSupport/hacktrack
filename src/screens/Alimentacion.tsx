@@ -429,7 +429,7 @@ export function Alimentacion() {
 
   return (
     <div className="scroll has-nav">
-      <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '20px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '44px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <motion.h1 variants={staggerItem} className="h1" style={{ margin: 0 }}>Alimentación</motion.h1>
 
         {/* ── Strip de hidratación (#356 tamaño de vaso configurable) ── */}
@@ -1080,13 +1080,13 @@ export function Alimentacion() {
             <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700, display: 'block', marginBottom: 8 }}>Señales de calidad</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {pStreak >= 3 && (
-                <span className="chip sm" style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--success)', border: '1px solid var(--success)', fontWeight: 700 }}>
-                  🥩 {pStreak} días cumpliendo meta de proteína
+                <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '5px 11px', borderRadius: 14, whiteSpace: 'normal', lineHeight: 1.3, background: 'color-mix(in srgb, var(--success) 12%, transparent)', color: 'var(--success)', border: '1px solid var(--success)', fontWeight: 700 }}>
+                  🥩 {pStreak} días en meta de proteína
                 </span>
               )}
               {diversity.unique >= 5 && (
-                <span className="chip sm" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)', border: '1px solid var(--brand-300)', fontWeight: 700 }}>
-                  🌿 {diversity.unique} alimentos distintos esta semana ({diversity.level} variedad)
+                <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '5px 11px', borderRadius: 14, whiteSpace: 'normal', lineHeight: 1.3, background: 'var(--brand-100)', color: 'var(--brand-700)', border: '1px solid var(--brand-300)', fontWeight: 700 }}>
+                  🌿 {diversity.unique} alimentos distintos · {diversity.level} variedad
                 </span>
               )}
             </div>
