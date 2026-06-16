@@ -2,6 +2,7 @@
 import { createContext, useContext } from 'react'
 import type {
   Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample, Meal, FoodFav, InjectionSite, ThemeMode, ProductReconEntry,
+  SavedRecon, AdverseSeverity,
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
@@ -58,6 +59,17 @@ export interface AppState {
   toast: string | null
   toastUndoId: string | null   // id del log a deshacer desde el toast (ej. dosis recién registrada)
   deletedLogBuffer: LogItem | null  // buffer de 1 item para deshacer borrado
+
+  // ── Nuevos campos (aditivos, retrocompatibles) ──────────────────────────────
+  calcDraft: { vialStr: string; aguaStr: string; dosisStr: string; unit: string } | null  // estado efímero de la calculadora
+  savedRecons: SavedRecon[]                       // reconstituciones guardadas por el usuario
+  measureGoals: Record<string, number>            // meta por medida (p.ej. { 'Peso': 75 })
+  measureReminders: Record<string, number>        // recordatorio de medida: intervalDays por nombre
+  productAliases: Record<string, string>          // alias personalizado por producto (p.ej. { 'BPC 157': 'Mi BPC' })
+  fastStartTs: number | null                      // epoch ms en que empezó el ayuno activo; null = sin ayuno
+  showFirstDoseCelebration: boolean               // dispara la animación de primera dosis
+  achievements: string[]                          // ids de logros desbloqueados
+  dayNotes: Record<string, string>                // nota diaria por dateKey 'YYYY-MM-DD'
 }
 
 export const initialState: AppState = {
@@ -106,6 +118,15 @@ export const initialState: AppState = {
   toast: null,
   toastUndoId: null,
   deletedLogBuffer: null,
+  calcDraft: null,
+  savedRecons: [],
+  measureGoals: {},
+  measureReminders: {},
+  productAliases: {},
+  fastStartTs: null,
+  showFirstDoseCelebration: false,
+  achievements: [],
+  dayNotes: {},
 }
 
 export type Action =
@@ -161,6 +182,24 @@ export type Action =
   | { t: 'undoDeleteLog' }
   | { t: 'clearDeletedLogBuffer' }
   | { t: 'setKpiOrder'; order: string[] }                             // n=146: orden y selección de KPIs (hasta 4)
+  // ── Nuevas acciones (aditivas) ─────────────────────────────────────────────
+  | { t: 'editLog'; id: string; patch: { value?: number | null; unit?: string | null; doseMg?: number | null; note?: string | null } }
+  | { t: 'setCalcDraft'; draft: AppState['calcDraft'] }
+  | { t: 'saveRecon'; entry: Omit<SavedRecon, 'id'> }
+  | { t: 'deleteRecon'; id: string }
+  | { t: 'setMeasureGoal'; name: string; value: number | null }
+  | { t: 'setMeasureReminder'; name: string; intervalDays: number | null }
+  | { t: 'setProductAlias'; product: string; alias: string | null }
+  | { t: 'startFast' }
+  | { t: 'endFast' }
+  | { t: 'setVialStock'; product: string; totalMg: number; openedAt?: number }
+  | { t: 'setPurchase'; product: string; purchasedMg: number; purchasedAt: number; cost?: number | null }
+  | { t: 'logAdverseEffect'; product?: string; severity: AdverseSeverity; description: string; ts?: number }
+  | { t: 'archiveProtocol'; product: string }
+  | { t: 'reactivateProtocol'; product: string }
+  | { t: 'dismissFirstDoseCelebration' }
+  | { t: 'unlockAchievement'; id: string }
+  | { t: 'setDayNote'; dateKey: string; text: string }
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 let _seq = 0
@@ -514,9 +553,27 @@ export function reducer(s: AppState, a: Action): AppState {
         ...(rawNote ? { note: rawNote } : {}),        // loop 138: nota opcional
         ...(a.effect ? { effect: a.effect } : {}),    // loop 139: efecto opcional
       }
-      return {
+      // Si el protocolo tiene stock de vial, descontar la dosis (inmutable)
+      const proto = s.protocols[a.product]
+      const updatedProtocols =
+        proto?.vialStock && (a.doseMg ?? 0) > 0
+          ? {
+              ...s.protocols,
+              [a.product]: {
+                ...proto,
+                vialStock: {
+                  ...proto.vialStock,
+                  usedMg: proto.vialStock.usedMg + (a.doseMg ?? 0),
+                },
+              },
+            }
+          : s.protocols
+      // Primera dosis: activar celebración
+      const wasLogged = s.logged
+      return syncActive({
         ...s,
         log: prependToLog(s.log, item),
+        protocols: updatedProtocols,
         // recuerda la dosis tecleada por producto (alimenta "tus dosis de hoy")
         productDoses: a.value != null ? { ...s.productDoses, [a.product]: { value: a.value, unit: a.unit } } : s.productDoses,
         // recuerda la reconstitución del producto (para pre-llenar y para "hecho hoy" en UI/mL).
@@ -532,11 +589,13 @@ export function reducer(s: AppState, a: Action): AppState {
         // loop 140: actualiza el último sitio de inyección por producto
         lastInjectionSite: a.site ? { ...s.lastInjectionSite, [a.product]: a.site } : s.lastInjectionSite,
         logged: true,
+        // primera dosis: disparar celebración
+        showFirstDoseCelebration: !wasLogged ? true : s.showFirstDoseCelebration,
         // keepSheet=true: el llamador maneja el cierre del sheet (p.ej. DoseConfirm mostrando paso de efecto)
         sheet: a.keepSheet ? s.sheet : null,
         toast: 'Dosis registrada',
         toastUndoId: item.id, // permite "Deshacer" desde el toast
-      }
+      })
     }
 
     // loop 139: guarda el efecto post-dosis en un item ya registrado (p.ej. desde el mini-sheet de ¿Cómo te sientes?)
@@ -747,6 +806,188 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'setKpiOrder':
       return { ...s, kpiOrder: a.order.slice(0, 4) }
 
+    // ── Nuevas acciones ────────────────────────────────────────────────────────
+
+    // editLog: muta un LogItem existente por id sin cambiar id/ts.
+    // Si es una dosis y value!=null, también actualiza productDoses[product].
+    case 'editLog': {
+      let updatedProductDoses = s.productDoses
+      const log = s.log.map((g) => ({
+        ...g,
+        items: g.items.map((it) => {
+          if (it.id !== a.id) return it
+          const patched: LogItem = { ...it }
+          if (a.patch.value !== undefined) patched.value = a.patch.value
+          if (a.patch.unit !== undefined) patched.unit = a.patch.unit
+          if (a.patch.doseMg !== undefined) patched.doseMg = a.patch.doseMg ?? undefined
+          if (a.patch.note !== undefined) patched.note = a.patch.note ?? undefined
+          // si es dosis y cambió el value, actualiza la dosis recordada por producto (unidad nueva o la actual)
+          if (it.type === 'dose' && it.product && a.patch.value != null) {
+            const unit = a.patch.unit ?? s.productDoses[it.product]?.unit ?? it.unit ?? ''
+            updatedProductDoses = { ...updatedProductDoses, [it.product]: { value: a.patch.value, unit } }
+          }
+          return patched
+        }),
+      }))
+      return { ...s, log, productDoses: updatedProductDoses }
+    }
+
+    case 'setCalcDraft':
+      return { ...s, calcDraft: a.draft }
+
+    // saveRecon: agrega o fusiona (por label) una reconstitución guardada
+    case 'saveRecon': {
+      const idx = s.savedRecons.findIndex((r) => r.label.toLowerCase() === a.entry.label.toLowerCase())
+      const entry: SavedRecon = { id: idx >= 0 ? s.savedRecons[idx].id : genId(), ...a.entry }
+      const savedRecons = idx >= 0
+        ? s.savedRecons.map((r, i) => (i === idx ? entry : r))
+        : [...s.savedRecons, entry]
+      return { ...s, savedRecons }
+    }
+
+    case 'deleteRecon':
+      return { ...s, savedRecons: s.savedRecons.filter((r) => r.id !== a.id) }
+
+    // setMeasureGoal: establece o elimina la meta de una medida
+    case 'setMeasureGoal': {
+      const measureGoals = { ...s.measureGoals }
+      if (a.value == null) delete measureGoals[a.name]
+      else measureGoals[a.name] = a.value
+      return { ...s, measureGoals }
+    }
+
+    // setMeasureReminder: establece o elimina el recordatorio de una medida (intervalo en días)
+    case 'setMeasureReminder': {
+      const measureReminders = { ...s.measureReminders }
+      if (a.intervalDays == null) delete measureReminders[a.name]
+      else measureReminders[a.name] = a.intervalDays
+      return { ...s, measureReminders }
+    }
+
+    // setProductAlias: alias personalizado por producto; null = elimina el alias
+    case 'setProductAlias': {
+      const productAliases = { ...s.productAliases }
+      if (a.alias == null) delete productAliases[a.product]
+      else productAliases[a.product] = a.alias
+      return { ...s, productAliases }
+    }
+
+    // startFast: inicia un ayuno marcando el timestamp actual
+    case 'startFast':
+      return { ...s, fastStartTs: Date.now() }
+
+    // endFast: inserta un LogItem type:'ayuno' con la duración en horas y limpia fastStartTs
+    case 'endFast': {
+      if (s.fastStartTs == null) return s
+      const now = new Date()
+      const durH = parseFloat(((now.getTime() - s.fastStartTs) / 3600000).toFixed(2))
+      const item: LogItem = {
+        id: genId(),
+        t: fmtTime(now),
+        n: 'Ayuno completado',
+        u: `${durH} h`,
+        cat: '#6366F1',
+        ic: 'ayuno',
+        type: 'ayuno',
+        ts: now.getTime(),
+        value: durH,
+        unit: 'h',
+      }
+      return {
+        ...s,
+        log: prependToLog(s.log, item),
+        fastStartTs: null,
+        toast: `Ayuno de ${durH} h registrado`,
+        toastUndoId: item.id,
+      }
+    }
+
+    // setVialStock: actualiza o inicializa el stock del vial de un producto
+    case 'setVialStock': {
+      const proto = s.protocols[a.product]
+      if (!proto) return s
+      return syncActive({
+        ...s,
+        protocols: {
+          ...s.protocols,
+          [a.product]: {
+            ...proto,
+            vialStock: { totalMg: a.totalMg, usedMg: proto.vialStock?.usedMg ?? 0, ...(a.openedAt != null ? { openedAt: a.openedAt } : {}) },
+          },
+        },
+      })
+    }
+
+    // setPurchase: registra datos de compra en el protocolo del producto
+    case 'setPurchase': {
+      const proto = s.protocols[a.product]
+      if (!proto) return s
+      return syncActive({
+        ...s,
+        protocols: {
+          ...s.protocols,
+          [a.product]: {
+            ...proto,
+            purchasedMg: a.purchasedMg,
+            purchasedAt: a.purchasedAt,
+            ...(a.cost != null ? { purchaseCost: a.cost } : {}),
+          },
+        },
+      })
+    }
+
+    // logAdverseEffect: inserta un LogItem type:'efecto-adverso' con severity y descripción
+    case 'logAdverseEffect': {
+      const now = a.ts ? new Date(a.ts) : new Date()
+      const item: LogItem = {
+        id: genId(),
+        t: fmtTime(now),
+        n: 'Efecto adverso',
+        u: a.description,
+        cat: '#EF4444',
+        ic: 'efecto-adverso',
+        type: 'efecto-adverso',
+        ts: now.getTime(),
+        severity: a.severity,
+        ...(a.product ? { product: a.product } : {}),
+        note: a.description,
+      }
+      return {
+        ...s,
+        log: prependToLog(s.log, item),
+        toast: 'Efecto adverso registrado',
+        toastUndoId: item.id,
+      }
+    }
+
+    // archiveProtocol / reactivateProtocol: oculta o restaura un protocolo del flujo activo
+    case 'archiveProtocol': {
+      const proto = s.protocols[a.product]
+      if (!proto) return s
+      return syncActive({
+        ...s,
+        protocols: { ...s.protocols, [a.product]: { ...proto, archived: true, archivedAt: Date.now() } },
+      })
+    }
+    case 'reactivateProtocol': {
+      const proto = s.protocols[a.product]
+      if (!proto) return s
+      return syncActive({
+        ...s,
+        protocols: { ...s.protocols, [a.product]: { ...proto, archived: false, archivedAt: null } },
+      })
+    }
+
+    case 'dismissFirstDoseCelebration':
+      return { ...s, showFirstDoseCelebration: false }
+
+    // unlockAchievement: añade el id al array si no está ya
+    case 'unlockAchievement':
+      return s.achievements.includes(a.id) ? s : { ...s, achievements: [...s.achievements, a.id] }
+
+    case 'setDayNote':
+      return { ...s, dayNotes: { ...s.dayNotes, [a.dateKey]: a.text } }
+
     default:
       return s
   }
@@ -874,7 +1115,7 @@ export function doseForProduct(s: AppState, product: string): { value: number; u
 // Cada producto tiene su PROPIO protocolo editable (cadencia, inicio/fin, hora, fases).
 export interface Tracked { product: string; cadence: UserCadence; start: Date; end: number | null; reminderTime: string }
 export function trackedProtocols(s: AppState): Tracked[] {
-  return Object.values(s.protocols).map((p) => ({
+  return Object.values(s.protocols).filter((p) => !p.archived).map((p) => ({
     product: p.product,
     cadence: p.cadence,
     start: new Date(p.startDate),

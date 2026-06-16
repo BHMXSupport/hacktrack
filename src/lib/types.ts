@@ -51,6 +51,9 @@ export interface Profile {
   sexo?: Sexo | null       // H|M (para TDEE)
   actividad?: Actividad | null // nivel de actividad (para TDEE)
   metaPesoKg?: number | null   // peso objetivo (para proyección)
+  email?: string | null        // dirección de correo del usuario
+  avatarDataUrl?: string | null // data URL del avatar (opcional, se guarda fuera del estado persistido si es grande)
+  metaFechaMs?: number | null  // fecha objetivo para alcanzar metaPesoKg (epoch ms)
 }
 
 // muestra histórica de una medida/KPI (para el dashboard de progreso)
@@ -83,7 +86,20 @@ export interface FoodFav {
   defaultMultiplier?: number           // porción aprendida
 }
 
-export type LogItemType = 'dose' | 'medida' | 'none' | 'skip'
+export type LogItemType = 'dose' | 'medida' | 'none' | 'skip' | 'efecto-adverso' | 'ayuno'
+
+export type AdverseSeverity = 'leve' | 'moderado' | 'severo'
+export type UnitSystem = 'metric' | 'imperial'
+export type FontScale = 'sm' | 'md' | 'lg'
+export type AppLang = 'es' | 'en'
+
+export interface SavedRecon {
+  id: string
+  label: string
+  vialMg: number
+  aguaMl: number
+  createdAt: number
+}
 
 export type RangeFilter = 7 | 30 | 90 | 'all'
 
@@ -110,6 +126,10 @@ export interface LogItem {
   site?: InjectionSite // sitio de inyección elegido por el usuario (loop 140)
   note?: string    // nota libre del usuario (≤120 chars) — dato observacional, no consejo médico (loop 138)
   effect?: string  // efecto/síntoma auto-observado post-dosis (dato personal del usuario, no claim de eficacia) (loop 139)
+  value?: number | null        // valor numérico asociado (p.ej. duración de ayuno en horas, score adverso)
+  unit?: string | null         // unidad del value (p.ej. 'h', 'mg')
+  severity?: AdverseSeverity   // severidad de efecto adverso (solo type='efecto-adverso')
+  photoUrl?: string | null     // URL de foto adjunta (opcional)
 }
 
 export interface LogGroup {
@@ -143,6 +163,12 @@ export interface UserProtocol {
   startDate: number    // epoch ms — cuándo empieza el protocolo
   endDate?: number | null // epoch ms — cuándo termina (opcional; null = indefinido)
   reminderTime: string // 'HH:MM' hora del recordatorio/toma (para cuenta regresiva)
+  vialStock?: { totalMg: number; usedMg: number; openedAt?: number } | null  // stock del vial abierto (mg)
+  purchaseCost?: number | null      // costo de compra del último lote (en la moneda del usuario)
+  purchasedMg?: number | null       // mg comprados en el último lote
+  purchasedAt?: number | null       // epoch ms de la fecha de compra del último lote
+  archived?: boolean                // protocolo archivado (oculto del flujo activo, conservado en historial)
+  archivedAt?: number | null        // epoch ms en que se archivó
 }
 
 // ── Reconstitución de vial con fecha de mezcla (loop 166/167) ────────────────
@@ -173,6 +199,13 @@ export interface UserSettings {
   consentVersion: string
   consentActive: boolean
   premium: boolean            // suscripción Plus (gating de Alimentación + Resumen premium)
+  unitSystem?: UnitSystem     // sistema de unidades: 'metric' (default) | 'imperial'
+  fontScale?: FontScale       // escala de fuente: 'sm' | 'md' (default) | 'lg'
+  lang?: AppLang              // idioma de la app: 'es' (default) | 'en'
+  avatarColor?: string | null // color de fondo del avatar generado (hex)
+  trialEndsAt?: number | null // epoch ms en que expira el período de prueba Premium
+  pinHash?: string | null     // hash del PIN (SHA-256 hex); null = sin PIN configurado
+  secondReminderMin?: number | null // minutos antes de la siguiente toma para el segundo recordatorio; null = desactivado
 }
 
 export type Sexo = 'H' | 'M'
