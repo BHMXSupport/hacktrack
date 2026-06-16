@@ -4,7 +4,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { buildPharmaSeries, fmtMg, type Mode } from '../lib/pharma'
+import { buildPharmaSeries, fmtMg, isBiphasic, type Mode } from '../lib/pharma'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -163,6 +163,13 @@ export function PharmaDashboard() {
             )
           })}
         </div>
+
+        {/* Micro-ayuda: los GLP-1 suben antes de llegar a su punto máximo */}
+        {data.series.some((s) => isBiphasic(s.product)) && (
+          <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 12, lineHeight: 1.4 }}>
+            Los GLP-1 tardan 1–3 días en llegar a su punto máximo: la curva sube tras la inyección, no arranca en el pico.
+          </div>
+        )}
 
         {/* Productos sin vida media (no graficables) */}
         {data.skipped.length > 0 && (

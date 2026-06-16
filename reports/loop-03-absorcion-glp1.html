@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hacktrack · Loop 03 — Absorción bifásica GLP-1</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--dim:#64748b;
+    --mint:#5eead4;--good:#34d399;--bad:#f87171;--warn:#fbbf24;--line:#334155;--r:14px}
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0f172a,#0b1220);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;padding:32px 18px 80px}
+  .wrap{max-width:880px;margin:0 auto}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:-.5px}
+  .sub{color:var(--mut);margin:0 0 4px}
+  .meta{color:var(--dim);font-size:13px;font-family:'JetBrains Mono',monospace;margin-bottom:28px}
+  h2{font-size:19px;margin:34px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:14px}
+  ul{margin:6px 0;padding-left:20px}li{margin:5px 0}
+  code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;
+    font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--mint)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  td.n{font-family:'JetBrains Mono',monospace;color:var(--mint);text-align:right}
+  .pill{display:inline-block;font-size:12px;font-family:'JetBrains Mono',monospace;padding:2px 9px;border-radius:999px;border:1px solid var(--line)}
+  .ship{color:var(--good);border-color:#14532d;background:#052e1a}
+  .files li{font-family:'JetBrains Mono',monospace;font-size:13px}
+  .mod{color:var(--warn)}
+  .kpi{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0}
+  .kpi div{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:10px 16px}
+  .kpi b{display:block;font-size:22px;color:var(--mint);font-family:'JetBrains Mono',monospace}
+  .kpi span{font-size:12px;color:var(--mut)}
+  .foot{color:var(--dim);font-size:12px;margin-top:30px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hacktrack · Loop 03</h1>
+  <p class="sub"><strong>Absorción bifásica para GLP-1</strong> — la curva sube antes de llegar al pico</p>
+  <p class="meta">equipo multiagente · investigador PK + analista + diseñador/UX · red-team Codex (1 bug, corregido) + self-audit numérico · commit en ~/hacktrack</p>
+
+  <div class="kpi">
+    <div><b>3</b><span>GLP-1 con absorción</span></div>
+    <div><b>1</b><span>bug red-team corregido</span></div>
+    <div><b>0</b><span>cambios a péptidos cortos</span></div>
+  </div>
+
+  <h2>Problema</h2>
+  <div class="card">
+    El modelo previo asumía pico instantáneo en la inyección. Para los <strong>GLP-1 de acción prolongada</strong> eso es incorrecto: la absorción subcutánea tarda <strong>1–3 días</strong> en llegar al máximo. El usuario podía creer que ya tenía efecto a las pocas horas.
+  </div>
+
+  <h2>Solución — modelo de un compartimento con absorción de 1er orden</h2>
+  <div class="card">
+    <p><code>A(t) = value · (ka/(ka−ke)) · (e^(−ke·τ) − e^(−ka·τ))</code>, &nbsp;τ = t − ts − tlag</p>
+    <p>Solo para GLP-1 (resto sigue instantáneo). Parámetros clínicos del investigador PK, verificados numéricamente:</p>
+    <table>
+      <tr><th>Producto</th><th>t½ elim (h)</th><th>t½ abs (h)</th><th>lag (h)</th><th>tmax</th></tr>
+      <tr><td>Semaglutida</td><td class="n">165</td><td class="n">15</td><td class="n">8</td><td class="n">~2.7 d</td></tr>
+      <tr><td>Tirzepatida</td><td class="n">120</td><td class="n">12</td><td class="n">6</td><td class="n">~2.1 d</td></tr>
+      <tr><td>Retatrutide</td><td class="n">155</td><td class="n">16</td><td class="n">8</td><td class="n">~2.8 d</td></tr>
+    </table>
+    <p style="color:var(--mut);font-size:13px;margin-top:10px">El marcador de inyección queda en la base (presencia 0) y la curva sube sola → separación visual clara sin elementos extra (decisión de diseño). Micro-ayuda: <em>"Los GLP-1 tardan 1–3 días en llegar a su punto máximo…"</em></p>
+  </div>
+
+  <h2>Red-team Codex + self-audit</h2>
+  <div class="card">
+    <ul>
+      <li><span class="pill ship">self-audit</span> Verificación numérica: curva sube→baja, presencia 0 en la inyección, superposición aditiva correcta, sin NaN, guard ka≈ke seguro.</li>
+      <li><span class="pill ship">Codex · fix</span> <code>peakOf</code> podía subestimar el pico combinado de dosis GLP-1 superpuestas → valores &gt;100% en el chart. Corregido: el pico también toma el máx sobre la línea muestreada (incluye breakpoints en lag y tmax). <code>presenceNow</code> capado a 100%.</li>
+      <li><span class="pill ship">cumplimiento</span> Parámetros de literatura clínica; copy puramente descriptivo de farmacocinética; disclaimers presentes. Sin dosificación.</li>
+    </ul>
+  </div>
+
+  <h2>Archivos</h2>
+  <div class="card files">
+    <ul>
+      <li><span class="mod">~ mod</span> &nbsp;src/lib/pharma.ts <span style="color:var(--mut)">— BIPHASIC, contribution(), tmaxOffsetMs(), peakOf(), amountAt(product), breakpoints</span></li>
+      <li><span class="mod">~ mod</span> &nbsp;src/components/PharmaDashboard.tsx <span style="color:var(--mut)">— micro-ayuda GLP-1</span></li>
+    </ul>
+  </div>
+
+  <p class="foot">Loop 03 · equipo multiagente de Hacktrack · idea diferida del Loop 02, ya implementada.</p>
+</div>
+</body>
+</html>

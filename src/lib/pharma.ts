@@ -84,14 +84,58 @@ export function collectDosesByProduct(s: AppState): Map<string, Dose[]> {
 
 const THRESHOLD = 1e-5 // bajo esto (relativo al pico) → 0, evita artefactos de punto flotante
 
+// Absorción BIFÁSICA (lag + absorción sc) — SOLO GLP-1 de acción prolongada. El resto = instantáneo.
+// Parámetros clínicos (investigador PK): tmax resultante cae en el rango sc reportado.
+export const BIPHASIC: Record<string, { tHalfAbsH: number; tLagH: number }> = {
+  'Semaglutida': { tHalfAbsH: 15, tLagH: 8 },
+  'Tirzepatida': { tHalfAbsH: 12, tLagH: 6 },
+  'Retatrutide': { tHalfAbsH: 16, tLagH: 8 },
+}
+export const isBiphasic = (product: string): boolean => product in BIPHASIC
+
+// contribución de UNA dosis a la cantidad presente, dt ms después de la inyección.
+// Instantáneo: value·0.5^(dt/t½). Bifásico: un compartimento con absorción de 1er orden.
+function contribution(product: string, value: number, dtMs: number, halfMs: number): number {
+  if (dtMs < 0) return 0
+  const b = BIPHASIC[product]
+  if (!b) return value * Math.pow(0.5, dtMs / halfMs)
+  const ke = Math.LN2 / halfMs
+  let ka = Math.LN2 / (b.tHalfAbsH * H)
+  const tau = dtMs - b.tLagH * H
+  if (tau <= 0) return 0
+  if (Math.abs(ka - ke) < 1e-12) ka = ke * 1.0001 // guard ka≈ke (singularidad)
+  return value * (ka / (ka - ke)) * (Math.exp(-ke * tau) - Math.exp(-ka * tau))
+}
+
+// offset (ms) del pico tras la inyección: 0 para instantáneo, tlag+ln(ka/ke)/(ka−ke) para bifásico
+function tmaxOffsetMs(product: string, halfMs: number): number {
+  const b = BIPHASIC[product]
+  if (!b) return 0
+  const ke = Math.LN2 / halfMs
+  const ka = Math.LN2 / (b.tHalfAbsH * H)
+  if (Math.abs(ka - ke) < 1e-12) return b.tLagH * H + 1 / ke
+  return b.tLagH * H + Math.log(ka / ke) / (ka - ke)
+}
+
 // mg presentes de un producto en el instante t = superposición de sus dosis pasadas
-function amountAt(doses: Dose[], halfMs: number, t: number): number {
+function amountAt(doses: Dose[], product: string, halfMs: number, t: number): number {
   let a = 0
   for (const d of doses) {
     if (d.ts > t) continue
-    a += d.value * Math.pow(0.5, (t - d.ts) / halfMs)
+    a += contribution(product, d.value, t - d.ts, halfMs)
   }
   return a
+}
+
+// pico de mg del producto = máx en los instantes analíticos de pico (ts y ts+tmax), con superposición
+function peakOf(doses: Dose[], product: string, halfMs: number): number {
+  const off = tmaxOffsetMs(product, halfMs)
+  let peak = 0
+  for (const d of doses) {
+    peak = Math.max(peak, amountAt(doses, product, halfMs, d.ts))
+    if (off > 0) peak = Math.max(peak, amountAt(doses, product, halfMs, d.ts + off))
+  }
+  return peak
 }
 
 export interface BuildOpts { now: number; windowMs: number; mode: Mode }
@@ -117,22 +161,24 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
   const sampleTs = new Set<number>()
   for (let i = 0; i < N; i++) sampleTs.add(domainX[0] + ((domainX[1] - domainX[0]) * i) / (N - 1))
   for (const r of rawSeries) {
+    const off = tmaxOffsetMs(r.product, r.halfMs) // bifásico: añade subida (ts+tlag) y pico (ts+tmax)
+    const lagMs = BIPHASIC[r.product] ? BIPHASIC[r.product].tLagH * H : 0
     for (const d of r.doses) {
-      if (d.ts >= domainX[0] && d.ts <= domainX[1]) {
-        sampleTs.add(d.ts)
-        sampleTs.add(Math.max(domainX[0], d.ts - 1)) // justo antes → rampa casi vertical
+      for (const bp of [d.ts - 1, d.ts, d.ts + lagMs, d.ts + off]) {
+        if (bp >= domainX[0] && bp <= domainX[1]) sampleTs.add(bp)
       }
     }
   }
   const ts = [...sampleTs].sort((a, b) => a - b)
 
-  // pico de cada producto = máx mg en historial (incluye instantes de inyección, dentro o fuera de ventana)
+  // pico de cada producto = máx mg en instantes analíticos de pico (ts y ts+tmax), con superposición
   const series: PharmaSeries[] = []
   let maxMg = 0
   for (const r of rawSeries) {
-    let peakMg = 0
-    for (const d of r.doses) peakMg = Math.max(peakMg, amountAt(r.doses, r.halfMs, d.ts))
-    for (const t of ts) peakMg = Math.max(peakMg, amountAt(r.doses, r.halfMs, t))
+    // pico = máx de los instantes analíticos (peakOf) Y de la línea muestreada (captura el pico
+    // combinado de dosis superpuestas que cae entre instantes — fix red-team: evita % > 100)
+    let peakMg = peakOf(r.doses, r.product, r.halfMs)
+    for (const t of ts) peakMg = Math.max(peakMg, amountAt(r.doses, r.product, r.halfMs, t))
     if (peakMg <= 0) continue
     maxMg = Math.max(maxMg, peakMg)
 
@@ -141,10 +187,10 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
       const v = mode === 'percent' ? (mg / peakMg) * 100 : mg
       return Math.abs(v) < THRESHOLD * (mode === 'percent' ? 100 : peakMg) ? 0 : v
     }
-    const points: Pt[] = ts.map((t) => [t, toY(amountAt(r.doses, r.halfMs, t))])
+    const points: Pt[] = ts.map((t) => [t, toY(amountAt(r.doses, r.product, r.halfMs, t))])
     const markers: Pt[] = r.doses
       .filter((d) => d.ts >= domainX[0] && d.ts <= domainX[1])
-      .map((d) => [d.ts, toY(amountAt(r.doses, r.halfMs, d.ts))])
+      .map((d) => [d.ts, toY(amountAt(r.doses, r.product, r.halfMs, d.ts))])
 
     series.push({
       product: r.product,
@@ -152,7 +198,7 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
       halfLifeH: r.halfLifeH,
       points,
       markers,
-      currentMg: amountAt(r.doses, r.halfMs, now),
+      currentMg: amountAt(r.doses, r.product, r.halfMs, now),
       peakMg,
     })
   }
@@ -175,13 +221,12 @@ export function presenceNow(s: AppState, now: number): Presence[] {
     const halfLifeH = HALF_LIFE_H[product]
     if (halfLifeH == null) continue
     const halfMs = halfLifeH * H
-    const currentMg = amountAt(doses, halfMs, now)
+    const currentMg = amountAt(doses, product, halfMs, now)
     if (currentMg <= 0) continue
-    let peakMg = 0
-    for (const d of doses) peakMg = Math.max(peakMg, amountAt(doses, halfMs, d.ts))
+    const peakMg = peakOf(doses, product, halfMs)
     if (peakMg <= 0) continue
     const color = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
-    out.push({ product, color, currentMg, pct: (currentMg / peakMg) * 100 })
+    out.push({ product, color, currentMg, pct: Math.min(100, (currentMg / peakMg) * 100) })
   }
   return out.sort((a, b) => b.pct - a.pct)
 }
