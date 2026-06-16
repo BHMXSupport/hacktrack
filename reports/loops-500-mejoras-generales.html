@@ -1,0 +1,100 @@
+<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hacktrack · 500 loops de mejora</title>
+<style>:root{--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--dim:#64748b;--mint:#5eead4;--good:#34d399;--bad:#f87171;--warn:#fbbf24;--line:#334155}
+body{margin:0;background:linear-gradient(160deg,#0f172a,#0b1220);color:var(--ink);font:15px/1.6 -apple-system,Inter,sans-serif;padding:32px 18px 80px}
+.w{max-width:920px;margin:0 auto}h1{font-size:28px;margin:0 0 2px}.s{color:var(--mut);margin:0 0 4px}.m{color:var(--dim);font-size:13px;font-family:'JetBrains Mono',monospace;margin-bottom:24px}
+h2{font-size:18px;margin:30px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line)}.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px}
+ul{margin:6px 0;padding-left:20px}li{margin:5px 0}code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--mint)}
+.k{background:#0b1220;border:1px solid #2a6;border-radius:12px;padding:14px 16px;margin:10px 0}.k b{color:var(--mint)}
+.p{display:inline-block;font-size:11px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:999px;border:1px solid #14532d;background:#052e1a;color:var(--good)}
+.pp{border-color:#713f12;background:#2a1f08;color:var(--warn)}.pf{border-color:#7f1d1d;background:#2a0a0a;color:var(--bad)}
+.f li{font-family:'JetBrains Mono',monospace;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0}
+.stat{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:12px 14px;text-align:center}
+.stat b{display:block;font-size:24px;color:var(--mint);font-family:'JetBrains Mono',monospace}.stat span{font-size:12px;color:var(--mut)}
+h3{font-size:14px;color:var(--mint);margin:0 0 6px;font-family:'JetBrains Mono',monospace}</style></head>
+<body><div class="w">
+<h1>Hacktrack · 500 loops de mejora general</h1><p class="s"><b>Pase exhaustivo de mejora sobre las 13 secciones de la app</b></p>
+<p class="m">descubrimiento: 40 agentes expertos + auditor-usuario → backlog de 500 · implementación: olas paralelas (Workflow) sobre grupos de archivos disjuntos · base store/types consolidada · verificación por commit: build TS + ghost-vars + red-team Codex + revalidación de catálogo</p>
+
+<div class="grid">
+<div class="stat"><b>500</b><span>loops completados</span></div>
+<div class="stat"><b>20</b><span>commits (set 500)</span></div>
+<div class="stat"><b>69</b><span>archivos tocados</span></div>
+<div class="stat"><b>14</b><span>archivos nuevos</span></div>
+<div class="stat"><b>0</b><span>ghost-vars (todo el repo)</span></div>
+<div class="stat"><b>✓</b><span>build TS estricto</span></div>
+</div>
+
+<div class="k"><b>Cómo se hizo:</b> un panel de descubrimiento (diseño, motion, nutriólogo, PK, código, UX + un <b>auditor que actúa como usuario real</b> — "qué agregar / qué sería más fácil") generó un backlog priorizado de 500. La implementación corrió en <b>olas paralelas</b> donde cada agente posee un <b>grupo de archivos disjunto</b> (sin conflictos), precedidas de una <b>base de <code>store.ts</code>/<code>types.ts</code> consolidada</b> que desbloqueó la UI en paralelo. Cada commit pasó build + chequeo de ghost-vars + red-team de Codex + revalidación del catálogo antes de mergearse.</div>
+
+<h2>Lo construido — por sección</h2>
+
+<div class="c"><h3>Onboarding</h3><ul>
+<li>Flujo nuevo: <b>multi-objetivo</b> (hasta 3) → <b>Baseline biométrico</b> → <b>selector de métricas</b> → Account con <b>consentimiento LFPDPPP expreso + modo local sin cuenta</b> → <b>Welcome</b> de celebración.</li>
+<li>Barra de progreso segmentada, pantalla <code>Forgot</code>, Import multi-fase (config de fecha/última dosis → arregla <code>startDate</code>/fase), slides con KPIs reales + mock de UI, fuerza de contraseña y validación de email.</li>
+</ul></div>
+
+<div class="c"><h3>Inicio</h3><ul>
+<li>StreakChip + rachas por producto, <b>CycleStatusCard</b> on/off, tira semanal que distingue descanso de incompleto, SparkBar de 8 semanas.</li>
+<li><span class="p">honesto</span> modo <b>"No hoy (intencional)"</b>: el skip no penaliza la adherencia (la toma real siempre gana sobre el skip).</li>
+<li><b>Sitio de inyección con rotación sugerida</b>, registro enriquecido (nota + efecto/síntoma observacional), <b>vial reconstituido</b> (nivel + caducidad), <b>modo oscuro Auto/Claro/Oscuro</b>, heat-map del calendario, marcar dosis desde la Agenda, AdherenceRing con arco de racha, FAB con badge, Sheet con drag-to-dismiss.</li>
+</ul></div>
+
+<div class="c"><h3>Diario</h3><ul>
+<li>Undo de borrado, editar hora, backfill, búsqueda incremental, rangos 90d/Todo, panel de stats del período, fix DST, swipe-to-delete, agrupar por semana, skeleton.</li>
+<li>Sparkline + badge de tendencia en medidas, chips de racha/adherencia, fase de titulación inline, <b>barra de presencia farmacológica</b>, días off, separadores de gaps, <b>export CSV/Web Share</b>, aria-live, coach marks, render de tipos nuevos (efecto-adverso/ayuno).</li>
+</ul></div>
+
+<div class="c"><h3>Protocolo</h3><ul>
+<li>Fecha de inicio y dosis por fase editables, <b>gestionar + reordenar KPIs</b>, KpiCard con chart inline + rango, <b>comparar 2 medidas</b> y 2 semanas, FAB medida rápida, deeplink fase→medidas.</li>
+<li>AdherenceBar con color semántico + estado no-solo-color, antes/durante/Δ por producto, racha semanal, <b>proyección de adherencia 80%</b>, alerta de dosis perdida, "marcar todo", aviso de doble dosis.</li>
+</ul></div>
+
+<div class="c"><h3>Cuerpo / Farmacocinética</h3><ul>
+<li><span class="p">PK</span> 10 helpers puros: <code>nextDoseWindow</code>, <code>thresholdCrossTs</code>, <code>aucRatios</code>, <code>dosingRegularityCV</code>, <code>timeToSteadyState</code>, <code>fluctuationIndex</code>, <code>doseIntervals</code>, <code>aucStabilityHint</code>, <code>coPresenceWindows</code>, <code>mgPerKg</code> (estimaciones educativas, guards contra vacío/div0).</li>
+<li>Panel <b>"Análisis avanzado (educativo)"</b>, badge de acumulación, pill "Próxima dosis en ~X h", zona de washout sombreada, línea de cruce 25%, tooltips educativos en las refLines.</li>
+</ul></div>
+
+<div class="c"><h3>Comida</h3><ul>
+<li>17 helpers nutricionales (chip TDEE, ventana de ayuno, macro %/stack, calidad proteica, recientes-7d, CSV/share), <b>editar comida inline + nota</b> con undo, MacroStackBar, alertas de distribución.</li>
+</ul></div>
+
+<div class="c"><h3>Recetario</h3><ul>
+<li>Stepper de porciones (recalcula macros), filtros por tiempo/proteína/sin-gluten/sin-lácteos, <b>comparador lado a lado</b>, donut de macros, partir de una receta, <code>search.ts</code> con fuzzy.</li>
+<li><span class="p">datos</span> catálogo siempre <b>0 huérfanos</b> y sin drift de macros (revalidado en cada commit que tocó datos).</li>
+</ul></div>
+
+<div class="c"><h3>Resumen · Sheets · Ajustes · Shared</h3><ul>
+<li><b>Exportar/importar</b> JSON + CSV, sistema de unidades, PIN, stock + costo por producto, <b>avatar</b> con foto/color, completitud de perfil, prueba gratis 7d, 2º recordatorio de rescate, alias privados de productos, re-consentimiento ARCO, escala tipográfica.</li>
+<li>Paywall con prueba social, precio/día y comparativa honesta; PremiumGate con CTA contextual; <code>App.tsx</code> con lazy + Suspense; glyphs nuevos; tooltip de decaimiento en ActiveNowChips.</li>
+</ul></div>
+
+<h2>Base de store/types (consolidada antes de la UI)</h2>
+<div class="c"><ul>
+<li><b>+9 campos de <code>AppState</code></b> (calcDraft, savedRecons, measureGoals/Reminders, productAliases, fastStartTs, showFirstDoseCelebration, achievements, dayNotes) — todos con defaults y retrocompatibles.</li>
+<li><b>+24 campos opcionales</b> en LogItem / UserSettings / Profile / UserProtocol + tipos nuevos (SavedRecon, AdverseSeverity, UnitSystem, FontScale, AppLang).</li>
+<li><b>+19 acciones</b> (editLog, editMeal, recon, measureGoal/Reminder, alias, fast, vialStock, purchase, adverse, archive, celebration, achievement, dayNote…). <code>logDose</code> descuenta del vial y dispara la celebración de primera dosis.</li>
+</ul></div>
+
+<h2>Red-team Codex — bugs reales atrapados antes de commitear</h2>
+<div class="c"><ul>
+<li><span class="pf">fix</span> <code>syncActive</code> faltaba en mutaciones de <code>protocols</code> (vial/archivado) → caché <code>state.protocol</code> obsoleta.</li>
+<li><span class="pf">fix</span> precedencia <b>skip vs dosis</b> en adherencia: un día con skip <i>y</i> toma real perdía la toma del cómputo (3 archivos).</li>
+<li><span class="pf">fix</span> <b>undo global de borrado</b> roto por centinela <code>__undo_delete__</code> (ruteado en el Toast de App).</li>
+<li><span class="pf">fix</span> ~8 violaciones de <b>orden de hooks</b> (charts, TodayDoses), fuga de timers de long-press, retrocompat de estado viejo, payloads de acción inválidos, glyph <code>trash</code> ausente (papelera caía al fallback).</li>
+</ul></div>
+
+<h2>Cumplimiento</h2>
+<div class="c"><ul>
+<li>Todo lo nuevo es <b>observacional/educativo</b>: efectos/síntomas = "dato personal, no promesa de resultado"; PK = "estimación educativa, no concentración real ni consejo médico"; sin dosificación prescrita, sin causalidad, sin antes/después.</li>
+<li>Consentimiento LFPDPPP expreso y modo local-first (privacy-first) en el onboarding.</li>
+</ul></div>
+
+<h2>Diferido honestamente (nativo / fuera del prototipo PWA)</h2>
+<div class="c"><ul>
+<li><span class="pp">nativo</span> Push real con service-worker + VAPID, báscula <b>Web Bluetooth</b>, cámara con storage a escala, PDF server-side, <b>i18n bilingüe completo</b> (scaffold creado), sync con Drive, Face ID.</li>
+<li>La síntesis del backlog produjo duplicados (la misma feature pedida 4–6×); se consolidaron, no se re-implementaron.</li>
+</ul></div>
+
+<p style="color:var(--dim);font-size:12px;margin-top:18px">Verificación: <code>npm run build</code> verde, cero ghost-vars en todo el código, catálogo con 157 recetas y 0 huérfanos, dev server en localhost:5173. Todo commiteado en <code>~/hacktrack</code> (autor Jan Sieger). Precede a este pase el set de 100 loops de pulido (reports loop-01…14).</p>
+</div></body></html>
