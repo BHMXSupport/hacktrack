@@ -100,8 +100,12 @@ export const BIPHASIC: Record<string, { tHalfAbsH: number; tLagH: number }> = {
 }
 export const isBiphasic = (product: string): boolean => product in BIPHASIC
 
-// contribución de UNA dosis a la cantidad presente, dt ms después de la inyección.
-// Instantáneo: value·0.5^(dt/t½). Bifásico: un compartimento con absorción de 1er orden.
+// contribución de UNA dosis a la CANTIDAD TOTAL EN EL CUERPO, dt ms después de la inyección.
+// Instantáneo: value·0.5^(dt/t½).
+// Bifásico (GLP-1 sc): cantidad total = depósito sc (aún sin absorber) + circulante. Empieza en la
+// dosis completa (recién inyectada NO es 0) y baja lento por la eliminación. Durante el lag, toda la
+// dosis está en el depósito (en el cuerpo); tras el lag, el depósito decae (ka) y lo circulante se
+// elimina (ke). Así "presente ahora" coincide con que acabas de inyectarte.
 function contribution(product: string, value: number, dtMs: number, halfMs: number): number {
   if (dtMs < 0) return 0
   const b = BIPHASIC[product]
@@ -109,19 +113,17 @@ function contribution(product: string, value: number, dtMs: number, halfMs: numb
   const ke = Math.LN2 / halfMs
   let ka = Math.LN2 / (b.tHalfAbsH * H)
   const tau = dtMs - b.tLagH * H
-  if (tau <= 0) return 0
+  if (tau <= 0) return value // dosis íntegra en el depósito sc → en el cuerpo
   if (Math.abs(ka - ke) < 1e-12) ka = ke * 1.0001 // guard ka≈ke (singularidad)
-  return value * (ka / (ka - ke)) * (Math.exp(-ke * tau) - Math.exp(-ka * tau))
+  const depot = value * Math.exp(-ka * tau)
+  const central = value * (ka / (ka - ke)) * (Math.exp(-ke * tau) - Math.exp(-ka * tau))
+  return depot + central // monótona decreciente desde la dosis
 }
 
-// offset (ms) del pico tras la inyección: 0 para instantáneo, tlag+ln(ka/ke)/(ka−ke) para bifásico
-function tmaxOffsetMs(product: string, halfMs: number): number {
-  const b = BIPHASIC[product]
-  if (!b) return 0
-  const ke = Math.LN2 / halfMs
-  const ka = Math.LN2 / (b.tHalfAbsH * H)
-  if (Math.abs(ka - ke) < 1e-12) return b.tLagH * H + 1 / ke
-  return b.tLagH * H + Math.log(ka / ke) / (ka - ke)
+// offset (ms) del pico tras la inyección. Con el modelo de cantidad total el máximo está en la propia
+// inyección (meseta del depósito); el "hombro" (fin del lag) se muestrea aparte. Firma estable para el muestreo.
+function tmaxOffsetMs(_product: string, _halfMs: number): number {
+  return 0
 }
 
 // mg presentes de un producto en el instante t = superposición de sus dosis pasadas

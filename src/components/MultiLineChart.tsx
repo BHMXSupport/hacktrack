@@ -142,17 +142,39 @@ export function MultiLineChart({
       )}
 
       {/* series */}
-      {series.map((s) => {
+      {series.map((s, si) => {
         const px = s.points.map((p) => [sx(p[0]), sy(p[1])] as [number, number])
         const nowY = valueAt(s.points, nowTs)
         const showNowDot = nowY != null && nowTs >= x0 && nowTs <= x1
+        const baseY = PAD.t + plotH
+        const gid = `pharmaFill${si}`
+        const areaD = px.length ? `${linePath(px)} L ${px[px.length - 1][0].toFixed(1)} ${baseY} L ${px[0][0].toFixed(1)} ${baseY} Z` : ''
         return (
           <g key={s.product}>
+            {/* relleno de área (suave) para distinguir cada curva */}
+            {areaD && (
+              <>
+                <defs>
+                  <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={s.color} stopOpacity={0.18} />
+                    <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <motion.path
+                  d={areaD}
+                  fill={`url(#${gid})`}
+                  stroke="none"
+                  initial={reduce ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: dur.base, delay: reduce ? 0 : dur.draw * 0.5 }}
+                />
+              </>
+            )}
             <motion.path
               d={linePath(px)}
               fill="none"
               stroke={s.color}
-              strokeWidth={2.25}
+              strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
               initial={reduce ? false : { pathLength: 0 }}

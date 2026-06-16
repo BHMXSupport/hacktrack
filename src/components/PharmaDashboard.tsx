@@ -4,13 +4,22 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { buildPharmaSeries, fmtApproxMg, isBiphasic, type Mode } from '../lib/pharma'
+import { buildPharmaSeries, fmtApproxMg, HALF_LIFE_H, type Mode } from '../lib/pharma'
+import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
 import { staggerParent, staggerItem } from '../lib/motion'
 
 type Win = '24h' | '72h' | '7d'
 const WIN_MS: Record<Win, number> = { '24h': 24 * 3_600_000, '72h': 72 * 3_600_000, '7d': 7 * 86_400_000 }
+
+// Notas educativas por producto (se muestran SOLO debajo del producto al que aplican y cuando está activo)
+const GLP1 = new Set(['Retatrutide', 'Tirzepatida', 'Semaglutida'])
+const NOTE = {
+  glp1: 'Vida media larga (~varios días): la curva arranca alta y baja lento; sigue presente días después de la inyección.',
+  slu: 'Sin farmacocinética humana publicada — su curva es una estimación de referencia, no un dato clínico.',
+  nohl: 'Sin vida media de eliminación estándar — no se grafica su decaimiento.',
+}
 
 export function PharmaDashboard() {
   const { state, dispatch } = useApp()
@@ -99,6 +108,25 @@ export function PharmaDashboard() {
       </motion.div>
     )
   }
+
+  // Notas por producto: solo de los productos ACTIVOS (en la gráfica, consumidos sin t½, o en protocolo)
+  const noteProducts = (() => {
+    const set = new Set<string>()
+    data.series.forEach((s) => set.add(s.product))
+    data.skipped.forEach((p) => set.add(p))
+    Object.keys(state.protocols).forEach((p) => set.add(p))
+    const out: { product: string; color: string; text: string }[] = []
+    for (const p of set) {
+      let text: string | null = null
+      if (HALF_LIFE_H[p] == null) text = NOTE.nohl
+      else if (GLP1.has(p)) text = NOTE.glp1
+      else if (p === 'SLU-PP-332') text = NOTE.slu
+      if (!text) continue
+      const color = data.series.find((s) => s.product === p)?.color ?? CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
+      out.push({ product: p, color, text })
+    }
+    return out
+  })()
 
   return (
     <motion.div variants={staggerParent} initial="initial" animate="animate">
@@ -202,17 +230,15 @@ export function PharmaDashboard() {
           )
         })()}
 
-        {/* Micro-ayuda: los GLP-1 suben antes de llegar a su punto máximo */}
-        {data.series.some((s) => isBiphasic(s.product)) && (
-          <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 12, lineHeight: 1.4 }}>
-            Los GLP-1 tardan 1–3 días en llegar a su punto máximo: la curva sube tras la inyección, no arranca en el pico.
-          </div>
-        )}
-
-        {/* Productos sin vida media (no graficables) */}
-        {data.skipped.length > 0 && (
-          <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 12 }}>
-            {data.skipped.join(', ')}: sin vida media de eliminación estándar — no se grafica.
+        {/* Notas educativas POR PRODUCTO — solo del producto activo al que aplican */}
+        {noteProducts.length > 0 && (
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {noteProducts.map((n) => (
+              <div key={n.product} className="sm" style={{ color: 'var(--ink-400)', lineHeight: 1.4, display: 'flex', gap: 7 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: n.color, flexShrink: 0, marginTop: 5 }} />
+                <span><strong style={{ color: 'var(--ink-700)', fontWeight: 600 }}>{n.product}:</strong> {n.text}</span>
+              </div>
+            ))}
           </div>
         )}
 
