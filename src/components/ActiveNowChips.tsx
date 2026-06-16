@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { presenceNow } from '../lib/pharma'
+import { presenceNow, PRESENCE_FLOOR_PCT } from '../lib/pharma'
 import { staggerItem } from '../lib/motion'
 
 export function ActiveNowChips() {
@@ -15,8 +15,8 @@ export function ActiveNowChips() {
     return () => clearInterval(id)
   }, [])
 
-  // presencia ≥1% para no listar trazas irrelevantes; máximo 4 chips
-  const active = presenceNow(state, now).filter((p) => p.pct >= 1).slice(0, 4)
+  // presencia ≥ piso (% del pico) para no listar trazas irrelevantes; máximo 4 chips
+  const active = presenceNow(state, now).filter((p) => p.pct >= PRESENCE_FLOOR_PCT).slice(0, 4)
   if (active.length === 0) return null
 
   const goToCuerpo = () => {

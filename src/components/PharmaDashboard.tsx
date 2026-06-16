@@ -4,7 +4,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { buildPharmaSeries, fmtMg, isBiphasic, type Mode } from '../lib/pharma'
+import { buildPharmaSeries, fmtApproxMg, isBiphasic, type Mode } from '../lib/pharma'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -158,7 +158,7 @@ export function PharmaDashboard() {
                 type="button"
                 onClick={() => toggle(s.product)}
                 aria-pressed={!off}
-                aria-label={`${s.product}: ${fmtMg(s.currentMg)} ahora`}
+                aria-label={`${s.product}: ${fmtApproxMg(s.currentMg)} ahora`}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 40, padding: '6px 12px',
                   borderRadius: 'var(--r-sm)', cursor: 'pointer', background: 'var(--border)',
@@ -167,7 +167,7 @@ export function PharmaDashboard() {
               >
                 <span style={{ width: 9, height: 9, borderRadius: 999, background: off ? 'var(--ink-300)' : s.color, flexShrink: 0 }} />
                 <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 500 }}>{s.product}</span>
-                <span className="sm mono" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>~{fmtMg(s.currentMg)}</span>
+                <span className="sm mono" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>{fmtApproxMg(s.currentMg)}</span>
               </button>
             )
           })}

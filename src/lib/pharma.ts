@@ -10,20 +10,20 @@ const H = 3_600_000 // ms por hora
 // Vida media de eliminación aproximada (horas). NAD+ se OMITE a propósito:
 // es precursor/metabolito, no modela decaimiento plasmático estándar → se marca como "no graficable".
 export const HALF_LIFE_H: Record<string, number> = {
-  'Retatrutide': 155,
+  'Retatrutide': 144,   // ~6 días (mediana fase 1, Coskun 2022)
   'Tirzepatida': 120,
   'Semaglutida': 165,
   'Tesamorelin': 0.15,
   'MOTS-c': 1,
   '5-Amino-1MQ': 3,
-  'SLU-PP-332': 2,
-  'BPC-157': 2,
+  'SLU-PP-332': 2,      // sin PK humana publicada — estimación; ver disclaimer
+  'BPC-157': 0.5,       // t½ plasmática del péptido intacto ~minutos (sc/iv); 0.5h = cota superior conservadora
   'TB-500': 1.5,
   'GHK-Cu': 0.75,
   'ARA 290': 0.75,
-  'GLOW 70': 1.5,   // blend → t½ representativo del componente de mayor t½ (BPC-157)
-  'KLOW 80': 1.5,   // blend → idem
-  'SS-31': 2.5,
+  'GLOW 70': 1.5,   // blend → t½ representativo del componente de mayor t½ (TB-500)
+  'KLOW 80': 1.5,   // blend → idem (TB-500)
+  'SS-31': 2,
   'L-Glutathione': 0.2,
   'Semax': 0.33,
   'Selank': 0.33,
@@ -252,11 +252,21 @@ export function presenceNow(s: AppState, now: number): Presence[] {
   return out.sort((a, b) => b.pct - a.pct)
 }
 
-// valor "presente ahora" formateado para la leyenda (siempre mg, con ~ de estimación)
+// piso de presencia para considerar un producto "activo ahora" (% del pico). Centraliza el umbral.
+export const PRESENCE_FLOOR_PCT = 2
+
+// mg presentes ahora, formateado. Es dosis-equivalente residual (no nivel en sangre); ver disclaimer.
 export function fmtMg(mg: number): string {
-  if (mg <= 0) return '<0.01 mg'
+  if (mg <= 0) return '0 mg'
   if (mg < 0.01) return '<0.01 mg'
   if (mg < 1) return `${mg.toFixed(2)} mg`
   if (mg < 10) return `${mg.toFixed(1)} mg`
   return `${Math.round(mg)} mg`
+}
+
+// etiqueta con "~" de estimación, salvo trazas (evita el glitch "~<0.01 mg")
+export function fmtApproxMg(mg: number): string {
+  if (mg <= 0) return '0 mg'
+  if (mg < 0.01) return 'trazas'
+  return `~${fmtMg(mg)}`
 }
