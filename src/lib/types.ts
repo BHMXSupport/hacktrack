@@ -85,6 +85,8 @@ export interface FoodFav {
 
 export type LogItemType = 'dose' | 'medida' | 'none' | 'skip'
 
+export type RangeFilter = 7 | 30 | 90 | 'all'
+
 // Sitios de inyección en rotación fija (abdomen → muslo → glúteo, izq → der)
 export type InjectionSite =
   | 'abdomen-izq'

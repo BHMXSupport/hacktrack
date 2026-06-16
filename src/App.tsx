@@ -93,7 +93,9 @@ function Toast() {
               type="button"
               onClick={() => {
                 tapHaptic()
-                dispatch({ t: 'deleteLog', id: state.toastUndoId! })
+                // El undo de un borrado usa centinela "__undo_delete__" → restaura; el de un registro recién creado borra ese registro.
+                if (state.toastUndoId!.startsWith('__undo_delete__')) dispatch({ t: 'undoDeleteLog' })
+                else dispatch({ t: 'deleteLog', id: state.toastUndoId! })
                 dispatch({ t: 'toast', msg: null })
               }}
               style={{ background: 'none', border: 0, color: 'var(--brand-500)', fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: 0, flexShrink: 0 }}

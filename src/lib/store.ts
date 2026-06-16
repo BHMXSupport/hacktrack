@@ -56,6 +56,7 @@ export interface AppState {
   draftDose: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null  // "copiar a mi registro" desde la calc (con reconstitución)
   toast: string | null
   toastUndoId: string | null   // id del log a deshacer desde el toast (ej. dosis recién registrada)
+  deletedLogBuffer: LogItem | null  // buffer de 1 item para deshacer borrado
 }
 
 export const initialState: AppState = {
@@ -103,6 +104,7 @@ export const initialState: AppState = {
   draftDose: null,
   toast: null,
   toastUndoId: null,
+  deletedLogBuffer: null,
 }
 
 export type Action =
@@ -154,6 +156,9 @@ export type Action =
   | { t: 'arcoDelete' }                                               // P0-5
   | { t: 'reset' }                                                    // P1-7
   | { t: 'toast'; msg: string | null }
+  | { t: 'editLogTime'; id: string; ts: number }
+  | { t: 'undoDeleteLog' }
+  | { t: 'clearDeletedLogBuffer' }
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 let _seq = 0
@@ -646,7 +651,52 @@ export function reducer(s: AppState, a: Action): AppState {
         history = {}
         for (const k of Object.keys(s.history)) history[k] = s.history[k].filter((sm) => sm.ts !== deleted!.ts)
       }
-      return { ...s, log, history, logged: log.length > 0, sheet: null, toastUndoId: null }
+      return {
+        ...s,
+        log,
+        history,
+        logged: log.length > 0,
+        sheet: null,
+        deletedLogBuffer: deleted ?? null,
+        toast: deleted ? 'Registro borrado' : s.toast,
+        toastUndoId: deleted ? `__undo_delete__${deleted.id}` : null,
+      }
+    }
+
+    // loop 77/137: deshacer el borrado (re-inserta desde el buffer)
+    case 'undoDeleteLog': {
+      if (!s.deletedLogBuffer) return s
+      return {
+        ...s,
+        log: prependToLog(s.log, s.deletedLogBuffer),
+        logged: true,
+        deletedLogBuffer: null,
+        toast: null,
+        toastUndoId: null,
+      }
+    }
+
+    // limpia el buffer de borrado (tras expirar el timer de 5s)
+    case 'clearDeletedLogBuffer':
+      return { ...s, deletedLogBuffer: null, toast: null, toastUndoId: null }
+
+    // loop 77: editar la hora de un registro existente
+    case 'editLogTime': {
+      const now = new Date(a.ts)
+      // Eliminar de su grupo actual
+      let movedItem: LogItem | undefined
+      let log = s.log.map((g) => {
+        const it = g.items.find((i) => i.id === a.id)
+        if (it) {
+          movedItem = { ...it, ts: a.ts, t: fmtTime(now) }
+          return { ...g, items: g.items.filter((i) => i.id !== a.id) }
+        }
+        return g
+      }).filter((g) => g.items.length > 0)
+      if (!movedItem) return s
+      // Re-insertar en el grupo correcto (puede ser el mismo día u otro)
+      log = prependToLog(log, movedItem)
+      return { ...s, log }
     }
 
     case 'setSetting':
