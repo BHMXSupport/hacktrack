@@ -174,6 +174,16 @@ export function ResumenSemanal() {
           <div style={{ flex: 1 }}><Card title="Calorías"><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{kcalTot >= 1000 ? `${(kcalTot / 1000).toFixed(1)}k` : kcalTot}</div></Card></div>
         </div>
 
+        {/* ── Señales + Tendencias (gratis) ── */}
+        {insights.length > 0 && (
+          <Card title="Señales de la semana">
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {insights.map((s, i) => (<li key={i} className="sm" style={{ color: 'var(--ink-700)', lineHeight: 1.4 }}>{s}</li>))}
+            </ul>
+          </Card>
+        )}
+        <TrendsCard />
+
         {/* ── Perspectivas Plus (premium) ── */}
         <motion.div variants={staggerItem} style={{ marginTop: 8 }}>
           <span className="sm" style={{ textTransform: 'uppercase', letterSpacing: 0.6, color: 'var(--ink-400)' }}>Perspectivas Plus</span>
@@ -291,18 +301,6 @@ export function ResumenSemanal() {
                 )
               })()}
             </Card>
-
-            {/* Tendencias */}
-            <TrendsCard />
-
-            {/* Señales de la semana */}
-            {insights.length > 0 && (
-              <Card title="Señales de la semana">
-                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {insights.map((s, i) => (<li key={i} className="sm" style={{ color: 'var(--ink-700)', lineHeight: 1.4 }}>{s}</li>))}
-                </ul>
-              </Card>
-            )}
 
           </div>
         </PremiumGate>

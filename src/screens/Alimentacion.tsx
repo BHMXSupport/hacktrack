@@ -31,6 +31,7 @@ export function Alimentacion() {
   const [fStr, setFStr] = useState('')
   const [label, setLabel] = useState('')
   const [portion, setPortion] = useState(1)
+  const [manageFav, setManageFav] = useState(false)
   const [goalEdit, setGoalEdit] = useState(false)
   const [editGoals, setEditGoals] = useState(false)
   const goals = state.macroGoals
@@ -106,19 +107,38 @@ export function Alimentacion() {
             </div>
           )}
 
-          {/* Favoritos — registro en 1 toque (con porción) */}
-          {top5.length > 0 && (
+          {/* Favoritos — registro en 1 toque (con porción) + gestión */}
+          {state.foodLibrary.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <span className="sm" style={{ color: 'var(--ink-400)' }}>Tus favoritos</span>
-                <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-                  {PORTIONS.map((p) => (
-                    <button key={p} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 8px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
-                      {p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}`}×
-                    </button>
+                {!manageFav && (
+                  <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                    {PORTIONS.map((p) => (
+                      <button key={p} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 8px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
+                        {p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}`}×
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button className="sm" style={{ marginLeft: manageFav ? 'auto' : 0, background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => setManageFav((v) => !v)}>
+                  {manageFav ? 'Listo' : 'Editar'}
+                </button>
+              </div>
+
+              {manageFav ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {state.foodLibrary.map((f) => (
+                    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input className="field" defaultValue={f.label} onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== f.label) dispatch({ t: 'editFav', id: f.id, patch: { label: v } }) }} style={{ flex: 1 }} />
+                      <input className="field mono" type="number" inputMode="numeric" defaultValue={f.kcal} onBlur={(e) => { const v = parseFloat(e.target.value); if (v > 0 && v !== f.kcal) dispatch({ t: 'editFav', id: f.id, patch: { kcal: Math.round(v) } }) }} style={{ width: 80, textAlign: 'center' }} />
+                      <button aria-label="Eliminar favorito" onClick={() => { tapHaptic(); dispatch({ t: 'delFav', id: f.id }) }} style={{ background: 'none', border: 0, color: 'var(--error)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
+                        <IcClose size={18} />
+                      </button>
+                    </div>
                   ))}
                 </div>
-              </div>
+              ) : (
               <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
                 {top5.map((f) => (
                   <button key={f.id} className="chip" style={{ flexShrink: 0 }} onClick={() => { tapHaptic(); dispatch({ t: 'addFavMeal', id: f.id, portion }) }}>
@@ -126,6 +146,7 @@ export function Alimentacion() {
                   </button>
                 ))}
               </div>
+              )}
             </div>
           )}
 

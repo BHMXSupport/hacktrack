@@ -106,6 +106,7 @@ export type Action =
   | { t: 'addFavMeal'; id: string; portion?: number }                 // registra una comida favorita (1-tap, con porción)
   | { t: 'delMeal'; id: string }                                      // elimina una comida
   | { t: 'delFav'; id: string }                                       // elimina un favorito
+  | { t: 'editFav'; id: string; patch: Partial<FoodFav> }             // edita un favorito (nombre/kcal/macros)
   | { t: 'setMacroGoals'; goals: { protein: number; carbs: number; fat: number } | null } // metas de macros
   | { t: 'setKcalGoal'; value: number | null }                        // meta calórica diaria
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
@@ -329,6 +330,8 @@ export function reducer(s: AppState, a: Action): AppState {
     }
     case 'delFav':
       return { ...s, foodLibrary: s.foodLibrary.filter((f) => f.id !== a.id) }
+    case 'editFav':
+      return { ...s, foodLibrary: s.foodLibrary.map((f) => (f.id === a.id ? { ...f, ...a.patch } : f)) }
     case 'setMacroGoals':
       return { ...s, macroGoals: a.goals }
     case 'setKcalGoal':
