@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hacktrack · Loop 02 — Interacción + presencia</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--dim:#64748b;
+    --mint:#5eead4;--brand:#2dd4bf;--good:#34d399;--bad:#f87171;--warn:#fbbf24;--line:#334155;--r:14px}
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0f172a,#0b1220);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;padding:32px 18px 80px}
+  .wrap{max-width:880px;margin:0 auto}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:-.5px}
+  .sub{color:var(--mut);margin:0 0 4px}
+  .meta{color:var(--dim);font-size:13px;font-family:'JetBrains Mono',monospace;margin-bottom:28px}
+  h2{font-size:19px;margin:34px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:14px}
+  ul{margin:6px 0;padding-left:20px}li{margin:5px 0}
+  code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;
+    font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--mint)}
+  .pill{display:inline-block;font-size:12px;font-family:'JetBrains Mono',monospace;padding:2px 9px;border-radius:999px;border:1px solid var(--line)}
+  .ship{color:var(--good);border-color:#14532d;background:#052e1a}
+  .defer{color:var(--warn);border-color:#713f12;background:#2a1f08}
+  .drop{color:var(--bad);border-color:#7f1d1d;background:#2a1212}
+  .files li{font-family:'JetBrains Mono',monospace;font-size:13px}
+  .new{color:var(--good)}.mod{color:var(--warn)}
+  .kpi{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0}
+  .kpi div{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:10px 16px}
+  .kpi b{display:block;font-size:22px;color:var(--mint);font-family:'JetBrains Mono',monospace}
+  .kpi span{font-size:12px;color:var(--mut)}
+  .foot{color:var(--dim);font-size:12px;margin-top:30px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hacktrack · Loop 02</h1>
+  <p class="sub"><strong>Interacción del chart + presencia en Inicio</strong></p>
+  <p class="meta">equipo multiagente · ideación 5 lentes + síntesis Opus · red-team Codex (sin bugs) + self-audit · commit en ~/hacktrack</p>
+
+  <div class="kpi">
+    <div><b>4</b><span>mejoras enviadas</span></div>
+    <div><b>1</b><span>componente nuevo</span></div>
+    <div><b>0</b><span>bugs red-team</span></div>
+    <div><b>2</b><span>ideas diferidas/descartadas</span></div>
+  </div>
+
+  <h2>Decisiones del equipo (5 propuestas → síntesis)</h2>
+  <div class="card">
+    <ul>
+      <li><span class="pill ship">enviada</span> <b>Tooltip táctil</b> (optimizador de dashboards): toca/arrastra el chart y ves el valor de cada serie en ese instante.</li>
+      <li><span class="pill ship">enviada</span> <b>Punto "ahora" pulsante</b> (diseñador): halo vivo en la presencia actual de cada serie.</li>
+      <li><span class="pill ship">enviada</span> <b>"Activo ahora" en Inicio</b> (UX): chips con % de presencia + deep-link a Cuerpo.</li>
+      <li><span class="pill ship">enviada</span> <b>Línea de referencia 25%</b> (analista, reencuadrada): guía de lectura neutral, sin lenguaje de re-dosis.</li>
+      <li><span class="pill defer">diferida</span> <b>Modelo de absorción bifásico GLP-1</b> (investigador): científicamente valioso pero cambia el modelo core y sólo hay datos para pocos productos → loop futuro.</li>
+      <li><span class="pill drop">descartada</span> <b>"Re-dosis sugerida"</b> (analista): sugerir cuándo re-dosificar = consejo de dosificación → incumplimiento. No se implementa.</li>
+    </ul>
+  </div>
+
+  <h2>Qué se construyó</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Tooltip:</strong> una capa <code>&lt;rect&gt;</code> sobre el plot captura el pointer, mapea <code>clientX → tiempo</code>, interpola cada serie y dibuja guía vertical + puntos + caja con valores. <code>touchAction: pan-y</code> deja scrollear vertical.</li>
+      <li><strong>Pulso "ahora":</strong> <code>motion.circle</code> con halo <code>r:4→9, opacity:0.35→0</code> en loop; respeta <code>prefers-reduced-motion</code>.</li>
+      <li><strong>Activo ahora (Inicio):</strong> <code>presenceNow(state, now)</code> reusa el modelo de decaimiento; chips de productos con presencia ≥1%, tap → <code>setProgresoView('cuerpo')</code> + tab Progreso.</li>
+      <li><strong>Referencia 25%:</strong> línea horizontal punteada neutra (solo en modo %).</li>
+      <li><strong>Vista de Progreso global:</strong> el segmento (Calendario/Avances/Cuerpo) pasó a <code>state.progresoView</code> para permitir el deep-link desde Inicio.</li>
+    </ul>
+  </div>
+
+  <h2>Red-team Codex + self-audit</h2>
+  <div class="card">
+    <ul>
+      <li><span class="pill ship">Codex</span> Sin bugs concretos. <code>tsc --noEmit</code> y build limpios.</li>
+      <li><span class="pill ship">self-audit</span> Mapeo del tooltip exacto: <code>width:100%</code> + viewBox sin alto fijo conserva el ratio (sin letterbox).</li>
+      <li><span class="pill ship">self-audit</span> Pulso ligero (1 círculo/serie) con guard de motion; tooltip cabe; deep-link aplica ambas acciones; <code>presenceNow</code> sin división por cero, pct ≤ 100.</li>
+      <li><span class="pill ship">cumplimiento</span> 25% es referencia neutral; "Activo ahora ~X%" es presencia de datos propios; disclaimers en Cuerpo. Sin consejo de dosis.</li>
+    </ul>
+  </div>
+
+  <h2>Archivos</h2>
+  <div class="card files">
+    <ul>
+      <li><span class="new">+ nuevo</span> &nbsp;src/components/ActiveNowChips.tsx</li>
+      <li><span class="mod">~ mod</span> &nbsp;&nbsp;src/components/MultiLineChart.tsx <span style="color:var(--mut)">— tooltip, pulso, refLines</span></li>
+      <li><span class="mod">~ mod</span> &nbsp;&nbsp;src/components/PharmaDashboard.tsx <span style="color:var(--mut)">— refLine 25%, hint</span></li>
+      <li><span class="mod">~ mod</span> &nbsp;&nbsp;src/lib/pharma.ts <span style="color:var(--mut)">— collectDosesByProduct(), presenceNow()</span></li>
+      <li><span class="mod">~ mod</span> &nbsp;&nbsp;src/screens/Home.tsx, src/screens/Progreso.tsx, src/lib/store.ts</li>
+    </ul>
+  </div>
+
+  <p class="foot">Loop 02 · equipo multiagente de Hacktrack · próximo loop: continúa el ciclo de mejoras con coherencia + red-team + self-audit.</p>
+</div>
+</body>
+</html>

@@ -9,6 +9,7 @@ import { Sparkline } from '../components/charts'
 import { Glyph } from '../components/glyphs'
 import { UserAvatar, TrustChip } from '../components/identity'
 import { TodayDoses } from '../components/TodayDoses'
+import { ActiveNowChips } from '../components/ActiveNowChips'
 import { dayProducts, upcomingDoses } from '../lib/calendar'
 import { startOfDay } from '../lib/cadence'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -138,6 +139,9 @@ export function Home() {
 
         {/* ── 1b. Checklist "Tus dosis de hoy" (1-tap, sin escribir) ──── */}
         <TodayDoses />
+
+        {/* ── 1c. "Activo ahora": péptidos con presencia estimada → Cuerpo ── */}
+        <ActiveNowChips />
 
         {/* ── 2. HÉROE: próxima toma con cuenta regresiva real ────────── */}
         {!state.logged && !hasProtocol && (

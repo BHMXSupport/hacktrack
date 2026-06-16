@@ -1,8 +1,10 @@
 // MultiLineChart — chart SVG multi-serie de decaimiento (sin librerías de charting).
-// Líneas overlay por producto, gridlines suaves, línea "ahora", marcadores de inyección.
-// (Optimizador de dashboards + diseñador del equipo multiagente.)
+// Líneas por producto, gridlines, línea "ahora" con punto pulsante, marcadores de inyección,
+// líneas de referencia y tooltip táctil (valor de cada serie en el instante tocado).
+// (Optimizador de dashboards + diseñador del equipo multiagente — Loop 02.)
+import { useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { dur, ease, spring } from '../lib/motion'
+import { dur, ease } from '../lib/motion'
 import type { Pt } from '../lib/pharma'
 
 export interface ChartSeries {
@@ -18,9 +20,10 @@ interface Props {
   domainY: [number, number]
   nowTs: number
   height?: number
-  yTicks?: number[]               // valores del eje Y a etiquetar
+  yTicks?: number[]
   formatY?: (v: number) => string
   xTicks?: { t: number; label: string }[]
+  refLines?: { y: number; label: string }[]   // líneas horizontales de referencia (p.ej. 25%)
 }
 
 const W = 360
@@ -31,7 +34,7 @@ function linePath(pts: [number, number][]): string {
   return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')
 }
 
-// valor (y) interpolado linealmente en el instante t — para situar el punto "ahora" en su lugar real
+// valor (y) interpolado linealmente en el instante t — para el punto "ahora" y el tooltip
 function valueAt(points: Pt[], t: number): number | null {
   if (!points.length) return null
   if (t <= points[0][0]) return points[0][1]
@@ -49,9 +52,12 @@ function valueAt(points: Pt[], t: number): number | null {
 }
 
 export function MultiLineChart({
-  series, domainX, domainY, nowTs, height = 200, yTicks = [], formatY = (v) => String(Math.round(v)), xTicks = [],
+  series, domainX, domainY, nowTs, height = 200, yTicks = [], formatY = (v) => String(Math.round(v)), xTicks = [], refLines = [],
 }: Props) {
   const reduce = useReducedMotion()
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [hoverT, setHoverT] = useState<number | null>(null)
+
   const H = height
   const plotW = W - PAD.l - PAD.r
   const plotH = H - PAD.t - PAD.b
@@ -62,17 +68,35 @@ export function MultiLineChart({
   const spanY = y1 - y0 || 1
   const sx = (t: number) => PAD.l + ((t - x0) / spanX) * plotW
   const sy = (v: number) => PAD.t + plotH - ((v - y0) / spanY) * plotH
-
   const nowX = sx(nowTs)
+
+  // pointer → instante de tiempo (toca/arrastra sobre el plot)
+  const onMove = (e: React.PointerEvent) => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const vbX = ((e.clientX - rect.left) / rect.width) * W
+    const t = x0 + ((vbX - PAD.l) / plotW) * spanX
+    setHoverT(Math.max(x0, Math.min(x1, t)))
+  }
+
+  // tooltip: valor de cada serie en hoverT
+  const hover = hoverT == null ? null : {
+    t: hoverT,
+    rows: series.map((s) => ({ product: s.product, color: s.color, v: valueAt(s.points, hoverT) })).filter((r) => r.v != null),
+  }
+  const boxW = 132
+  const boxH = hover ? 14 + hover.rows.length * 13 : 0
+  const boxX = hover ? (sx(hover.t) > W / 2 ? Math.max(PAD.l, sx(hover.t) - boxW - 8) : Math.min(W - PAD.r - boxW, sx(hover.t) + 8)) : 0
 
   return (
     <svg
+      ref={svgRef}
       role="img"
       aria-label="Curvas de decaimiento de péptidos en el tiempo"
       width="100%"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
-      style={{ display: 'block', overflow: 'visible' }}
+      style={{ display: 'block', overflow: 'visible', touchAction: 'pan-y' }}
     >
       {/* gridlines + etiquetas Y */}
       {yTicks.map((v) => {
@@ -82,6 +106,19 @@ export function MultiLineChart({
             <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--border)" strokeWidth={1} strokeDasharray="4 4" opacity={0.6} />
             <text x={PAD.l - 6} y={y + 3} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
               {formatY(v)}
+            </text>
+          </g>
+        )
+      })}
+
+      {/* líneas de referencia (p.ej. 25%) */}
+      {refLines.map((r) => {
+        const y = sy(r.y)
+        return (
+          <g key={`ref${r.y}`}>
+            <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--ink-300)" strokeWidth={1} strokeDasharray="1 4" opacity={0.7} />
+            <text x={W - PAD.r} y={y - 3} textAnchor="end" fontSize={8.5} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
+              {r.label}
             </text>
           </g>
         )
@@ -122,23 +159,54 @@ export function MultiLineChart({
               animate={{ pathLength: 1 }}
               transition={{ duration: dur.draw, ease: ease.decelerate }}
             />
-            {/* marcadores de inyección */}
             {s.markers.map((m, i) => (
               <circle key={i} cx={sx(m[0])} cy={sy(m[1])} r={3.5} fill={s.color} stroke="var(--card)" strokeWidth={1.5} />
             ))}
-            {/* punto de presencia AHORA (interpolado en nowTs, no en el extremo futuro) */}
+            {/* punto de presencia AHORA, con halo pulsante "vivo" */}
             {showNowDot && (
-              <motion.circle
-                cx={sx(nowTs)} cy={sy(nowY!)} r={4} fill={s.color} stroke="var(--card)" strokeWidth={1.5}
-                initial={reduce ? false : { scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ ...spring.ui, delay: reduce ? 0 : dur.draw }}
-                style={{ originX: `${sx(nowTs)}px`, originY: `${sy(nowY!)}px` }}
-              />
+              <g>
+                {!reduce && (
+                  <motion.circle
+                    cx={sx(nowTs)} cy={sy(nowY!)} fill={s.color}
+                    animate={{ r: [4, 9], opacity: [0.35, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                  />
+                )}
+                <circle cx={sx(nowTs)} cy={sy(nowY!)} r={4} fill={s.color} stroke="var(--card)" strokeWidth={1.5} />
+              </g>
             )}
           </g>
         )
       })}
+
+      {/* tooltip táctil */}
+      {hover && (
+        <g pointerEvents="none">
+          <line x1={sx(hover.t)} y1={PAD.t} x2={sx(hover.t)} y2={PAD.t + plotH} stroke="var(--ink-400)" strokeWidth={1} />
+          {hover.rows.map((r, i) => (
+            <circle key={r.product} cx={sx(hover.t)} cy={sy(r.v!)} r={3} fill={r.color} stroke="var(--card)" strokeWidth={1.5} />
+          ))}
+          <rect x={boxX} y={PAD.t} width={boxW} height={boxH} rx={6} fill="var(--card)" stroke="var(--border)" strokeWidth={1} opacity={0.97} />
+          {hover.rows.map((r, i) => (
+            <g key={r.product} transform={`translate(${boxX + 8}, ${PAD.t + 14 + i * 13})`}>
+              <circle cx={3} cy={-3} r={3.5} fill={r.color} />
+              <text x={12} y={0} fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-700)">
+                {r.product.length > 12 ? r.product.slice(0, 11) + '…' : r.product}
+              </text>
+              <text x={boxW - 16} y={0} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-900)" fontWeight={600}>
+                {formatY(r.v!)}
+              </text>
+            </g>
+          ))}
+        </g>
+      )}
+
+      {/* capa de captura del pointer (encima de todo) */}
+      <rect
+        x={PAD.l} y={PAD.t} width={plotW} height={plotH} fill="transparent"
+        onPointerDown={onMove} onPointerMove={onMove} onPointerLeave={() => setHoverT(null)} onPointerUp={() => setHoverT(null)}
+        style={{ cursor: 'crosshair' }}
+      />
     </svg>
   )
 }

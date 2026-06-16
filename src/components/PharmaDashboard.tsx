@@ -96,8 +96,11 @@ export function PharmaDashboard() {
       <motion.div variants={staggerItem} className="card" style={{ marginTop: 16, padding: 20 }}>
         {/* Cabecera */}
         <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Vida del péptido en el cuerpo</div>
-        <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2, marginBottom: 14 }}>
+        <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>
           Estimado de cuánto sigue activo después de cada dosis
+        </div>
+        <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 2, marginBottom: 14 }}>
+          Toca el chart para ver el detalle en cualquier momento.
         </div>
 
         {/* Controles: ventana + escala */}
@@ -128,6 +131,7 @@ export function PharmaDashboard() {
             yTicks={yTicks}
             formatY={formatY}
             xTicks={xTicks}
+            refLines={mode === 'percent' ? [{ y: 25, label: '25%' }] : []}
           />
         ) : (
           <div className="sm" style={{ color: 'var(--ink-300)', textAlign: 'center', padding: '40px 0' }}>

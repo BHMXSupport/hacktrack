@@ -261,7 +261,8 @@ function ReconstitutionButton() {
 // ── Pantalla principal ────────────────────────────────────────────────────────
 export function Progreso() {
   const { state, dispatch } = useApp()
-  const [view, setView] = useState<'cal' | 'avances' | 'cuerpo'>('cal')
+  const view = state.progresoView
+  const setView = (v: 'cal' | 'avances' | 'cuerpo') => dispatch({ t: 'setProgresoView', view: v })
   const [pickerOpen, setPickerOpen] = useState(false)
 
   function pick(product: string) {

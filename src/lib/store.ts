@@ -10,6 +10,7 @@ import { bmiCalc } from './bmi'
 export type ScreenId =
   | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-login' | 's-import' | 's-app'
 export type TabId = 'inicio' | 'diario' | 'protocolo' | 'ajustes'
+export type ProgresoView = 'cal' | 'avances' | 'cuerpo'
 export type SheetId =
   | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail'
   | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit'
@@ -23,6 +24,7 @@ export interface AppState {
 
   curGoal: Category | null
   selectedMeasures: string[]
+  progresoView: ProgresoView                // segmento activo en Progreso (global, para deep-link desde Inicio)
   protocols: Record<string, UserProtocol>  // FUENTE DE VERDAD: un protocolo editable por producto
   activeProduct: string | null             // producto "primario" (cuenta regresiva en Inicio, etc.)
   protocol: UserProtocol | null            // CACHÉ sincronizado = protocols[activeProduct] (no escribir directo)
@@ -49,6 +51,7 @@ export const initialState: AppState = {
   sheetArg: null,
   curGoal: null,
   selectedMeasures: [],
+  progresoView: 'cal',
   protocols: {},
   activeProduct: null,
   protocol: null,
@@ -84,6 +87,7 @@ export type Action =
   | { t: 'updateProtocol'; patch: Partial<UserProtocol> }             // editar el protocolo en foco de edición
   | { t: 'updateProtocolFor'; product: string; patch: Partial<UserProtocol> } // editar un producto específico
   | { t: 'setActiveProduct'; product: string }                        // foco de edición (interno, no "activo" visible)
+  | { t: 'setProgresoView'; view: ProgresoView }                      // cambia el segmento de Progreso (deep-link)
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number } // P0-1
@@ -251,6 +255,9 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'setActiveProduct':
       return s.protocols[a.product] ? syncActive({ ...s, activeProduct: a.product }) : s
+
+    case 'setProgresoView':
+      return { ...s, progresoView: a.view }
 
     case 'deleteProduct': {
       // quita el producto del seguimiento. NO toca s.log → los registros pasados se conservan.

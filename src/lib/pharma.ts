@@ -60,6 +60,28 @@ export interface PharmaData {
 
 interface Dose { product: string; value: number; ts: number }
 
+// recolecta dosis por producto. El valor numérico (mg) vive en `u` ("Producto · 2 mg").
+// Convierte mcg/µg→mg, g→mg; omite unidades no convertibles (UI, mL) o sin número.
+export function collectDosesByProduct(s: AppState): Map<string, Dose[]> {
+  const byProduct = new Map<string, Dose[]>()
+  for (const g of s.log) {
+    for (const it of g.items) {
+      if (it.type !== 'dose' || it.product == null) continue
+      const m = it.u.match(/·\s*([\d.]+)\s*([^\s·]*)/)
+      let value = m ? parseFloat(m[1]) : NaN
+      const unit = (m?.[2] ?? '').toLowerCase()
+      if (unit === 'mcg' || unit === 'µg' || unit === 'ug' || unit === 'μg') value = value / 1000
+      else if (unit === 'g') value = value * 1000
+      else if (!(unit === 'mg' || unit === '')) continue
+      if (!isFinite(value) || value <= 0) continue
+      const arr = byProduct.get(it.product) ?? []
+      arr.push({ product: it.product, value, ts: it.ts })
+      byProduct.set(it.product, arr)
+    }
+  }
+  return byProduct
+}
+
 const THRESHOLD = 1e-5 // bajo esto (relativo al pico) → 0, evita artefactos de punto flotante
 
 // mg presentes de un producto en el instante t = superposición de sus dosis pasadas
@@ -77,25 +99,7 @@ export interface BuildOpts { now: number; windowMs: number; mode: Mode }
 export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
   const { now, windowMs, mode } = opts
 
-  // recolecta dosis válidas por producto. El valor numérico (mg) vive en `u` ("Producto · 2 mg").
-  const byProduct = new Map<string, Dose[]>()
-  for (const g of s.log) {
-    for (const it of g.items) {
-      if (it.type !== 'dose' || it.product == null) continue
-      // captura número + unidad ("Producto · 2 mg"). Solo modelamos masa: mg, o mcg/µg→mg.
-      // Unidades no convertibles (UI, mL, etc.) o sin número → se omiten (no se puede graficar en mg).
-      const m = it.u.match(/·\s*([\d.]+)\s*([^\s·]*)/)
-      let value = m ? parseFloat(m[1]) : NaN
-      const unit = (m?.[2] ?? '').toLowerCase()
-      if (unit === 'mcg' || unit === 'µg' || unit === 'ug' || unit === 'μg') value = value / 1000
-      else if (unit === 'g') value = value * 1000
-      else if (!(unit === 'mg' || unit === '')) continue // UI, ml, etc. → no convertible a mg
-      if (!isFinite(value) || value <= 0) continue
-      const arr = byProduct.get(it.product) ?? []
-      arr.push({ product: it.product, value, ts: it.ts })
-      byProduct.set(it.product, arr)
-    }
-  }
+  const byProduct = collectDosesByProduct(s)
 
   const hasAnyDose = byProduct.size > 0
   const domainX: [number, number] = [now - windowMs, now + windowMs * 0.08]
@@ -158,6 +162,28 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
 
   const domainY: [number, number] = mode === 'percent' ? [0, 110] : [0, (maxMg || 1) * 1.1]
   return { series, skipped, domainX, domainY, nowTs: now, mode, hasAnyDose }
+}
+
+export interface Presence { product: string; color: string; currentMg: number; pct: number }
+
+// Presencia estimada AHORA por producto (para surfacing en Inicio). pct = % del pico de ese producto.
+// Solo productos con vida media conocida y presencia > 0. Ordenado desc por presencia.
+export function presenceNow(s: AppState, now: number): Presence[] {
+  const byProduct = collectDosesByProduct(s)
+  const out: Presence[] = []
+  for (const [product, doses] of byProduct) {
+    const halfLifeH = HALF_LIFE_H[product]
+    if (halfLifeH == null) continue
+    const halfMs = halfLifeH * H
+    const currentMg = amountAt(doses, halfMs, now)
+    if (currentMg <= 0) continue
+    let peakMg = 0
+    for (const d of doses) peakMg = Math.max(peakMg, amountAt(doses, halfMs, d.ts))
+    if (peakMg <= 0) continue
+    const color = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
+    out.push({ product, color, currentMg, pct: (currentMg / peakMg) * 100 })
+  }
+  return out.sort((a, b) => b.pct - a.pct)
 }
 
 // valor "presente ahora" formateado para la leyenda (siempre mg, con ~ de estimación)
