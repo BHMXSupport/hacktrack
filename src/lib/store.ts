@@ -39,6 +39,7 @@ export interface AppState {
   nutrition: Record<string, { water: number; meals: Meal[] }>        // por dateKey: hidratación + comidas
   foodLibrary: FoodFav[]                                              // comidas frecuentes (registro 1-tap)
   macroGoals: { protein: number; carbs: number; fat: number } | null // metas de macros que define el usuario
+  kcalGoal: number | null                                            // meta calórica diaria
   settings: UserSettings
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
@@ -70,6 +71,7 @@ export const initialState: AppState = {
   nutrition: {},
   foodLibrary: [],
   macroGoals: null,
+  kcalGoal: null,
   settings: {
     pinEnabled: false,
     darkMode: false,
@@ -101,10 +103,11 @@ export type Action =
   | { t: 'setProgresoView'; view: ProgresoView }                      // cambia el segmento de Progreso (deep-link)
   | { t: 'water'; delta: number }                                     // hidratación de hoy (± vasos)
   | { t: 'addMeal'; kcal: number; protein?: number | null; carbs?: number | null; fat?: number | null; label?: string; fav?: boolean } // agrega comida a hoy
-  | { t: 'addFavMeal'; id: string }                                   // registra una comida favorita (1-tap)
+  | { t: 'addFavMeal'; id: string; portion?: number }                 // registra una comida favorita (1-tap, con porción)
   | { t: 'delMeal'; id: string }                                      // elimina una comida
   | { t: 'delFav'; id: string }                                       // elimina un favorito
   | { t: 'setMacroGoals'; goals: { protein: number; carbs: number; fat: number } | null } // metas de macros
+  | { t: 'setKcalGoal'; value: number | null }                        // meta calórica diaria
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number } } // P0-1
@@ -307,9 +310,15 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'addFavMeal': {
       const fav = s.foodLibrary.find((f) => f.id === a.id)
       if (!fav) return s
+      const por = a.portion && a.portion > 0 ? a.portion : 1
+      const sc = (v: number | null | undefined) => (v != null ? Math.round(v * por) : null)
       const k = isoKey(s.todayTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
-      const meal: Meal = { id: genId(), kcal: fav.kcal, ts: Date.now(), protein: fav.protein ?? null, carbs: fav.carbs ?? null, fat: fav.fat ?? null, label: fav.label }
+      const meal: Meal = {
+        id: genId(), kcal: Math.round(fav.kcal * por), ts: Date.now(),
+        protein: sc(fav.protein), carbs: sc(fav.carbs), fat: sc(fav.fat),
+        label: por !== 1 ? `${fav.label} ×${por}` : fav.label,
+      }
       const foodLibrary = s.foodLibrary.map((f) => (f.id === a.id ? { ...f, usoCount: f.usoCount + 1 } : f))
       return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary }
     }
@@ -322,6 +331,8 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, foodLibrary: s.foodLibrary.filter((f) => f.id !== a.id) }
     case 'setMacroGoals':
       return { ...s, macroGoals: a.goals }
+    case 'setKcalGoal':
+      return { ...s, kcalGoal: a.value && a.value > 0 ? Math.round(a.value) : null }
 
     case 'deleteProduct': {
       // quita el producto del seguimiento. NO toca s.log → los registros pasados se conservan.

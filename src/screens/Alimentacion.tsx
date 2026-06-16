@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, isoKey } from '../lib/store'
-import { dayMacros, protocolNumbers, anchorProduct } from '../lib/nutrition'
+import { dayMacros, protocolNumbers, anchorProduct, tdee } from '../lib/nutrition'
 import { Sparkline } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
 import { IcDrop, IcClose } from '../components/icons'
@@ -24,20 +24,24 @@ export function Alimentacion() {
   const macros = dayMacros(day.meals)
 
   const [open, setOpen] = useState(false)
+  const [showMacros, setShowMacros] = useState(false)
   const [kcalStr, setKcalStr] = useState('')
   const [pStr, setPStr] = useState('')
   const [cStr, setCStr] = useState('')
   const [fStr, setFStr] = useState('')
   const [label, setLabel] = useState('')
-  const [fav, setFav] = useState(false)
+  const [portion, setPortion] = useState(1)
+  const [goalEdit, setGoalEdit] = useState(false)
   const [editGoals, setEditGoals] = useState(false)
   const goals = state.macroGoals
   const pn = protocolNumbers(state)
   const ap = anchorProduct(state)
+  const goalKcal = state.kcalGoal ?? tdee(state)
+  const PORTIONS = [0.5, 1, 1.5, 2]
 
   const water = (delta: number) => { tapHaptic(); dispatch({ t: 'water', delta }) }
   const quickKcal = (n: number) => { tapHaptic(); dispatch({ t: 'addMeal', kcal: n }) }
-  const top5 = [...state.foodLibrary].sort((a, b) => b.usoCount - a.usoCount).slice(0, 5)
+  const top5 = [...state.foodLibrary].sort((a, b) => b.usoCount - a.usoCount).slice(0, 6)
 
   const submitMeal = () => {
     const k = parseFloat(kcalStr)
@@ -46,9 +50,9 @@ export function Alimentacion() {
     dispatch({
       t: 'addMeal', kcal: k,
       protein: parseFloat(pStr) || null, carbs: parseFloat(cStr) || null, fat: parseFloat(fStr) || null,
-      label: label.trim() || undefined, fav: fav && !!label.trim(),
+      label: label.trim() || undefined, fav: !!label.trim(), // con nombre → se guarda como favorito automáticamente
     })
-    setKcalStr(''); setPStr(''); setCStr(''); setFStr(''); setLabel(''); setFav(false); setOpen(false)
+    setKcalStr(''); setPStr(''); setCStr(''); setFStr(''); setLabel(''); setShowMacros(false); setOpen(false)
   }
 
   return (
@@ -73,12 +77,27 @@ export function Alimentacion() {
           </div>
         </motion.section>
 
-        {/* ── Calorías + macros ── */}
+        {/* ── Calorías ── */}
         <motion.section variants={staggerItem} className="card">
-          <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Calorías de hoy</span>
-          <div className="mono" style={{ fontSize: 40, fontWeight: 800, color: 'var(--brand-700)', lineHeight: 1.1, margin: '4px 0 4px' }}>
-            {kcal} <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>kcal</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Calorías de hoy</span>
+            <button className="sm" style={{ background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => setGoalEdit((v) => !v)}>
+              {goalEdit ? 'Listo' : goalKcal ? `Meta ${goalKcal}` : 'Definir meta'}
+            </button>
           </div>
+          <div className="mono" style={{ fontSize: 40, fontWeight: 800, color: 'var(--brand-700)', lineHeight: 1.1, margin: '4px 0' }}>
+            {kcal} <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>{goalKcal ? `/ ${goalKcal} kcal` : 'kcal'}</span>
+          </div>
+          {goalKcal && (
+            <div style={{ height: 7, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden', marginBottom: 10 }}>
+              <div style={{ width: `${Math.min(100, (kcal / goalKcal) * 100)}%`, height: '100%', background: kcal > goalKcal ? 'var(--warning)' : 'var(--brand-700)', borderRadius: 999 }} />
+            </div>
+          )}
+          {goalEdit && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <input className="field" type="number" inputMode="numeric" placeholder="kcal/día" defaultValue={state.kcalGoal ?? ''} onBlur={(e) => dispatch({ t: 'setKcalGoal', value: parseFloat(e.target.value) || null })} style={{ flex: 1 }} />
+            </div>
+          )}
           {macros.hasMacros && (
             <div style={{ display: 'flex', gap: 14, marginBottom: 12 }}>
               <span className="sm mono" style={{ color: 'var(--ink-700)' }}>P {macros.protein}g</span>
@@ -87,38 +106,53 @@ export function Alimentacion() {
             </div>
           )}
 
-          {/* Favoritos 1-tap */}
+          {/* Favoritos — registro en 1 toque (con porción) */}
           {top5.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12, paddingBottom: 2 }}>
-              {top5.map((f) => (
-                <button key={f.id} className="chip" style={{ flexShrink: 0 }} onClick={() => { tapHaptic(); dispatch({ t: 'addFavMeal', id: f.id }) }}>
-                  {f.label} · {f.kcal}
-                </button>
-              ))}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>Tus favoritos</span>
+                <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                  {PORTIONS.map((p) => (
+                    <button key={p} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 8px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
+                      {p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}`}×
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+                {top5.map((f) => (
+                  <button key={f.id} className="chip" style={{ flexShrink: 0 }} onClick={() => { tapHaptic(); dispatch({ t: 'addFavMeal', id: f.id, portion }) }}>
+                    {f.label} · {Math.round(f.kcal * portion)}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Quick add */}
+          {/* Acceso rápido + nuevo platillo */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             {KCAL_QUICK.map((n) => (<button key={n} className="chip" onClick={() => quickKcal(n)}>+{n}</button>))}
-            <button className="chip" onClick={() => setOpen((v) => !v)}>{open ? 'Cerrar' : '+ comida…'}</button>
+            <button className="chip" style={{ fontWeight: 700 }} onClick={() => setOpen((v) => !v)}>{open ? 'Cerrar' : '+ Nuevo platillo'}</button>
           </div>
 
-          {/* Formulario detallado */}
+          {/* Nuevo platillo — limpio: nombre + kcal grande, macros colapsadas */}
           {open && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-              <input className="field" placeholder="Nombre (opcional, p. ej. Pollo + arroz)" value={label} onChange={(e) => setLabel(e.target.value)} />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input className="field" type="number" inputMode="numeric" placeholder="kcal" value={kcalStr} onChange={(e) => setKcalStr(e.target.value)} style={{ flex: 1.4 }} />
-                <input className="field" type="number" inputMode="numeric" placeholder="P (g)" value={pStr} onChange={(e) => setPStr(e.target.value)} style={{ flex: 1 }} />
-                <input className="field" type="number" inputMode="numeric" placeholder="C (g)" value={cStr} onChange={(e) => setCStr(e.target.value)} style={{ flex: 1 }} />
-                <input className="field" type="number" inputMode="numeric" placeholder="G (g)" value={fStr} onChange={(e) => setFStr(e.target.value)} style={{ flex: 1 }} />
+              <input className="field" placeholder="Nombre del platillo (se guarda como favorito)" value={label} onChange={(e) => setLabel(e.target.value)} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input className="field mono" type="number" inputMode="numeric" placeholder="0" value={kcalStr} onChange={(e) => setKcalStr(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitMeal() }} style={{ flex: 1, fontSize: 24, fontWeight: 700, textAlign: 'center' }} />
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>kcal</span>
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input type="checkbox" checked={fav} onChange={(e) => setFav(e.target.checked)} disabled={!label.trim()} />
-                <span className="sm" style={{ color: label.trim() ? 'var(--ink-700)' : 'var(--ink-300)' }}>Guardar como favorito (1-tap)</span>
-              </label>
-              <button className="btn btn-brand" disabled={!(parseFloat(kcalStr) > 0)} onClick={submitMeal}>Agregar comida</button>
+              {showMacros ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input className="field" type="number" inputMode="numeric" placeholder="P (g)" value={pStr} onChange={(e) => setPStr(e.target.value)} style={{ flex: 1 }} />
+                  <input className="field" type="number" inputMode="numeric" placeholder="C (g)" value={cStr} onChange={(e) => setCStr(e.target.value)} style={{ flex: 1 }} />
+                  <input className="field" type="number" inputMode="numeric" placeholder="G (g)" value={fStr} onChange={(e) => setFStr(e.target.value)} style={{ flex: 1 }} />
+                </div>
+              ) : (
+                <button className="sm" style={{ background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left' }} onClick={() => setShowMacros(true)}>+ Macros (opcional)</button>
+              )}
+              <button className="btn btn-brand" disabled={!(parseFloat(kcalStr) > 0)} onClick={submitMeal}>Agregar</button>
             </div>
           )}
 
