@@ -159,6 +159,16 @@ export const KPIS: KpiDef[] = [
   { key: 'Efecto secundario',     label: 'Efecto secundario',     icon: 'efecto',       kind: 'scale', color: '#E8A317' },
 ]
 
+// ── Loop 139: opciones de efecto/síntoma post-dosis ─────────────────────────
+// Dato observacional del usuario. No implica eficacia ni consejo médico.
+export const EFFECT_OPTIONS: string[] = [
+  'Sin efectos',
+  'Náusea leve',
+  'Fatiga',
+  'Energía',
+  'Otro',
+]
+
 // Set por defecto de escalas para el "+" cuando aún no hay objetivo elegido
 const DEFAULT_SCALES = ['Energía', 'Estado de ánimo', 'Sueño', 'Dolor', 'Foco', 'Libido', 'Elasticidad piel', 'Recuperación muscular']
 const KPI_LABEL: Record<string, string> = { 'Elasticidad piel': 'Elasticidad de piel' }

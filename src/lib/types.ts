@@ -106,6 +106,8 @@ export interface LogItem {
   product?: string // producto de la dosis (para adherencia por producto)
   doseMg?: number  // dosis en mg CANÓNICOS (convertida desde UI/mL con la reconstitución) — para vida media/presencia
   site?: InjectionSite // sitio de inyección elegido por el usuario (loop 140)
+  note?: string    // nota libre del usuario (≤120 chars) — dato observacional, no consejo médico (loop 138)
+  effect?: string  // efecto/síntoma auto-observado post-dosis (dato personal del usuario, no claim de eficacia) (loop 139)
 }
 
 export interface LogGroup {

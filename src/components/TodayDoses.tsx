@@ -8,7 +8,7 @@ import { dayProducts, doseTakenOnProduct, doseSkippedOnProduct, loggedItemsForDa
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { doseToMg } from '../lib/calc'
 import { tapHaptic } from '../lib/haptics'
-import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
+import { PEPTIDES, CATEGORY_COLOR, EFFECT_OPTIONS } from '../lib/catalog'
 import { IcCheck } from './icons'
 import { staggerParent, staggerItem, spring, dur, ease } from '../lib/motion'
 
@@ -71,6 +71,173 @@ function SiteSelector({ suggested, onSelect, onSkip }: SiteSelectorProps) {
         }}
       >
         Omitir zona
+      </button>
+    </motion.div>
+  )
+}
+
+// ── Loop 138: campo de nota opcional pegada al registro de dosis ──────────────
+interface NoteFieldProps {
+  value: string
+  onChange: (v: string) => void
+}
+
+function NoteField({ value, onChange }: NoteFieldProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+      style={{ overflow: 'hidden', padding: '8px 16px 10px', borderTop: '1px solid var(--border)' }}
+    >
+      <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 5, fontWeight: 500 }}>
+        Nota opcional
+      </div>
+      <input
+        type="text"
+        maxLength={120}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="ej: abdomen, náusea leve, energía…"
+        aria-label="Nota de la dosis (máx. 120 caracteres)"
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: '7px 10px',
+          borderRadius: 'var(--r-sm)',
+          border: '1.5px solid var(--border)',
+          background: 'var(--bg)',
+          color: 'var(--ink-900)',
+          fontSize: 13,
+          outline: 'none',
+          fontFamily: 'inherit',
+        }}
+      />
+      {value.length > 100 && (
+        <div className="sm" style={{ color: 'var(--ink-300)', textAlign: 'right', marginTop: 3 }}>
+          {value.length}/120
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+// ── Loop 139: mini-sheet inline de efecto/síntoma post-dosis ──────────────────
+// Dato observacional del usuario — no implica eficacia ni consejo médico.
+interface EffectPickerProps {
+  onSelect: (effect: string) => void
+  onSkip: () => void
+}
+
+function EffectPicker({ onSelect, onSkip }: EffectPickerProps) {
+  const [customText, setCustomText] = useState('')
+  const [showOtro, setShowOtro] = useState(false)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.24, ease: 'easeOut' }}
+      style={{ overflow: 'hidden', padding: '10px 16px 12px', borderTop: '1px solid var(--border)', background: 'color-mix(in srgb, var(--brand-500) 4%, transparent)' }}
+    >
+      <div className="sm" style={{ color: 'var(--ink-700)', marginBottom: 7, fontWeight: 600 }}>
+        ¿Cómo te sientes?
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showOtro ? 8 : 10 }}>
+        {EFFECT_OPTIONS.filter((o) => o !== 'Otro').map((opt) => (
+          <button
+            key={opt}
+            onClick={() => { tapHaptic(); onSelect(opt) }}
+            aria-label={opt}
+            style={{
+              height: 30, padding: '0 11px', borderRadius: 999,
+              fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              border: '1.5px solid var(--border)',
+              background: 'transparent',
+              color: 'var(--ink-700)',
+              transition: 'all 0.12s ease',
+            }}
+          >
+            {opt}
+          </button>
+        ))}
+        <button
+          onClick={() => { tapHaptic(); setShowOtro((v) => !v) }}
+          aria-label="Otro efecto (texto libre)"
+          style={{
+            height: 30, padding: '0 11px', borderRadius: 999,
+            fontSize: 12, fontWeight: 500, cursor: 'pointer',
+            border: showOtro ? '1.5px solid var(--brand-500)' : '1.5px solid var(--border)',
+            background: showOtro ? 'color-mix(in srgb, var(--brand-500) 10%, transparent)' : 'transparent',
+            color: showOtro ? 'var(--brand-700)' : 'var(--ink-700)',
+            transition: 'all 0.12s ease',
+          }}
+        >
+          Otro
+        </button>
+      </div>
+
+      {/* Campo de texto libre para "Otro" */}
+      <AnimatePresence initial={false}>
+        {showOtro && (
+          <motion.div
+            key="otro-input"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            style={{ overflow: 'hidden', marginBottom: 8 }}
+          >
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="text"
+                maxLength={80}
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                placeholder="Describe cómo te sientes…"
+                aria-label="Efecto personalizado"
+                autoFocus
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  borderRadius: 'var(--r-sm)',
+                  border: '1.5px solid var(--border)',
+                  background: 'var(--bg)',
+                  color: 'var(--ink-900)',
+                  fontSize: 13,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <button
+                onClick={() => { tapHaptic(); if (customText.trim()) onSelect(customText.trim()) }}
+                disabled={!customText.trim()}
+                style={{
+                  height: 34, padding: '0 12px', borderRadius: 'var(--r-sm)',
+                  fontSize: 12, fontWeight: 600, cursor: customText.trim() ? 'pointer' : 'not-allowed',
+                  border: 'none', background: 'var(--brand-700)', color: 'var(--ink-0)',
+                  opacity: customText.trim() ? 1 : 0.4,
+                  transition: 'opacity 0.12s ease',
+                }}
+              >
+                Guardar
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <button
+        onClick={() => { tapHaptic(); onSkip() }}
+        style={{
+          height: 28, padding: '0 10px', borderRadius: 999, fontSize: 11,
+          cursor: 'pointer', border: '1px solid var(--border)',
+          background: 'transparent', color: 'var(--ink-300)', fontWeight: 400,
+        }}
+      >
+        Omitir
       </button>
     </motion.div>
   )
@@ -213,6 +380,11 @@ export function TodayDoses() {
   })
   // loop 140: producto esperando selección de zona de inyección
   const [pendingSiteProduct, setPendingSiteProduct] = useState<string | null>(null)
+  // loop 138: nota borrador por producto (se mantiene hasta que se registra la dosis)
+  const [noteByProduct, setNoteByProduct] = useState<Record<string, string>>({})
+  // loop 139: producto cuya dosis recién registrada espera selección de efecto
+  // (el id real se resuelve al despachar el efecto buscando el item más reciente de ese producto hoy)
+  const [pendingEffectProduct, setPendingEffectProduct] = useState<string | null>(null)
   const prevAllDone = useRef(allDone)
   useEffect(() => {
     if (allDone && !prevAllDone.current) {
@@ -281,15 +453,30 @@ export function TodayDoses() {
     }
   }
 
-  // loop 140: registra la dosis con o sin sitio de inyección
+  // loop 140 + 138 + 139: registra la dosis con o sin sitio/nota, luego pide efecto
   function commitDose(product: string, site?: InjectionSite) {
     const dose = doseForProduct(state, product)
     if (!dose) return
     const rec = state.productRecon[product]
     const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
     const scheduledTs = tsFor(product)
-    dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: scheduledTs, doseMg, site })
+    const note = noteByProduct[product]?.trim() || undefined  // loop 138
+    dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: scheduledTs, doseMg, site, note })
     setPendingSiteProduct(null)
+    // limpiar el borrador de nota de este producto
+    setNoteByProduct((prev) => { const n = { ...prev }; delete n[product]; return n })
+    // loop 139: abrir picker de efecto post-dosis
+    setPendingEffectProduct(product)
+  }
+
+  // loop 139: guarda el efecto en el logItem recién registrado para este producto
+  function commitEffect(product: string, effect: string) {
+    // busca el LogItem de dosis más reciente de hoy para este producto
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const group = state.log.find((g) => g.dateKey === todayKey)
+    const item = group?.items.find((it) => it.type === 'dose' && it.product === product)
+    if (item) dispatch({ t: 'setLogEffect', id: item.id, effect })
+    setPendingEffectProduct(null)
   }
   function undo(product: string) {
     tapHaptic()
@@ -491,6 +678,8 @@ export function TodayDoses() {
                   // loop 140: sitio sugerido para este producto
                   const suggestedSite = nextInjectionSite(state.lastInjectionSite?.[product])
                   const showSiteSelector = pendingSiteProduct === product && !taken && !skipped
+                  // loop 139: mostrar picker de efecto si esta dosis acaba de ser registrada
+                  const showEffectPicker = pendingEffectProduct === product && taken
 
                   return (
                     <motion.div
@@ -600,14 +789,32 @@ export function TodayDoses() {
                         )}
                       </div>
 
-                      {/* Loop 140: selector de zona de inyección (aparece tras pulsar "Marcar") */}
+                      {/* Loop 138 + Loop 140: campo de nota + selector de zona (aparecen tras pulsar "Marcar") */}
                       <AnimatePresence>
                         {showSiteSelector && (
-                          <SiteSelector
-                            key={`site-${product}`}
-                            suggested={suggestedSite}
-                            onSelect={(site) => commitDose(product, site)}
-                            onSkip={() => commitDose(product)}
+                          <>
+                            <NoteField
+                              key={`note-${product}`}
+                              value={noteByProduct[product] ?? ''}
+                              onChange={(v) => setNoteByProduct((prev) => ({ ...prev, [product]: v }))}
+                            />
+                            <SiteSelector
+                              key={`site-${product}`}
+                              suggested={suggestedSite}
+                              onSelect={(site) => commitDose(product, site)}
+                              onSkip={() => commitDose(product)}
+                            />
+                          </>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Loop 139: picker de efecto/síntoma post-dosis (aparece tras registrar) */}
+                      <AnimatePresence>
+                        {showEffectPicker && (
+                          <EffectPicker
+                            key={`effect-${product}`}
+                            onSelect={(effect) => commitEffect(product, effect)}
+                            onSkip={() => setPendingEffectProduct(null)}
                           />
                         )}
                       </AnimatePresence>

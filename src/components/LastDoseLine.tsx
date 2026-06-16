@@ -40,11 +40,11 @@ export function LastDoseLine() {
   }, [])
 
   // Recopilar todas las dosis pasadas ordenadas desc
-  const pastDoses: { u: string; ts: number; id: string }[] = []
+  const pastDoses: { u: string; ts: number; id: string; note?: string; effect?: string }[] = []
   for (const g of state.log) {
     for (const it of g.items) {
       if (it.type === 'dose' && it.ts <= now) {
-        pastDoses.push({ u: it.u, ts: it.ts, id: it.id })
+        pastDoses.push({ u: it.u, ts: it.ts, id: it.id, note: it.note, effect: it.effect })
       }
     }
   }
@@ -56,6 +56,10 @@ export function LastDoseLine() {
   const ago = fmtAgo(last.ts, now)
   // ventana de deshacer: 15 min
   const canUndo = now - last.ts < 15 * 60_000
+  // loop 138/139: mostrar nota y efecto solo si la dosis es reciente (≤24h)
+  const isRecent = now - last.ts < 24 * 60 * 60_000
+  const showNote = isRecent && !!last.note
+  const showEffect = isRecent && !!last.effect
 
   // Loop 142: navega al diario (tab diario)
   const handleTap = () => {
@@ -176,6 +180,48 @@ export function LastDoseLine() {
           </motion.span>
         )}
       </button>
+
+      {/* Loop 138/139: nota y efecto de la última dosis (si es reciente ≤24h) */}
+      <AnimatePresence initial={false}>
+        {(showNote || showEffect) && (
+          <motion.div
+            key="dose-meta"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '2px 14px 8px', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              {showNote && (
+                <span
+                  className="sm"
+                  style={{ color: 'var(--ink-400)', fontStyle: 'italic', lineHeight: 1.4 }}
+                  aria-label={`Nota: ${last.note}`}
+                >
+                  {last.note}
+                </span>
+              )}
+              {showEffect && (
+                <span
+                  className="sm"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    padding: '2px 8px', borderRadius: 999,
+                    background: 'color-mix(in srgb, var(--brand-500) 10%, transparent)',
+                    color: 'var(--brand-700)',
+                    fontWeight: 500, fontSize: 11,
+                    border: '1px solid color-mix(in srgb, var(--brand-500) 22%, transparent)',
+                  }}
+                  aria-label={`Efecto observado: ${last.effect}`}
+                >
+                  {last.effect}
+                </span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Loop 141: historial expandible — últimas 3 dosis con borrado inline */}
       <AnimatePresence initial={false}>

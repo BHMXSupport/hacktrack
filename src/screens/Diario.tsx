@@ -184,6 +184,35 @@ function TimelineItem({
               </span>
             )}
           </div>
+          {/* loop 138: nota opcional — dato del usuario, itálico pequeño */}
+          {item.type === 'dose' && item.note && (
+            <div
+              className="sm"
+              style={{ color: 'var(--ink-400)', fontStyle: 'italic', marginTop: 3, lineHeight: 1.35 }}
+              aria-label={`Nota: ${item.note}`}
+            >
+              {item.note}
+            </div>
+          )}
+          {/* loop 139: chip de efecto/síntoma observado (dato personal, no claim de eficacia) */}
+          {item.type === 'dose' && item.effect && (
+            <div style={{ marginTop: 5 }}>
+              <span
+                style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  padding: '2px 9px', borderRadius: 999,
+                  background: 'color-mix(in srgb, var(--brand-500) 10%, transparent)',
+                  color: 'var(--brand-700)',
+                  fontWeight: 500, fontSize: 11,
+                  border: '1px solid color-mix(in srgb, var(--brand-500) 22%, transparent)',
+                  lineHeight: 1.5,
+                }}
+                aria-label={`Efecto observado: ${item.effect}`}
+              >
+                {item.effect}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* botón papelera — siempre visible, aria-label descriptivo */}

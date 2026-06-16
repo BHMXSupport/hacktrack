@@ -136,7 +136,8 @@ export type Action =
   | { t: 'setKcalGoal'; value: number | null }                        // meta calórica diaria
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
-  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite } // P0-1 + loop 140
+  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; note?: string; effect?: string; keepSheet?: boolean } // P0-1 + loop 140 + loop 138/139
+  | { t: 'setLogEffect'; id: string; effect: string } // loop 139: guarda efecto post-dosis en un item ya registrado
   | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'logSkip'; product: string; ts?: number }                    // dosis intencional saltada (no penaliza adherencia)
@@ -488,6 +489,7 @@ export function reducer(s: AppState, a: Action): AppState {
     // P0-1: la dosis tecleada ENTRA al diario; activa dashboard; suma racha. Respeta la hora elegida.
     case 'logDose': {
       const now = a.ts ? new Date(a.ts) : new Date()
+      const rawNote = a.note?.trim().slice(0, 120)   // loop 138: ≤120 chars
       const item: LogItem = {
         id: genId(),
         t: fmtTime(now),
@@ -500,6 +502,8 @@ export function reducer(s: AppState, a: Action): AppState {
         product: a.product,
         doseMg: a.doseMg, // mg canónicos (para vida media/presencia); undefined si no se pudo convertir
         site: a.site,     // sitio de inyección (loop 140); undefined si el usuario lo omitió
+        ...(rawNote ? { note: rawNote } : {}),        // loop 138: nota opcional
+        ...(a.effect ? { effect: a.effect } : {}),    // loop 139: efecto opcional
       }
       return {
         ...s,
@@ -511,10 +515,20 @@ export function reducer(s: AppState, a: Action): AppState {
         // loop 140: actualiza el último sitio de inyección por producto
         lastInjectionSite: a.site ? { ...s.lastInjectionSite, [a.product]: a.site } : s.lastInjectionSite,
         logged: true,
-        sheet: null,
+        // keepSheet=true: el llamador maneja el cierre del sheet (p.ej. DoseConfirm mostrando paso de efecto)
+        sheet: a.keepSheet ? s.sheet : null,
         toast: 'Dosis registrada',
         toastUndoId: item.id, // permite "Deshacer" desde el toast
       }
+    }
+
+    // loop 139: guarda el efecto post-dosis en un item ya registrado (p.ej. desde el mini-sheet de ¿Cómo te sientes?)
+    case 'setLogEffect': {
+      const log = s.log.map((g) => ({
+        ...g,
+        items: g.items.map((it) => (it.id === a.id ? { ...it, effect: a.effect } : it)),
+      }))
+      return { ...s, log }
     }
 
     // Skip intencional: inserta un LogItem type:'skip' sin contar como dosis ni como perdida
