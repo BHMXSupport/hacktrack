@@ -5,7 +5,7 @@ import { useApp } from '../lib/store'
 import { fmtTime } from '../lib/cadence'
 import { tapHaptic } from '../lib/haptics'
 
-interface Payload { product: string; value: number | null; unit: string; doseMg?: number; scheduledTs: number; nowTs: number }
+interface Payload { product: string; value: number | null; unit: string; doseMg?: number; scheduledTs: number; nowTs: number; suggestedSite?: import('../lib/types').InjectionSite }
 
 export function DoseConfirm() {
   const { state, dispatch } = useApp()
@@ -13,12 +13,12 @@ export function DoseConfirm() {
   let p: Payload | null = null
   try { p = state.sheetArg ? (JSON.parse(state.sheetArg) as Payload) : null } catch { p = null }
   if (!p) return <Sheet title="Registrar dosis" onClose={close}><div style={{ padding: '0 20px 32px' }} /></Sheet>
-  const { product, value, unit, doseMg, scheduledTs, nowTs } = p
+  const { product, value, unit, doseMg, scheduledTs, nowTs, suggestedSite } = p
 
   function log(ts: number) {
     tapHaptic()
     // logDose ya cierra el sheet (sheet:null) y emite el toast con "Deshacer"
-    dispatch({ t: 'logDose', product, value, unit, ts, doseMg })
+    dispatch({ t: 'logDose', product, value, unit, ts, doseMg, site: suggestedSite })
   }
 
   const btn = { height: 60, borderRadius: 16, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }

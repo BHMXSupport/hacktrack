@@ -223,10 +223,34 @@ export function App() {
     return () => clearTimeout(timer)
   }, [])
 
-  // tema claro/oscuro real
+  // tema claro/oscuro real (con modo automático 18–7 h)
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', state.settings.darkMode ? 'dark' : 'light')
-  }, [state.settings.darkMode])
+    const { themeMode, darkMode } = state.settings
+    function applyTheme() {
+      let isDark: boolean
+      if (themeMode === 'auto') {
+        const h = new Date().getHours()
+        isDark = h >= 18 || h < 7
+      } else if (themeMode === 'light') {
+        isDark = false
+      } else if (themeMode === 'dark') {
+        isDark = true
+      } else {
+        // sin themeMode → comportamiento legado basado en darkMode
+        isDark = darkMode
+      }
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    }
+    applyTheme()
+    if (themeMode !== 'auto') return
+    // en modo auto: re-evaluar cada minuto y al recuperar foco
+    const interval = window.setInterval(applyTheme, 60_000)
+    window.addEventListener('focus', applyTheme)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', applyTheme)
+    }
+  }, [state.settings.themeMode, state.settings.darkMode])
 
   // recordatorio local de la próxima toma (con la app abierta) — entre TODOS los productos activos
   useEffect(() => {

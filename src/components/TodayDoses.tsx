@@ -2,7 +2,8 @@
 // Sin escribir: la dosis viene de la fase activa o de la última registrada (doseForProduct).
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { useApp, doseForProduct } from '../lib/store'
+import { useApp, doseForProduct, nextInjectionSite } from '../lib/store'
+import type { InjectionSite } from '../lib/types'
 import { dayProducts, doseTakenOnProduct, doseSkippedOnProduct, loggedItemsForDay, upcomingDoses } from '../lib/calendar'
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { doseToMg } from '../lib/calc'
@@ -10,6 +11,70 @@ import { tapHaptic } from '../lib/haptics'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { IcCheck } from './icons'
 import { staggerParent, staggerItem, spring, dur, ease } from '../lib/motion'
+
+// ── Loop 140: selector de sitio de inyección ─────────────────────────────────
+const SITE_OPTIONS: { value: InjectionSite; label: string }[] = [
+  { value: 'abdomen-izq', label: 'Abd. izq.' },
+  { value: 'abdomen-der', label: 'Abd. der.' },
+  { value: 'muslo-izq',   label: 'Muslo izq.' },
+  { value: 'muslo-der',   label: 'Muslo der.' },
+  { value: 'gluteo-izq',  label: 'Glúteo izq.' },
+  { value: 'gluteo-der',  label: 'Glúteo der.' },
+]
+
+interface SiteSelectorProps {
+  suggested: InjectionSite
+  onSelect: (site: InjectionSite) => void
+  onSkip: () => void
+}
+
+function SiteSelector({ suggested, onSelect, onSkip }: SiteSelectorProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+      style={{ overflow: 'hidden', padding: '8px 16px 10px', borderTop: '1px solid var(--border)' }}
+    >
+      <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 6, fontWeight: 500 }}>
+        Zona de inyección
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+        {SITE_OPTIONS.map((opt) => {
+          const isSuggested = opt.value === suggested
+          return (
+            <button
+              key={opt.value}
+              onClick={() => { tapHaptic(); onSelect(opt.value) }}
+              aria-label={`${opt.label}${isSuggested ? ' (sugerida)' : ''}`}
+              style={{
+                height: 30, padding: '0 10px', borderRadius: 999,
+                fontSize: 12, fontWeight: isSuggested ? 700 : 500, cursor: 'pointer',
+                border: isSuggested ? '1.5px solid var(--brand-500)' : '1.5px solid var(--border)',
+                background: isSuggested ? 'color-mix(in srgb, var(--brand-500) 12%, transparent)' : 'transparent',
+                color: isSuggested ? 'var(--brand-700)' : 'var(--ink-400)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {opt.label}{isSuggested ? ' ✓' : ''}
+            </button>
+          )
+        })}
+      </div>
+      <button
+        onClick={() => { tapHaptic(); onSkip() }}
+        style={{
+          height: 28, padding: '0 10px', borderRadius: 999, fontSize: 11,
+          cursor: 'pointer', border: '1px solid var(--border)',
+          background: 'transparent', color: 'var(--ink-300)', fontWeight: 400,
+        }}
+      >
+        Omitir zona
+      </button>
+    </motion.div>
+  )
+}
 
 // ── Loop 133: microcopy contextual por franja horaria ─────────────────────────
 function getTimeGreeting(): { label: string; sub: string | null } {
@@ -146,6 +211,8 @@ export function TodayDoses() {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return sessionStorage.getItem(collapseKey) === '1' } catch { return false }
   })
+  // loop 140: producto esperando selección de zona de inyección
+  const [pendingSiteProduct, setPendingSiteProduct] = useState<string | null>(null)
   const prevAllDone = useRef(allDone)
   useEffect(() => {
     if (allDone && !prevAllDone.current) {
@@ -203,12 +270,26 @@ export function TodayDoses() {
     const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
     const scheduledTs = tsFor(product)
     const nowTs = Date.now()
-    // si la hora actual difiere ≥1h de la programada, pregunta a qué hora se aplicó; si no, registra a la hora programada
+    // si la hora actual difiere ≥1h de la programada, pregunta a qué hora se aplicó
     if (Math.abs(nowTs - scheduledTs) >= 60 * 60 * 1000) {
-      dispatch({ t: 'sheet', sheet: 'dose-confirm', arg: JSON.stringify({ product, value: dose.value, unit: dose.unit, doseMg, scheduledTs, nowTs }) })
+      // loop 140: pasa el sitio sugerido al dose-confirm (como metadata en el JSON)
+      const suggestedSite = nextInjectionSite(state.lastInjectionSite?.[product])
+      dispatch({ t: 'sheet', sheet: 'dose-confirm', arg: JSON.stringify({ product, value: dose.value, unit: dose.unit, doseMg, scheduledTs, nowTs, suggestedSite }) })
     } else {
-      dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: scheduledTs, doseMg })
+      // loop 140: muestra selector de zona antes de registrar (sin bloquear)
+      setPendingSiteProduct(product)
     }
+  }
+
+  // loop 140: registra la dosis con o sin sitio de inyección
+  function commitDose(product: string, site?: InjectionSite) {
+    const dose = doseForProduct(state, product)
+    if (!dose) return
+    const rec = state.productRecon[product]
+    const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
+    const scheduledTs = tsFor(product)
+    dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: scheduledTs, doseMg, site })
+    setPendingSiteProduct(null)
   }
   function undo(product: string) {
     tapHaptic()
@@ -407,6 +488,10 @@ export function TodayDoses() {
                   const scheduled = tsFor(product)
                   const win = (!skipped && !taken) ? windowStatus(scheduled, Date.now(), undefined) : null
 
+                  // loop 140: sitio sugerido para este producto
+                  const suggestedSite = nextInjectionSite(state.lastInjectionSite?.[product])
+                  const showSiteSelector = pendingSiteProduct === product && !taken && !skipped
+
                   return (
                     <motion.div
                       key={product}
@@ -415,7 +500,7 @@ export function TodayDoses() {
                       variants={staggerItem}
                       transition={spring.ui}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                        display: 'flex', flexDirection: 'column',
                         borderTop: '1px solid var(--border)',
                         // Loop 137: left-border semáforo; skip muestra borde neutro atenuado
                         borderLeft: skipped
@@ -426,91 +511,106 @@ export function TodayDoses() {
                         transition: 'opacity 0.25s ease, border-left-color 0.3s ease',
                       }}
                     >
-                      {/* item 31: pill de categoría (gris si skip) */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: 999, background: skipped ? 'var(--ink-300)' : color }} />
-                        <span style={{ fontSize: 9, color: 'var(--ink-400)', lineHeight: 1, textAlign: 'center', maxWidth: 36, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat}</span>
-                      </div>
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        {/* item 34 / skip: line-through y texto diferenciado */}
-                        <div className="body" style={{ fontWeight: 600, color: skipped ? 'var(--ink-400)' : 'var(--ink-900)', textDecoration: (taken || skipped) ? 'line-through' : 'none' }}>{product}</div>
-                        <div className="sm mono" style={{ color: 'var(--ink-400)' }}>
-                          {skipped
-                            ? 'Saltada hoy (intencional)'
-                            : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
-                          {/* item 32: hora del recordatorio (solo si no saltada) */}
-                          {!skipped && reminderLabel && (
-                            <span style={{ marginLeft: 4 }}>· {reminderLabel}</span>
-                          )}
-                          {/* Loop 137: label de ventana */}
-                          {!skipped && !taken && win && hasReminder && (
-                            <span style={{ marginLeft: 4, color: WINDOW_COLOR[win!], fontWeight: 600 }}>
-                              · {WINDOW_LABEL[win!]}
-                            </span>
-                          )}
+                      {/* fila principal: icono + info + botones */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                        {/* item 31: pill de categoría (gris si skip) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: 999, background: skipped ? 'var(--ink-300)' : color }} />
+                          <span style={{ fontSize: 9, color: 'var(--ink-400)', lineHeight: 1, textAlign: 'center', maxWidth: 36, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat}</span>
                         </div>
-                      </div>
 
-                      {/* Botones de acción: taken → deshacer; skipped → deshacer skip; pending → "Marcar" + "No hoy" */}
-                      {skipped ? (
-                        <button
-                          onClick={() => undoSkip(product)}
-                          aria-label={`Deshacer saltar ${product}`}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px', borderRadius: 999,
-                            cursor: 'pointer', flexShrink: 0, fontWeight: 500, fontSize: 12,
-                            border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
-                          }}
-                        >
-                          Deshacer
-                        </button>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                          {/* Botón principal: Marcar / Hecho / Deshacer */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {/* item 34 / skip: line-through y texto diferenciado */}
+                          <div className="body" style={{ fontWeight: 600, color: skipped ? 'var(--ink-400)' : 'var(--ink-900)', textDecoration: (taken || skipped) ? 'line-through' : 'none' }}>{product}</div>
+                          <div className="sm mono" style={{ color: 'var(--ink-400)' }}>
+                            {skipped
+                              ? 'Saltada hoy (intencional)'
+                              : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
+                            {/* item 32: hora del recordatorio (solo si no saltada) */}
+                            {!skipped && reminderLabel && (
+                              <span style={{ marginLeft: 4 }}>· {reminderLabel}</span>
+                            )}
+                            {/* Loop 137: label de ventana */}
+                            {!skipped && !taken && win && hasReminder && (
+                              <span style={{ marginLeft: 4, color: WINDOW_COLOR[win!], fontWeight: 600 }}>
+                                · {WINDOW_LABEL[win!]}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Botones de acción: taken → deshacer; skipped → deshacer skip; pending → "Marcar" + "No hoy" */}
+                        {skipped ? (
                           <button
-                            onClick={() => (taken ? undo(product) : markDone(product))}
-                            aria-label={taken ? `Deshacer ${product}` : `Marcar ${product} como hecho`}
+                            onClick={() => undoSkip(product)}
+                            aria-label={`Deshacer saltar ${product}`}
                             style={{
-                              display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 999,
-                              cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                              border: taken ? 'none' : '1.5px solid var(--border)',
-                              background: taken ? 'var(--success)' : 'transparent',
-                              color: taken ? 'var(--ink-0)' : 'var(--ink-400)',
+                              display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px', borderRadius: 999,
+                              cursor: 'pointer', flexShrink: 0, fontWeight: 500, fontSize: 12,
+                              border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
                             }}
                           >
-                            {/* item 34: check entra con scale 0.6→1 (spring.ui) */}
-                            <AnimatePresence>
-                              {taken && (
-                                <motion.span
-                                  initial={{ scale: 0.6, opacity: 0 }}
-                                  animate={{ scale: 1, opacity: 1 }}
-                                  exit={{ scale: 0.6, opacity: 0 }}
-                                  transition={spring.ui}
-                                  style={{ display: 'flex', alignItems: 'center' }}
-                                >
-                                  <IcCheck size={15} />
-                                </motion.span>
-                              )}
-                            </AnimatePresence>
-                            {taken ? 'Hecho' : 'Marcar'}
+                            Deshacer
                           </button>
-                          {/* Botón secundario "No hoy": solo visible si no tomada */}
-                          {!taken && (
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                            {/* Botón principal: Marcar / Hecho / Deshacer */}
                             <button
-                              onClick={() => skipDose(product)}
-                              aria-label={`No tomar ${product} hoy (intencional)`}
+                              onClick={() => (taken ? undo(product) : markDone(product))}
+                              aria-label={taken ? `Deshacer ${product}` : `Marcar ${product} como hecho`}
                               style={{
-                                height: 34, padding: '0 10px', borderRadius: 999,
-                                cursor: 'pointer', fontWeight: 500, fontSize: 12,
-                                border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
+                                display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 999,
+                                cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                                border: taken ? 'none' : '1.5px solid var(--border)',
+                                background: taken ? 'var(--success)' : 'transparent',
+                                color: taken ? 'var(--ink-0)' : 'var(--ink-400)',
                               }}
                             >
-                              No hoy
+                              {/* item 34: check entra con scale 0.6→1 (spring.ui) */}
+                              <AnimatePresence>
+                                {taken && (
+                                  <motion.span
+                                    initial={{ scale: 0.6, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.6, opacity: 0 }}
+                                    transition={spring.ui}
+                                    style={{ display: 'flex', alignItems: 'center' }}
+                                  >
+                                    <IcCheck size={15} />
+                                  </motion.span>
+                                )}
+                              </AnimatePresence>
+                              {taken ? 'Hecho' : 'Marcar'}
                             </button>
-                          )}
-                        </div>
-                      )}
+                            {/* Botón secundario "No hoy": solo visible si no tomada */}
+                            {!taken && (
+                              <button
+                                onClick={() => skipDose(product)}
+                                aria-label={`No tomar ${product} hoy (intencional)`}
+                                style={{
+                                  height: 34, padding: '0 10px', borderRadius: 999,
+                                  cursor: 'pointer', fontWeight: 500, fontSize: 12,
+                                  border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--ink-300)',
+                                }}
+                              >
+                                No hoy
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Loop 140: selector de zona de inyección (aparece tras pulsar "Marcar") */}
+                      <AnimatePresence>
+                        {showSiteSelector && (
+                          <SiteSelector
+                            key={`site-${product}`}
+                            suggested={suggestedSite}
+                            onSelect={(site) => commitDose(product, site)}
+                            onSkip={() => commitDose(product)}
+                          />
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   )
                 })}

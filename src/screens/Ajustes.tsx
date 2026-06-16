@@ -5,6 +5,7 @@ import { IcBell, IcChevron, IcShield, IcCheck, IcBack } from '../components/icon
 import { Glyph } from '../components/glyphs'
 import { Toggle, Disclaimer } from '../components/controls'
 import { useApp } from '../lib/store'
+import type { ThemeMode } from '../lib/types'
 import { requestNotif, notifPermission, notifSupported } from '../lib/notifications'
 import { dur, ease, spring } from '../lib/motion'
 
@@ -238,7 +239,7 @@ export function Ajustes() {
               </RowIcon>
               <span className="row-main">
                 <span className="row-label">Recordatorio de registro</span>
-                <span className="row-sub" style={{ color: perm === 'denied' ? 'var(--danger, #e55)' : undefined }}>
+                <span className="row-sub" style={{ color: perm === 'denied' ? 'var(--error)' : undefined }}>
                   {perm === 'granted' && settings.remindersEnabled
                     ? 'Es hora de tu registro de hoy'
                     : permLabel(perm)}
@@ -290,7 +291,7 @@ export function Ajustes() {
                   onChange={handleTimeChange}
                   style={{
                     fontSize: '13px',
-                    fontFamily: 'var(--font-mono, monospace)',
+                    fontFamily: 'JetBrains Mono, monospace',
                     width: 96,
                     textAlign: 'center',
                     opacity: hasProtocol ? 1 : 0.4,
@@ -375,8 +376,8 @@ export function Ajustes() {
           <SectionLabel>Apariencia</SectionLabel>
           <div className="rowlist card">
 
-            {/* Tema oscuro */}
-            <div className="row">
+            {/* Tema: segmentado Automático / Claro / Oscuro */}
+            <div className="row" style={{ alignItems: 'flex-start', minHeight: 64 }}>
               <RowIcon>
                 <svg
                   width={20} height={20} viewBox="0 0 24 24" fill="none"
@@ -386,15 +387,64 @@ export function Ajustes() {
                   <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
                 </svg>
               </RowIcon>
-              <span className="row-main">
-                <span className="row-label">Tema oscuro</span>
+              <span className="row-main" style={{ flex: 1 }}>
+                <span className="row-label">Tema</span>
+                {(settings.themeMode ?? 'auto') === 'auto' && (
+                  <span className="row-sub" style={{ color: 'var(--ink-400)', marginTop: 2, display: 'block' }}>
+                    Oscuro de 6 PM a 7 AM
+                  </span>
+                )}
               </span>
-              <span className="row-end">
-                <Toggle
-                  on={settings.darkMode}
-                  onChange={(v) => dispatch({ t: 'setSetting', key: 'darkMode', value: v })}
-                  label="Activar tema oscuro"
-                />
+              <span className="row-end" style={{ alignSelf: 'center' }}>
+                {/* Segmented control: Automático · Claro · Oscuro */}
+                {(() => {
+                  const current: ThemeMode = settings.themeMode ?? 'auto'
+                  const opts: { key: ThemeMode; label: string }[] = [
+                    { key: 'auto',  label: 'Auto' },
+                    { key: 'light', label: 'Claro' },
+                    { key: 'dark',  label: 'Oscuro' },
+                  ]
+                  return (
+                    <span
+                      role="group"
+                      aria-label="Modo de tema"
+                      style={{
+                        display: 'inline-flex',
+                        borderRadius: 10,
+                        border: '1px solid var(--border)',
+                        overflow: 'hidden',
+                        background: 'var(--surface)',
+                      }}
+                    >
+                      {opts.map(({ key, label }) => {
+                        const active = current === key
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            aria-pressed={active}
+                            aria-label={`Tema ${label}`}
+                            onClick={() => dispatch({ t: 'setThemeMode', mode: key })}
+                            style={{
+                              padding: '5px 10px',
+                              fontSize: 12,
+                              fontWeight: active ? 700 : 500,
+                              border: 'none',
+                              borderRight: key !== 'dark' ? '1px solid var(--border)' : 'none',
+                              cursor: 'pointer',
+                              background: active ? 'var(--brand-700)' : 'transparent',
+                              color: active ? '#fff' : 'var(--ink-700)',
+                              transition: 'background 0.15s, color 0.15s',
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </span>
+                  )
+                })()}
               </span>
             </div>
 

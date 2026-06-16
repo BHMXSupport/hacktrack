@@ -1,7 +1,7 @@
 // Hacktrack — store central (Context + reducer). Implementa los fixes P0 + endurecimiento del audit.
 import { createContext, useContext } from 'react'
 import type {
-  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample, Meal, FoodFav,
+  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample, Meal, FoodFav, InjectionSite, ThemeMode,
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
@@ -47,6 +47,8 @@ export interface AppState {
   kcalGoal: number | null                                            // meta calórica diaria
   lastMealTs: number | null                                          // última comida registrada (chip "repetir")
   settings: UserSettings
+
+  lastInjectionSite: Record<string, InjectionSite> // último sitio de inyección por producto (loop 140)
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
   scale: SyringeScale          // escala de jeringa de la calculadora (P0-6)
@@ -94,6 +96,7 @@ export const initialState: AppState = {
     consentActive: true,
     premium: false,
   },
+  lastInjectionSite: {},
   logged: false,
   scale: 100,
   draftDose: null,
@@ -133,12 +136,13 @@ export type Action =
   | { t: 'setKcalGoal'; value: number | null }                        // meta calórica diaria
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
-  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number } } // P0-1
+  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite } // P0-1 + loop 140
   | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'logSkip'; product: string; ts?: number }                    // dosis intencional saltada (no penaliza adherencia)
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
+  | { t: 'setThemeMode'; mode: ThemeMode }                              // modo de tema: auto | light | dark
   | { t: 'setName'; name: string }
   | { t: 'setProfileFields'; patch: Partial<Profile> }                // edad/sexo/actividad/meta (TDEE/proyección)
   | { t: 'setReminderTime'; time: string }
@@ -151,6 +155,24 @@ export type Action =
 // ── helpers ────────────────────────────────────────────────────────────────────
 let _seq = 0
 const genId = () => `it_${Date.now().toString(36)}_${_seq++}`
+
+// loop 140: rotación fija de sitios de inyección
+const INJECTION_ROTATION: InjectionSite[] = [
+  'abdomen-izq',
+  'abdomen-der',
+  'muslo-izq',
+  'muslo-der',
+  'gluteo-izq',
+  'gluteo-der',
+]
+
+/** Devuelve el siguiente sitio en la rotación fija dado el último registrado.
+ *  Si no hay último, retorna 'abdomen-izq' (primer sitio de la rotación). */
+export function nextInjectionSite(last?: InjectionSite): InjectionSite {
+  if (!last) return INJECTION_ROTATION[0]
+  const idx = INJECTION_ROTATION.indexOf(last)
+  return INJECTION_ROTATION[(idx + 1) % INJECTION_ROTATION.length]
+}
 
 // clave de fecha local estable 'YYYY-MM-DD' (identidad del grupo del diario)
 export function isoKey(ts: number): string {
@@ -477,6 +499,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ts: now.getTime(),
         product: a.product,
         doseMg: a.doseMg, // mg canónicos (para vida media/presencia); undefined si no se pudo convertir
+        site: a.site,     // sitio de inyección (loop 140); undefined si el usuario lo omitió
       }
       return {
         ...s,
@@ -485,6 +508,8 @@ export function reducer(s: AppState, a: Action): AppState {
         productDoses: a.value != null ? { ...s.productDoses, [a.product]: { value: a.value, unit: a.unit } } : s.productDoses,
         // recuerda la reconstitución del producto (para pre-llenar y para "hecho hoy" en UI/mL)
         productRecon: a.recon ? { ...s.productRecon, [a.product]: a.recon } : s.productRecon,
+        // loop 140: actualiza el último sitio de inyección por producto
+        lastInjectionSite: a.site ? { ...s.lastInjectionSite, [a.product]: a.site } : s.lastInjectionSite,
         logged: true,
         sheet: null,
         toast: 'Dosis registrada',
@@ -602,6 +627,11 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'setSetting':
       return { ...s, settings: { ...s.settings, [a.key]: a.value } }
+    case 'setThemeMode': {
+      // 'light'/'dark' derivan darkMode para compat con código que aún lee settings.darkMode
+      const darkMode = a.mode === 'dark' ? true : a.mode === 'light' ? false : s.settings.darkMode
+      return { ...s, settings: { ...s.settings, themeMode: a.mode, darkMode } }
+    }
     case 'setName':
       return { ...s, profile: { ...s.profile, name: a.name.trim() || null } }
     case 'setProfileFields':

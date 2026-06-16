@@ -7,7 +7,17 @@ import { MON, WD, MEASURE_ICON, CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { Glyph } from '../components/glyphs'
 import { EmptyState } from '../components/EmptyState'
 import { tapHaptic } from '../lib/haptics'
-import type { LogItem } from '../lib/types'
+import type { LogItem, InjectionSite } from '../lib/types'
+
+// loop 140: etiquetas legibles para cada sitio de inyección
+const SITE_LABEL: Record<InjectionSite, string> = {
+  'abdomen-izq': 'Abdomen izq.',
+  'abdomen-der': 'Abdomen der.',
+  'muslo-izq':   'Muslo izq.',
+  'muslo-der':   'Muslo der.',
+  'gluteo-izq':  'Glúteo izq.',
+  'gluteo-der':  'Glúteo der.',
+}
 
 // etiqueta humana del grupo a partir de su clave de fecha estable
 function groupLabel(dateKey: string, todayTs: number): string {
@@ -167,6 +177,12 @@ function TimelineItem({
           {/* #45: quita fontSize inline; .mono .sm ya da el tamaño */}
           <div className="mono sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>
             {item.type === 'skip' ? item.u : item.u}
+            {/* loop 140: sitio de inyección (solo en dosis, si fue registrado) */}
+            {item.type === 'dose' && item.site && (
+              <span style={{ marginLeft: 4, color: 'var(--brand-700)', fontWeight: 500 }}>
+                · {SITE_LABEL[item.site]}
+              </span>
+            )}
           </div>
         </div>
 

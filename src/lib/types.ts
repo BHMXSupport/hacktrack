@@ -85,6 +85,15 @@ export interface FoodFav {
 
 export type LogItemType = 'dose' | 'medida' | 'none' | 'skip'
 
+// Sitios de inyección en rotación fija (abdomen → muslo → glúteo, izq → der)
+export type InjectionSite =
+  | 'abdomen-izq'
+  | 'abdomen-der'
+  | 'muslo-izq'
+  | 'muslo-der'
+  | 'gluteo-izq'
+  | 'gluteo-der'
+
 export interface LogItem {
   id: string
   t: string        // hora, ej. '9:00 PM'
@@ -96,6 +105,7 @@ export interface LogItem {
   ts: number       // timestamp epoch (ms) del registro real
   product?: string // producto de la dosis (para adherencia por producto)
   doseMg?: number  // dosis en mg CANÓNICOS (convertida desde UI/mL con la reconstitución) — para vida media/presencia
+  site?: InjectionSite // sitio de inyección elegido por el usuario (loop 140)
 }
 
 export interface LogGroup {
@@ -134,9 +144,12 @@ export interface UserProtocol {
 // Capacidad del barril de la jeringa en unidades (todas escala U-100): 0.3 mL=30U, 0.5 mL=50U, 1 mL=100U
 export type SyringeScale = 30 | 50 | 100
 
+export type ThemeMode = 'auto' | 'light' | 'dark'
+
 export interface UserSettings {
   pinEnabled: boolean
   darkMode: boolean
+  themeMode?: ThemeMode       // 'auto' = oscuro 18–7 h | 'light' | 'dark' | undefined → usa darkMode (compat)
   remindersEnabled: boolean   // recordatorios locales de toma (Notification API)
   weeklySummary: boolean
   emailNotices: boolean
