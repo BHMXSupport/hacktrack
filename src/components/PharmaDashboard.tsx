@@ -9,8 +9,8 @@ import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
 import { staggerParent, staggerItem } from '../lib/motion'
 
-type Win = '72h' | '7d' | '30d'
-const WIN_MS: Record<Win, number> = { '72h': 72 * 3_600_000, '7d': 7 * 86_400_000, '30d': 30 * 86_400_000 }
+type Win = '24h' | '72h' | '7d'
+const WIN_MS: Record<Win, number> = { '24h': 24 * 3_600_000, '72h': 72 * 3_600_000, '7d': 7 * 86_400_000 }
 
 export function PharmaDashboard() {
   const { state, dispatch } = useApp()
@@ -52,8 +52,8 @@ export function PharmaDashboard() {
       const dh = (t - now) / 3_600_000
       let label: string
       if (Math.abs(dh) < 0.5) label = 'hoy'
-      else if (win === '72h') label = `${dh > 0 ? '+' : '−'}${Math.round(Math.abs(dh))}h`
-      else label = `${dh > 0 ? '+' : '−'}${Math.round(Math.abs(dh) / 24)}d`
+      else if (win === '7d') label = `${dh > 0 ? '+' : '−'}${Math.round(Math.abs(dh) / 24)}d`
+      else label = `${dh > 0 ? '+' : '−'}${Math.round(Math.abs(dh))}h` // 24h / 72h → horas
       out.push({ t, label })
     }
     return out
@@ -88,9 +88,9 @@ export function PharmaDashboard() {
             ? `${data.skipped.join(', ')}: sin vida media de eliminación estándar — no se pueden graficar todavía.`
             : 'Ningún producto tiene presencia relevante en esta ventana. Amplía el rango o registra una dosis reciente.'}
         </div>
-        {!noHalfLife && win !== '30d' && (
-          <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px', marginTop: 12 }} onClick={() => setWin('30d')}>
-            Ver 30 días
+        {!noHalfLife && win !== '7d' && (
+          <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px', marginTop: 12 }} onClick={() => setWin('7d')}>
+            Ver 7 días
           </button>
         )}
         <p className="sm" style={{ color: 'var(--ink-300)', marginTop: 14, lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
@@ -118,7 +118,7 @@ export function PharmaDashboard() {
             <Segmented<Win>
               value={win}
               onChange={setWin}
-              options={[{ value: '72h', label: '72 h' }, { value: '7d', label: '7 d' }, { value: '30d', label: '30 d' }]}
+              options={[{ value: '24h', label: '24 h' }, { value: '72h', label: '72 h' }, { value: '7d', label: '7 d' }]}
             />
           </div>
           <div style={{ flex: 1, minWidth: 140 }}>
