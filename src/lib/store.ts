@@ -9,11 +9,11 @@ import { bmiCalc } from './bmi'
 
 export type ScreenId =
   | 's-splash' | 's-onboarding' | 's-goal' | 's-account' | 's-login' | 's-import' | 's-app'
-export type TabId = 'inicio' | 'diario' | 'protocolo' | 'ajustes'
-export type ProgresoView = 'cal' | 'avances' | 'cuerpo'
+export type TabId = 'inicio' | 'diario' | 'protocolo' | 'vida' | 'comida' | 'semana'
+export type ProgresoView = 'cal' | 'avances'
 export type SheetId =
   | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail'
-  | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit'
+  | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit' | 'ajustes'
 
 export interface AppState {
   todayTs: number
@@ -36,6 +36,7 @@ export interface AppState {
   history: Record<string, MeasureSample[]>   // serie temporal por KPI/medida (dashboard)
   productDoses: Record<string, { value: number; unit: string }>  // dosis recordada por producto (para "hecho hoy")
   productRecon: Record<string, { vialMg: number; aguaMl: number }> // reconstitución recordada por producto (UI/mL → mg)
+  nutrition: Record<string, { water: number; meals: { id: string; kcal: number; ts: number }[] }> // por dateKey: hidratación + comidas
   settings: UserSettings
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
@@ -64,6 +65,7 @@ export const initialState: AppState = {
   history: {},
   productDoses: {},
   productRecon: {},
+  nutrition: {},
   settings: {
     pinEnabled: false,
     darkMode: false,
@@ -92,6 +94,9 @@ export type Action =
   | { t: 'updateProtocolFor'; product: string; patch: Partial<UserProtocol> } // editar un producto específico
   | { t: 'setActiveProduct'; product: string }                        // foco de edición (interno, no "activo" visible)
   | { t: 'setProgresoView'; view: ProgresoView }                      // cambia el segmento de Progreso (deep-link)
+  | { t: 'water'; delta: number }                                     // hidratación de hoy (± vasos)
+  | { t: 'addMeal'; kcal: number }                                    // agrega una comida (kcal) a hoy
+  | { t: 'delMeal'; id: string }                                      // elimina una comida
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number } } // P0-1
@@ -264,6 +269,24 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'setProgresoView':
       return { ...s, progresoView: a.view }
+
+    case 'water': {
+      const k = isoKey(s.todayTs)
+      const cur = s.nutrition[k] ?? { water: 0, meals: [] }
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, water: Math.max(0, cur.water + a.delta) } } }
+    }
+    case 'addMeal': {
+      if (!(a.kcal > 0)) return s
+      const k = isoKey(s.todayTs)
+      const cur = s.nutrition[k] ?? { water: 0, meals: [] }
+      const meal = { id: genId(), kcal: Math.round(a.kcal), ts: Date.now() }
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } } }
+    }
+    case 'delMeal': {
+      const nutrition: AppState['nutrition'] = {}
+      for (const [k, v] of Object.entries(s.nutrition)) nutrition[k] = { ...v, meals: v.meals.filter((m) => m.id !== a.id) }
+      return { ...s, nutrition }
+    }
 
     case 'deleteProduct': {
       // quita el producto del seguimiento. NO toca s.log → los registros pasados se conservan.

@@ -58,3 +58,19 @@ export const IcBell = (p: P) => (
     <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" /><path d="M10 20a2 2 0 0 0 4 0" />
   </svg>
 )
+export const IcVida = (p: P) => (
+  <svg {...base(p.size)} className={p.className} style={p.style}>
+    <path d="M3 12h4l2.5-7 4 14 2.5-7H21" />
+  </svg>
+)
+export const IcFood = (p: P) => (
+  <svg {...base(p.size)} className={p.className} style={p.style}>
+    <path d="M7 3v6a2 2 0 0 0 4 0V3" /><path d="M9 9v12" />
+    <path d="M16 3c-2 1-2 7 0 8v10" />
+  </svg>
+)
+export const IcWeek = (p: P) => (
+  <svg {...base(p.size)} className={p.className} style={p.style}>
+    <path d="M4 21h16" /><path d="M7 21v-6" /><path d="M12 21v-11" /><path d="M17 21v-8" />
+  </svg>
+)

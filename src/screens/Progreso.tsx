@@ -7,7 +7,6 @@ import { dur, ease } from '../lib/motion'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
 import { DoseCalendar } from '../components/DoseCalendar'
 import { ProgressDashboard } from '../components/ProgressDashboard'
-import { PharmaDashboard } from '../components/PharmaDashboard'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { BiohackmxFlask } from '../components/BiohackmxFlask'
 import { IcDrop, IcBack, IcChevron } from '../components/icons'
@@ -274,7 +273,7 @@ function ReconstitutionButton() {
 export function Progreso() {
   const { state, dispatch } = useApp()
   const view = state.progresoView
-  const setView = (v: 'cal' | 'avances' | 'cuerpo') => dispatch({ t: 'setProgresoView', view: v })
+  const setView = (v: 'cal' | 'avances') => dispatch({ t: 'setProgresoView', view: v })
   const [pickerOpen, setPickerOpen] = useState(false)
 
   function pick(product: string) {
@@ -327,7 +326,6 @@ export function Progreso() {
             options={[
               { value: 'cal', label: 'Calendario' },
               { value: 'avances', label: 'Avances' },
-              { value: 'cuerpo', label: 'Cuerpo' },
             ]}
           />
         </motion.div>
@@ -354,14 +352,9 @@ export function Progreso() {
               {/* Calculadora de reconstitución — siempre visible */}
               <ReconstitutionButton />
             </motion.div>
-          ) : view === 'avances' ? (
+          ) : (
             <motion.div key="avances" {...fade}>
               <ProgressDashboard />
-            </motion.div>
-          ) : (
-            <motion.div key="cuerpo" {...fade}>
-              {/* Vida del péptido en el cuerpo — decaimiento multi-producto */}
-              <PharmaDashboard />
             </motion.div>
           )}
         </AnimatePresence>

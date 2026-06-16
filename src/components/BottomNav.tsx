@@ -1,17 +1,19 @@
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
 import type { TabId } from '../lib/store'
-import { IcHome, IcDiary, IcProto, IcGear } from './icons'
+import { IcHome, IcDiary, IcProto, IcVida, IcFood, IcWeek } from './icons'
 import { spring } from '../lib/motion'
 
 const TABS: [TabId, string, (p: { className?: string }) => JSX.Element][] = [
   ['inicio', 'Inicio', IcHome],
   ['diario', 'Diario', IcDiary],
   ['protocolo', 'Progreso', IcProto],
-  ['ajustes', 'Ajustes', IcGear],
+  ['vida', 'Vida', IcVida],
+  ['comida', 'Comida', IcFood],
+  ['semana', 'Semana', IcWeek],
 ]
 
-// Bottom nav compartida: 4 tabs (2 + FAB + 2) + FAB central que abre la hoja "Registrar".
+// Bottom nav: 6 tabs (3 + FAB + 3) + FAB central que abre la hoja "Agregar".
 export function BottomNav() {
   const { state, dispatch } = useApp()
   const Tab = ([id, label, Icon]: (typeof TABS)[number]) => {
@@ -40,9 +42,9 @@ export function BottomNav() {
       >
         +
       </motion.button>
-      {TABS.slice(0, 2).map(Tab)}
+      {TABS.slice(0, 3).map(Tab)}
       <div style={{ width: 58, flex: 'none' }} aria-hidden />
-      {TABS.slice(2).map(Tab)}
+      {TABS.slice(3).map(Tab)}
     </nav>
   )
 }

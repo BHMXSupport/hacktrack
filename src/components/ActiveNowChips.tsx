@@ -20,8 +20,7 @@ export function ActiveNowChips() {
   if (active.length === 0) return null
 
   const goToCuerpo = () => {
-    dispatch({ t: 'setProgresoView', view: 'cuerpo' })
-    dispatch({ t: 'tab', tab: 'protocolo' })
+    dispatch({ t: 'tab', tab: 'vida' })
   }
 
   return (

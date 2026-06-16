@@ -7,6 +7,7 @@ import { startOfDay } from './lib/cadence'
 import { notifPermission, showReminder } from './lib/notifications'
 import { sharedAxisX, spring } from './lib/motion'
 import { tapHaptic } from './lib/haptics'
+import { IcGear } from './components/icons'
 
 // ── persistencia local (PWA: no perder datos al refrescar) ──
 const STORAGE_KEY = 'hacktrack:v1'
@@ -16,8 +17,13 @@ function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return fresh
     const saved = JSON.parse(raw)
+    const merged = { ...fresh, ...saved, sheet: null, toast: null, toastUndoId: null, todayTs: fresh.todayTs }
+    // normaliza estado de navegación legado (p.ej. tab 'ajustes' ya no existe → crash) tras el rediseño
+    const TABS = ['inicio', 'diario', 'protocolo', 'vida', 'comida', 'semana']
+    if (!TABS.includes(merged.tab)) merged.tab = 'inicio'
+    if (merged.progresoView !== 'cal' && merged.progresoView !== 'avances') merged.progresoView = 'cal'
     // hydrate(): migra estado legado (un solo protocol) al mapa multi-protocolo y sincroniza cachés
-    return hydrate({ ...fresh, ...saved, sheet: null, toast: null, toastUndoId: null, todayTs: fresh.todayTs })
+    return hydrate(merged)
   } catch {
     return fresh
   }
@@ -31,6 +37,9 @@ import { Import } from './screens/Import'
 import { Home } from './screens/Home'
 import { Diario } from './screens/Diario'
 import { Progreso } from './screens/Progreso'
+import { Vida } from './screens/Vida'
+import { Alimentacion } from './screens/Alimentacion'
+import { ResumenSemanal } from './screens/ResumenSemanal'
 import { Ajustes } from './screens/Ajustes'
 import { Perfil } from './screens/Perfil'
 import { Paywall } from './screens/Paywall'
@@ -109,12 +118,12 @@ function SheetHost() {
   return <AnimatePresence>{Comp && <Comp key={id} />}</AnimatePresence>
 }
 
-const TAB_SCREENS = { inicio: Home, diario: Diario, protocolo: Progreso, ajustes: Ajustes }
+const TAB_SCREENS = { inicio: Home, diario: Diario, protocolo: Progreso, vida: Vida, comida: Alimentacion, semana: ResumenSemanal }
 
 function AppShell() {
-  const { state } = useApp()
-  // modales full-screen montados sobre el shell
-  const FullModal = state.sheet === 'perfil' ? Perfil : state.sheet === 'paywall' ? Paywall : null
+  const { state, dispatch } = useApp()
+  // modales full-screen montados sobre el shell (Ajustes ahora se abre desde el engranaje arriba-derecha)
+  const FullModal = state.sheet === 'perfil' ? Perfil : state.sheet === 'paywall' ? Paywall : state.sheet === 'ajustes' ? Ajustes : null
   const Tab = TAB_SCREENS[state.tab]
   return (
     <>
@@ -124,6 +133,21 @@ function AppShell() {
           <Tab />
         </motion.div>
       </AnimatePresence>
+
+      {/* Engranaje de Ajustes — arriba a la derecha, global */}
+      <button
+        aria-label="Ajustes"
+        onClick={() => dispatch({ t: 'sheet', sheet: 'ajustes' })}
+        style={{
+          position: 'absolute', top: 'calc(env(safe-area-inset-top) + 14px)', right: 16, zIndex: 35,
+          width: 38, height: 38, borderRadius: 999, border: '1px solid var(--border)',
+          background: 'var(--surface)', color: 'var(--ink-700)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', boxShadow: 'var(--e1)',
+        }}
+      >
+        <IcGear size={20} />
+      </button>
+
       <BottomNav />
       <SheetHost />
       <AnimatePresence>{FullModal && <FullModal key={state.sheet} />}</AnimatePresence>

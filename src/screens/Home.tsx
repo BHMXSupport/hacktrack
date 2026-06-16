@@ -134,8 +134,10 @@ export function Home() {
             </div>
           </div>
 
-          {/* Avatar */}
-          <UserAvatar size={48} tone="filled" />
+          {/* Avatar — desplazado a la izquierda para no chocar con el engranaje global */}
+          <div style={{ marginRight: 44, flexShrink: 0 }}>
+            <UserAvatar size={48} tone="filled" />
+          </div>
         </motion.section>
 
         {/* ── 1b. Checklist "Tus dosis de hoy" (1-tap, sin escribir) ──── */}

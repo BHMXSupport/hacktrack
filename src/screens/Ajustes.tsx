@@ -1,12 +1,12 @@
 // Hacktrack — Ajustes. Quiet Signal: whitespace generoso, un héroe por sección, jerarquía por escala tipográfica.
 import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IcBell, IcChevron, IcDrop, IcShield, IcCheck } from '../components/icons'
+import { IcBell, IcChevron, IcShield, IcCheck, IcBack } from '../components/icons'
 import { Glyph } from '../components/glyphs'
 import { Toggle, Disclaimer } from '../components/controls'
 import { useApp } from '../lib/store'
 import { requestNotif, notifPermission, notifSupported } from '../lib/notifications'
-import { dur, ease } from '../lib/motion'
+import { dur, ease, spring } from '../lib/motion'
 
 // ── micro animaciones ──────────────────────────────────────────────────────────
 const fadeSlide = {
@@ -96,8 +96,17 @@ export function Ajustes() {
   const reminderTime = protocol?.reminderTime ?? '08:00'
   const hasProtocol  = protocol != null
 
+  const close = () => dispatch({ t: 'sheet', sheet: null })
+
   return (
-    <div className="scroll has-nav">
+    <motion.div
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={spring.sheet}
+      style={{ position: 'absolute', inset: 0, background: 'var(--bg)', zIndex: 50 }}
+    >
+    <div className="scroll">
 
       {/* ── Cabecera ─────────────────────────────────────────────────────────── */}
       <header
@@ -108,25 +117,12 @@ export function Ajustes() {
           background: 'var(--bg)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          gap: 12,
           padding: '16px 20px 12px',
         }}
       >
-        <h1 className="h1" style={{ margin: 0 }}>Ajustes</h1>
-        <div
-          aria-hidden
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            background: 'var(--brand-100, #acefe4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <IcDrop size={18} style={{ color: 'var(--brand-700)' }} />
-        </div>
+        <button className="iconbtn" onClick={close} aria-label="Volver"><IcBack size={22} /></button>
+        <h1 className="h1" style={{ margin: 0, flex: 1 }}>Ajustes</h1>
       </header>
 
       <main
@@ -529,5 +525,6 @@ export function Ajustes() {
 
       </main>
     </div>
+    </motion.div>
   )
 }
