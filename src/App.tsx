@@ -54,6 +54,7 @@ import { Agregar } from './sheets/Agregar'
 import { Medidas } from './sheets/Medidas'
 import { CrearPlatillo } from './sheets/CrearPlatillo'
 import { Recetario } from './sheets/Recetario'
+import { DoseConfirm } from './sheets/DoseConfirm'
 import { DayDetail } from './sheets/DayDetail'
 
 const fade = sharedAxisX
@@ -113,6 +114,7 @@ const SHEETS = {
   'protocolo-edit': ProtocoloEdit,
   'crear-platillo': CrearPlatillo,
   recetario: Recetario,
+  'dose-confirm': DoseConfirm,
 } as const
 
 function SheetHost() {

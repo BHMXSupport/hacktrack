@@ -28,12 +28,18 @@ export function TodayDoses() {
   function markDone(product: string) {
     tapHaptic()
     const dose = doseForProduct(state, product)
-    if (dose) {
-      // mg canónicos: directo si mg/mcg, o con la reconstitución recordada si la dosis es en UI/mL
-      const rec = state.productRecon[product]
-      const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
-      dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: tsFor(product), doseMg })
-    } else dispatch({ t: 'sheet', sheet: 'registrar', arg: product }) // sin dosis aún → abre en ESE producto
+    if (!dose) { dispatch({ t: 'sheet', sheet: 'registrar', arg: product }); return } // sin dosis aún → abre en ESE producto
+    // mg canónicos: directo si mg/mcg, o con la reconstitución recordada si la dosis es en UI/mL
+    const rec = state.productRecon[product]
+    const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
+    const scheduledTs = tsFor(product)
+    const nowTs = Date.now()
+    // si la hora actual difiere ≥1h de la programada, pregunta a qué hora se aplicó; si no, registra a la hora programada
+    if (Math.abs(nowTs - scheduledTs) >= 60 * 60 * 1000) {
+      dispatch({ t: 'sheet', sheet: 'dose-confirm', arg: JSON.stringify({ product, value: dose.value, unit: dose.unit, doseMg, scheduledTs, nowTs }) })
+    } else {
+      dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: scheduledTs, doseMg })
+    }
   }
   function undo(product: string) {
     tapHaptic()

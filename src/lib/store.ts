@@ -13,7 +13,7 @@ export type TabId = 'inicio' | 'diario' | 'protocolo' | 'vida' | 'comida' | 'sem
 export type ProgresoView = 'cal' | 'avances'
 export type SheetId =
   | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail' | 'crear-platillo' | 'recetario'
-  | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit' | 'ajustes'
+  | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit' | 'ajustes' | 'dose-confirm'
 
 export interface AppState {
   todayTs: number
