@@ -10,7 +10,8 @@ import { tapHaptic } from '../lib/haptics'
 interface Row { ing: Ingredient; grams: number }
 
 export function CrearPlatillo() {
-  const { dispatch } = useApp()
+  const { state, dispatch } = useApp()
+  const ts = state.sheetArg ? Number(state.sheetArg) : undefined
   const [name, setName] = useState('')
   const [query, setQuery] = useState('')
   const [rows, setRows] = useState<Row[]>([])
@@ -73,7 +74,7 @@ export function CrearPlatillo() {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-outline" style={{ flex: 1 }} disabled={!canSave} onClick={() => { tapHaptic(); dispatch({ t: 'createFav', fav }); dispatch({ t: 'toast', msg: 'Platillo guardado' }); close() }}>Solo guardar</button>
-          <button className="btn btn-brand" style={{ flex: 1 }} disabled={!canSave} onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: fav.kcal, protein: fav.protein, carbs: fav.carbs, fat: fav.fat, label: fav.label, fav: true }); close() }}>Guardar y agregar</button>
+          <button className="btn btn-brand" style={{ flex: 1 }} disabled={!canSave} onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: fav.kcal, protein: fav.protein, carbs: fav.carbs, fat: fav.fat, label: fav.label, fav: true, ts }); close() }}>Guardar y agregar</button>
         </div>
       </div>
     </Sheet>

@@ -7,7 +7,8 @@ import { RECIPES } from '../lib/catalog'
 import { tapHaptic } from '../lib/haptics'
 
 export function Recetario() {
-  const { dispatch } = useApp()
+  const { state, dispatch } = useApp()
+  const ts = state.sheetArg ? Number(state.sheetArg) : undefined
   const [open, setOpen] = useState<string | null>(null)
   const close = () => dispatch({ t: 'sheet', sheet: null })
 
@@ -42,7 +43,7 @@ export function Recetario() {
 
                   <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                     <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => { tapHaptic(); dispatch({ t: 'createFav', fav: { label: r.name, kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat } }); dispatch({ t: 'toast', msg: 'Guardado como platillo' }) }}>Guardar</button>
-                    <button className="btn btn-brand btn-sm" style={{ flex: 1 }} onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, label: r.name }); close() }}>Agregar</button>
+                    <button className="btn btn-brand btn-sm" style={{ flex: 1 }} onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, label: r.name, ts }); close() }}>Agregar</button>
                   </div>
                 </div>
               )

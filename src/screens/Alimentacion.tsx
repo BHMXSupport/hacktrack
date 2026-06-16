@@ -6,6 +6,7 @@ import { useApp, isoKey, mealSlot } from '../lib/store'
 import { dayMacros, predictions, fuzzySearch, protocolNumbers, anchorProduct, tdee } from '../lib/nutrition'
 import { Sparkline } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
+import { TimeWheel } from '../components/TimeWheel'
 import { IcDrop, IcClose } from '../components/icons'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -13,7 +14,16 @@ import type { FoodFav } from '../lib/types'
 
 const WATER_GOAL = 8
 const PORTIONS: (number | null)[] = [null, 0.5, 1, 1.5, 2] // null = "auto" (porción aprendida)
-const hm = (ts: number) => new Date(ts).toTimeString().slice(0, 5) // 'HH:MM'
+// "9:05 AM" → ts de hoy; 'Ahora' → null
+function parseHoraLabel(label: string, todayTs: number): number | null {
+  if (label === 'Ahora') return null
+  const m = label.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!m) return null
+  let h = parseInt(m[1], 10) % 12
+  if (/pm/i.test(m[3])) h += 12
+  const d = new Date(todayTs); d.setHours(h, parseInt(m[2], 10), 0, 0)
+  return d.getTime()
+}
 // copy del estado vacío según la franja del día
 const SLOT_PROMPT: Record<string, string> = {
   'desayuno': '¿Qué desayunas? Regístralo abajo y lo recordaré.',
@@ -35,7 +45,8 @@ export function Alimentacion() {
   const macros = dayMacros(day.meals)
 
   const [portion, setPortion] = useState<number | null>(null)
-  const [timeStr, setTimeStr] = useState<string | null>(null) // null = ahora; 'HH:MM' = hora elegida hoy
+  const [horaLabel, setHoraLabel] = useState('Ahora') // 'Ahora' o '9:05 AM'
+  const [showWheel, setShowWheel] = useState(false)
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const [kcalStr, setKcalStr] = useState('')
@@ -48,12 +59,7 @@ export function Alimentacion() {
   const goalKcal = state.kcalGoal ?? tdee(state)
   const goalP = state.macroGoals?.protein ?? null
   // hora de registro elegida (ahora, o una hora de HOY para backfill); la franja se DERIVA de la hora
-  const whenTs = (() => {
-    if (!timeStr) return now
-    const [h, m] = timeStr.split(':').map(Number)
-    const d = new Date(state.todayTs); d.setHours(h || 0, m || 0, 0, 0)
-    return d.getTime()
-  })()
+  const whenTs = parseHoraLabel(horaLabel, state.todayTs) ?? now
   const whenSlot = mealSlot(whenTs)
   const preds = predictions(state, whenTs, 3)
   const results = fuzzySearch(state.foodLibrary, query)
@@ -114,13 +120,14 @@ export function Alimentacion() {
 
         {/* ── Predicciones por franja + barra inteligente ── */}
         <motion.section variants={staggerItem} className="card">
-          {/* Hora del registro (elige la hora → backfill; la franja se deriva sola) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+          {/* Hora del registro (rueda con scroll → backfill; la franja se deriva sola) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: showWheel ? 8 : 8 }}>
             <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora</span>
-            <input className="field mono" type="time" value={timeStr ?? hm(now)} onChange={(e) => setTimeStr(e.target.value)} style={{ width: 110, padding: '6px 10px' }} />
-            {timeStr != null && <button className="chip" style={{ height: 30 }} onClick={() => setTimeStr(null)}>Ahora</button>}
+            <button className="chip mono" onClick={() => setShowWheel((v) => !v)} style={{ fontWeight: 700 }}>{horaLabel} ▾</button>
+            {horaLabel !== 'Ahora' && <button className="chip" style={{ height: 30 }} onClick={() => { setHoraLabel('Ahora'); setShowWheel(false) }}>Ahora</button>}
             <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600, marginLeft: 'auto', textAlign: 'right' }}>Para tu {whenSlot}</span>
           </div>
+          {showWheel && <div style={{ marginBottom: 10 }}><TimeWheel initial={new Date(whenTs)} onChange={setHoraLabel} /></div>}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 10 }}>
             <span className="sm" style={{ color: 'var(--ink-400)', marginRight: 'auto' }}>Porción</span>
             {PORTIONS.map((p) => (
@@ -150,13 +157,18 @@ export function Alimentacion() {
             <div className="sm" style={{ color: 'var(--ink-400)', padding: '8px 0' }}>{SLOT_PROMPT[whenSlot] ?? 'Registra tu comida abajo y la recordaré.'}</div>
           )}
 
-          {/* Acciones rápidas */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-            <button className="chip" onClick={() => dispatch({ t: 'sheet', sheet: 'crear-platillo' })}>Crear platillo</button>
-            <button className="chip" onClick={() => dispatch({ t: 'sheet', sheet: 'recetario' })}>Recetario ✦</button>
-            {hasYesterday && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'copyYesterday' }) }}>Copiar de ayer</button>}
-            {day.meals[0] && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: day.meals[0].kcal, protein: day.meals[0].protein, carbs: day.meals[0].carbs, fat: day.meals[0].fat, label: (day.meals[0].label ?? undefined), ts: whenTs }) }}>Repetir última</button>}
+          {/* Crear platillo + Recetario — destacados */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            <button className="btn btn-outline" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'crear-platillo', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}>＋ Crear platillo</button>
+            <button className="btn btn-brand" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'recetario', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}>✦ Recetario</button>
           </div>
+          {/* Acciones rápidas (chips pequeños) */}
+          {(hasYesterday || day.meals[0]) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              {hasYesterday && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'copyYesterday' }) }}>Copiar de ayer</button>}
+              {day.meals[0] && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: day.meals[0].kcal, protein: day.meals[0].protein, carbs: day.meals[0].carbs, fat: day.meals[0].fat, label: (day.meals[0].label ?? undefined), ts: whenTs }) }}>Repetir última</button>}
+            </div>
+          )}
 
           {/* Barra inteligente: busca en tu biblioteca o crea */}
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
