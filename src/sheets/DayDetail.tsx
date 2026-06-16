@@ -3,6 +3,7 @@
 // sin promesas de resultado, <Disclaimer kind="dose"/> presente.
 import { Sheet } from '../components/Sheet'
 import { Disclaimer } from '../components/controls'
+import { tapHaptic } from '../lib/haptics'
 import { Glyph, GlyphCircle } from '../components/glyphs'
 import { IcCheck } from '../components/icons'
 import { useApp, isoKey } from '../lib/store'
@@ -62,6 +63,7 @@ export function DayDetail() {
   // 1-tap: registra dosis a la hora reminderTime del día
   function handleQuickLog(product: string) {
     const ts = doseTsForDay(state, d, product)
+    tapHaptic()
     dispatch({ t: 'logDose', product, value: null, unit: 'mg', ts })
   }
 

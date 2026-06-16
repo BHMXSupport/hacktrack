@@ -6,6 +6,7 @@ import type { AppState } from './lib/store'
 import { startOfDay } from './lib/cadence'
 import { notifPermission, showReminder } from './lib/notifications'
 import { sharedAxisX, spring } from './lib/motion'
+import { tapHaptic } from './lib/haptics'
 
 // ── persistencia local (PWA: no perder datos al refrescar) ──
 const STORAGE_KEY = 'hacktrack:v1'
@@ -16,7 +17,7 @@ function loadState(): AppState {
     if (!raw) return fresh
     const saved = JSON.parse(raw)
     // hydrate(): migra estado legado (un solo protocol) al mapa multi-protocolo y sincroniza cachés
-    return hydrate({ ...fresh, ...saved, sheet: null, toast: null, todayTs: fresh.todayTs })
+    return hydrate({ ...fresh, ...saved, sheet: null, toast: null, toastUndoId: null, todayTs: fresh.todayTs })
   } catch {
     return fresh
   }
@@ -48,11 +49,12 @@ const fade = sharedAxisX
 
 function Toast() {
   const { state, dispatch } = useApp()
+  const hasUndo = !!state.toastUndoId
   useEffect(() => {
     if (!state.toast) return
-    const t = setTimeout(() => dispatch({ t: 'toast', msg: null }), 2400)
+    const t = setTimeout(() => dispatch({ t: 'toast', msg: null }), hasUndo ? 5000 : 2400)
     return () => clearTimeout(t)
-  }, [state.toast, dispatch])
+  }, [state.toast, hasUndo, dispatch])
   return (
     <AnimatePresence>
       {state.toast && (
@@ -64,10 +66,24 @@ function Toast() {
           style={{
             position: 'absolute', left: 18, right: 18, bottom: 96, zIndex: 60,
             background: 'var(--ink-900)', color: '#fff', borderRadius: 14, padding: '13px 16px',
-            fontSize: 14, fontWeight: 600, textAlign: 'center', boxShadow: 'var(--e3)',
+            fontSize: 14, fontWeight: 600, boxShadow: 'var(--e3)',
+            display: 'flex', alignItems: 'center', justifyContent: hasUndo ? 'space-between' : 'center', gap: 12,
           }}
         >
-          {state.toast}
+          <span>{state.toast}</span>
+          {hasUndo && (
+            <button
+              type="button"
+              onClick={() => {
+                tapHaptic()
+                dispatch({ t: 'deleteLog', id: state.toastUndoId! })
+                dispatch({ t: 'toast', msg: null })
+              }}
+              style={{ background: 'none', border: 0, color: 'var(--brand-500)', fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: 0, flexShrink: 0 }}
+            >
+              Deshacer
+            </button>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

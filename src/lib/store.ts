@@ -42,6 +42,7 @@ export interface AppState {
   scale: SyringeScale          // escala de jeringa de la calculadora (P0-6)
   draftDose: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null  // "copiar a mi registro" desde la calc (con reconstitución)
   toast: string | null
+  toastUndoId: string | null   // id del log a deshacer desde el toast (ej. dosis recién registrada)
 }
 
 export const initialState: AppState = {
@@ -76,6 +77,7 @@ export const initialState: AppState = {
   scale: 100,
   draftDose: null,
   toast: null,
+  toastUndoId: null,
 }
 
 export type Action =
@@ -327,7 +329,8 @@ export function reducer(s: AppState, a: Action): AppState {
         productRecon: a.recon ? { ...s.productRecon, [a.product]: a.recon } : s.productRecon,
         logged: true,
         sheet: null,
-        toast: 'Registro guardado',
+        toast: 'Dosis registrada',
+        toastUndoId: item.id, // permite "Deshacer" desde el toast
       }
     }
 
@@ -360,6 +363,7 @@ export function reducer(s: AppState, a: Action): AppState {
         logged: true,
         sheet: null,
         toast: 'Medida registrada',
+        toastUndoId: null,
       }
     }
 
@@ -396,6 +400,7 @@ export function reducer(s: AppState, a: Action): AppState {
         logged: true,
         sheet: null,
         toast: 'Medidas actualizadas',
+        toastUndoId: null,
       }
     }
 
@@ -411,7 +416,7 @@ export function reducer(s: AppState, a: Action): AppState {
         history = {}
         for (const k of Object.keys(s.history)) history[k] = s.history[k].filter((sm) => sm.ts !== deleted!.ts)
       }
-      return { ...s, log, history, logged: log.length > 0, sheet: null }
+      return { ...s, log, history, logged: log.length > 0, sheet: null, toastUndoId: null }
     }
 
     case 'setSetting':
@@ -445,7 +450,7 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...initialState, todayTs: startOfDay(new Date()).getTime(), screen: 's-onboarding' }
 
     case 'toast':
-      return { ...s, toast: a.msg }
+      return { ...s, toast: a.msg, toastUndoId: null } // un toast normal no trae acción de deshacer
 
     default:
       return s

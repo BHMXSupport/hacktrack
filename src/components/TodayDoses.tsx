@@ -5,6 +5,7 @@ import { useApp, doseForProduct } from '../lib/store'
 import { dayProducts, doseTakenOnProduct, loggedItemsForDay } from '../lib/calendar'
 import { startOfDay } from '../lib/cadence'
 import { doseToMg } from '../lib/calc'
+import { tapHaptic } from '../lib/haptics'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { IcCheck } from './icons'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -25,6 +26,7 @@ export function TodayDoses() {
   }
 
   function markDone(product: string) {
+    tapHaptic()
     const dose = doseForProduct(state, product)
     if (dose) {
       // mg canónicos: directo si mg/mcg, o con la reconstitución recordada si la dosis es en UI/mL
@@ -34,6 +36,7 @@ export function TodayDoses() {
     } else dispatch({ t: 'sheet', sheet: 'registrar', arg: product }) // sin dosis aún → abre en ESE producto
   }
   function undo(product: string) {
+    tapHaptic()
     const item = loggedItemsForDay(state, today).find((it) => it.type === 'dose' && it.product === product)
     if (item) dispatch({ t: 'deleteLog', id: item.id })
   }
