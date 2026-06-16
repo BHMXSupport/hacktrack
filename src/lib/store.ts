@@ -1,7 +1,7 @@
 // Hacktrack — store central (Context + reducer). Implementa los fixes P0 + endurecimiento del audit.
 import { createContext, useContext } from 'react'
 import type {
-  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample,
+  Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample, Meal, FoodFav,
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
@@ -36,7 +36,9 @@ export interface AppState {
   history: Record<string, MeasureSample[]>   // serie temporal por KPI/medida (dashboard)
   productDoses: Record<string, { value: number; unit: string }>  // dosis recordada por producto (para "hecho hoy")
   productRecon: Record<string, { vialMg: number; aguaMl: number }> // reconstitución recordada por producto (UI/mL → mg)
-  nutrition: Record<string, { water: number; meals: { id: string; kcal: number; ts: number }[] }> // por dateKey: hidratación + comidas
+  nutrition: Record<string, { water: number; meals: Meal[] }>        // por dateKey: hidratación + comidas
+  foodLibrary: FoodFav[]                                              // comidas frecuentes (registro 1-tap)
+  macroGoals: { protein: number; carbs: number; fat: number } | null // metas de macros que define el usuario
   settings: UserSettings
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
@@ -66,6 +68,8 @@ export const initialState: AppState = {
   productDoses: {},
   productRecon: {},
   nutrition: {},
+  foodLibrary: [],
+  macroGoals: null,
   settings: {
     pinEnabled: false,
     darkMode: false,
@@ -74,6 +78,7 @@ export const initialState: AppState = {
     emailNotices: false,
     consentVersion: 'v1.0',
     consentActive: true,
+    premium: false,
   },
   logged: false,
   scale: 100,
@@ -95,8 +100,11 @@ export type Action =
   | { t: 'setActiveProduct'; product: string }                        // foco de edición (interno, no "activo" visible)
   | { t: 'setProgresoView'; view: ProgresoView }                      // cambia el segmento de Progreso (deep-link)
   | { t: 'water'; delta: number }                                     // hidratación de hoy (± vasos)
-  | { t: 'addMeal'; kcal: number }                                    // agrega una comida (kcal) a hoy
+  | { t: 'addMeal'; kcal: number; protein?: number | null; carbs?: number | null; fat?: number | null; label?: string; fav?: boolean } // agrega comida a hoy
+  | { t: 'addFavMeal'; id: string }                                   // registra una comida favorita (1-tap)
   | { t: 'delMeal'; id: string }                                      // elimina una comida
+  | { t: 'delFav'; id: string }                                       // elimina un favorito
+  | { t: 'setMacroGoals'; goals: { protein: number; carbs: number; fat: number } | null } // metas de macros
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number } } // P0-1
@@ -105,6 +113,7 @@ export type Action =
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string }
   | { t: 'setName'; name: string }
+  | { t: 'setProfileFields'; patch: Partial<Profile> }                // edad/sexo/actividad/meta (TDEE/proyección)
   | { t: 'setReminderTime'; time: string }
   | { t: 'setScale'; scale: SyringeScale }
   | { t: 'setDraftDose'; draft: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null }
@@ -279,14 +288,40 @@ export function reducer(s: AppState, a: Action): AppState {
       if (!(a.kcal > 0)) return s
       const k = isoKey(s.todayTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
-      const meal = { id: genId(), kcal: Math.round(a.kcal), ts: Date.now() }
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } } }
+      const meal: Meal = {
+        id: genId(), kcal: Math.round(a.kcal), ts: Date.now(),
+        protein: a.protein ?? null, carbs: a.carbs ?? null, fat: a.fat ?? null, label: a.label?.trim() || null,
+      }
+      // guardar como favorito (fusiona por etiqueta) si se pidió
+      let foodLibrary = s.foodLibrary
+      if (a.fav && meal.label) {
+        const i = foodLibrary.findIndex((f) => f.label.toLowerCase() === meal.label!.toLowerCase())
+        if (i >= 0) {
+          foodLibrary = foodLibrary.map((f, j) => (j === i ? { ...f, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: f.usoCount + 1 } : f))
+        } else {
+          foodLibrary = [{ id: genId(), label: meal.label, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: 1 }, ...foodLibrary]
+        }
+      }
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary }
+    }
+    case 'addFavMeal': {
+      const fav = s.foodLibrary.find((f) => f.id === a.id)
+      if (!fav) return s
+      const k = isoKey(s.todayTs)
+      const cur = s.nutrition[k] ?? { water: 0, meals: [] }
+      const meal: Meal = { id: genId(), kcal: fav.kcal, ts: Date.now(), protein: fav.protein ?? null, carbs: fav.carbs ?? null, fat: fav.fat ?? null, label: fav.label }
+      const foodLibrary = s.foodLibrary.map((f) => (f.id === a.id ? { ...f, usoCount: f.usoCount + 1 } : f))
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary }
     }
     case 'delMeal': {
       const nutrition: AppState['nutrition'] = {}
       for (const [k, v] of Object.entries(s.nutrition)) nutrition[k] = { ...v, meals: v.meals.filter((m) => m.id !== a.id) }
       return { ...s, nutrition }
     }
+    case 'delFav':
+      return { ...s, foodLibrary: s.foodLibrary.filter((f) => f.id !== a.id) }
+    case 'setMacroGoals':
+      return { ...s, macroGoals: a.goals }
 
     case 'deleteProduct': {
       // quita el producto del seguimiento. NO toca s.log → los registros pasados se conservan.
@@ -446,6 +481,8 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, settings: { ...s.settings, [a.key]: a.value } }
     case 'setName':
       return { ...s, profile: { ...s.profile, name: a.name.trim() || null } }
+    case 'setProfileFields':
+      return { ...s, profile: { ...s.profile, ...a.patch } }
     case 'setReminderTime': {
       // hora global de recordatorio: se aplica a TODOS los productos (todos están activos)
       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)) return s

@@ -244,7 +244,12 @@ export function Paywall() {
           <button
             className="btn btn-ember"
             style={{ width: '100%', height: 52, fontSize: 17, fontWeight: 600 }}
-            onClick={() => dispatch({ t: 'toast', msg: 'Suscripción Plus (próximamente)' })}
+            onClick={() => {
+              // placeholder de desbloqueo (hasta integrar pagos reales): activa Plus
+              dispatch({ t: 'setSetting', key: 'premium', value: true })
+              dispatch({ t: 'toast', msg: 'Plus activado' })
+              dispatch({ t: 'sheet', sheet: null })
+            }}
           >
             Probar Plus
           </button>

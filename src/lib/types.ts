@@ -46,12 +46,36 @@ export interface Profile {
   grasa: number | null     // % grasa
   musculo: number | null   // % masa musculoesquelética
   bmi: number | null       // derivado, nunca tecleado
+  edad?: number | null     // años (para TDEE)
+  sexo?: Sexo | null       // H|M (para TDEE)
+  actividad?: Actividad | null // nivel de actividad (para TDEE)
+  metaPesoKg?: number | null   // peso objetivo (para proyección)
 }
 
 // muestra histórica de una medida/KPI (para el dashboard de progreso)
 export interface MeasureSample {
   ts: number
   value: number
+}
+
+// Alimentación: comida registrada (kcal + macros opcionales) y comida favorita (1-tap)
+export interface Meal {
+  id: string
+  kcal: number
+  ts: number
+  protein?: number | null
+  carbs?: number | null
+  fat?: number | null
+  label?: string | null
+}
+export interface FoodFav {
+  id: string
+  label: string
+  kcal: number
+  protein?: number | null
+  carbs?: number | null
+  fat?: number | null
+  usoCount: number
 }
 
 export type LogItemType = 'dose' | 'medida' | 'none'
@@ -113,4 +137,8 @@ export interface UserSettings {
   emailNotices: boolean
   consentVersion: string
   consentActive: boolean
+  premium: boolean            // suscripción Plus (gating de Alimentación + Resumen premium)
 }
+
+export type Sexo = 'H' | 'M'
+export type Actividad = 'sedentario' | 'ligero' | 'moderado' | 'activo' | 'muy-activo'
