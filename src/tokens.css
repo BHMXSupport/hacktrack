@@ -96,7 +96,7 @@ body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(-
   background:transparent;text-align:left;cursor:pointer;border-bottom:1px solid var(--border)}
 .row:last-child{border-bottom:0}
 .row .row-ic{width:24px;height:24px;color:var(--ink-400);flex:none}
-.row .row-main{flex:1;min-width:0}
+.row .row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .row .row-label{font-size:15px;font-weight:600;color:var(--ink-900)}
 .row .row-sub{font-size:12.5px;color:var(--ink-400)}
 .row .row-end{color:var(--ink-300);font-size:13px}

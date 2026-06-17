@@ -839,28 +839,28 @@ export function Progreso() {
             transition={spring.ui}
             onClick={() => dispatch({ t: 'sheet', sheet: 'medida' })}
             style={{
+              // Píldora etiquetada (no un '+' suelto) para NO confundirse con el FAB '+' del nav
               position: 'fixed',
-              bottom: 80,
-              right: 20,
-              width: 56,
-              height: 56,
+              bottom: 84,
+              right: 16,
+              height: 44,
+              padding: '0 16px',
               borderRadius: 99,
               background: 'var(--brand-700)',
               color: 'white',
               border: 'none',
               boxShadow: 'var(--e3)',
-              display: 'flex',
-              flexDirection: 'column',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 24,
-              fontWeight: 700,
+              gap: 6,
+              fontSize: 14,
+              fontWeight: 600,
               cursor: 'pointer',
               zIndex: 100,
               lineHeight: 1,
             }}
           >
-            <span>+</span>
+            <span style={{ fontSize: 18, fontWeight: 700 }}>+</span> Medida
           </motion.button>
         )}
       </AnimatePresence>
