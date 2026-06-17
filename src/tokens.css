@@ -16,7 +16,7 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 /* Sin chrome nativo en botones: evita el borde biselado del navegador (el "encuadre de L")
-   en cualquier <button> que no resetee el borde por su cuenta. Los .btn*/.chip mantienen su estilo. */
+   en cualquier <button> que no resetee el borde por su cuenta. Los .btn y .chip mantienen su estilo. */
 button { -webkit-appearance: none; appearance: none; }
 /* Accesibilidad: foco visible solo por teclado */
 :focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; border-radius: 4px; }
@@ -37,7 +37,12 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 }
 /* PWA instalada → siempre full-bleed, sin importar el tamaño (gana sobre la regla de desktop). */
 @media all and (display-mode:standalone){
-  .phone{ max-width:none; max-height:none; margin:0; border-radius:0; border:0; box-shadow:none; }
+  /* PWA instalada: ocupar la pantalla FÍSICA completa. 100vh incluye la zona de la barra de
+     gestos/home-indicator; 100dvh la excluía → por eso quedaba una franja abajo y la nav no
+     llegaba al borde. Con esto la nav (bottom:0) y el .scroll (inset:0) tocan el fondo real. */
+  .phone{ max-width:none; max-height:none; margin:0; border-radius:0; border:0; box-shadow:none;
+    height:100vh; }
+  .app-root{ min-height:100vh; align-items:stretch; }
 }
 .app-root { display:flex; align-items:center; justify-content:center; min-height:100dvh; }
 
@@ -60,9 +65,9 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
    del <button> (si no, el navegador pinta su borde biselado = el "encuadre de L"). */
 .btn-ghost{background:transparent;color:var(--ink-400);height:46px;border:0;cursor:pointer;font-family:'Inter';-webkit-appearance:none;appearance:none;padding:0 8px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:var(--e2)}
-.scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:clip;padding:max(22px,env(safe-area-inset-top)) 18px 28px}
-/* deja espacio para la bottom-nav en pantallas con tabs */
-.scroll.has-nav{padding-bottom:96px}
+.scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:clip;padding:max(22px,env(safe-area-inset-top)) 18px max(28px,env(safe-area-inset-bottom))}
+/* deja espacio para la bottom-nav en pantallas con tabs (+ safe-area del home-indicator) */
+.scroll.has-nav{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
 
 /* Colores de categoría (design system Quiet Signal) */
@@ -78,10 +83,12 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 .btn-link{background:none;border:0;color:var(--brand-700);font-weight:600;cursor:pointer;padding:0;font-size:13px}
 
 /* Bottom nav (4 tabs + FAB central) — fondo sólido, sin blur */
-.bottomnav{position:absolute;left:0;right:0;bottom:0;height:78px;background:var(--surface);
+/* Sin height fijo: la zona de iconos la define .navtab (min-height), y padding-bottom añade el
+   safe-area DEBAJO (la nav blanca sangra bajo el home-indicator y los iconos bajan al borde). */
+.bottomnav{position:absolute;left:0;right:0;bottom:0;background:var(--surface);
   border-top:1px solid var(--border);display:flex;align-items:stretch;z-index:30;
   padding-bottom:env(safe-area-inset-bottom)}
-.navtab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+.navtab{flex:1;min-width:0;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   border:0;background:transparent;cursor:pointer;color:var(--ink-400);font-size:9.5px;font-weight:600;font-family:'Inter';white-space:nowrap}
 .navtab svg{width:21px;height:21px;stroke:currentColor;stroke-width:2;fill:none}
 .navtab.active{color:var(--brand-700)}
