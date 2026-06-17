@@ -979,6 +979,20 @@ export function TodayDoses() {
                             >
                               Deshacer
                             </button>
+                          ) : !dose ? (
+                            // Protocolo recién agregado SIN dosis: una sola acción clara (configurar),
+                            // en vez de "Marcar"/"No hoy" que se encimaban con "Establece tu dosis".
+                            <button
+                              onClick={() => dispatch({ t: 'sheet', sheet: 'registrar', arg: product })}
+                              aria-label={`Configurar dosis de ${product}`}
+                              style={{
+                                flexShrink: 0, height: 36, padding: '0 14px', borderRadius: 999, cursor: 'pointer',
+                                fontWeight: 600, fontSize: 13, border: '1.5px solid var(--brand-500)',
+                                background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)', color: 'var(--brand-700)',
+                              }}
+                            >
+                              Configurar
+                            </button>
                           ) : (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                               {/* n°434: botón Marcar: tap directo; long-press 500ms → DoseConfirm */}
