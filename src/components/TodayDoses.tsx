@@ -524,9 +524,10 @@ export function TodayDoses() {
     }
   }
 
-  // "Marcar todo": registra TODAS las dosis pendientes de golpe (sin abrir el selector por cada una),
-  // asignando a cada producto su sitio sugerido por rotación. Antes hacía activeProds.forEach(markDone),
-  // pero markDone(tap) solo hace setPendingSiteProduct → en loop solo quedaba el último y NO registraba nada.
+  // "Marcar todo": registra TODAS las dosis pendientes de golpe, SIN asignar sitio (no fabrica un lugar
+  // "random"). Si quieres registrar dónde inyectaste, marca cada dosis individualmente y elige el sitio.
+  // (Antes hacía activeProds.forEach(markDone), pero markDone(tap) solo hace setPendingSiteProduct → en
+  // loop solo quedaba el último y NO registraba nada.)
   function markAllDone() {
     tapHaptic()
     for (const p of activeProds) {
@@ -535,8 +536,7 @@ export function TodayDoses() {
       if (!dose) continue
       const rec = state.productRecon[p]
       const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
-      const site = nextInjectionSite(state.lastInjectionSite?.[p])
-      dispatch({ t: 'logDose', product: p, value: dose.value, unit: dose.unit, ts: tsFor(p), doseMg, site })
+      dispatch({ t: 'logDose', product: p, value: dose.value, unit: dose.unit, ts: tsFor(p), doseMg })
     }
   }
 
