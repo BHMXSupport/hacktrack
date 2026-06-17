@@ -52,6 +52,19 @@ export function washoutMs(halfLifeH: number): number {
   return halfLifeH * 4.32 * H
 }
 
+// item 279: acumulación — true si una 2ª dosis se aplica antes de que la 1ª caiga al 10%.
+// (Movido desde PharmaDashboard.tsx en el split — es lógica PK pura.)
+export function hasAccumulation(doses: { ts: number; value: number; product: string }[], halfMs: number): boolean {
+  if (doses.length < 2) return false
+  const sorted = [...doses].sort((a, b) => a.ts - b.ts)
+  for (let i = 1; i < sorted.length; i++) {
+    const dtMs = sorted[i].ts - sorted[i - 1].ts
+    const remaining = Math.pow(0.5, dtMs / halfMs) // fracción restante de dosis[i-1] al llegar dosis[i]
+    if (remaining > 0.1) return true // >10% todavía circulando → acumulación real
+  }
+  return false
+}
+
 export type Mode = 'percent' | 'absolute'
 export type Pt = [number, number] // [epoch ms, y]
 

@@ -21,11 +21,13 @@ import {
   coPresenceWindows,
   thresholdCrossTs,
   washoutMs,
+  hasAccumulation,
 } from '../lib/pharma'
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { upcomingDoses } from '../lib/calendar'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
+import { IntervalHistogram, NextDosePill } from './PharmaDashboardParts'
 import { staggerParent, staggerItem, dur, ease } from '../lib/motion'
 
 type Win = '24h' | '72h' | '7d'
@@ -51,111 +53,7 @@ const EyeOffIcon = () => (
   </svg>
 )
 
-// ── Mini SVG histograma de intervalos (sin librería) ──────────────────────────
-// item 290: muestra la distribución de intervalos entre dosis consecutivas
-function IntervalHistogram({ intervalsH, targetH, color }: { intervalsH: number[]; targetH?: number; color: string }) {
-  if (intervalsH.length === 0) return null
-  const W = 120; const H = 36
-  const min = Math.min(...intervalsH)
-  const max = Math.max(...intervalsH)
-  const span = (max - min) || 1
-  const bins = 6
-  const counts = Array(bins).fill(0)
-  for (const v of intervalsH) {
-    const b = Math.min(bins - 1, Math.floor(((v - min) / span) * bins))
-    counts[b]++
-  }
-  const maxCount = Math.max(...counts) || 1
-  const barW = (W - 4) / bins - 2
-
-  // posición X del target (intervalo objetivo)
-  const targetX = targetH != null && targetH >= min && targetH <= max
-    ? 2 + ((targetH - min) / span) * (W - 4)
-    : null
-
-  return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
-      {counts.map((c, i) => {
-        const bh = (c / maxCount) * (H - 10)
-        const bx = 2 + i * (barW + 2)
-        return (
-          <rect
-            key={i}
-            x={bx}
-            y={H - 10 - bh}
-            width={barW}
-            height={bh}
-            fill={color}
-            opacity={0.55}
-            rx={1.5}
-          />
-        )
-      })}
-      {targetX != null && (
-        <>
-          <line x1={targetX} y1={4} x2={targetX} y2={H - 10} stroke="var(--ink-400)" strokeWidth={1} strokeDasharray="2 2" />
-          <text x={targetX + 2} y={10} fontSize={7} fontFamily="JetBrains Mono, monospace" fill="var(--ink-400)">obj.</text>
-        </>
-      )}
-      {/* eje X mínimo/máximo */}
-      <text x={2} y={H - 1} fontSize={7} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
-        {min < 48 ? `${Math.round(min)}h` : `${Math.round(min / 24)}d`}
-      </text>
-      <text x={W - 2} y={H - 1} textAnchor="end" fontSize={7} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
-        {max < 48 ? `${Math.round(max)}h` : `${Math.round(max / 24)}d`}
-      </text>
-    </svg>
-  )
-}
-
-// ── Badge de acumulación ──────────────────────────────────────────────────────
-// item 279: visible cuando la 2ª dosis se aplica antes de que la 1ª llegue al 10%
-function hasAccumulation(doses: { ts: number; value: number; product: string }[], halfMs: number): boolean {
-  if (doses.length < 2) return false
-  const sorted = [...doses].sort((a, b) => a.ts - b.ts)
-  for (let i = 1; i < sorted.length; i++) {
-    const dtMs = sorted[i].ts - sorted[i - 1].ts
-    // fracción restante de dosis[i-1] cuando llega dosis[i]
-    const remaining = Math.pow(0.5, dtMs / halfMs)
-    if (remaining > 0.1) return true // >10% todavía circulando → acumulación real
-  }
-  return false
-}
-
-// ── Pill "Próxima dosis en ~X h" ─────────────────────────────────────────────
-// item 377
-function NextDosePill({ nextTs, now }: { nextTs: number; now: number }) {
-  const diffMs = nextTs - now
-  if (diffMs < 0) return null
-  const diffH = diffMs / H_MS
-  let label: string
-  if (diffH < 1) label = `~${Math.round(diffH * 60)} min`
-  else if (diffH < 48) label = `~${diffH < 1.5 ? '1' : Math.round(diffH)} h`
-  else label = `~${Math.round(diffH / 24)} d`
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
-      transition={{ duration: dur.fast, ease: ease.standard }}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '3px 10px',
-        borderRadius: 999,
-        background: 'var(--brand-100)',
-        border: '1px solid var(--brand-300)',
-        marginTop: 8,
-      }}
-    >
-      <span style={{ fontSize: 9, color: 'var(--brand-700)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>
-        Próxima dosis en {label}
-      </span>
-    </motion.div>
-  )
-}
+// IntervalHistogram + NextDosePill → ./PharmaDashboardParts ; hasAccumulation → ../lib/pharma (split)
 
 export function PharmaDashboard() {
   const { state, dispatch } = useApp()
