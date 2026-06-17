@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { IcBack, IcCheck } from '../components/icons'
+import { IcBack, IcCheck, IcChevron } from '../components/icons'
 import { BiohackmxFlask } from '../components/BiohackmxFlask'
 import { Disclaimer } from '../components/controls'
 import { EmptyState } from '../components/EmptyState'
@@ -356,10 +356,8 @@ export function Import() {
                         <span className="row-main">
                           <span className="row-label">{o.product}</span>
                           <span className="row-sub" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            {/* #111: cantidad (cadencia), fecha relativa, badge */}
-                            <span>{cadenceLabel(o.product)}</span>
-                            <span>·</span>
-                            <span>{relDate(o.date)}</span>
+                            {/* #111: cadencia · fecha agrupadas (separador no huérfano) + badge aparte */}
+                            <span>{cadenceLabel(o.product)} · {relDate(o.date)}</span>
                             <span
                               style={{
                                 fontSize: 11, fontWeight: 600, letterSpacing: 0.3,
@@ -442,8 +440,8 @@ export function Import() {
                         <span className="row-label">{name}</span>
                         <span className="row-sub">{PEPTIDES[name]?.cat ?? ''} · {cadenceLabel(name)}</span>
                       </span>
-                      <span className="row-end" style={{ fontSize: 18, color: 'var(--ink-400)', lineHeight: 1 }}>
-                        {cfg.open ? '▾' : '▸'}
+                      <span className="row-end" style={{ display: 'flex', color: 'var(--ink-400)' }}>
+                        <IcChevron size={18} style={{ transform: cfg.open ? 'rotate(90deg)' : 'none', transition: 'transform 0.18s' }} />
                       </span>
                     </button>
 
@@ -558,23 +556,24 @@ export function Import() {
                           </span>
                         )}
                       </div>
-                      <div className="sm" style={{ color: 'var(--ink-400)', paddingLeft: 18, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                        <span>Cadencia: <b>{cadenceLabel(name)}</b></span>
-                        {cfg && (
-                          <>
-                            <span>·</span>
-                            <span>Inicio: <b>{cfg.startDate}</b></span>
-                            <span>·</span>
-                            <span>Última dosis: <b>{offsetDays === 0 ? 'Hoy' : `Hace ${offsetDays} día${offsetDays !== 1 ? 's' : ''}`}</b></span>
-                          </>
-                        )}
-                        {entry?.phases && (
-                          <>
-                            <span>·</span>
-                            <span>Fase estimada: <b>{estimatePhase(startEpoch, name) + 1} / {entry.phases}</b></span>
-                          </>
-                        )}
+                      {/* Primario: cadencia. Secundario (inicio / última dosis / fase) agrupado y muted,
+                          con cada par llevando su propio separador para que ningún '·' quede huérfano al envolver. */}
+                      <div className="sm" style={{ color: 'var(--ink-700)', paddingLeft: 18 }}>
+                        Cadencia: <b>{cadenceLabel(name)}</b>
                       </div>
+                      {(cfg || entry?.phases) && (
+                        <div className="sm" style={{ color: 'var(--ink-400)', paddingLeft: 18, display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12 }}>
+                          {cfg && (
+                            <>
+                              <span style={{ whiteSpace: 'nowrap' }}>Inicio: <b>{cfg.startDate}</b></span>
+                              <span style={{ whiteSpace: 'nowrap' }}>· Última dosis: <b>{offsetDays === 0 ? 'Hoy' : `Hace ${offsetDays} día${offsetDays !== 1 ? 's' : ''}`}</b></span>
+                            </>
+                          )}
+                          {entry?.phases && (
+                            <span style={{ whiteSpace: 'nowrap' }}>· Fase estimada: <b>{estimatePhase(startEpoch, name) + 1} / {entry.phases}</b></span>
+                          )}
+                        </div>
+                      )}
                     </motion.div>
                   )
                 })}

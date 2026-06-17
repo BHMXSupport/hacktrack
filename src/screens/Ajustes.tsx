@@ -442,7 +442,7 @@ function ProtocolHeroCard() {
       transition={{ duration: dur.base, ease: ease.decelerate }}
       onClick={() => dispatch({ t: 'sheet', sheet: 'protocolo-edit' })}
       style={{
-        background: 'linear-gradient(135deg, var(--brand-900,#0a2e28) 0%, var(--brand-700) 100%)',
+        background: 'linear-gradient(135deg, var(--brand-900) 0%, var(--brand-700) 100%)',
         border: 'none',
         cursor: 'pointer',
         width: '100%',
@@ -468,12 +468,12 @@ function ProtocolHeroCard() {
           {state.productAliases?.[activeProduct] ?? activeProduct}
         </div>
         {protocol.curPhase > 0 && (
-          <div className="sm" style={{ color: 'var(--brand-100,#acefe4)', margin: 0 }}>
+          <div className="sm" style={{ color: 'var(--brand-100)', margin: 0 }}>
             Fase {protocol.curPhase}{protocol.progN > 0 ? ` de ${protocol.progN}` : ''} · {streak > 0 ? `${streak} días seguidos` : 'Sin racha aún'}
           </div>
         )}
         {protocol.curPhase === 0 && (
-          <div className="sm" style={{ color: 'var(--brand-100,#acefe4)', margin: 0 }}>
+          <div className="sm" style={{ color: 'var(--brand-100)', margin: 0 }}>
             {streak > 0 ? `${streak} días seguidos` : 'Sin racha aún'}
           </div>
         )}
@@ -496,6 +496,8 @@ export function Ajustes() {
   const [showFontScale, setShowFontScale] = useState(false)
   const [showAlias, setShowAlias]         = useState(false)
   const [stockProduct, setStockProduct]   = useState<string | null>(null)
+  const [showAdvancedReminders, setShowAdvancedReminders] = useState(false)
+  const [showMore, setShowMore]           = useState(false)
   const fileImportRef                     = useRef<HTMLInputElement>(null)
 
   // permiso en tiempo de render (no se re-pide aquí, solo se lee)
@@ -744,17 +746,17 @@ export function Ajustes() {
                     )}
                   </AnimatePresence>
 
-                  {/* Sparkline de peso inline (N=450): ≥3 puntos */}
+                  {/* Sparkline de peso inline (N=450): ≥3 puntos. flexWrap + nowrap por par para no competir con el chevron de editar. */}
                   {weightData.length >= 3 && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4, minWidth: 0 }}>
                       <Sparkline data={weightData.slice(-12)} w={56} h={20} color="var(--brand-500)" />
                       {lastWeight != null && (
-                        <span className="sm mono" style={{ color: 'var(--ink-400)' }}>{lastWeight.toFixed(1)} kg</span>
+                        <span className="sm mono" style={{ color: 'var(--ink-400)', whiteSpace: 'nowrap' }}>{lastWeight.toFixed(1)} kg</span>
                       )}
                       {weightDelta != null && (
                         <span
                           className="sm mono"
-                          style={{ color: weightDelta <= 0 ? 'var(--success)' : 'var(--error)', fontWeight: 600 }}
+                          style={{ color: weightDelta <= 0 ? 'var(--success)' : 'var(--error)', fontWeight: 600, whiteSpace: 'nowrap' }}
                         >
                           {weightDelta <= 0 ? '↓' : '↑'}{Math.abs(weightDelta).toFixed(1)}
                         </span>
@@ -816,7 +818,16 @@ export function Ajustes() {
                         </RowIcon>
                         <span className="row-main">
                           <span className="row-label">{alias ?? product}</span>
-                          {cadLabel && <span className="row-sub">{cadLabel}{lowStock && <> · <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Stock bajo</>}</span>}
+                          {cadLabel && (
+                            <span className="row-sub" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                              <span>{cadLabel}</span>
+                              {lowStock && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--warning)' }}>
+                                  · <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px' }} /> Stock bajo
+                                </span>
+                              )}
+                            </span>
+                          )}
                         </span>
                         <span className="row-end">
                           <IcChevron size={18} style={{ color: 'var(--ink-300)' }} />
@@ -934,126 +945,166 @@ export function Ajustes() {
                 </span>
               </div>
 
-              {/* Fila: Segundo recordatorio (N=403) — solo para ciclo/cadaN */}
-              {supportsSecondReminder && settings.remindersEnabled && (
-                <div className="row" style={{ alignItems: 'flex-start', minHeight: 56 }}>
-                  <RowIcon>
-                    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="var(--brand-700)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="13" r="8" />
-                      <path d="M12 9v4l2 2" />
-                      <path d="M9 2h6" />
-                    </svg>
-                  </RowIcon>
-                  <span className="row-main" style={{ flex: 1 }}>
-                    <span className="row-label">Segundo recordatorio</span>
-                    <span className="row-sub" style={{ color: 'var(--ink-400)' }}>
-                      Para reconstitución o seguimiento del ciclo
-                    </span>
-                  </span>
-                  <span className="row-end" style={{ alignSelf: 'center' }}>
-                    {/* minutos antes: desactivado · 30m · 1h · 2h */}
-                    {(() => {
-                      const opts: { key: number | null; label: string }[] = [
-                        { key: null, label: 'Sin' },
-                        { key: 30,   label: '30m' },
-                        { key: 60,   label: '1h' },
-                        { key: 120,  label: '2h' },
-                      ]
-                      return (
-                        <span
-                          role="group"
-                          aria-label="Segundo recordatorio"
-                          style={{
-                            display: 'inline-flex', borderRadius: 10, border: '1px solid var(--border)',
-                            overflow: 'hidden', background: 'var(--surface)',
-                          }}
-                        >
-                          {opts.map(({ key, label }, idx) => {
-                            const active = secondReminderMin === key
-                            return (
-                              <button
-                                key={label}
-                                type="button"
-                                aria-pressed={active}
-                                onClick={() => dispatch({ t: 'setSetting', key: 'secondReminderMin', value: key as unknown as string })}
-                                style={{
-                                  padding: '5px 9px', fontSize: 12, fontWeight: active ? 700 : 500,
-                                  border: 'none',
-                                  borderRight: idx < opts.length - 1 ? '1px solid var(--border)' : 'none',
-                                  cursor: 'pointer',
-                                  background: active ? 'var(--brand-700)' : 'transparent',
-                                  color: active ? '#fff' : 'var(--ink-700)',
-                                  transition: 'background 0.15s, color 0.15s',
-                                  lineHeight: 1.4,
-                                  fontFamily: 'JetBrains Mono, monospace',
-                                }}
-                              >
-                                {label}
-                              </button>
-                            )
-                          })}
-                        </span>
-                      )
-                    })()}
-                  </span>
-                </div>
-              )}
-
-              {/* Fila: Ventana de rescate */}
+              {/* Opciones avanzadas (segundo recordatorio + rescate) detrás de un disclosure
+                  para reducir densidad y evitar que los segmentados de 4 botones compitan en la misma fila */}
               {settings.remindersEnabled && (
-                <div className="row" style={{ alignItems: 'flex-start', minHeight: 56 }}>
-                  <RowIcon>
-                    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-700)' }}>
-                      <circle cx="12" cy="13" r="8" />
-                      <path d="M12 9v4l2 2" />
-                      <path d="M9 2h6M12 2v3" />
-                    </svg>
-                  </RowIcon>
-                  <span className="row-main" style={{ flex: 1 }}>
-                    <span className="row-label">Aviso de rescate</span>
-                    <span className="row-sub" style={{ color: 'var(--ink-400)' }}>
-                      Segundo aviso si no registras a tiempo
+                <>
+                  <button
+                    type="button"
+                    className="row"
+                    style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                    aria-expanded={showAdvancedReminders}
+                    aria-label="Opciones avanzadas de recordatorios"
+                    onClick={() => setShowAdvancedReminders((v) => !v)}
+                  >
+                    <RowIcon>
+                      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-700)' }}>
+                        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                        <circle cx="12" cy="12" r="3.5" />
+                      </svg>
+                    </RowIcon>
+                    <span className="row-main">
+                      <span className="row-label">Opciones avanzadas</span>
+                      <span className="row-sub" style={{ color: 'var(--ink-400)' }}>Segundo recordatorio y aviso de rescate</span>
                     </span>
-                  </span>
-                  <span className="row-end" style={{ alignSelf: 'center' }}>
-                    {(() => {
-                      type RW = 0 | 15 | 30 | 60
-                      const current: RW = (settings.rescueWindowMin as RW) ?? 0
-                      const opts: { key: RW; label: string }[] = [
-                        { key: 0,  label: 'Sin' },
-                        { key: 15, label: '15m' },
-                        { key: 30, label: '30m' },
-                        { key: 60, label: '1h' },
-                      ]
-                      return (
-                        <span role="group" aria-label="Ventana de rescate" style={{ display: 'inline-flex', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--surface)' }}>
-                          {opts.map(({ key, label }) => {
-                            const active = current === key
+                    <span className="row-end">
+                      <IcChevron size={18} style={{ color: 'var(--ink-300)', transform: showAdvancedReminders ? 'rotate(90deg)' : 'none', transition: 'transform 0.18s' }} />
+                    </span>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {showAdvancedReminders && (
+                      <motion.div
+                        key="advanced-reminders"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        {/* Fila: Segundo recordatorio (N=403) — solo para ciclo/cadaN. Control en 2ª línea full-width (anti-bleed). */}
+                        {supportsSecondReminder && (
+                          <div className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+                            <span style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                              <RowIcon>
+                                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="var(--brand-700)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="13" r="8" />
+                                  <path d="M12 9v4l2 2" />
+                                  <path d="M9 2h6" />
+                                </svg>
+                              </RowIcon>
+                              <span className="row-main" style={{ flex: 1 }}>
+                                <span className="row-label">Segundo recordatorio</span>
+                                <span className="row-sub" style={{ color: 'var(--ink-400)' }}>
+                                  Para reconstitución o seguimiento del ciclo
+                                </span>
+                              </span>
+                            </span>
+                            {/* minutos antes: desactivado · 30m · 1h · 2h */}
+                            {(() => {
+                              const opts: { key: number | null; label: string }[] = [
+                                { key: null, label: 'Sin' },
+                                { key: 30,   label: '30m' },
+                                { key: 60,   label: '1h' },
+                                { key: 120,  label: '2h' },
+                              ]
+                              return (
+                                <span
+                                  role="group"
+                                  aria-label="Segundo recordatorio"
+                                  style={{
+                                    display: 'flex', borderRadius: 10, border: '1px solid var(--border)',
+                                    overflow: 'hidden', background: 'var(--surface)', width: '100%',
+                                  }}
+                                >
+                                  {opts.map(({ key, label }, idx) => {
+                                    const active = secondReminderMin === key
+                                    return (
+                                      <button
+                                        key={label}
+                                        type="button"
+                                        aria-pressed={active}
+                                        onClick={() => dispatch({ t: 'setSetting', key: 'secondReminderMin', value: key as unknown as string })}
+                                        style={{
+                                          flex: 1, padding: '7px 6px', fontSize: 12, fontWeight: active ? 700 : 500,
+                                          border: 'none',
+                                          borderRight: idx < opts.length - 1 ? '1px solid var(--border)' : 'none',
+                                          cursor: 'pointer',
+                                          background: active ? 'var(--brand-700)' : 'transparent',
+                                          color: active ? '#fff' : 'var(--ink-700)',
+                                          transition: 'background 0.15s, color 0.15s',
+                                          lineHeight: 1.4,
+                                          fontFamily: 'JetBrains Mono, monospace',
+                                        }}
+                                      >
+                                        {label}
+                                      </button>
+                                    )
+                                  })}
+                                </span>
+                              )
+                            })()}
+                          </div>
+                        )}
+
+                        {/* Fila: Ventana de rescate — control en 2ª línea full-width (anti-bleed) */}
+                        <div className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+                          <span style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                            <RowIcon>
+                              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-700)' }}>
+                                <circle cx="12" cy="13" r="8" />
+                                <path d="M12 9v4l2 2" />
+                                <path d="M9 2h6M12 2v3" />
+                              </svg>
+                            </RowIcon>
+                            <span className="row-main" style={{ flex: 1 }}>
+                              <span className="row-label">Aviso de rescate</span>
+                              <span className="row-sub" style={{ color: 'var(--ink-400)' }}>
+                                Segundo aviso si no registras a tiempo
+                              </span>
+                            </span>
+                          </span>
+                          {(() => {
+                            type RW = 0 | 15 | 30 | 60
+                            const current: RW = (settings.rescueWindowMin as RW) ?? 0
+                            const opts: { key: RW; label: string }[] = [
+                              { key: 0,  label: 'Sin' },
+                              { key: 15, label: '15m' },
+                              { key: 30, label: '30m' },
+                              { key: 60, label: '1h' },
+                            ]
                             return (
-                              <button
-                                key={key}
-                                type="button"
-                                aria-pressed={active}
-                                aria-label={key === 0 ? 'Sin aviso de rescate' : `Aviso de rescate a los ${label}`}
-                                onClick={() => dispatch({ t: 'setRescueWindow', minutes: key })}
-                                style={{
-                                  padding: '5px 9px', fontSize: 12, fontWeight: active ? 700 : 500,
-                                  border: 'none', borderRight: key !== 60 ? '1px solid var(--border)' : 'none',
-                                  cursor: 'pointer', background: active ? 'var(--brand-700)' : 'transparent',
-                                  color: active ? '#fff' : 'var(--ink-700)',
-                                  transition: 'background 0.15s, color 0.15s', lineHeight: 1.4,
-                                  fontFamily: 'JetBrains Mono, monospace',
-                                }}
-                              >
-                                {label}
-                              </button>
+                              <span role="group" aria-label="Ventana de rescate" style={{ display: 'flex', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--surface)', width: '100%' }}>
+                                {opts.map(({ key, label }) => {
+                                  const active = current === key
+                                  return (
+                                    <button
+                                      key={key}
+                                      type="button"
+                                      aria-pressed={active}
+                                      aria-label={key === 0 ? 'Sin aviso de rescate' : `Aviso de rescate a los ${label}`}
+                                      onClick={() => dispatch({ t: 'setRescueWindow', minutes: key })}
+                                      style={{
+                                        flex: 1, padding: '7px 6px', fontSize: 12, fontWeight: active ? 700 : 500,
+                                        border: 'none', borderRight: key !== 60 ? '1px solid var(--border)' : 'none',
+                                        cursor: 'pointer', background: active ? 'var(--brand-700)' : 'transparent',
+                                        color: active ? '#fff' : 'var(--ink-700)',
+                                        transition: 'background 0.15s, color 0.15s', lineHeight: 1.4,
+                                        fontFamily: 'JetBrains Mono, monospace',
+                                      }}
+                                    >
+                                      {label}
+                                    </button>
+                                  )
+                                })}
+                              </span>
                             )
-                          })}
-                        </span>
-                      )
-                    })()}
-                  </span>
-                </div>
+                          })()}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
               )}
 
               {/* Fila: Plus / trial */}
@@ -1071,9 +1122,10 @@ export function Ajustes() {
                       : 'Desbloquea perspectivas avanzadas'}
                   </span>
                 </span>
-                <span className="row-end" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                {/* badge inline (no apilado) para no crecer la fila ni desalinear respecto al icono */}
+                <span className="row-end" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   {trialActive && trialDaysLeft <= 2 && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: 'var(--error)', borderRadius: 6, padding: '2px 6px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: 'var(--error)', borderRadius: 6, padding: '2px 6px', whiteSpace: 'nowrap' }}>
                       Vence pronto
                     </span>
                   )}
@@ -1137,14 +1189,14 @@ export function Ajustes() {
             <SectionLabel>Apariencia</SectionLabel>
             <div className="rowlist card">
 
-              {/* Tema: segmentado Auto / Claro / Oscuro (N=381) */}
-              <div className="row" style={{ alignItems: 'flex-start', minHeight: 64 }}>
+              {/* Tema: segmentado Auto / Claro / Oscuro (N=381). flexWrap permite que el segmentado baje a 2ª línea en fontScale grande. */}
+              <div className="row" style={{ alignItems: 'flex-start', minHeight: 64, flexWrap: 'wrap', rowGap: 10 }}>
                 <RowIcon>
                   <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-700)' }}>
                     <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
                   </svg>
                 </RowIcon>
-                <span className="row-main" style={{ flex: 1 }}>
+                <span className="row-main" style={{ flex: 1, minWidth: 0 }}>
                   <span className="row-label">Tema</span>
                   {(settings.themeMode ?? 'auto') === 'auto' && (
                     <span className="row-sub" style={{ color: 'var(--ink-400)', marginTop: 2, display: 'block' }}>
@@ -1351,6 +1403,29 @@ export function Ajustes() {
             </div>
           </section>
 
+          {/* ── VER MÁS: Respaldo + Soporte colapsados por defecto para reducir densidad ─── */}
+          {!showMore && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ alignSelf: 'center', width: 'auto', padding: '0 16px', fontSize: 14, color: 'var(--brand-700)' }}
+              onClick={() => setShowMore(true)}
+              aria-expanded={false}
+            >
+              Ver más · Respaldo y soporte
+            </button>
+          )}
+
+          <AnimatePresence initial={false}>
+          {showMore && (
+          <motion.div
+            key="ajustes-more"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 24 }}
+          >
           {/* ── RESPALDO (N=405 / N=406 / N=498) ──────────────────────────────── */}
           <section>
             <SectionLabel>Respaldo</SectionLabel>
@@ -1496,6 +1571,9 @@ export function Ajustes() {
               </button>
             </div>
           </section>
+          </motion.div>
+          )}
+          </AnimatePresence>
 
           {/* Disclaimer */}
           <Disclaimer kind="general" />
@@ -1504,13 +1582,13 @@ export function Ajustes() {
           <div
             style={{
               borderRadius: 20, overflow: 'hidden',
-              background: 'linear-gradient(135deg, var(--brand-700) 0%, #063B36 100%)',
+              background: 'linear-gradient(135deg, var(--brand-700) 0%, var(--brand-900) 100%)',
               padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: 4,
             }}
             aria-hidden
           >
             <p className="body" style={{ color: '#ffffff', fontWeight: 600, margin: 0 }}>Tu progreso es constante.</p>
-            <p className="sm" style={{ color: 'var(--brand-100, #acefe4)', margin: 0 }}>
+            <p className="sm" style={{ color: 'var(--brand-100)', margin: 0 }}>
               Continúa optimizando tu rutina día con día.
             </p>
           </div>

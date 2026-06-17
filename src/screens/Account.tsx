@@ -121,23 +121,25 @@ export function Account() {
         <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
       </motion.div>
 
-      {/* Botones sociales */}
+      {/* Botones sociales — labels cortas (el logo identifica el proveedor) para no desbordar a 412px */}
       <motion.div variants={staggerItem} style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
         <button
           className="btn btn-outline btn-social"
           type="button"
           aria-label="Continuar con Apple"
+          style={{ minWidth: 0 }}
         >
           <AppleLogo />
-          Continuar con Apple
+          Apple
         </button>
         <button
           className="btn btn-outline btn-social"
           type="button"
           aria-label="Continuar con Google"
+          style={{ minWidth: 0 }}
         >
           <GoogleLogo />
-          Continuar con Google
+          Google
         </button>
       </motion.div>
 

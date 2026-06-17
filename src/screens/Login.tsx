@@ -80,12 +80,13 @@ export function Login() {
         </motion.div>
 
         <motion.div variants={staggerItem}>
+          {/* labels cortas (el logo identifica el proveedor) para no desbordar a 412px */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-            <button className="btn btn-outline btn-social" type="button" aria-label="Continuar con Apple">
-              <AppleLogo /> Continuar con Apple
+            <button className="btn btn-outline btn-social" type="button" aria-label="Continuar con Apple" style={{ minWidth: 0 }}>
+              <AppleLogo /> Apple
             </button>
-            <button className="btn btn-outline btn-social" type="button" aria-label="Continuar con Google">
-              <GoogleLogo /> Continuar con Google
+            <button className="btn btn-outline btn-social" type="button" aria-label="Continuar con Google" style={{ minWidth: 0 }}>
+              <GoogleLogo /> Google
             </button>
           </div>
         </motion.div>

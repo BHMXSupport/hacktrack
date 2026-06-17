@@ -115,7 +115,9 @@ function ProfileCompleteness({ profile }: { profile: import('../lib/types').Prof
       </div>
       {missing.length > 0 && (
         <p className="sm" style={{ color: 'var(--ink-300)', marginTop: 4, fontStyle: 'italic' }}>
-          Falta: {missing.map((f) => f.label).join(', ')}
+          {/* Máx 3 campos visibles + 'y N más' para no envolver a 3 líneas en perfiles vacíos */}
+          Falta: {missing.slice(0, 3).map((f) => f.label).join(', ')}
+          {missing.length > 3 && ` y ${missing.length - 3} más`}
         </p>
       )}
     </div>
@@ -181,6 +183,7 @@ export function Perfil() {
   const [emailDraft, setEmailDraft]   = useState(profile.email ?? '')
   const [emailEditing, setEmailEditing] = useState(false)
   const [emailError, setEmailError]   = useState('')
+  const [showMoreArco, setShowMoreArco] = useState(false)
 
   // Avatar photo upload ref (N=388 / N=448)
   const avatarFileRef = useRef<HTMLInputElement>(null)
@@ -313,9 +316,10 @@ export function Perfil() {
 
           <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-            {/* ── Badge de nuevo consentimiento (N=446) ─────────────────────── */}
+            {/* ── Banner de nuevo consentimiento (N=446) ─────────────────────
+                Una sola señal a la vez: si el sheet ya está abierto, no mostramos también el banner. */}
             <AnimatePresence>
-              {needsReConsent && (
+              {needsReConsent && !showReConsent && (
                 <motion.button
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -385,7 +389,8 @@ export function Perfil() {
               <div className="body" style={{ color: 'var(--ink-700)', fontWeight: 600, paddingLeft: 4 }}>
                 Información personal
               </div>
-              <div className="rowlist card">
+              {/* 'rowlist' (sin 'card') — unificado con las demás secciones para evitar doble borde/sombra y padding extra */}
+              <div className="rowlist">
                 <div className="row" style={{ alignItems: 'flex-start', minHeight: 56 }}>
                   <span className="row-ic">
                     <span style={{ color: 'var(--brand-700)', display: 'flex' }}><IcPerson size={18} /></span>
@@ -493,55 +498,15 @@ export function Perfil() {
                   </span>
                 </button>
 
-                {/* Derechos ARCO — acceso / descarga */}
+                {/* Acciones primarias: Descargar (Acceso) + Eliminar (Cancelación). El resto, bajo 'Gestionar' para reducir densidad. */}
                 {/* Acceso — JSON completo */}
                 <button className="row" aria-label="Descargar mis datos en JSON (Acceso)" onClick={exportJSON}>
                   <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
                     <IcDownload size={18} />
                   </span>
                   <span className="row-main">
-                    <span className="row-label">Descargar mis datos (Acceso)</span>
-                    <span className="row-sub">JSON completo · respaldo local</span>
-                  </span>
-                  <span className="row-end">
-                    <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
-                  </span>
-                </button>
-
-                {/* Acceso — CSV 90 días para médico */}
-                <button className="row" aria-label="Exportar CSV para médico" onClick={exportCSV}>
-                  <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
-                    <IcDownload size={18} />
-                  </span>
-                  <span className="row-main">
-                    <span className="row-label">Exportar para médico (CSV)</span>
-                    <span className="row-sub">Dosis y medidas · últimos 90 días</span>
-                  </span>
-                  <span className="row-end">
-                    <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
-                  </span>
-                </button>
-
-                {/* Corregir mis datos (Rectificación) */}
-                <button className="row" aria-label="Corregir mis datos (Rectificación)" onClick={() => dispatch({ t: 'sheet', sheet: 'arco' })}>
-                  <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
-                    <IcPencil size={18} />
-                  </span>
-                  <span className="row-main">
-                    <span className="row-label">Corregir mis datos (Rectificación)</span>
-                  </span>
-                  <span className="row-end">
-                    <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
-                  </span>
-                </button>
-
-                {/* Gestionar consentimiento (Oposición) */}
-                <button className="row" aria-label="Gestionar consentimiento (Oposición / Cancelación)" onClick={() => dispatch({ t: 'sheet', sheet: 'arco' })}>
-                  <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
-                    <IcShieldOff size={18} />
-                  </span>
-                  <span className="row-main">
-                    <span className="row-label">Gestionar consentimiento (Oposición / Cancelación)</span>
+                    <span className="row-label">Descargar mis datos</span>
+                    <span className="row-sub">JSON completo · respaldo local (Acceso)</span>
                   </span>
                   <span className="row-end">
                     <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
@@ -554,25 +519,100 @@ export function Perfil() {
                     <IcTrash size={18} />
                   </span>
                   <span className="row-main">
-                    <span className="row-label" style={{ color: 'var(--error)' }}>Eliminar mis datos (Cancelación)</span>
+                    <span className="row-label" style={{ color: 'var(--error)' }}>Eliminar mis datos</span>
+                    <span className="row-sub">Borrar todo de este dispositivo (Cancelación)</span>
                   </span>
                   <span className="row-end">
                     <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
                   </span>
                 </button>
 
-                {/* Aviso de privacidad */}
-                <button className="row" aria-label="Aviso de privacidad" onClick={() => dispatch({ t: 'toast', msg: 'Aviso de privacidad — próximamente' })}>
+                {/* Disclosure: resto de gestiones ARCO + aviso, colapsados por defecto */}
+                <button
+                  className="row"
+                  aria-label="Gestionar mis datos y consentimiento (ARCO)"
+                  aria-expanded={showMoreArco}
+                  onClick={() => setShowMoreArco((v) => !v)}
+                >
                   <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
-                    <IcDocument size={18} />
+                    <IcShield size={18} />
                   </span>
                   <span className="row-main">
-                    <span className="row-label">Aviso de privacidad</span>
+                    <span className="row-label">Gestionar mis datos (ARCO)</span>
+                    <span className="row-sub">Rectificación, oposición, exportar para médico, aviso</span>
                   </span>
                   <span className="row-end">
-                    <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
+                    <IcChevron size={16} style={{ color: 'var(--ink-400)', transform: showMoreArco ? 'rotate(90deg)' : 'none', transition: 'transform 0.18s' }} />
                   </span>
                 </button>
+
+                <AnimatePresence initial={false}>
+                  {showMoreArco && (
+                    <motion.div
+                      key="arco-more"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      {/* Acceso — CSV 90 días para médico */}
+                      <button className="row" aria-label="Exportar CSV para médico" onClick={exportCSV}>
+                        <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
+                          <IcDownload size={18} />
+                        </span>
+                        <span className="row-main">
+                          <span className="row-label">Exportar para médico (CSV)</span>
+                          <span className="row-sub">Dosis y medidas · últimos 90 días</span>
+                        </span>
+                        <span className="row-end">
+                          <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
+                        </span>
+                      </button>
+
+                      {/* Corregir mis datos (Rectificación) */}
+                      <button className="row" aria-label="Corregir mis datos (Rectificación)" onClick={() => dispatch({ t: 'sheet', sheet: 'arco' })}>
+                        <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
+                          <IcPencil size={18} />
+                        </span>
+                        <span className="row-main">
+                          <span className="row-label">Corregir mis datos</span>
+                          <span className="row-sub">Rectificación</span>
+                        </span>
+                        <span className="row-end">
+                          <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
+                        </span>
+                      </button>
+
+                      {/* Gestionar consentimiento (Oposición) */}
+                      <button className="row" aria-label="Gestionar consentimiento (Oposición / Cancelación)" onClick={() => dispatch({ t: 'sheet', sheet: 'arco' })}>
+                        <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
+                          <IcShieldOff size={18} />
+                        </span>
+                        <span className="row-main">
+                          <span className="row-label">Gestionar consentimiento</span>
+                          <span className="row-sub">Oposición / Cancelación</span>
+                        </span>
+                        <span className="row-end">
+                          <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
+                        </span>
+                      </button>
+
+                      {/* Aviso de privacidad */}
+                      <button className="row" aria-label="Aviso de privacidad" onClick={() => dispatch({ t: 'toast', msg: 'Aviso de privacidad — próximamente' })}>
+                        <span className="row-ic" style={{ color: 'var(--brand-700)' }}>
+                          <IcDocument size={18} />
+                        </span>
+                        <span className="row-main">
+                          <span className="row-label">Aviso de privacidad</span>
+                        </span>
+                        <span className="row-end">
+                          <IcChevron size={16} style={{ color: 'var(--ink-400)' }} />
+                        </span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </section>
 
