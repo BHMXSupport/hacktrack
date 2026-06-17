@@ -224,6 +224,23 @@ export function nextInjectionSite(last?: InjectionSite): InjectionSite {
   return INJECTION_ROTATION[(idx + 1) % INJECTION_ROTATION.length]
 }
 
+/** Etiqueta legible COMPLETA del sitio de inyección (es-MX). Fuente única para Registro/Inicio. */
+export const SITE_LABEL: Record<InjectionSite, string> = {
+  'abdomen-izq': 'Abdomen izquierdo',
+  'abdomen-der': 'Abdomen derecho',
+  'muslo-izq': 'Muslo izquierdo',
+  'muslo-der': 'Muslo derecho',
+  'gluteo-izq': 'Glúteo izquierdo',
+  'gluteo-der': 'Glúteo derecho',
+}
+/** Orden de rotación con etiquetas completas (para listas/chips). */
+export const SITE_OPTIONS_FULL: { value: InjectionSite; label: string }[] =
+  INJECTION_ROTATION.map((value) => ({ value, label: SITE_LABEL[value] }))
+/** Etiqueta del sitio o null. */
+export function siteLabel(s?: InjectionSite | null): string | null {
+  return s ? SITE_LABEL[s] : null
+}
+
 // clave de fecha local estable 'YYYY-MM-DD' (identidad del grupo del diario)
 export function isoKey(ts: number): string {
   const d = new Date(ts)

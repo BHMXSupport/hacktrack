@@ -2,27 +2,21 @@
 // Sin escribir: la dosis viene de la fase activa o de la última registrada (doseForProduct).
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { useApp, doseForProduct, nextInjectionSite } from '../lib/store'
+import { useApp, doseForProduct, nextInjectionSite, SITE_OPTIONS_FULL, siteLabel, isoKey } from '../lib/store'
 import type { InjectionSite } from '../lib/types'
 import { dayProducts, doseTakenOnProduct, doseSkippedOnProduct, loggedItemsForDay, upcomingDoses } from '../lib/calendar'
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { doseToMg } from '../lib/calc'
 import { tapHaptic } from '../lib/haptics'
 import { PEPTIDES, CATEGORY_COLOR, EFFECT_OPTIONS } from '../lib/catalog'
-import { IcCheck, IcChevron } from './icons'
+import { IcCheck, IcChevron, IcDrop } from './icons'
 import { Glyph } from './glyphs'
 import { staggerParent, staggerItem, spring, dur, ease } from '../lib/motion'
 import { presenceNow } from '../lib/pharma'
 
 // ── Loop 140: selector de sitio de inyección ─────────────────────────────────
-const SITE_OPTIONS: { value: InjectionSite; label: string }[] = [
-  { value: 'abdomen-izq', label: 'Abd. izq.' },
-  { value: 'abdomen-der', label: 'Abd. der.' },
-  { value: 'muslo-izq',   label: 'Muslo izq.' },
-  { value: 'muslo-der',   label: 'Muslo der.' },
-  { value: 'gluteo-izq',  label: 'Glúteo izq.' },
-  { value: 'gluteo-der',  label: 'Glúteo der.' },
-]
+// Nombres completos centralizados (store.SITE_OPTIONS_FULL): "Abdomen izquierdo", etc.
+const SITE_OPTIONS = SITE_OPTIONS_FULL
 
 interface SiteSelectorProps {
   suggested: InjectionSite
@@ -827,6 +821,11 @@ export function TodayDoses() {
                   // loop 140: sitio sugerido para este producto
                   const suggestedSite = nextInjectionSite(state.lastInjectionSite?.[product])
                   const showSiteSelector = pendingSiteProduct === product && !taken && !skipped
+                  // Sitio donde se inyectó la dosis de HOY (de la propia toma registrada, no del estado lastInjectionSite)
+                  const doseSiteToday = taken
+                    ? state.log.find((g) => g.dateKey === isoKey(state.todayTs))?.items
+                        .find((it) => it.type === 'dose' && it.product === product && it.site)?.site
+                    : undefined
                   // loop 139: mostrar picker de efecto si esta dosis acaba de ser registrada
                   const showEffectPicker = pendingEffectProduct === product && taken
 
@@ -916,6 +915,13 @@ export function TodayDoses() {
                                 </span>
                               )}
                             </div>
+                            {/* Sitio de inyección de hoy — visible en Inicio cuando la dosis está marcada */}
+                            {taken && doseSiteToday && (
+                              <div className="sm" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, color: 'var(--ink-400)' }}>
+                                <IcDrop size={12} />
+                                <span style={{ whiteSpace: 'nowrap' }}>Inyectado en {siteLabel(doseSiteToday)}</span>
+                              </div>
+                            )}
                             {/* Item 119: badge ¡Perdida! cuando reminderTime ya pasó y no se ha tomado */}
                             {!taken && !skipped && hasReminder && Date.now() > tsFor(product) && (
                               <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', padding: '1px 7px', borderRadius: 99, marginTop: 3 }}>¡Perdida!</span>

@@ -12,7 +12,7 @@ import { IcDrop } from '../components/icons'
 import { Glyph } from '../components/glyphs'
 import { TimeWheel } from '../components/TimeWheel'
 import { spring, ease } from '../lib/motion'
-import { useApp } from '../lib/store'
+import { useApp, SITE_OPTIONS_FULL, siteLabel } from '../lib/store'
 import { PEPTIDES, WDS } from '../lib/catalog'
 import { presetCad, cadenceLabel } from '../lib/cadence'
 import { doseToMg, needsRecon } from '../lib/calc'
@@ -41,14 +41,8 @@ const CADENCE_OPTS: { value: CadMode; label: string }[] = [
 ]
 
 // Sitios de inyección disponibles (item 337)
-const INJECTION_SITES: { value: InjectionSite; label: string }[] = [
-  { value: 'abdomen-izq',  label: 'Abd. Izq' },
-  { value: 'abdomen-der',  label: 'Abd. Der' },
-  { value: 'muslo-izq',    label: 'Muslo Izq' },
-  { value: 'muslo-der',    label: 'Muslo Der' },
-  { value: 'gluteo-izq',   label: 'Glúteo Izq' },
-  { value: 'gluteo-der',   label: 'Glúteo Der' },
-]
+// Nombres completos centralizados (store.SITE_OPTIONS_FULL): "Abdomen izquierdo", etc.
+const INJECTION_SITES = SITE_OPTIONS_FULL
 
 function buildProductList(importedProducts: string[]): string[] {
   const catalog = Object.keys(PEPTIDES)
@@ -734,15 +728,44 @@ export function RegistrarSheet() {
               )}
             </div>
 
-            {/* ── item 337: sitio de inyección ── */}
+            {/* ── item 337: sitio de inyección (nombres completos, controles completos) ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <span className="sm" style={{ color: 'var(--ink-400)' }}>Sitio de inyección</span>
-                <button className="btn-ghost sm" style={{ color: 'var(--brand-700)' }}
-                  onClick={() => setShowSites((v) => !v)}>
-                  {showSites ? 'Ocultar' : (site ? site.replace('-', ' ') : suggestedSite ? `Sugerido: ${suggestedSite.replace('-', ' ')}` : 'Elegir')}
+                <button className="btn-link" onClick={() => setShowSites((v) => !v)}>
+                  {showSites ? 'Ocultar' : site ? 'Cambiar' : 'Elegir otro'}
                 </button>
               </div>
+
+              {/* Colapsado: pill completa con el sitio elegido o el sugerido (nombre completo) */}
+              {!showSites && (
+                <button
+                  type="button"
+                  onClick={() => { if (!site && suggestedSite) setSite(suggestedSite) }}
+                  aria-label={site ? `Sitio elegido: ${siteLabel(site)}` : suggestedSite ? `Usar sitio sugerido: ${siteLabel(suggestedSite)}` : 'Elegir sitio'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                    padding: '11px 13px', borderRadius: 'var(--r-sm)', cursor: site ? 'default' : 'pointer',
+                    border: `1.5px solid ${site ? 'var(--brand-500)' : 'var(--border)'}`,
+                    background: site ? 'color-mix(in srgb, var(--brand-500) 8%, transparent)' : 'var(--bg)',
+                  }}
+                >
+                  <IcDrop size={17} />
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    <span className="sm" style={{ color: 'var(--ink-900)', fontWeight: 600 }}>
+                      {site ? siteLabel(site) : suggestedSite ? siteLabel(suggestedSite) : 'Elegir un sitio'}
+                    </span>
+                    {!site && suggestedSite && (
+                      <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 11 }}>Rotación sugerida</span>
+                    )}
+                  </span>
+                  {!site && suggestedSite && (
+                    <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 700, flexShrink: 0 }}>Usar</span>
+                  )}
+                </button>
+              )}
+
+              {/* Expandido: chips con nombre completo */}
               {showSites && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {INJECTION_SITES.map((s) => (
@@ -750,30 +773,20 @@ export function RegistrarSheet() {
                       active={site === s.value || (!site && s.value === suggestedSite)}
                       onClick={() => { setSite(s.value); setShowSites(false) }} />
                   ))}
-                  <Chip label="Sin registrar" active={site === undefined && !showSites}
+                  <Chip label="Sin registrar" active={site === undefined}
                     onClick={() => { setSite(undefined); setShowSites(false) }} />
                 </div>
               )}
-              {!showSites && (site || suggestedSite) && (
-                <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
-                  {site ? (
-                    <>Elegido: <strong>{INJECTION_SITES.find((s) => s.value === site)?.label}</strong></>
-                  ) : (
-                    <>Rotación sugerida: <strong>{INJECTION_SITES.find((s) => s.value === suggestedSite)?.label}</strong> — <button className="btn-ghost sm" style={{ color: 'var(--brand-700)' }} onClick={() => setSite(suggestedSite)}>Aceptar</button></>
-                  )}
-                </p>
-              )}
             </div>
 
-            {/* ── Link: calculadora de unidades ── */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <button className="btn-ghost sm"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brand-700)', fontWeight: 500 }}
-                onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}>
-                <IcDrop size={16} />
-                Calculadora de unidades
-              </button>
-            </div>
+            {/* ── Calculadora de unidades — botón outline completo ── */}
+            <button
+              className="btn btn-outline btn-sm"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}>
+              <IcDrop size={16} />
+              Calculadora de unidades
+            </button>
 
             {/* ── Hora de registro ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
