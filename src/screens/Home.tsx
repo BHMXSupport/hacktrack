@@ -37,7 +37,11 @@ function fmtCountdown(at: Date, now: Date): string {
   if (mins < 60) return `en ${mins} min`
   const h = Math.floor(mins / 60)
   const m = mins % 60
-  return m === 0 ? `en ${h}h` : `en ${h}h ${m}m`
+  if (h < 48) return m === 0 ? `en ${h}h` : `en ${h}h ${m}m`
+  // ≥48h → mostrar en días (evita "en 8298h" / "en 138h")
+  const d = Math.floor(h / 24)
+  const rh = h % 24
+  return rh === 0 ? `en ${d} d` : `en ${d} d ${rh}h`
 }
 
 /** Número hero para KPI card. */
@@ -181,7 +185,12 @@ export function Home() {
 
   // ── Loop 152: count-up del countdown en minutos ──────────────────────────
   const countdownMins = countdownMinutes(at, now)
-  const countdownRef = useCountUp(countdownMins, reduce || !at)
+  // El count-up debe animar el NÚMERO MOSTRADO (días/horas/min), no los minutos crudos
+  // (bug: animaba minutos en el slot de horas → "8298h" en vez de "5 d 18 h").
+  const cdDays = Math.floor(countdownMins / 1440)
+  const cdHours = Math.floor(countdownMins / 60)
+  const countdownDisplay = countdownMins >= 2880 ? cdDays : countdownMins >= 60 ? cdHours : countdownMins
+  const countdownRef = useCountUp(countdownDisplay, reduce || !at)
 
   // Adherencia real del MES (multi-producto: todas las dosis que tocarían este mes)
   const adh = adherenceMonth(state, now)
@@ -1187,11 +1196,15 @@ export function Home() {
                     className="display-l mono"
                     style={{ margin: 0, letterSpacing: -0.5, lineHeight: 1, color: 'var(--ink-700)' }}
                   >
-                    {/* count-up del número de minutos/horas; unidades estáticas */}
-                    {countdownMins >= 60 ? (
+                    {/* count-up del número mostrado; unidades estáticas. ≥48h → días+horas */}
+                    {countdownMins >= 2880 ? (
+                      <>
+                        en <span ref={countdownRef}>{cdDays}</span> d{countdownMins % 1440 >= 60 ? ` ${Math.floor((countdownMins % 1440) / 60)}h` : ''}
+                      </>
+                    ) : countdownMins >= 60 ? (
                       <>
                         en{' '}
-                        <span ref={countdownRef}>{Math.floor(countdownMins / 60)}</span>
+                        <span ref={countdownRef}>{cdHours}</span>
                         h{countdownMins % 60 > 0 ? ` ${countdownMins % 60}m` : ''}
                       </>
                     ) : (

@@ -312,6 +312,7 @@ export function MultiLineChart({
           <motion.line
             x1={nowX} y1={PAD.t} x2={nowX} y2={PAD.t + plotH}
             stroke="var(--brand-500)" strokeWidth={1} strokeDasharray="3 3"
+            initial={{ x1: nowX, x2: nowX }}
             animate={{ x1: nowX, x2: nowX }}
             transition={{ duration: dur.base, ease: ease.standard }}
           />
@@ -386,6 +387,7 @@ export function MultiLineChart({
                 {!reduce && (
                   <motion.circle
                     cx={sx(nowTs)} cy={sy(nowY!)} fill={s.color}
+                    initial={{ r: 4, opacity: manySeries ? 0.2 : 0.35 }}
                     animate={manySeries ? { r: [4, 6], opacity: [0.2, 0] } : { r: [4, 9], opacity: [0.35, 0] }}
                     transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: haloDelay }}
                   />
