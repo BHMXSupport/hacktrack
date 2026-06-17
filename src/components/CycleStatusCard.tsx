@@ -34,9 +34,9 @@ export function CycleStatusCard({ protocol, today }: Props) {
       aria-label={`Ciclo ${protocol.product}: día ${day} de ${total} — fase ${phaseLabel}`}
     >
       {/* cabecera */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+          <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {protocol.product}
           </p>
           <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
@@ -50,6 +50,7 @@ export function CycleStatusCard({ protocol, today }: Props) {
             gap: 5,
             padding: '4px 10px',
             borderRadius: 999,
+            flexShrink: 0,
             background: isOn ? 'color-mix(in srgb, var(--success) 14%, transparent)' : 'var(--ink-100)',
             border: `1px solid ${isOn ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'var(--ink-200)'}`,
           }}

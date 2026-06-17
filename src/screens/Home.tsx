@@ -7,6 +7,7 @@ import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
 import { Sparkline, SparkBar } from '../components/charts'
 import { Glyph } from '../components/glyphs'
+import { IcClose, IcChevron } from '../components/icons'
 import { UserAvatar, TrustChip } from '../components/identity'
 import { TodayDoses } from '../components/TodayDoses'
 import { ActiveNowChips } from '../components/ActiveNowChips'
@@ -203,6 +204,8 @@ export function Home() {
 
   // ── Loop 159: Resumen semana colapsable ──────────────────────────────────
   const [weekSummaryOpen, setWeekSummaryOpen] = useState(false)
+  // Densidad: historial largo + detalle secundario detrás de "Más detalle" (colapsado por defecto)
+  const [moreDetailOpen, setMoreDetailOpen] = useState(false)
   const insights = weeklyInsights(state)
   const weekAdh = adh ? Math.round(adh.pct) : null
 
@@ -574,11 +577,11 @@ export function Home() {
                 </button>
                 <button
                   className="sm"
-                  style={{ color: 'var(--ink-400)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--ink-400)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
                   onClick={() => setShowPesoSuggestion(false)}
                   aria-label="Cerrar sugerencia"
                 >
-                  ✕
+                  <IcClose size={14} />
                 </button>
               </div>
             </motion.div>
@@ -864,11 +867,11 @@ export function Home() {
                 </button>
                 <button
                   className="sm"
-                  style={{ color: 'var(--ink-400)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--ink-400)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
                   onClick={() => setDismissedWindowAlert(typicalWindowAlert.product)}
                   aria-label="Cerrar alerta"
                 >
-                  ✕
+                  <IcClose size={14} />
                 </button>
               </div>
             </motion.div>
@@ -894,14 +897,18 @@ export function Home() {
                   ? `Próxima ventana: ${fmtTime(new Date(nextSafeTs))}`
                   : ''
                 return (
-                  <div key={product} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} aria-hidden="true" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{product}</span>
-                      <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 6 }}>{lastDoseLabel}</span>
-                      {nextLabel && <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 6 }}>{nextLabel}</span>}
+                  <div key={product} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0, marginTop: 5 }} aria-hidden="true" />
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                        <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-900)', wordBreak: 'break-word', minWidth: 0 }}>{product}</span>
+                        <span className="sm" style={{ color: statusColor, fontWeight: 700, flexShrink: 0 }}>{statusLabel}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 10px' }}>
+                        <span className="sm" style={{ color: 'var(--ink-400)' }}>{lastDoseLabel}</span>
+                        {nextLabel && <span className="sm" style={{ color: 'var(--ink-400)' }}>{nextLabel}</span>}
+                      </div>
                     </div>
-                    <span className="sm" style={{ color: statusColor, fontWeight: 700, flexShrink: 0 }}>{statusLabel}</span>
                   </div>
                 )
               })}
@@ -944,7 +951,7 @@ export function Home() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>3 preguntas rápidas — buenos días</p>
                 <button onClick={() => setMorningCheckDone(true)} aria-label="Omitir chequeo matutino"
-                  style={{ background: 'none', border: 'none', color: 'var(--ink-300)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+                  style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: 'var(--ink-300)', cursor: 'pointer', lineHeight: 1 }}><IcClose size={16} /></button>
               </div>
               {morningCheckMeasures.map((m) => {
                 const meta = MEASURE_META[m]
@@ -1015,20 +1022,20 @@ export function Home() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {stackCockpit.map(({ product, cat, catColor: cc, pct, nextDose }) => (
-                <div key={product} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: cc, flexShrink: 0 }} aria-hidden="true" />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{product}</span>
-                    <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 6 }}>{cat}</span>
+                <div key={product} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: cc, flexShrink: 0, marginTop: 5 }} aria-hidden="true" />
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                    <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{product}</span>
+                    <span className="sm" style={{ color: 'var(--ink-400)' }}>{cat}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {pct > 2 && (
-                      <span className="sm mono" style={{ fontSize: 10, color: pct >= 50 ? 'var(--success)' : 'var(--warning)' }}>
+                      <span className="sm mono" style={{ fontSize: 10, whiteSpace: 'nowrap', color: pct >= 50 ? 'var(--success)' : 'var(--warning)' }}>
                         ~{Math.round(pct)}%
                       </span>
                     )}
                     {nextDose && (
-                      <span className="sm" style={{ fontSize: 10, color: 'var(--ink-400)' }}>
+                      <span className="sm" style={{ fontSize: 10, whiteSpace: 'nowrap', color: 'var(--ink-400)' }}>
                         próx. {fmtTime(nextDose)}
                       </span>
                     )}
@@ -1393,7 +1400,7 @@ export function Home() {
                     {label}
                   </span>
                   <div
-                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, paddingBottom: 8 }}
                     aria-label={`${dayStr} — ${estado}`}
                   >
                     {/* Loop 156: spring celebrate cuando el día actual se completa; stagger fade-in días pasados */}
@@ -1413,14 +1420,14 @@ export function Home() {
                     {isToday && filled && (
                       <div
                         aria-hidden="true"
-                        style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', position: 'absolute', bottom: -6 }}
+                        style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', position: 'absolute', bottom: 0 }}
                       />
                     )}
                     {/* punto de descanso — guión muy pequeño */}
                     {isRest && !isToday && (
                       <div
                         aria-hidden="true"
-                        style={{ width: 6, height: 2, borderRadius: 999, background: 'var(--ink-200)', position: 'absolute', bottom: -5 }}
+                        style={{ width: 6, height: 2, borderRadius: 999, background: 'var(--ink-200)', position: 'absolute', bottom: 1 }}
                       />
                     )}
                   </div>
@@ -1465,8 +1472,44 @@ export function Home() {
           )}
         </motion.section>
 
-        {/* ── Item 132: rachas por producto (cuando hay >1 producto) ──── */}
-        {state.importedProducts.length > 1 && (
+        {/* ── Densidad: toggle único para el detalle secundario / historial largo ── */}
+        {(state.importedProducts.length > 1 || heatmapData.length > 0) && (
+          <motion.div variants={staggerItem}>
+            <motion.button
+              onClick={() => setMoreDetailOpen((v) => !v)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--surface)',
+                border: '1px solid var(--ink-100)',
+                borderRadius: 'var(--r-md)',
+                padding: '14px 16px',
+                cursor: 'pointer',
+                boxShadow: 'var(--e1)',
+              }}
+              whileTap={{ scale: 0.99 }}
+              transition={spring.ui}
+              aria-expanded={moreDetailOpen}
+            >
+              <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-700)' }}>
+                Más detalle
+              </span>
+              <motion.span
+                animate={{ rotate: moreDetailOpen ? 270 : 90 }}
+                transition={{ duration: dur.fast }}
+                style={{ display: 'inline-flex', color: 'var(--ink-400)', lineHeight: 1 }}
+                aria-hidden="true"
+              >
+                <IcChevron size={16} />
+              </motion.span>
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* ── Item 132: rachas por producto (cuando hay >1 producto) — dentro de "Más detalle" ──── */}
+        {moreDetailOpen && state.importedProducts.length > 1 && (
           <motion.div
             variants={staggerItem}
             className="card"
@@ -1692,7 +1735,7 @@ export function Home() {
                       {/* Loop 144: delta vs medición anterior */}
                       {delta && (
                         <p className="sm" style={{ margin: '4px 0 0', color: delta.positive ? 'var(--success)' : 'var(--error)', fontWeight: 600 }}>
-                          {delta.diff > 0 ? '↑' : '↓'}{Math.abs(delta.diff)} vs. anterior
+                          {delta.diff > 0 ? '+' : '−'}{Math.abs(delta.diff)} vs. anterior
                         </p>
                       )}
                       {!delta && hasValue && !firstSample && (
@@ -1788,12 +1831,12 @@ export function Home() {
                 Esta semana
               </span>
               <motion.span
-                animate={{ rotate: weekSummaryOpen ? 180 : 0 }}
+                animate={{ rotate: weekSummaryOpen ? 270 : 90 }}
                 transition={{ duration: dur.fast }}
-                style={{ display: 'block', color: 'var(--ink-400)', fontSize: 16, lineHeight: 1 }}
+                style={{ display: 'inline-flex', color: 'var(--ink-400)', lineHeight: 1 }}
                 aria-hidden="true"
               >
-                ▾
+                <IcChevron size={16} />
               </motion.span>
             </motion.button>
 
@@ -1831,47 +1874,12 @@ export function Home() {
           </motion.div>
         )}
 
-        {/* ── n°378: Indicador de fase de ciclo/titulación ────────── */}
+        {/* ── n°378: Indicador de fase de titulación (el estado de ciclo on/off lo cubre CycleStatusCard, arriba) ── */}
         {Object.values(state.protocols).filter((p) =>
-          p.cadence.mode === 'ciclo' || (p.progOn && p.progN > 1)
+          p.cadence.mode !== 'ciclo' && p.progOn && p.progN > 1
         ).map((prot) => {
-          const isCiclo = prot.cadence.mode === 'ciclo'
           const key = prot.product
-          if (isCiclo && prot.startDate) {
-            const cad = prot.cadence
-            const start = new Date(prot.startDate)
-            const on = cad.on ?? 1; const off = cad.off ?? 0
-            const cycleLen = on + off
-            if (cycleLen === 0) return null
-            const elapsed = Math.floor((startOfDay(today).getTime() - startOfDay(start).getTime()) / 86400000)
-            if (elapsed < 0) return null
-            const pos = elapsed % cycleLen
-            const phase = pos < on ? 'ON' : 'OFF'
-            const dayInPhase = pos < on ? pos + 1 : pos - on + 1
-            const totalInPhase = pos < on ? on : off
-            const phasePct = (dayInPhase / totalInPhase) * 100
-            return (
-              <motion.div key={key} variants={staggerItem} className="card"
-                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
-                    {prot.product} · Ciclo {phase}
-                  </p>
-                  <span className="sm mono" style={{ color: phase === 'ON' ? 'var(--success)' : 'var(--ink-400)' }}>
-                    Día {dayInPhase} de {totalInPhase}
-                  </span>
-                </div>
-                <div style={{ height: 4, borderRadius: 999, background: 'var(--ink-100)', overflow: 'hidden' }}>
-                  <motion.div
-                    animate={{ width: `${phasePct}%` }}
-                    transition={spring.ui}
-                    style={{ height: '100%', borderRadius: 999, background: phase === 'ON' ? 'var(--success)' : 'var(--ink-300)' }}
-                  />
-                </div>
-              </motion.div>
-            )
-          }
-          if (!isCiclo && prot.progOn && prot.progN > 1 && prot.startDate) {
+          if (prot.progOn && prot.progN > 1 && prot.startDate) {
             // Titulación por fases: curPhase (0-based), progN = total de fases
             const totalPhases = prot.progN
             const curPhase = prot.curPhase ?? 0
@@ -1904,8 +1912,8 @@ export function Home() {
           return null
         })}
 
-        {/* ── n°455: Heatmap 13 semanas (estilo GitHub) ───────────── */}
-        {heatmapData.length > 0 && (
+        {/* ── n°455: Heatmap 13 semanas (estilo GitHub) — dentro de "Más detalle" ───────────── */}
+        {moreDetailOpen && heatmapData.length > 0 && (
           <motion.div
             variants={staggerItem}
             className="card"
@@ -1970,7 +1978,7 @@ export function Home() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>Cierre del día <Glyph name="sueno" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /></p>
                 <button onClick={() => setDayClosed(true)} aria-label="Cerrar resumen del día"
-                  style={{ background: 'none', border: 'none', color: 'var(--ink-300)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+                  style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: 'var(--ink-300)', cursor: 'pointer', lineHeight: 1 }}><IcClose size={16} /></button>
               </div>
               <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
                 ¿Cómo te sentiste hoy? (opcional, 120 char max)
@@ -2016,10 +2024,10 @@ export function Home() {
             <motion.button
               className="btn"
               style={{
-                width: '100%', height: 44,
-                background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)',
-                border: '1.5px solid var(--brand-300)',
-                color: 'var(--brand-700)', fontWeight: 600, fontSize: 13,
+                width: '100%', height: 40,
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--ink-400)', fontWeight: 600, fontSize: 13,
                 borderRadius: 'var(--r-md)',
               }}
               whileTap={{ scale: 0.97 }}

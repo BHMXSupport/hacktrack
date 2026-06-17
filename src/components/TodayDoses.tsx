@@ -9,7 +9,7 @@ import { startOfDay, fmtTime } from '../lib/cadence'
 import { doseToMg } from '../lib/calc'
 import { tapHaptic } from '../lib/haptics'
 import { PEPTIDES, CATEGORY_COLOR, EFFECT_OPTIONS } from '../lib/catalog'
-import { IcCheck } from './icons'
+import { IcCheck, IcChevron } from './icons'
 import { Glyph } from './glyphs'
 import { staggerParent, staggerItem, spring, dur, ease } from '../lib/motion'
 import { presenceNow } from '../lib/pharma'
@@ -51,7 +51,8 @@ function SiteSelector({ suggested, onSelect, onSkip }: SiteSelectorProps) {
               onClick={() => { tapHaptic(); onSelect(opt.value) }}
               aria-label={`${opt.label}${isSuggested ? ' (sugerida)' : ''}`}
               style={{
-                height: 30, padding: '0 10px', borderRadius: 999,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                height: 30, padding: '0 10px', borderRadius: 999, maxWidth: '100%',
                 fontSize: 12, fontWeight: isSuggested ? 700 : 500, cursor: 'pointer',
                 border: isSuggested ? '1.5px solid var(--brand-500)' : '1.5px solid var(--border)',
                 background: isSuggested ? 'color-mix(in srgb, var(--brand-500) 12%, transparent)' : 'transparent',
@@ -59,7 +60,7 @@ function SiteSelector({ suggested, onSelect, onSkip }: SiteSelectorProps) {
                 transition: 'all 0.15s ease',
               }}
             >
-              {opt.label}{isSuggested ? ' ✓' : ''}
+              {opt.label}{isSuggested && <IcCheck size={13} />}
             </button>
           )
         })}
@@ -280,7 +281,7 @@ const WINDOW_COLOR: Record<'ok' | 'near' | 'late', string> = {
 const WINDOW_LABEL: Record<'ok' | 'near' | 'late', string> = {
   ok: 'En ventana',
   near: '±30 min',
-  late: 'Fuera de ventana',
+  late: 'Tarde',
 }
 
 // ── Loop 135: confetti particles ──────────────────────────────────────────────
@@ -676,31 +677,31 @@ export function TodayDoses() {
           </span>
         </motion.div>
 
-        {/* Item 158: Chip de franja del día */}
-        {!allDone && (
-          <div style={{ padding: '0 16px 8px' }}>
-            {(() => {
-              const slot = getDaySlot()
-              const nightSlot = slot.label.startsWith('Noche')
-              const hasNocturnalDue = !allDone && prods.some((p) => {
-                const rt = state.protocols[p]?.reminderTime || state.protocol?.reminderTime
-                if (!rt) return false
-                const [hh] = rt.split(':').map(Number)
-                return hh >= 18
-              })
-              return (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99,
-                  background: 'var(--ink-100)', color: 'var(--ink-400)',
-                  border: (nightSlot && hasNocturnalDue) ? '1.5px solid var(--brand-300)' : '1.5px solid transparent',
-                }}>
-                  {slot.icon} {slot.label}
-                </span>
-              )
-            })()}
-          </div>
-        )}
+        {/* Item 158: Chip de franja del día — solo cuando aporta señal extra (dosis nocturna pendiente);
+            de lo contrario es redundante con el saludo horario de la cabecera. */}
+        {!allDone && (() => {
+          const slot = getDaySlot()
+          const nightSlot = slot.label.startsWith('Noche')
+          const hasNocturnalDue = prods.some((p) => {
+            const rt = state.protocols[p]?.reminderTime || state.protocol?.reminderTime
+            if (!rt) return false
+            const [hh] = rt.split(':').map(Number)
+            return hh >= 18
+          })
+          if (!(nightSlot && hasNocturnalDue)) return null
+          return (
+            <div style={{ padding: '0 16px 8px' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99,
+                background: 'var(--ink-100)', color: 'var(--ink-400)',
+                border: '1.5px solid var(--brand-300)',
+              }}>
+                {slot.icon} {slot.label}
+              </span>
+            </div>
+          )
+        })()}
 
         {/* Loop 169: mini-heatmap 7×1 by product — only when expanded */}
         <AnimatePresence initial={false}>
@@ -772,7 +773,7 @@ export function TodayDoses() {
                     display: 'flex', alignItems: 'center', gap: 4,
                   }}
                 >
-                  <span style={{ fontSize: 11 }}>▾</span> Ver
+                  <span style={{ display: 'inline-flex', transform: 'rotate(90deg)' }}><IcChevron size={13} /></span> Ver
                 </button>
               </div>
             </motion.div>
@@ -894,17 +895,19 @@ export function TodayDoses() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             {/* item 34 / skip: line-through y texto diferenciado */}
                             <div className="body" style={{ fontWeight: 600, color: skipped ? 'var(--ink-400)' : 'var(--ink-900)', textDecoration: (taken || skipped) ? 'line-through' : 'none' }}>{product}</div>
-                            <div className="sm mono" style={{ color: 'var(--ink-400)' }}>
-                              {skipped
-                                ? 'Saltada hoy (intencional)'
-                                : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
+                            <div className="sm mono" style={{ color: 'var(--ink-400)', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 6, rowGap: 2, minWidth: 0 }}>
+                              <span style={{ whiteSpace: 'nowrap' }}>
+                                {skipped
+                                  ? 'Saltada hoy (intencional)'
+                                  : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
+                              </span>
                               {/* item 32: hora del recordatorio (solo si no saltada) */}
                               {!skipped && reminderLabel && (
-                                <span style={{ marginLeft: 4 }}>· {reminderLabel}</span>
+                                <span style={{ whiteSpace: 'nowrap' }}>· {reminderLabel}</span>
                               )}
                               {/* Loop 137: label de ventana */}
                               {!skipped && !taken && win && hasReminder && (
-                                <span style={{ marginLeft: 4, color: WINDOW_COLOR[win!], fontWeight: 600 }}>
+                                <span style={{ whiteSpace: 'nowrap', color: WINDOW_COLOR[win!], fontWeight: 600 }}>
                                   · {WINDOW_LABEL[win!]}
                                 </span>
                               )}
@@ -1030,9 +1033,10 @@ export function TodayDoses() {
                     background: 'none', border: '1.5px solid var(--brand-300)',
                     borderRadius: 999, padding: '3px 10px', cursor: 'pointer',
                     transition: 'background 0.15s ease',
+                    display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0,
                   }}
                 >
-                  Retomar protocolo →
+                  Retomar protocolo <IcChevron size={13} />
                 </button>
               </div>
             </motion.div>
