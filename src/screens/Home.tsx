@@ -209,8 +209,9 @@ export function Home() {
 
   // Tira semanal (L Ma Mi J V S D)
   const weekLabels = WDS.map(([l]) => l)
-  // índice del día de hoy en WDS (L=0..D=6); getDay: 0=Dom → índice 6
-  const todayWdsIdx = [1, 2, 3, 4, 5, 6, 0][today.getDay()]
+  // índice del día de hoy en WDS (L=0..D=6); getDay: 0=Dom→6, 1=Lun→0, 2=Mar→1, …, 6=Sáb→5
+  // (bug previo: [1,2,3,4,5,6,0] desfasaba +2 → miércoles marcaba viernes)
+  const todayWdsIdx = [6, 0, 1, 2, 3, 4, 5][today.getDay()]
 
   // KPI cards: máx 4 medidas seleccionadas
   // Excluye 'Altura' (estática, nunca cambia → KPI plano inútil); vive en el perfil para BMI/TDEE.
