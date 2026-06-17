@@ -206,11 +206,12 @@ export function Home() {
   const [weekSummaryOpen, setWeekSummaryOpen] = useState(false)
   // Densidad: historial largo + detalle secundario detrás de "Más detalle" (colapsado por defecto)
   const [moreDetailOpen, setMoreDetailOpen] = useState(false)
-  const insights = weeklyInsights(state)
+  // memoizados: no dependen de `now`, así que no deben recalcular en cada tick de 30s
+  const insights = useMemo(() => weeklyInsights(state), [state])
   const weekAdh = adh ? Math.round(adh.pct) : null
 
   // ── Loop 160: Card proyección de peso ────────────────────────────────────
-  const proj = weightProjection(state)
+  const proj = useMemo(() => weightProjection(state), [state])
   const showProjection = proj !== null && proj.etaTs !== null
 
   // ── Loop 161: Widget hidratación ─────────────────────────────────────────
@@ -222,16 +223,15 @@ export function Home() {
   const hasMetabolismo = Object.values(state.protocols).some(
     (p) => PEPTIDES[p.product]?.cat === 'Metabolismo'
   )
-  const glucosaHoy = (() => {
+  const glucosaHoy = useMemo(() => {
     const series = state.history['Glucosa ayunas']
     if (!series || series.length === 0) return null
     const sorted = [...series].sort((a, b) => b.ts - a.ts)
-    const lastTs = sorted[0].ts
-    const d = new Date(lastTs)
+    const d = new Date(sorted[0].ts)
     const todayD = new Date(state.todayTs)
     if (d.toDateString() === todayD.toDateString()) return sorted[0].value
     return null
-  })()
+  }, [state.history, state.todayTs])
   const [glucosaInput, setGlucosaInput] = useState('')
 
   // ── Item 156: sugerencia post-dosis Metabolismo ───────────────────────────
