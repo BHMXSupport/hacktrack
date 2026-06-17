@@ -677,8 +677,9 @@ export function Ajustes() {
             margin: '0 auto',
           }}
         >
-          {/* ── Hero card protocolo activo (N=449) ──────────────────────────── */}
-          <ProtocolHeroCard />
+          {/* Hero de "producto activo" removido: mostraba solo UN producto (activeProduct), lo que
+              confundía vs "Mis productos" (que lista TODOS). Todos los productos cuentan como activos;
+              la lista única es "Mis productos" más abajo. */}
 
           {/* ── PERFIL ─────────────────────────────────────────────────────────── */}
           <section>

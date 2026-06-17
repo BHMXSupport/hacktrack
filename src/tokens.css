@@ -22,7 +22,10 @@ button { -webkit-appearance: none; appearance: none; }
 :focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; border-radius: 4px; }
 button:focus:not(:focus-visible) { outline: none; }
 html, body, #root { margin:0; height:100%; }
-body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(--ink-900); }
+/* body sigue el fondo de la app: en celular full-bleed, la zona del home-indicator/gesture-bar bajo el
+   .phone ya NO se ve como banda negra (igualaba a #0c1322); en desktop el marco va sobre fondo oscuro. */
+body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink-900); }
+@media (min-width:700px) and (pointer:fine){ body{ background:#0c1322; } }
 
 /* Phone shell (centra en desktop, full en móvil) */
 /* DEFAULT = full-bleed: CUALQUIER celular (cualquier ancho/modelo) llena la pantalla, sin marco ni tope. */
