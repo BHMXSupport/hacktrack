@@ -110,20 +110,21 @@ export function collectDosesByProduct(s: AppState): Map<string, Dose[]> {
 const THRESHOLD = 1e-5 // bajo esto (relativo al pico) → 0, evita artefactos de punto flotante
 
 // Absorción BIFÁSICA (lag + absorción sc) — SOLO GLP-1 de acción prolongada. El resto = instantáneo.
-// Parámetros clínicos (investigador PK): tmax resultante cae en el rango sc reportado.
+// Parámetros clínicos (investigador PK): el Tmax resultante cae en el rango sc reportado (~1.4–1.7 días).
 export const BIPHASIC: Record<string, { tHalfAbsH: number; tLagH: number }> = {
-  'Semaglutida': { tHalfAbsH: 15, tLagH: 8 },
-  'Tirzepatida': { tHalfAbsH: 12, tLagH: 6 },
-  'Retatrutide': { tHalfAbsH: 16, tLagH: 8 },
+  'Semaglutida': { tHalfAbsH: 9, tLagH: 1 },  // Tmax ≈ 41 h (~1.7 d) — SmPC: Tmax 1–3 d
+  'Tirzepatida': { tHalfAbsH: 8, tLagH: 1 },  // Tmax ≈ 35 h (~1.4 d)
+  'Retatrutide': { tHalfAbsH: 9, tLagH: 1 },  // Tmax ≈ 39 h (~1.6 d)
 }
 export const isBiphasic = (product: string): boolean => product in BIPHASIC
 
-// contribución de UNA dosis a la CANTIDAD TOTAL EN EL CUERPO, dt ms después de la inyección.
-// Instantáneo: value·0.5^(dt/t½).
-// Bifásico (GLP-1 sc): cantidad total = depósito sc (aún sin absorber) + circulante. Empieza en la
-// dosis completa (recién inyectada NO es 0) y baja lento por la eliminación. Durante el lag, toda la
-// dosis está en el depósito (en el cuerpo); tras el lag, el depósito decae (ka) y lo circulante se
-// elimina (ke). Así "presente ahora" coincide con que acabas de inyectarte.
+// contribución de UNA dosis a la CONCENTRACIÓN PLASMÁTICA estimada (proxy de "efecto"), dt ms tras la inyección.
+// Instantáneo: value·0.5^(dt/t½) (péptidos de absorción rápida → pico en la inyección, luego decae).
+// Bifásico (GLP-1 sc): curva de Bateman (absorción de 1er orden ka + eliminación ke). EMPIEZA EN ~0 al
+// inyectar, SUBE hasta el pico (~Tmax) conforme se absorbe del depósito sc, y LUEGO BAJA lento por la
+// eliminación. Durante el breve lag aún no hay nada absorbido → 0. Esto es lo que pide la intuición
+// "empezar bajo y efecto máximo después"; es una concentración plasmática estimada, no la cantidad
+// total en el cuerpo (esa sería monótona decreciente). El pico de Bateman ≈ value·e^(−ke·Tmax) < value.
 function contribution(product: string, value: number, dtMs: number, halfMs: number): number {
   if (dtMs < 0) return 0
   const b = BIPHASIC[product]
@@ -131,17 +132,21 @@ function contribution(product: string, value: number, dtMs: number, halfMs: numb
   const ke = Math.LN2 / halfMs
   let ka = Math.LN2 / (b.tHalfAbsH * H)
   const tau = dtMs - b.tLagH * H
-  if (tau <= 0) return value // dosis íntegra en el depósito sc → en el cuerpo
+  if (tau <= 0) return 0 // durante el lag: aún sin absorber → concentración plasmática ~0
   if (Math.abs(ka - ke) < 1e-12) ka = ke * 1.0001 // guard ka≈ke (singularidad)
-  const depot = value * Math.exp(-ka * tau)
-  const central = value * (ka / (ka - ke)) * (Math.exp(-ke * tau) - Math.exp(-ka * tau))
-  return depot + central // monótona decreciente desde la dosis
+  // Bateman: sube de 0 al pico (~Tmax) y luego decae con ke. Nunca supera ~value (pico = value·e^(−ke·Tmax)).
+  return value * (ka / (ka - ke)) * (Math.exp(-ke * tau) - Math.exp(-ka * tau))
 }
 
-// offset (ms) del pico tras la inyección. Con el modelo de cantidad total el máximo está en la propia
-// inyección (meseta del depósito); el "hombro" (fin del lag) se muestrea aparte. Firma estable para el muestreo.
-function tmaxOffsetMs(_product: string, _halfMs: number): number {
-  return 0
+// offset (ms) del pico tras la inyección. Bifásico: Tmax analítico = tLag + ln(ka/ke)/(ka−ke) (donde la
+// derivada de Bateman se anula). Instantáneo: el pico está en la propia inyección (offset 0).
+function tmaxOffsetMs(product: string, halfMs: number): number {
+  const b = BIPHASIC[product]
+  if (!b) return 0
+  const ke = Math.LN2 / halfMs
+  let ka = Math.LN2 / (b.tHalfAbsH * H)
+  if (Math.abs(ka - ke) < 1e-12) ka = ke * 1.0001
+  return b.tLagH * H + Math.log(ka / ke) / (ka - ke)
 }
 
 // mg presentes de un producto en el instante t = superposición de sus dosis pasadas
@@ -281,9 +286,9 @@ export const PRESENCE_FLOOR_PCT = 2
 // Estimación educativa basada en la literatura científica — sin claims médicos ni dosis.
 // Movido de PharmaDashboard.tsx para poder exponerlo en ActiveNowChips y MedidaDetail. (item 151)
 const PRODUCT_NOTE: Record<string, string> = {
-  'Retatrutide': 'Triple agonista incretina; vida media larga (~6 días): la curva arranca alta y baja lento, sigue presente varios días tras la inyección.',
-  'Tirzepatida': 'Doble agonista GIP/GLP-1; vida media ~5 días: presencia prolongada, la curva desciende de forma gradual.',
-  'Semaglutida': 'Agonista GLP-1; vida media ~7 días: de las curvas más largas, permanece presente casi una semana tras la dosis.',
+  'Retatrutide': 'Triple agonista incretina; absorción sc lenta (pico ~1.5 días) y vida media larga (~6 días): la curva sube desde la inyección hasta su máximo y luego baja lento, sigue presente varios días.',
+  'Tirzepatida': 'Doble agonista GIP/GLP-1; absorción sc lenta (pico ~1.4 días) y vida media ~5 días: la curva sube al máximo en el primer par de días y después desciende de forma gradual.',
+  'Semaglutida': 'Agonista GLP-1; absorción sc lenta (pico ~1.7 días) y vida media ~7 días: la curva sube hasta su máximo y luego permanece presente casi una semana, de las más largas.',
   'Tesamorelin': 'Análogo de GHRH; vida media muy corta (~10 min): se elimina del plasma casi de inmediato, la curva cae de golpe.',
   'MOTS-c': 'Péptido mitocondrial; vida media corta (~1 h): presente solo unas horas. PK extrapolada de modelos animales.',
   '5-Amino-1MQ': 'Molécula pequeña; vida media corta (~3 h): presencia de pocas horas tras la toma.',
