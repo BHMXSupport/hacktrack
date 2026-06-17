@@ -376,6 +376,9 @@ function LongPressButton({ onTap, onLongPress, ariaLabel, active, color: _color 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
 
+  // Limpia el timer de long-press si el botón se desmonta a medio press (evita disparo tras unmount)
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
   function startPress() {
     didLongPress.current = false
     timerRef.current = setTimeout(() => {
@@ -464,25 +467,21 @@ export function TodayDoses() {
   // loop 139: producto cuya dosis recién registrada espera selección de efecto
   // (el id real se resuelve al despachar el efecto buscando el item más reciente de ese producto hoy)
   const [pendingEffectProduct, setPendingEffectProduct] = useState<string | null>(null)
+  // Un solo efecto para la transición allDone (antes eran dos con refs separados → riesgo de doble disparo):
+  // al completar todas las dosis, colapsa Y dispara la celebración una sola vez.
+  const [showCelebration, setShowCelebration] = useState(false)
   const prevAllDone = useRef(allDone)
   useEffect(() => {
     if (allDone && !prevAllDone.current) {
       try { sessionStorage.setItem(collapseKey, '1') } catch { /* storage no disponible */ }
       setCollapsed(true)
+      setShowCelebration(true)
+      prevAllDone.current = allDone
+      const t = setTimeout(() => setShowCelebration(false), 3000)
+      return () => clearTimeout(t)
     }
     prevAllDone.current = allDone
   }, [allDone, collapseKey])
-  const [showCelebration, setShowCelebration] = useState(false)
-  const prevAllDoneC = useRef(allDone)
-  useEffect(() => {
-    if (allDone && !prevAllDoneC.current) {
-      setShowCelebration(true)
-      const t = setTimeout(() => setShowCelebration(false), 3000)
-      prevAllDoneC.current = allDone
-      return () => clearTimeout(t)
-    }
-    prevAllDoneC.current = allDone
-  }, [allDone])
 
   // item 36: estado vacío diferenciado
   if (prods.length === 0) {

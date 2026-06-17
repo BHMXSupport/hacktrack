@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, adherence, isoKey } from '../lib/store'
 import { PEPTIDES, CATEGORY_COLOR, MEASURES_BY } from '../lib/catalog'
@@ -21,6 +21,13 @@ function AdherenceBar({ pct }: { pct: number }) {
     clamped >= 75 ? 'var(--success)' : clamped >= 50 ? 'var(--brand-500)' : 'var(--brand-700)'
   // Item 159: tooltip state para hitos interactivos
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null)
+  const tipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (tipTimer.current) clearTimeout(tipTimer.current) }, [])
+  const showTip = (mk: number) => {
+    if (tipTimer.current) clearTimeout(tipTimer.current)
+    setActiveTooltip((cur) => (cur === mk ? null : mk))
+    tipTimer.current = setTimeout(() => setActiveTooltip(null), 1800)
+  }
 
   const tooltips: Record<number, string> = {
     25: '25% → 1.75 días perfectos esta semana',
@@ -50,10 +57,7 @@ function AdherenceBar({ pct }: { pct: number }) {
         <span key={mk} style={{ position: 'absolute', top: 0, bottom: 0, left: `${mk}%`, transform: 'translateX(-1px)', zIndex: 2 }}>
           <button
             aria-label={`Hito ${mk}%: ${tooltips[mk]}`}
-            onClick={() => {
-              setActiveTooltip(activeTooltip === mk ? null : mk)
-              setTimeout(() => setActiveTooltip(null), 1800)
-            }}
+            onClick={() => showTip(mk)}
             style={{
               position: 'absolute', top: 0, bottom: 0, left: 0,
               width: 2, border: 'none', cursor: 'pointer', padding: 0,
