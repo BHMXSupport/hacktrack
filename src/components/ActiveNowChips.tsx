@@ -14,6 +14,18 @@ import { spring, staggerParent, staggerItem, dur, ease } from '../lib/motion'
 import { vialDaysLeft, vialExpiryStatus } from '../lib/calc'
 import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
 
+// Iconos SVG locales (reemplazan los caracteres '▾' y '≋' — la rúbrica exige iconos SVG, no glifos de texto)
+const ChevronDown = ({ size = 12, color = 'var(--ink-400)' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }} aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+)
+const WaveIcon = ({ size = 12, color = 'var(--ink-400)' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }} aria-hidden="true">
+    <path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0" />
+  </svg>
+)
+
 // tiempo hasta washout práctico (~4.32×t½) para un producto dado
 function timeToWashoutMs(product: string, now: number, lastDoseTs: number | undefined): number | null {
   const halfH = HALF_LIFE_H[product]
@@ -156,7 +168,9 @@ function DecayTooltip({
         padding: '10px 12px',
         boxShadow: 'var(--e3, var(--e2))',
         minWidth: 200,
-        maxWidth: 240,
+        // clamp al viewport: nunca rebasa los márgenes laterales aunque el chip esté cerca del borde
+        maxWidth: 'min(240px, calc(100vw - 32px))',
+        boxSizing: 'border-box',
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -399,27 +413,30 @@ export function ActiveNowChips() {
                     display: 'block',
                   }}
                 />
-                <span className="sm" style={{ color: 'var(--brand-900)', fontWeight: 500 }}>{p.product}</span>
-                <span className="sm mono" style={{ color: 'var(--brand-900)', fontWeight: 600 }}>~{Math.round(p.pct)}%</span>
+                <span className="sm" style={{ color: 'var(--brand-900)', fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.product}</span>
+                <span className="sm mono" style={{ color: 'var(--brand-900)', fontWeight: 600, flexShrink: 0 }}>~{Math.round(p.pct)}%</span>
                 {/* chevron de expansión (solo en multi-chip) */}
                 {!singleChip && (
                   <motion.span
                     animate={{ rotate: isExpanded ? 180 : 0 }}
                     transition={{ duration: dur.fast }}
                     aria-hidden="true"
-                    style={{ marginLeft: 'auto', color: 'var(--ink-400)', fontSize: 12, lineHeight: 1 }}
+                    style={{ marginLeft: 'auto', display: 'inline-flex', flexShrink: 0 }}
                   >
-                    ▾
+                    <ChevronDown size={12} />
                   </motion.span>
                 )}
                 {/* icono de curva si chip único */}
                 {singleChip && (
-                  <span aria-hidden style={{ marginLeft: 'auto', color: 'var(--ink-400)', fontSize: 11 }}>≋</span>
+                  <span aria-hidden style={{ marginLeft: 'auto', display: 'inline-flex', flexShrink: 0 }}>
+                    <WaveIcon size={13} />
+                  </span>
                 )}
               </span>
 
-              {/* Loop 149: barra de washout */}
-              {fillPct != null && (
+              {/* Loop 149: barra de washout — en colapsado solo para chip único (sin expansión);
+                  en multi-chip se muestra dentro del panel expandido para bajar densidad */}
+              {fillPct != null && singleChip && (
                 <span
                   style={{ display: 'block', width: '100%', height: 3, borderRadius: 999, background: 'var(--ink-200)', overflow: 'hidden' }}
                   title={washoutLabel}
@@ -436,8 +453,9 @@ export function ActiveNowChips() {
                 </span>
               )}
 
-              {/* Loop 167: badge de caducidad del vial — solo si ≤3 días o caducado */}
-              {showExpiryBadge && (
+              {/* Loop 167: badge de caducidad del vial — visible en colapsado solo para chip único
+                  (sin panel expandido); en multi-chip vive en el panel expandido */}
+              {showExpiryBadge && singleChip && (
                 <span
                   aria-label={expiryStatus === 'expired' ? 'Vial caducado — guía de manejo' : `Vial próximo a caducar: ${daysLeft} días — guía de manejo`}
                   style={{
@@ -473,6 +491,46 @@ export function ActiveNowChips() {
                     onClick={(e) => e.stopPropagation()} // evitar toggle al hacer tap en la tarjeta expandida
                   >
                     <div style={{ paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {/* Loop 149: barra de washout (movida al segundo nivel para aligerar el chip colapsado) */}
+                      {fillPct != null && (
+                        <span
+                          style={{ display: 'block', width: '100%', height: 4, borderRadius: 999, background: 'var(--ink-200)', overflow: 'hidden' }}
+                          title={washoutLabel}
+                        >
+                          <span
+                            style={{
+                              display: 'block', height: '100%', borderRadius: 999,
+                              width: `${fillPct}%`,
+                              background: isLow ? 'var(--warning)' : p.color,
+                            }}
+                          />
+                        </span>
+                      )}
+
+                      {/* Loop 167: badge de caducidad del vial — solo si ≤3 días o caducado */}
+                      {showExpiryBadge && (
+                        <span
+                          aria-label={expiryStatus === 'expired' ? 'Vial caducado — guía de manejo' : `Vial próximo a caducar: ${daysLeft} días — guía de manejo`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '1px 6px',
+                            borderRadius: 999,
+                            background: expiryBg,
+                            border: `1px solid ${expiryColor}`,
+                            color: expiryColor,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            lineHeight: 1.4,
+                            alignSelf: 'flex-start',
+                          }}
+                        >
+                          <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: expiryColor, display: 'block', flexShrink: 0 }} />
+                          {expiryLabel}
+                        </span>
+                      )}
+
                       {/* Nota educativa PK */}
                       <p
                         className="sm"

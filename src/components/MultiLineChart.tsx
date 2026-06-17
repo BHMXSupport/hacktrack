@@ -83,6 +83,8 @@ export function MultiLineChart({
   const H = height
   const plotW = W - PAD.l - PAD.r
   const plotH = H - PAD.t - PAD.b
+  // 3+ series solapadas → atenuar los halos pulsantes del punto "ahora"
+  const manySeries = series.length >= 3
 
   const [x0, x1] = domainX
   const [y0, y1] = domainY
@@ -169,7 +171,7 @@ export function MultiLineChart({
       width="100%"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
-      style={{ display: 'block', overflow: 'visible', touchAction: 'pan-y' }}
+      style={{ display: 'block', overflow: 'hidden', touchAction: 'pan-y' }}
       onClick={() => {
         // Cerrar tooltip educativo al tocar fuera
         if (activeRefLine !== null) setActiveRefLine(null)
@@ -278,10 +280,21 @@ export function MultiLineChart({
         const vx = sx(r.t)
         if (vx < PAD.l || vx > W - PAD.r) return null
         const col = r.color ?? 'var(--brand-500)'
+        // truncar etiqueta para que no se salga por la derecha; anclar a la izquierda si
+        // la línea cae en la mitad derecha del plot. Bajar la y para no chocar con "ahora".
+        const labelTxt = r.label.length > 14 ? r.label.slice(0, 13) + '…' : r.label
+        const anchorEnd = vx > PAD.l + plotW / 2
         return (
           <g key={`vref-${r.t}`}>
             <line x1={vx} y1={PAD.t} x2={vx} y2={PAD.t + plotH} stroke={col} strokeWidth={1} strokeDasharray="3 4" opacity={0.8} />
-            <text x={vx + 3} y={PAD.t + 10} fontSize={8} fontFamily="JetBrains Mono, monospace" fill={col}>{r.label}</text>
+            <text
+              x={anchorEnd ? vx - 3 : vx + 3}
+              y={PAD.t + 20}
+              textAnchor={anchorEnd ? 'end' : 'start'}
+              fontSize={8} fontFamily="JetBrains Mono, monospace" fill={col}
+            >
+              {labelTxt}
+            </text>
           </g>
         )
       })}
@@ -365,13 +378,15 @@ export function MultiLineChart({
                 }}
               />
             ))}
-            {/* punto de presencia AHORA, con halo pulsante "vivo" desfasado por serie */}
+            {/* punto de presencia AHORA, con halo pulsante "vivo" desfasado por serie.
+                Con 3+ series solapadas el halo se reduce (r y opacidad) para no apilar círculos
+                crecientes encima de la línea/etiqueta "ahora". El dot sólido queda siempre encima. */}
             {showNowDot && (
               <g>
                 {!reduce && (
                   <motion.circle
                     cx={sx(nowTs)} cy={sy(nowY!)} fill={s.color}
-                    animate={{ r: [4, 9], opacity: [0.35, 0] }}
+                    animate={manySeries ? { r: [4, 6], opacity: [0.2, 0] } : { r: [4, 9], opacity: [0.35, 0] }}
                     transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: haloDelay }}
                   />
                 )}
