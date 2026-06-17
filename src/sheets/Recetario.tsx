@@ -485,8 +485,8 @@ export function Recetario() {
 
                 // Ratio kcal/g P (item 249)
                 const ratio = r.protein > 0 ? (r.kcal / r.protein).toFixed(1) : null
-                const ratioLabel = ratio == null ? null : Number(ratio) < 8 ? <><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Densidad proteica alta</> : Number(ratio) <= 12 ? 'Densidad proteica media' : 'Densidad proteica baja'
-                const ratioColor = ratio == null ? 'var(--ink-400)' : Number(ratio) < 8 ? 'var(--success)' : 'var(--ink-400)'
+                const ratioLabel = ratio == null ? null : Number(ratio) < 10 ? <><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Densidad proteica alta</> : Number(ratio) <= 14 ? 'Densidad proteica media' : 'Densidad proteica baja'
+                const ratioColor = ratio == null ? 'var(--ink-400)' : Number(ratio) < 10 ? 'var(--success)' : 'var(--ink-400)'
 
                 // Badge proteína principal (item 264)
                 let topIngredient: string | null = null
