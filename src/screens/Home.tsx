@@ -494,7 +494,7 @@ export function Home() {
   const showMorningCheck = isEarlyMorning && !hasMorningData && morningCheckMeasures.length > 0 && !morningCheckDone
 
   return (
-    <div className="scroll has-nav" style={{ position: 'relative' }}>
+    <div className="scroll has-nav">
       {/* ── Loop 163: Pull-to-refresh spinner ─────────────────────────────── */}
       <AnimatePresence>
         {refreshing && (
