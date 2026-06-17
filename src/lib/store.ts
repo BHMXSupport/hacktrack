@@ -243,17 +243,20 @@ export function siteLabel(s?: InjectionSite | null): string | null {
 
 // Recencia de inyección por zona (para el mapa anatómico de Inicio): rojo <1d, amarillo <2d, verde <3d.
 export type ZoneRecency = 'fresh' | 'recent' | 'ok' | 'none' // <1d | <2d | <3d | ≥3d/nunca
-export function injectionZoneRecency(s: AppState, now: number = Date.now()): Record<InjectionSite, ZoneRecency> {
+export interface ZoneInfo { recency: ZoneRecency; lastTs: number | null }
+export function injectionZoneRecency(s: AppState, now: number = Date.now()): Record<InjectionSite, ZoneInfo> {
   const latest: Partial<Record<InjectionSite, number>> = {}
   for (const g of s.log) for (const it of g.items) {
-    if (it.type === 'dose' && it.site && (latest[it.site] == null || it.ts > latest[it.site]!)) latest[it.site] = it.ts
+    // ignora dosis con timestamp futuro al elegir la más reciente válida por zona
+    if (it.type === 'dose' && it.site && it.ts <= now && (latest[it.site] == null || it.ts > latest[it.site]!)) latest[it.site] = it.ts
   }
-  const out = {} as Record<InjectionSite, ZoneRecency>
+  const out = {} as Record<InjectionSite, ZoneInfo>
   for (const site of INJECTION_ROTATION) {
     const ts = latest[site]
-    if (ts == null) { out[site] = 'none'; continue }
+    if (ts == null) { out[site] = { recency: 'none', lastTs: null }; continue }
     const days = (now - ts) / 86_400_000
-    out[site] = days < 1 ? 'fresh' : days < 2 ? 'recent' : days < 3 ? 'ok' : 'none'
+    const recency: ZoneRecency = days < 1 ? 'fresh' : days < 2 ? 'recent' : days < 3 ? 'ok' : 'none'
+    out[site] = { recency, lastTs: ts }
   }
   return out
 }

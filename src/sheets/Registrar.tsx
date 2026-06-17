@@ -331,7 +331,9 @@ export function RegistrarSheet() {
       const doseMg = doseToMg(val, unit, vialMg, aguaMl) ?? undefined
       const recon = needsRecon(unit) && vialMg > 0 && aguaMl > 0 ? { vialMg, aguaMl } : undefined
       const noteStr = nota.trim().slice(0, 200) || undefined
-      dispatch({ t: 'logDose', product: finalProduct, value: val || null, unit, ts, doseMg, recon, site, note: noteStr })
+      // El sitio sugerido se muestra resaltado en la píldora; si el usuario no lo cambia, igual se persiste
+      // (antes quedaba undefined → la dosis se guardaba sin zona y el mapa de inyección no la coloreaba).
+      dispatch({ t: 'logDose', product: finalProduct, value: val || null, unit, ts, doseMg, recon, site: site ?? suggestedSite, note: noteStr })
       // item 429: guardar unidad por producto en localStorage
       try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
       dispatch({ t: 'sheet', sheet: null })

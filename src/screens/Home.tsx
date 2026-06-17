@@ -242,6 +242,12 @@ export function Home() {
     () => [...(state.history['Glucosa ayunas'] ?? [])].sort((a, b) => a.ts - b.ts),
     [state.history],
   )
+  // recencia por zona de inyección (memoizada; recomputa al cambiar el log o el día)
+  const injectionZones = useMemo(() => injectionZoneRecency(state), [state.log, state.todayTs])
+  const hasInjectionUse = useMemo(
+    () => state.log.some((g) => g.items.some((it) => it.type === 'dose' && it.site)),
+    [state.log],
+  )
 
   // ── Item 156: sugerencia post-dosis Metabolismo ───────────────────────────
   const [showPesoSuggestion, setShowPesoSuggestion] = useState(false)
@@ -634,9 +640,9 @@ export function Home() {
         </motion.div>
 
         {/* ── 1b-2. Mapa de zonas de inyección (recencia: rojo<1d, ámbar<2d, verde<3d) ── */}
-        {Object.keys(state.protocols).length > 0 && (
+        {(hasInjectionUse || Object.keys(state.protocols).length > 0) && (
           <motion.div variants={staggerItem}>
-            <InjectionMap recency={injectionZoneRecency(state)} />
+            <InjectionMap zones={injectionZones} />
           </motion.div>
         )}
 
