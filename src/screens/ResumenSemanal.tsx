@@ -239,7 +239,7 @@ export function ResumenSemanal() {
         <div ref={anchorRef} style={{ height: 0 }} />
 
         {/* ── Stats base (gratis) ── */}
-        <Card title="Adherencia" subtitle={adh ? `${adh.taken} de ${adh.due} dosis cumplidas` : 'Sin protocolo activo'}>
+        <Card title="Adherencia" subtitle={adh ? `${adh.taken} de ${adh.due} dosis programadas` : 'Sin protocolo activo'}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: 'var(--brand-700)', lineHeight: 1 }}>{adh ? `${adh.pct}%` : '—'}</div>
             {/* Delta vs semana previa */}
@@ -253,7 +253,7 @@ export function ResumenSemanal() {
 
         {/* Rejilla 2+1: Dosis + Hidratación arriba al 50/50, Calorías full-width abajo */}
         <div style={{ display: 'flex', gap: 12 }}>
-          <div style={{ flex: 1 }}><Card title="Dosis"><div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>{doses}</div></Card></div>
+          <div style={{ flex: 1 }}><Card title="Dosis" subtitle="registradas esta semana"><div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>{doses}</div></Card></div>
           <div style={{ flex: 1 }}>
             <Card title="Hidratación" subtitle={`Promedio/día vs meta (${waterGoalL} L)`}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
