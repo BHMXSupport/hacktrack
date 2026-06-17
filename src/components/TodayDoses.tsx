@@ -524,6 +524,22 @@ export function TodayDoses() {
     }
   }
 
+  // "Marcar todo": registra TODAS las dosis pendientes de golpe (sin abrir el selector por cada una),
+  // asignando a cada producto su sitio sugerido por rotación. Antes hacía activeProds.forEach(markDone),
+  // pero markDone(tap) solo hace setPendingSiteProduct → en loop solo quedaba el último y NO registraba nada.
+  function markAllDone() {
+    tapHaptic()
+    for (const p of activeProds) {
+      if (doseTakenOnProduct(state, today, p)) continue
+      const dose = doseForProduct(state, p)
+      if (!dose) continue
+      const rec = state.productRecon[p]
+      const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
+      const site = nextInjectionSite(state.lastInjectionSite?.[p])
+      dispatch({ t: 'logDose', product: p, value: dose.value, unit: dose.unit, ts: tsFor(p), doseMg, site })
+    }
+  }
+
   // loop 140 + 138 + 139: registra la dosis con o sin sitio/nota, luego pide efecto
   function commitDose(product: string, site?: InjectionSite) {
     const dose = doseForProduct(state, product)
@@ -773,15 +789,14 @@ export function TodayDoses() {
             </motion.div>
           ) : (
             // Loop 136: LayoutGroup animation + Loop 137: semáforo
-            <motion.div key="rows" layout initial={false}>
+            // variants/initial/animate re-establecen la cascada de stagger: si no, al expandir con "Ver"
+            // las tarjetas (variants=staggerItem) se quedan en initial (opacity 0) = en blanco hasta refrescar.
+            <motion.div key="rows" variants={staggerParent} initial="initial" animate="animate">
               {/* Item 121: Registrar todo 1-tap */}
               {doneCount === 0 && activeProds.length > 0 && activeProds.every((p) => doseForProduct(state, p) !== null) && (
                 <div style={{ padding: '10px 16px 6px', borderTop: '1px solid var(--border)' }}>
                   <button
-                    onClick={() => {
-                      tapHaptic()
-                      activeProds.forEach((p) => markDone(p))
-                    }}
+                    onClick={markAllDone}
                     aria-label="Marcar todas las dosis de hoy como hechas"
                     style={{
                       width: '100%', height: 36, borderRadius: 999,
