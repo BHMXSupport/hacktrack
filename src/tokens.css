@@ -15,6 +15,9 @@
   --e2:0 4px 16px rgba(0,0,0,.35); --e3:0 14px 36px rgba(0,0,0,.5);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Sin chrome nativo en botones: evita el borde biselado del navegador (el "encuadre de L")
+   en cualquier <button> que no resetee el borde por su cuenta. Los .btn*/.chip mantienen su estilo. */
+button { -webkit-appearance: none; appearance: none; }
 /* Accesibilidad: foco visible solo por teclado */
 :focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; border-radius: 4px; }
 button:focus:not(:focus-visible) { outline: none; }
@@ -42,7 +45,9 @@ body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(-
 .row:active{background:var(--ink-100)}
 .btn-brand{background:var(--brand-700);color:#fff;box-shadow:0 6px 18px rgba(14,90,82,.28)}
 .btn-ember{background:var(--ember);color:#3a1206;box-shadow:0 8px 22px rgba(255,122,89,.33)}
-.btn-ghost{background:transparent;color:var(--ink-400);height:46px}
+/* .btn-ghost se usa SIN .btn en varios sitios → hay que resetear el borde/appearance nativos
+   del <button> (si no, el navegador pinta su borde biselado = el "encuadre de L"). */
+.btn-ghost{background:transparent;color:var(--ink-400);height:46px;border:0;cursor:pointer;font-family:'Inter';-webkit-appearance:none;appearance:none;padding:0 8px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:var(--e2)}
 .scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:clip;padding:max(22px,env(safe-area-inset-top)) 18px 28px}
 /* deja espacio para la bottom-nav en pantallas con tabs */
