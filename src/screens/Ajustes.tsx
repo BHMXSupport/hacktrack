@@ -654,7 +654,7 @@ export function Ajustes() {
         <header
           style={{
             position: 'sticky',
-            top: 0,
+            top: 'env(safe-area-inset-top, 0px)',
             zIndex: 40,
             background: 'var(--bg)',
             display: 'flex',

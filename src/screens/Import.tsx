@@ -234,7 +234,7 @@ export function Import() {
   return (
     <div className="scroll" style={{ paddingBottom: 32 }}>
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px 8px', position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px 8px', paddingTop: 'max(16px, env(safe-area-inset-top))', position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 10 }}>
         <button className="iconbtn" onClick={phase === 'orders-config' ? () => setPhase('orders') : phase === 'preview' ? () => setPhase('orders-config') : back} aria-label="Regresar">
           <IcBack />
         </button>

@@ -111,11 +111,12 @@ export function Paywall() {
       transition={{ type: 'spring', stiffness: 320, damping: 32 }}
       style={{ position: 'absolute', inset: 0, background: 'var(--bg)', zIndex: 50, overflowY: 'auto' }}
     >
-      {/* Cabecera */}
+      {/* Cabecera — safe-area arriba para que la X no quede bajo la barra de estado/notch en full-screen */}
       <header
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 20px', height: 64, position: 'sticky', top: 0,
+          padding: '0 20px', minHeight: 64, position: 'sticky', top: 0,
+          paddingTop: 'env(safe-area-inset-top, 0px)',
           background: 'var(--bg)', zIndex: 10,
         }}
       >

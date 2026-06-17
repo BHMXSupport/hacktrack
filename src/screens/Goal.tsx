@@ -45,7 +45,7 @@ export function Goal() {
         position: 'sticky', top: 0, zIndex: 40,
         background: 'var(--bg)', borderBottom: '1px solid transparent',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 18px',
+        padding: '12px 18px', paddingTop: 'max(12px, env(safe-area-inset-top))',
       }}>
         <button
           className="iconbtn"
