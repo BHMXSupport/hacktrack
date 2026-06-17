@@ -215,13 +215,18 @@ export function ArcoSheet() {
             </span>
           </button>
 
-          {/* Oposición */}
-          <button className="row danger" style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}
-            onClick={() => dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: '__account' })}>
-            <span className="row-ic" style={{ color: 'var(--error)' }}><IcShield size={20} /></span>
+          {/* Oposición — revocar consentimiento (acción DISTINTA de borrar datos): solo apaga consentActive.
+              El usuario verá su estado "revocado" y podrá volver a otorgarlo (re-consentimiento). */}
+          <button className="row" style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+            onClick={() => {
+              dispatch({ t: 'setSetting', key: 'consentActive', value: false })
+              dispatch({ t: 'toast', msg: 'Consentimiento revocado. Puedes volver a otorgarlo cuando quieras.' })
+              dispatch({ t: 'sheet', sheet: 'perfil' })
+            }}>
+            <span className="row-ic" style={{ color: 'var(--brand-700)' }}><IcShield size={20} /></span>
             <span className="row-main">
               <span className="row-label">Oposición</span>
-              <span className="row-sub">Revocar consentimiento</span>
+              <span className="row-sub">Revocar consentimiento (sin borrar tus datos)</span>
             </span>
           </button>
         </div>
