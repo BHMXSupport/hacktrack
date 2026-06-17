@@ -4,3 +4,4 @@ dist
 out
 *.local
 .vite
+.qa-*.mjs
