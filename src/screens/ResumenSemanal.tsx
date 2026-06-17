@@ -72,9 +72,12 @@ function Accordion({ title, subtitle, defaultOpen = false, children }: { title: 
             transition={{ duration: dur.base, ease: ease.decelerate }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+            {/* Re-establece la propagación de variantes: el motion.div de arriba anima height/opacity
+                con objetos explícitos, lo que cortaba el cascade y dejaba las Card hijas (staggerItem)
+                en su estado initial (opacity:0) → invisibles. Este wrapper las vuelve a animar a visible. */}
+            <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
               {children}
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -659,7 +659,11 @@ function Disclosure({ title, open, onToggle, children }: {
             transition={{ duration: 0.2, ease: ease.standard }}
             style={{ overflow: 'hidden' }}
           >
-            {children}
+            {/* Re-establece la cascada de variantes: el motion.div anima con objetos explícitos y
+                cortaba el cascade → los hijos staggerItem quedaban en initial (opacity:0, invisibles). */}
+            <motion.div variants={staggerParent} initial="initial" animate="animate">
+              {children}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
