@@ -210,9 +210,13 @@ export function PharmaDashboard() {
   }, [data.series, hidden, state])
 
   // ── n°418: KPI overlay — opciones y puntos ──
+  // Excluye 'Altura' (estática) y solo ofrece KPIs con AL MENOS un dato dentro de la ventana del chart,
+  // si no, se elegían KPIs que no mostraban nada en la curva ("no se registran bien").
   const kpiHistoryOptions = useMemo(
-    () => Object.keys(state.history).filter((k) => (state.history[k]?.length ?? 0) > 0),
-    [state.history],
+    () => Object.keys(state.history).filter((k) =>
+      k !== 'Altura' && (state.history[k] ?? []).some((s) => s.ts >= data.domainX[0] && s.ts <= data.domainX[1]),
+    ),
+    [state.history, data.domainX],
   )
   const kpiPoints = useMemo(() => {
     if (!kpiOverlay) return []
