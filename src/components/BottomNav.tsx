@@ -200,7 +200,7 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="bottomnav" style={{ position: 'relative' }}>
+    <nav className="bottomnav">
       {/* n=435: menú radial sobre el FAB */}
       <AnimatePresence>
         {radialOpen && (
