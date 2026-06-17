@@ -179,7 +179,10 @@ function SheetHost() {
   const Comp = id && id in SHEETS ? SHEETS[id as keyof typeof SHEETS] : null
   return (
     <Suspense fallback={<SheetFallback />}>
-      <AnimatePresence>{Comp && <Comp key={id} />}</AnimatePresence>
+      {/* mode="wait": al cambiar de una sheet a otra (p.ej. Agregar → Medida), cierra la anterior
+          ANTES de abrir la nueva. Antes (sync) quedaban ambas montadas y el overlay de la primera
+          interceptaba los clics → no se podía cerrar la segunda (bug "no me deja salir"). */}
+      <AnimatePresence mode="wait">{Comp && <Comp key={id} />}</AnimatePresence>
     </Suspense>
   )
 }
