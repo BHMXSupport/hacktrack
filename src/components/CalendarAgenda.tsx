@@ -9,6 +9,7 @@ import { fmtDate, fmtTime } from '../lib/cadence'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { useApp, isoKey } from '../lib/store'
 import { sharedAxisX, dur, ease, spring } from '../lib/motion'
+import { Glyph } from './glyphs'
 
 // ── Persistencia del toggle (sessionStorage) ──────────────────────────────────
 type AgendaMode = 'day' | 'product'
@@ -77,16 +78,6 @@ function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
     }, 4000)
   }, [dispatch, product, doseTs])
 
-  const handleUndo = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    if (markedId) {
-      dispatch({ t: 'deleteLog', id: markedId })
-    }
-    setDone(false)
-    setMarkedId(null)
-  }, [dispatch, markedId])
-
   // Capturar el id del item recién creado desde el store
   const { state } = useApp()
   useEffect(() => {
@@ -104,25 +95,16 @@ function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
   useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }, [])
 
   if (done) {
+    // Una sola affordance de deshacer: el toast global del store. Aquí solo la confirmación.
     return (
       <motion.span
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1, transition: spring.ui }}
         style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
+        aria-label={`${product} marcado`}
       >
-        <span className="sm" style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Marcado</span>
-        <button
-          type="button"
-          onClick={handleUndo}
-          className="sm"
-          style={{
-            background: 'none', border: 0, cursor: 'pointer',
-            color: 'var(--ink-400)', padding: '0 2px', fontWeight: 500, flexShrink: 0,
-          }}
-          aria-label={`Deshacer marca de ${product}`}
-        >
-          Deshacer
-        </button>
+        <Glyph name="check" size={14} color="var(--success)" />
+        <span className="sm" style={{ color: 'var(--success)', fontWeight: 600 }}>Marcado</span>
       </motion.span>
     )
   }
@@ -135,6 +117,9 @@ function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleMark(e) } }}
       className="sm"
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
         background: 'var(--brand-100)',
         border: '1px solid var(--brand-300)',
         borderRadius: 6,
@@ -147,7 +132,8 @@ function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
       }}
       aria-label={`Marcar dosis de ${product}`}
     >
-      ✓ Marcar
+      <Glyph name="check" size={14} color="var(--brand-700)" />
+      Marcar
     </motion.button>
   )
 }
@@ -233,7 +219,10 @@ function AgendaByDay({
                       const key = `${item.product}|${item.date.getTime()}`
                       const badge = timingMap[key]
                       return badge ? (
-                        <span className="sm" style={{ color: 'var(--warning)', fontWeight: 600, fontSize: 10, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                        <span
+                          className="sm"
+                          style={{ color: 'var(--warning)', fontWeight: 600, fontSize: 10, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
                           {badge}
                         </span>
                       ) : null
@@ -302,15 +291,18 @@ function AgendaByProduct({
                 style={{ width: 10, height: 10, borderRadius: 999, background: color, flexShrink: 0 }}
                 aria-hidden="true"
               />
-              <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)', flex: 1 }}>
+              <span
+                className="sm"
+                style={{ fontWeight: 700, color: 'var(--ink-700)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
                 {product}
               </span>
               {cat && (
-                <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 400 }}>{cat}</span>
+                <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 400, flexShrink: 0 }}>{cat}</span>
               )}
               <span
                 className="sm mono"
-                style={{ color: 'var(--ink-400)', fontWeight: 600 }}
+                style={{ color: 'var(--ink-400)', fontWeight: 600, flexShrink: 0, whiteSpace: 'nowrap' }}
                 aria-label={`${total} dosis en el periodo`}
               >
                 {total} dosis
@@ -371,7 +363,7 @@ export function CalendarAgenda() {
       const diffMs = logged.getTime() - expected.getTime()
       const diffH = Math.round(Math.abs(diffMs) / 3600000 * 10) / 10
       if (Math.abs(diffMs) > 2 * 3600000) {
-        const sign = diffMs > 0 ? `↑ ${diffH}h tarde` : `↑ ${diffH}h antes`
+        const sign = diffMs > 0 ? `${diffH}h tarde` : `${diffH}h antes`
         const key = `${it.product}|${expected.getTime()}`
         timingMap[key] = sign
       }

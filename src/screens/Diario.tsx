@@ -31,6 +31,38 @@ function groupLabel(dateKey: string, todayTs: number): string {
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
 const itemAnim = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
 
+// ── chevron line-icon (consistente con el set Glyph; reemplaza el carácter '›') ──
+function Chevron({ dir = 'right', size = 16, color = 'currentColor', style }: { dir?: 'right' | 'down'; size?: number; color?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0, transition: 'transform 0.2s', transform: dir === 'down' ? 'rotate(90deg)' : undefined, ...style }}
+    >
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  )
+}
+
+// ── flecha de tendencia line-icon (reemplaza los caracteres '↑/↓/=') ──
+function TrendArrow({ dir, size = 13, color = 'currentColor', style }: { dir: 'up' | 'down' | 'flat'; size?: number; color?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0, ...style }}
+    >
+      {dir === 'flat'
+        ? <path d="M5 12h14" />
+        : dir === 'up'
+          ? <><path d="M12 19V6" /><path d="M6 11l6-6 6 6" /></>
+          : <><path d="M12 5v13" /><path d="M6 13l6 6 6-6" /></>}
+    </svg>
+  )
+}
+
 // ── tipos de filtro ──────────────────────────────────────────────────────────
 type TypeFilter = 'todo' | 'dose' | 'medida'
 
@@ -41,9 +73,9 @@ const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
 ]
 
 const RANGE_OPTIONS: { value: RangeFilter; label: string }[] = [
-  { value: 7,     label: '7 días' },
-  { value: 30,    label: '30 días' },
-  { value: 90,    label: '90 días' },
+  { value: 7,     label: '7d' },
+  { value: 30,    label: '30d' },
+  { value: 90,    label: '90d' },
   { value: 'all', label: 'Todo' },
 ]
 
@@ -219,6 +251,9 @@ function TimelineItem({
   // n°77: editar hora inline
   const [editingTime, setEditingTime] = useState(false)
 
+  // densidad: detalle PK avanzado (sparkline, fase, presencia) colapsado por defecto
+  const [showMore, setShowMore] = useState(false)
+
   function handleTimeClick() {
     setEditingTime(true)
   }
@@ -261,12 +296,16 @@ function TimelineItem({
       <div
         className="mono sm"
         style={{
-          width: 52,
+          width: 46,
           flexShrink: 0,
           paddingTop: 10,
           textAlign: 'right',
           color: 'var(--ink-400)',
           cursor: 'pointer',
+          // al editar, el input nativo necesita más ancho que el riel (52px) — se permite
+          // que crezca sin empujar la tarjeta usando posición relativa + z-index
+          position: 'relative',
+          zIndex: editingTime ? 3 : undefined,
         }}
         onClick={handleTimeClick}
         title="Tocar para editar hora"
@@ -279,13 +318,16 @@ function TimelineItem({
             onBlur={() => setEditingTime(false)}
             onChange={handleTimeChange}
             style={{
-              width: 52,
-              fontSize: 11,
+              position: 'absolute',
+              left: 0,
+              top: 6,
+              width: 78,
+              fontSize: 12,
               border: '1px solid var(--brand-500)',
               borderRadius: 4,
               background: 'var(--bg)',
               color: 'var(--ink-900)',
-              padding: '2px 2px',
+              padding: '2px 4px',
             }}
           />
         ) : (
@@ -293,11 +335,11 @@ function TimelineItem({
         )}
       </div>
 
-      {/* nodo de la línea vertical */}
+      {/* nodo de la línea vertical — centrado sobre la línea (left:50, ancho 2 → centro en 51; punto de 10px → left:46) */}
       <div
         style={{
           position: 'absolute',
-          left: 45,
+          left: 46,
           top: 13,
           width: 10,
           height: 10,
@@ -431,75 +473,117 @@ function TimelineItem({
                 </div>
               )}
 
-              {/* n°182: botón 'Registrar de nuevo' para medidas */}
+              {/* n°182: botón 'Registrar de nuevo' para medidas — acción primaria, siempre visible */}
               {item.type === 'medida' && (
-                <>
-                  {/* n°184: sparkline + n°233: badge de tendencia */}
-                  {measureHistory && measureHistory.length >= 2 && (() => {
-                    const numMatch = item.u.match(/^([\d.]+)/)
-                    const currentVal = numMatch ? parseFloat(numMatch[1]) : null
-                    const prevVal = measureHistory[measureHistory.length - 2]
-                    const isTrendDown = MEASURE_META[item.n]?.down
-                    let trendIcon = '='
-                    let trendColor = 'var(--ink-300)'
-                    if (currentVal !== null && prevVal !== undefined) {
-                      if (currentVal > prevVal) {
-                        trendIcon = '↑'
-                        trendColor = isTrendDown ? 'var(--error)' : 'var(--success)'
-                      } else if (currentVal < prevVal) {
-                        trendIcon = '↓'
-                        trendColor = isTrendDown ? 'var(--success)' : 'var(--error)'
-                      }
-                    }
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                        <Sparkline data={measureHistory} w={56} h={22} color={item.cat} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: trendColor }}>{trendIcon}</span>
-                      </div>
-                    )
-                  })()}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      tapHaptic()
-                      dispatch({ t: 'sheet', sheet: 'medida', arg: item.n })
-                    }}
-                    style={{
-                      marginTop: 6,
-                      background: 'none',
-                      border: '1px solid var(--ink-200)',
-                      borderRadius: 'var(--r-sm)',
-                      padding: '3px 8px',
-                      fontSize: 11,
-                      color: 'var(--ink-400)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    Registrar de nuevo
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    tapHaptic()
+                    dispatch({ t: 'sheet', sheet: 'medida', arg: item.n })
+                  }}
+                  style={{
+                    marginTop: 6,
+                    background: 'none',
+                    border: '1px solid var(--ink-200)',
+                    borderRadius: 'var(--r-sm)',
+                    padding: '3px 8px',
+                    fontSize: 11,
+                    color: 'var(--ink-400)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  Registrar de nuevo
+                </button>
               )}
-              {/* n°239: fase de titulación */}
-              {item.type === 'dose' && phaseIndex != null && (
-                <div style={{ marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: 'var(--brand-700)', background: 'color-mix(in srgb, var(--brand-500) 10%, transparent)', borderRadius: 999, padding: '1px 6px', border: '1px solid color-mix(in srgb, var(--brand-500) 22%, transparent)', display: 'inline-flex', alignItems: 'center' }}>
-                    Fase {phaseIndex + 1}
-                  </span>
-                </div>
-              )}
-              {/* n°190: barra de presencia farmacológica */}
-              {item.type === 'dose' && presencePct !== undefined && presencePct > 0 && (
-                <div style={{ marginTop: 6 }}>
-                  <div style={{ fontSize: 9, color: 'var(--ink-300)', marginBottom: 2 }}>Presencia estimada</div>
-                  <div style={{ height: 3, background: 'var(--ink-100)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${presencePct}%`, background: item.cat, borderRadius: 2, transition: 'width 0.4s' }} />
-                  </div>
-                </div>
-              )}
+
+              {/* densidad §22: detalle avanzado (sparkline, fase, presencia) tras 'ver más' */}
+              {(() => {
+                const hasSparkline = item.type === 'medida' && !!measureHistory && measureHistory.length >= 2
+                const hasFase = item.type === 'dose' && phaseIndex != null
+                const hasPresence = item.type === 'dose' && presencePct !== undefined && presencePct > 0
+                if (!hasSparkline && !hasFase && !hasPresence) return null
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setShowMore((v) => !v) }}
+                      aria-expanded={showMore}
+                      style={{
+                        marginTop: 6,
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: 'var(--ink-400)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      {showMore ? 'Ver menos' : 'Ver más'}
+                      <Chevron dir={showMore ? 'down' : 'right'} size={13} color="var(--ink-400)" />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {showMore && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          style={{ overflow: 'hidden' }}
+                        >
+                          {/* n°184: sparkline + n°233: tendencia */}
+                          {hasSparkline && measureHistory && (() => {
+                            const numMatch = item.u.match(/^([\d.]+)/)
+                            const currentVal = numMatch ? parseFloat(numMatch[1]) : null
+                            const prevVal = measureHistory[measureHistory.length - 2]
+                            const isTrendDown = MEASURE_META[item.n]?.down
+                            let trendDir: 'up' | 'down' | 'flat' = 'flat'
+                            let trendColor = 'var(--ink-300)'
+                            if (currentVal !== null && prevVal !== undefined) {
+                              if (currentVal > prevVal) {
+                                trendDir = 'up'
+                                trendColor = isTrendDown ? 'var(--error)' : 'var(--success)'
+                              } else if (currentVal < prevVal) {
+                                trendDir = 'down'
+                                trendColor = isTrendDown ? 'var(--success)' : 'var(--error)'
+                              }
+                            }
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                                <Sparkline data={measureHistory} w={56} h={22} color={item.cat} />
+                                <TrendArrow dir={trendDir} size={13} color={trendColor} />
+                              </div>
+                            )
+                          })()}
+                          {/* n°239: fase de titulación */}
+                          {hasFase && (
+                            <div style={{ marginTop: 6 }}>
+                              <span style={{ fontSize: 10, color: 'var(--brand-700)', background: 'color-mix(in srgb, var(--brand-500) 10%, transparent)', borderRadius: 999, padding: '1px 6px', border: '1px solid color-mix(in srgb, var(--brand-500) 22%, transparent)', display: 'inline-flex', alignItems: 'center' }}>
+                                Fase {(phaseIndex as number) + 1}
+                              </span>
+                            </div>
+                          )}
+                          {/* n°190: barra de presencia farmacológica */}
+                          {hasPresence && (
+                            <div style={{ marginTop: 6 }}>
+                              <div style={{ fontSize: 9, color: 'var(--ink-300)', marginBottom: 2 }}>Presencia estimada</div>
+                              <div style={{ height: 3, background: 'var(--ink-100)', borderRadius: 2, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${presencePct}%`, background: item.cat, borderRadius: 2, transition: 'width 0.4s' }} />
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                )
+              })()}
             </div>
 
             {/* botón papelera accesible (siempre presente para teclado/SR) */}
@@ -620,6 +704,9 @@ export function Diario() {
 
   // n°85: panel estadístico colapsable
   const [statsOpen, setStatsOpen] = useState(false)
+
+  // densidad: acciones rápidas (hidratación + repetir) colapsadas por defecto
+  const [quickOpen, setQuickOpen] = useState(false)
 
   // n°238: agrupación por semana
   const [groupBy, setGroupBy] = useState<'dia' | 'semana'>('dia')
@@ -886,9 +973,9 @@ export function Diario() {
       {/* inject shimmer keyframes */}
       <style>{skeletonKeyframes}</style>
 
-      {/* n°76: toast de borrado con deshacer */}
+      {/* n°76: toast de borrado con deshacer — oculto mientras el coach (z2000) esté abierto */}
       <AnimatePresence>
-        {state.deletedLogBuffer && (
+        {state.deletedLogBuffer && !showCoach && (
           <motion.div
             key="undo-toast"
             initial={{ opacity: 0, y: -12 }}
@@ -900,6 +987,7 @@ export function Diario() {
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 1000,
+              maxWidth: 'calc(100% - 24px)',
               background: 'var(--ink-700)',
               color: '#fff',
               borderRadius: 'var(--r-md)',
@@ -908,11 +996,10 @@ export function Diario() {
               alignItems: 'center',
               gap: 12,
               boxShadow: 'var(--e3)',
-              whiteSpace: 'nowrap',
               fontSize: 14,
             }}
           >
-            <span>Registro borrado</span>
+            <span style={{ minWidth: 0 }}>Registro borrado</span>
             <button
               type="button"
               onClick={handleUndoDelete}
@@ -925,6 +1012,7 @@ export function Diario() {
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: 'pointer',
+                flexShrink: 0,
               }}
             >
               Deshacer
@@ -940,8 +1028,8 @@ export function Diario() {
         transition={{ duration: 0.28 }}
         style={{ marginBottom: 20 }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 className="h1" style={{ color: 'var(--ink-900)', marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <h1 className="h1" style={{ color: 'var(--ink-900)', marginBottom: 4, minWidth: 0 }}>
             Tu diario
             {/* n°188: doble badge dosis/medidas */}
             {typeFilter === 'todo' && !isEmpty && (() => {
@@ -964,7 +1052,7 @@ export function Diario() {
             })()}
           </h1>
           {/* n°80: icono búsqueda + n°191: botón exportar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
             {!isEmpty && (
               <button
                 type="button"
@@ -979,11 +1067,13 @@ export function Diario() {
                   color: 'var(--ink-400)',
                   display: 'flex',
                   alignItems: 'center',
+                  gap: 4,
                   fontSize: 13,
                   fontWeight: 600,
                 }}
               >
-                ↗ CSV
+                <Glyph name="exportar" size={14} color="var(--ink-400)" />
+                CSV
               </button>
             )}
             <button
@@ -1116,21 +1206,25 @@ export function Diario() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.12 }}
-        style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
+        style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}
       >
-        <Segmented<RangeFilter>
-          options={RANGE_OPTIONS}
-          value={rangeFilter}
-          onChange={setRangeFilter}
-        />
-        {!isEmpty && (
-          <span className="sm" style={{ color: 'var(--ink-300)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {totalRecords} registro{totalRecords !== 1 ? 's' : ''}
-          </span>
-        )}
-        {/* n°238: toggle Día/Semana cuando rango ≥30 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', maxWidth: '100%' }}>
+          <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
+            <Segmented<RangeFilter>
+              options={RANGE_OPTIONS}
+              value={rangeFilter}
+              onChange={setRangeFilter}
+            />
+          </div>
+          {!isEmpty && (
+            <span className="sm" style={{ color: 'var(--ink-300)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {totalRecords} registro{totalRecords !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        {/* n°238: toggle Día/Semana cuando rango ≥30 — fila propia para no apretar el rango */}
         {(rangeFilter === 30 || rangeFilter === 90 || rangeFilter === 'all') && !isEmpty && (
-          <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {(['dia', 'semana'] as const).map((v) => (
               <button
                 key={v}
@@ -1215,13 +1309,47 @@ export function Diario() {
         </div>
       )}
 
+      {/* densidad §22: Acciones rápidas (hidratación + repetir) colapsadas por defecto */}
+      {!isEmpty && (typeFilter === 'todo' || lastDose) && (
+        <div style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => setQuickOpen((v) => !v)}
+            aria-expanded={quickOpen}
+            style={{
+              width: '100%',
+              background: 'none',
+              border: '1px solid var(--ink-200)',
+              borderRadius: 'var(--r-md)',
+              padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              color: 'var(--ink-700)',
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            Acciones rápidas
+            <Chevron dir={quickOpen ? 'down' : 'right'} size={16} color="var(--ink-400)" />
+          </button>
+          <AnimatePresence initial={false}>
+            {quickOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 10 }}>
+
       {/* n°226: fila de hidratación cuando typeFilter='todo' */}
       {typeFilter === 'todo' && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          marginBottom: 16,
+          gap: 8,
           padding: '10px 14px',
           borderRadius: 'var(--r-md)',
           background: 'color-mix(in srgb, var(--brand-500) 7%, transparent)',
@@ -1230,7 +1358,7 @@ export function Diario() {
           <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600, flexShrink: 0 }}>
             Hoy: {waterCount} vasos
           </span>
-          <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--ink-100)', overflow: 'hidden' }}>
+          <div style={{ flex: 1, minWidth: 0, height: 4, borderRadius: 2, background: 'var(--ink-100)', overflow: 'hidden' }}>
             <div style={{
               height: '100%',
               width: `${Math.min(100, (waterCount / WATER_GOAL) * 100)}%`,
@@ -1267,7 +1395,6 @@ export function Diario() {
       {/* n°183: FAB 'Repetir última dosis' */}
       {lastDose && (
         <div style={{
-          marginBottom: 16,
           padding: '10px 14px',
           borderRadius: 'var(--r-md)',
           background: 'color-mix(in srgb, var(--brand-700) 8%, transparent)',
@@ -1276,7 +1403,7 @@ export function Diario() {
           alignItems: 'center',
           gap: 10,
         }}>
-          <span className="sm" style={{ color: 'var(--ink-700)', flex: 1, fontWeight: 500 }}>
+          <span className="sm" style={{ color: 'var(--ink-700)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
             Repetir: {lastDose.product ?? lastDose.n} · {lastDose.u.split(' · ')[1] ?? ''}
           </span>
           <button
@@ -1294,10 +1421,18 @@ export function Diario() {
               fontSize: 13,
               fontWeight: 700,
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
             Registrar
           </button>
+        </div>
+      )}
+
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
@@ -1323,7 +1458,7 @@ export function Diario() {
             }}
           >
             Resumen del período
-            <span style={{ fontSize: 16, transition: 'transform 0.2s', display: 'inline-block', transform: statsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>›</span>
+            <Chevron dir={statsOpen ? 'down' : 'right'} size={16} color="var(--ink-400)" />
           </button>
           <AnimatePresence>
             {statsOpen && (
@@ -1344,16 +1479,27 @@ export function Diario() {
                 }}>
                   {measureStats.map((s) => (
                     <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span className="sm" style={{ flex: 1, color: 'var(--ink-700)', fontWeight: 500 }}>{s.name}</span>
-                      <span className="mono sm" style={{ color: 'var(--ink-400)' }}>{s.first} → {s.last}</span>
+                      <span className="sm" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink-700)', fontWeight: 500 }}>{s.name}</span>
+                      <span className="mono sm" style={{ color: 'var(--ink-400)', flexShrink: 0, whiteSpace: 'nowrap' }}>{s.first} → {s.last}</span>
                       <span className="mono sm" style={{
                         color: s.neutral ? 'var(--ink-300)' : s.positive ? 'var(--success)' : 'var(--error)',
                         fontWeight: 700,
                         minWidth: 40,
-                        textAlign: 'right',
+                        flexShrink: 0,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        gap: 2,
+                        whiteSpace: 'nowrap',
                       }}>
                         {s.delta > 0 ? '+' : ''}{s.delta.toFixed(1)}
-                        {!s.neutral && (s.positive ? ' ↑' : ' ↓')}
+                        {!s.neutral && (
+                          <TrendArrow
+                            dir={s.positive ? 'up' : 'down'}
+                            size={12}
+                            color={s.positive ? 'var(--success)' : 'var(--error)'}
+                          />
+                        )}
                       </span>
                     </div>
                   ))}
@@ -1515,7 +1661,7 @@ export function Diario() {
                         >
                           +Dosis
                         </span>
-                        <span style={{ color: 'var(--ink-300)', fontSize: 16, paddingRight: 4 }}>›</span>
+                        <Chevron dir="right" size={16} color="var(--ink-300)" style={{ marginRight: 4 }} />
                       </span>
                     </button>
 
@@ -1572,7 +1718,7 @@ export function Diario() {
               <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 8 }}>Tu diario</h2>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {([
-                  { key: 'swipe',  icon: <span style={{ fontSize: 20 }}>←</span>, text: 'Desliza un registro hacia la izquierda para eliminarlo.' },
+                  { key: 'swipe',  icon: <Chevron dir="right" size={20} color="currentColor" style={{ transform: 'scaleX(-1)' }} />, text: 'Desliza un registro hacia la izquierda para eliminarlo.' },
                   { key: 'buscar', icon: <Glyph name="buscar"   size={20} color="currentColor" />, text: 'Usa el botón de búsqueda para filtrar por nombre o nota.' },
                   { key: 'export', icon: <Glyph name="exportar" size={20} color="currentColor" />, text: 'Exporta tu diario a CSV desde el ícono en la cabecera.' },
                   { key: 'racha',  icon: <Glyph name="racha"    size={20} color="currentColor" />, text: 'La racha y adherencia aparecen debajo de los filtros.' },
