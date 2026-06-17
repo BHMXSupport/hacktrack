@@ -42,7 +42,7 @@ const LEGEND: LegendItem[] = [
   { color: 'var(--error)', label: '< 1 día' },
   { color: 'var(--warning)', label: '< 2 días' },
   { color: 'var(--success)', label: '< 3 días' },
-  { color: 'rgba(255,255,255,0.4)', label: 'Sin uso reciente' },
+  { color: 'var(--ink-300)', label: 'Sin uso reciente' },
 ]
 
 function relLabel(ts: number | null): string {
@@ -93,7 +93,7 @@ export function InjectionMap({ zones }: { zones: Record<InjectionSite, ZoneInfo>
         <img src={img} alt={label} style={{ height: 226, width: 'auto', maxWidth: '100%', display: 'block' }} />
         {markers.map(renderMarker)}
       </div>
-      <span aria-hidden="true" style={{ marginTop: 4, fontSize: 10, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.55)' }}>{label}</span>
+      <span aria-hidden="true" style={{ marginTop: 4, fontSize: 10, letterSpacing: '0.06em', color: 'var(--ink-400)' }}>{label}</span>
     </div>
   )
 
@@ -108,14 +108,13 @@ export function InjectionMap({ zones }: { zones: Record<InjectionSite, ZoneInfo>
         Mapa de inyección
       </figcaption>
 
-      {/* panel con el degradado oscuro de marca: el wireframe teal (transparente) resalta sobre él */}
+      {/* fondo blanco de la card; el interior de cada figura va horneado en oscuro para que el wireframe teal se vea */}
       <div
         role="group"
         aria-labelledby={titleId}
         style={{
-          display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'flex-end',
-          background: 'linear-gradient(160deg, #1f2937, #0f172a)',
-          borderRadius: 'var(--r-md)', padding: '14px 8px 8px',
+          display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'flex-end',
+          padding: '4px 0 0',
         }}
       >
         {renderFigure(frontImg, 'FRENTE', FRONT_MARKERS)}
