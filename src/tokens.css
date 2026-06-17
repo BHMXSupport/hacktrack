@@ -25,12 +25,17 @@ html, body, #root { margin:0; height:100%; }
 body { font-family:'Inter',system-ui,sans-serif; background:#0c1322; color:var(--ink-900); }
 
 /* Phone shell (centra en desktop, full en móvil) */
-.phone { position:relative; width:100%; max-width:412px; height:100dvh; max-height:880px; margin:0 auto; background:var(--bg);
-  border-radius:40px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5); border:10px solid #05080f; }
-/* Teléfono real (≤540px, cubre celulares grandes) O PWA instalada (standalone): full-bleed, sin marco
-   de mockup ni tope de ancho/alto. El marco redondeado con borde solo se ve en desktop/preview. */
-@media (max-width:540px){ .phone{ max-width:none; max-height:none; height:100dvh; border-radius:0; border:0; box-shadow:none; } }
-@media all and (display-mode:standalone){ .phone{ max-width:none; max-height:none; height:100dvh; border-radius:0; border:0; box-shadow:none; margin:0; } }
+/* DEFAULT = full-bleed: CUALQUIER celular (cualquier ancho/modelo) llena la pantalla, sin marco ni tope. */
+.phone { position:relative; width:100%; height:100dvh; margin:0; background:var(--bg); overflow:hidden; }
+/* El marco de mockup (teléfono con borde) SOLO en desktop = mouse fino + pantalla ancha (o preview). */
+@media (min-width:700px) and (pointer:fine){
+  .phone{ max-width:412px; max-height:880px; margin:0 auto; border-radius:40px;
+    box-shadow:0 30px 80px rgba(0,0,0,.5); border:10px solid #05080f; }
+}
+/* PWA instalada → siempre full-bleed, sin importar el tamaño (gana sobre la regla de desktop). */
+@media all and (display-mode:standalone){
+  .phone{ max-width:none; max-height:none; margin:0; border-radius:0; border:0; box-shadow:none; }
+}
 .app-root { display:flex; align-items:center; justify-content:center; min-height:100dvh; }
 
 .display-l{font-family:'Bricolage Grotesque';font-weight:800;font-size:30px;line-height:35px;letter-spacing:-.5px}
