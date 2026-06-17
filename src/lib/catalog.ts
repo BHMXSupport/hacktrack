@@ -141,6 +141,31 @@ export const MEASURE_ICON: Record<string, { icon: string; cat: string }> = {
   '% músculo':    { icon: 'musculo', cat: '#1B8A7D' },
   'IMC':          { icon: 'imc',     cat: '#7BC96F' },
   'Cambio de medidas': { icon: 'medidas', cat: '#1B8A7D' },
+  // ── Medidas de MEASURES_BY que faltaban icono (caían al genérico 'medidas') ──
+  // Metabolismo
+  'Saciedad':       { icon: 'apetito',     cat: '#E85D3A' },
+  'Glucosa ayunas': { icon: 'destello',    cat: '#7BC96F' },
+  'Náusea':         { icon: 'efecto',      cat: '#E8A317' },
+  // Recuperación / Anti-Aging
+  'Inflamación':          { icon: 'inflamacion', cat: '#2FB57C' },
+  'HRV':                  { icon: 'recuperacion', cat: '#2FB57C' },
+  'Temperatura corporal': { icon: 'sol',         cat: '#FF7A59' },
+  'Resistencia':          { icon: 'fuerza',       cat: '#1B8A7D' },
+  // Cognitivo
+  'Ansiedad':      { icon: 'ansiedad',     cat: '#6B7BE8' },
+  'Memoria':       { icon: 'memoria',      cat: '#6B7BE8' },
+  'Niebla mental': { icon: 'niebla-mental', cat: '#6B7BE8' },
+  // Piel
+  'Firmeza':       { icon: 'piel',         cat: '#D17FA0' },
+  'Manchas / tono': { icon: 'piel',        cat: '#D17FA0' },
+  'Cicatrices':    { icon: 'piel',         cat: '#D17FA0' },
+  // Crecimiento
+  'Fuerza percibida':  { icon: 'fuerza',      cat: '#1B8A7D' },
+  'Retención hídrica': { icon: 'hidratacion', cat: '#5FC9B8' },
+  // Reproductivo
+  'Función / excitación': { icon: 'libido', cat: '#9B5FC4' },
+  'Frecuencia sexual':    { icon: 'libido', cat: '#9B5FC4' },
+  'Rubor post-dosis':     { icon: 'efecto', cat: '#9B5FC4' },
 }
 
 // KPIs del registro rápido ("+"): Dosis es el héroe (aparte). Estos son los 10 KPIs.
