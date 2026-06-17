@@ -10,7 +10,7 @@ import { EmptyState } from '../components/EmptyState'
 import { useApp } from '../lib/store'
 import { INGREDIENTS, RECIPES_ENRICHED } from '../lib/catalog'
 import type { Ingredient, Recipe } from '../lib/catalog'
-import { IcClose } from '../components/icons'
+import { IcClose, IcChevron } from '../components/icons'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
 import { fuzzyFilter } from '../lib/search'
@@ -46,6 +46,8 @@ export function CrearPlatillo() {
   const [recipeQuery, setRecipeQuery] = useState('')
   // item 269: auto-name pending — muestra el input con nombre sugerido cuando se intenta guardar sin nombre
   const [namePending, setNamePending] = useState(false)
+  // Detalle avanzado de totales (por 100 g + densidad proteica) colapsado por defecto
+  const [showTotalDetail, setShowTotalDetail] = useState(false)
 
   const isEmpty = rows.length === 0
 
@@ -155,7 +157,7 @@ export function CrearPlatillo() {
     dispatch({ t: 'createFav', fav })
     if (andAdd) {
       dispatch({ t: 'addMeal', kcal: fav.kcal, protein: fav.protein, carbs: fav.carbs, fat: fav.fat, label: fav.label, fav: true, ts })
-      dispatch({ t: 'toast', msg: `✓ ${fav.label} — ${fav.kcal} kcal` })
+      dispatch({ t: 'toast', msg: `${fav.label} — ${fav.kcal} kcal` })
     } else {
       dispatch({ t: 'toast', msg: 'Platillo guardado' })
     }
@@ -222,7 +224,7 @@ export function CrearPlatillo() {
           >
             {!state.settings.premium
               ? <><Glyph name="candado" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Partir de una receta (Plus)</>
-              : showRecipePicker ? '✕ Cerrar selector de receta' : <><Glyph name="portapapeles" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Partir de una receta…</>}
+              : showRecipePicker ? <><Glyph name="cross" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Cerrar selector de receta</> : <><Glyph name="portapapeles" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Partir de una receta…</>}
           </button>
           {state.settings.premium && showRecipePicker && (
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -294,8 +296,8 @@ export function CrearPlatillo() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span className="body" style={{ fontWeight: 600 }}>{ing.name}</span>
                   </div>
-                  <span className="sm mono" style={{ color: 'var(--ink-400)', flexShrink: 0, fontSize: 10 }}>
-                    {ing.kcal} kcal · P {ing.protein} g/100{ing.unit}
+                  <span className="sm mono" style={{ color: 'var(--ink-400)', flexShrink: 0, fontSize: 10, textAlign: 'right', maxWidth: '50%' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>{ing.kcal} kcal</span>{' · '}<span style={{ whiteSpace: 'nowrap' }}>P {ing.protein} g/100{ing.unit}</span>
                   </span>
                 </button>
               ))}
@@ -344,24 +346,34 @@ export function CrearPlatillo() {
                 <motion.div key={`${row.ing.name}-${idx}`} variants={staggerItem}>
                   {/* Nombre + controles de reorder y quitar */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {/* ▲▼ reorder (item 270) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, flexShrink: 0 }}>
+                    {/* ▲▼ reorder (item 270) — Glyph SVG (chevron rotado) con tap target ≥24px */}
+                    <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                       <button
                         aria-label="Subir ingrediente"
                         onClick={() => moveRow(idx, -1)}
                         disabled={idx === 0}
-                        style={{ background: 'none', border: 0, color: idx === 0 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === 0 ? 'default' : 'pointer', padding: '1px 2px', lineHeight: 1, fontSize: 10 }}
-                      >▲</button>
+                        style={{ background: 'none', border: 0, color: idx === 0 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === 0 ? 'default' : 'pointer', padding: 0, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <IcChevron size={14} style={{ transform: 'rotate(-90deg)' }} />
+                      </button>
                       <button
                         aria-label="Bajar ingrediente"
                         onClick={() => moveRow(idx, 1)}
                         disabled={idx === rows.length - 1}
-                        style={{ background: 'none', border: 0, color: idx === rows.length - 1 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === rows.length - 1 ? 'default' : 'pointer', padding: '1px 2px', lineHeight: 1, fontSize: 10 }}
-                      >▼</button>
+                        style={{ background: 'none', border: 0, color: idx === rows.length - 1 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === rows.length - 1 ? 'default' : 'pointer', padding: 0, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <IcChevron size={14} style={{ transform: 'rotate(90deg)' }} />
+                      </button>
                     </div>
                     <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {row.ing.name}
                     </span>
+                    <button aria-label="Quitar" onClick={() => remove(idx)} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
+                      <IcClose size={16} />
+                    </button>
+                  </div>
+                  {/* Stepper de gramos en su propia fila — evita el bleed de la fila de nombre (items 267) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingLeft: 28, flexWrap: 'wrap' }}>
                     {/* −5g (item 267) */}
                     <button
                       aria-label="Restar 5g"
@@ -384,10 +396,7 @@ export function CrearPlatillo() {
                       onClick={() => adjustGrams(idx, 5)}
                       style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--ink-700)', cursor: 'pointer', borderRadius: 'var(--r-sm)', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12 }}
                     >+</button>
-                    <span className="sm" style={{ color: 'var(--ink-400)', width: 16, flexShrink: 0 }}>{row.ing.unit}</span>
-                    <button aria-label="Quitar" onClick={() => remove(idx)} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
-                      <IcClose size={16} />
-                    </button>
+                    <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>{row.ing.unit}</span>
                   </div>
                   <div className="sm mono" style={{ color: 'var(--ink-400)', paddingLeft: 28, marginTop: 2 }}>
                     {rowKcal} kcal · P {rowP} · C {rowC} · G {rowG}
@@ -410,37 +419,57 @@ export function CrearPlatillo() {
               </span>
             </div>
 
-            {/* Por 100g (item 268) */}
-            {per100 && (
-              <div className="sm mono" style={{ color: 'var(--ink-400)' }}>
-                Por 100 g: {per100.kcal} kcal · P {per100.protein} · C {per100.carbs} · G {per100.fat}
-              </div>
-            )}
-
-            {/* Ratio kcal/g P (item 249) */}
-            {pRatio != null && (
-              <div className="sm" style={{ color: pRatioColor }}>
-                {pRatioLabel} · {pRatio} kcal por g de proteína
-              </div>
-            )}
-
             {/* Indicadores sin gluten/sin lácteos (item 253) */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
               <span className="badge" style={{
                 background: glutenStatus === 'libre' ? 'var(--success)' : glutenStatus === 'contiene' ? 'var(--error)' : 'var(--surface)',
-                color: glutenStatus === 'incierto' ? 'var(--ink-400)' : '#fff',
-                fontSize: 10,
+                color: glutenStatus === 'incierto' ? 'var(--ink-400)' : 'var(--ink-0)',
+                fontSize: 10, maxWidth: '100%',
               }}>
-                {glutenStatus === 'libre' ? <><Glyph name="check" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Sin gluten</> : glutenStatus === 'contiene' ? <><Glyph name="cross" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Con gluten</> : '? Gluten incierto'}
+                {glutenStatus === 'libre' ? <><Glyph name="check" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Sin gluten</> : glutenStatus === 'contiene' ? <><Glyph name="cross" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Con gluten</> : <><Glyph name="idea" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Gluten incierto</>}
               </span>
               <span className="badge" style={{
                 background: dairyStatus === 'libre' ? 'var(--success)' : dairyStatus === 'contiene' ? 'var(--error)' : 'var(--surface)',
-                color: dairyStatus === 'incierto' ? 'var(--ink-400)' : '#fff',
-                fontSize: 10,
+                color: dairyStatus === 'incierto' ? 'var(--ink-400)' : 'var(--ink-0)',
+                fontSize: 10, maxWidth: '100%',
               }}>
-                {dairyStatus === 'libre' ? <><Glyph name="check" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Sin lácteos</> : dairyStatus === 'contiene' ? <><Glyph name="cross" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Con lácteos</> : '? Lácteos inciertos'}
+                {dairyStatus === 'libre' ? <><Glyph name="check" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Sin lácteos</> : dairyStatus === 'contiene' ? <><Glyph name="cross" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Con lácteos</> : <><Glyph name="idea" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Lácteos inciertos</>}
               </span>
             </div>
+
+            {/* Detalle avanzado: por 100 g + densidad proteica — colapsado por defecto */}
+            {(per100 || pRatio != null) && (
+              <>
+                <button
+                  className="btn-link sm"
+                  style={{ padding: 0, marginTop: 2, alignSelf: 'flex-start' }}
+                  onClick={() => setShowTotalDetail((v) => !v)}
+                  aria-expanded={showTotalDetail}
+                >
+                  {showTotalDetail ? 'Ocultar detalle' : 'Ver más detalle'}
+                </button>
+                {showTotalDetail && (
+                  <>
+                    {/* Por 100g (item 268) */}
+                    {per100 && (
+                      <div className="sm mono" style={{ color: 'var(--ink-400)', minWidth: 0 }}>
+                        <span style={{ whiteSpace: 'nowrap' }}>Por 100 g:</span>{' '}
+                        <span style={{ whiteSpace: 'nowrap' }}>{per100.kcal} kcal</span>{' · '}
+                        <span style={{ whiteSpace: 'nowrap' }}>P {per100.protein}</span>{' · '}
+                        <span style={{ whiteSpace: 'nowrap' }}>C {per100.carbs}</span>{' · '}
+                        <span style={{ whiteSpace: 'nowrap' }}>G {per100.fat}</span>
+                      </div>
+                    )}
+                    {/* Ratio kcal/g P (item 249) */}
+                    {pRatio != null && (
+                      <div className="sm" style={{ color: pRatioColor, minWidth: 0 }}>
+                        {pRatioLabel}{' · '}<span style={{ whiteSpace: 'nowrap' }}>{pRatio} kcal/g proteína</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
 

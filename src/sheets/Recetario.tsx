@@ -39,10 +39,10 @@ const ALL_TAGS: RecipeTag[] = [
 // Opciones de sort (item 247)
 type SortOption = 'none' | 'protein-desc' | 'kcal-asc' | 'ratio-desc'
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'none',         label: 'Relevancia' },
-  { value: 'protein-desc', label: '↑ Proteína' },
-  { value: 'kcal-asc',     label: '↓ Calorías' },
-  { value: 'ratio-desc',   label: '↑ Densidad proteica' },
+  { value: 'none',         label: 'Ordenar: relevancia' },
+  { value: 'protein-desc', label: 'Más proteína primero' },
+  { value: 'kcal-asc',     label: 'Menos calorías primero' },
+  { value: 'ratio-desc',   label: 'Mayor densidad proteica' },
 ]
 
 // Opciones de filtro rápido de proteína (item 247)
@@ -111,6 +111,11 @@ function MacroDonut({ protein, carbs, fat, size = 36 }: { protein: number; carbs
   )
 }
 
+// ── Cuadrito de color de leyenda (reemplaza el glifo '■' por un SVG/CSS controlado) ──
+function MacroDot({ color }: { color: string }) {
+  return <span aria-hidden style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+}
+
 // ── Skeleton card (item 273) ──────────────────────────────────────────────
 function SkeletonCard() {
   return (
@@ -172,12 +177,14 @@ function RecipeComparator({ a, b, onClose }: { a: Recipe; b: Recipe; onClose: ()
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <span className="body" style={{ fontWeight: 700 }}>Comparar recetas</span>
-          <button onClick={onClose} style={{ background: 'none', border: 0, color: 'var(--ink-400)', cursor: 'pointer', fontSize: 18 }}>✕</button>
+          <button aria-label="Cerrar" onClick={onClose} style={{ background: 'none', border: 0, color: 'var(--ink-400)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}>
+            <Glyph name="cross" size={18} color="currentColor" />
+          </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr', gap: 8 }}>
           <div />
-          <div className="sm" style={{ fontWeight: 700, color: 'var(--brand-700)', textAlign: 'center', lineHeight: 1.2 }}>{a.name}</div>
-          <div className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)', textAlign: 'center', lineHeight: 1.2 }}>{b.name}</div>
+          <div className="sm" style={{ fontWeight: 700, color: 'var(--brand-700)', textAlign: 'center', lineHeight: 1.2, minWidth: 0, overflowWrap: 'break-word' }}>{a.name}</div>
+          <div className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)', textAlign: 'center', lineHeight: 1.2, minWidth: 0, overflowWrap: 'break-word' }}>{b.name}</div>
           {cols.map(({ label, get }) => {
             const va = get(a)
             const vb = get(b)
@@ -211,6 +218,9 @@ export function Recetario() {
   // item 253: filtros gluten/dairy en Recetario
   const [filterGlutenFree, setFilterGlutenFree] = useState(false)
   const [filterDairyFree, setFilterDairyFree] = useState(false)
+
+  // ── Filtros avanzados colapsables (sort + proteína + prep + dieta detrás de un botón) ──
+  const [showFilters, setShowFilters] = useState(false)
 
   // ── Estado de cards ──
   const [open, setOpen] = useState<string | null>(null)
@@ -291,6 +301,14 @@ export function Recetario() {
   }
   const compareRecipes = list.filter((r) => compareSet.has(r.name))
 
+  // Nº de filtros avanzados activos (para el badge del botón "Filtros")
+  const advancedFilterCount =
+    (sort !== 'none' ? 1 : 0) +
+    (proteinFilter !== 'none' ? 1 : 0) +
+    (prepFilter !== 'none' ? 1 : 0) +
+    (filterGlutenFree ? 1 : 0) +
+    (filterDairyFree ? 1 : 0)
+
   return (
     <Sheet title="Recetario" onClose={close}>
       <div style={{ padding: '0 20px 40px' }}>
@@ -303,7 +321,7 @@ export function Recetario() {
               padding: '10px 14px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'flex-start',
             }}>
               <Glyph name="idea" size={16} color="var(--brand-700)" style={{ flexShrink: 0 }} />
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>{activeProduct} · </span>
                 <span className="sm" style={{ color: 'var(--ink-700)' }}>{peptideHint}</span>
                 <span className="sm" style={{ color: 'var(--ink-400)', display: 'block', marginTop: 2 }}>
@@ -342,99 +360,112 @@ export function Recetario() {
             )}
           </div>
 
-          {/* Tags multi-select (item 246) con chips removibles */}
-          <div
-            role="group"
-            aria-label="Subcategorías"
-            style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 6, scrollbarWidth: 'none' }}
-          >
-            <button
-              className={activeTags.size === 0 ? 'chip active' : 'chip'}
-              style={{ flexShrink: 0 }}
-              aria-pressed={activeTags.size === 0}
-              onClick={() => { tapHaptic(); setActiveTags(new Set()) }}
+          {/* Tags multi-select (item 246) con chips removibles — carrusel con fade de scroll a la derecha */}
+          <div style={{ position: 'relative', marginBottom: 6 }}>
+            <div
+              role="group"
+              aria-label="Subcategorías"
+              style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, paddingRight: 24, scrollbarWidth: 'none' }}
             >
-              Todas
-            </button>
-            {ALL_TAGS.map((t) => {
-              const active = activeTags.has(t)
-              return (
-                <button
-                  key={t}
-                  className={active ? 'chip active' : 'chip'}
-                  style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
-                  aria-pressed={active}
-                  onClick={() => toggleTag(t)}
-                >
-                  {t}
-                  {active && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.7 }}>
-                      <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  )}
-                </button>
-              )
-            })}
+              <button
+                className={activeTags.size === 0 ? 'chip active' : 'chip'}
+                style={{ flexShrink: 0 }}
+                aria-pressed={activeTags.size === 0}
+                onClick={() => { tapHaptic(); setActiveTags(new Set()) }}
+              >
+                Todas
+              </button>
+              {ALL_TAGS.map((t) => {
+                const active = activeTags.has(t)
+                return (
+                  <button
+                    key={t}
+                    className={active ? 'chip active' : 'chip'}
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+                    aria-pressed={active}
+                    onClick={() => toggleTag(t)}
+                  >
+                    {t}
+                    {active && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.7 }}>
+                        <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            {/* Affordance: fade que indica que el carrusel continúa a la derecha */}
+            <div aria-hidden style={{ position: 'absolute', right: 0, top: 0, bottom: 6, width: 24, pointerEvents: 'none', background: 'linear-gradient(to right, transparent, var(--surface))' }} />
           </div>
 
-          {/* Tags activos como chips removibles flotantes (item 246) */}
-          {activeTags.size > 1 && (
-            <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 8 }}>
-              AND: {[...activeTags].join(' + ')}
+          {/* Botón de filtros avanzados (sort + proteína + prep + dieta) con contador de activos */}
+          <button
+            className={advancedFilterCount > 0 ? 'chip active' : 'chip'}
+            style={{ marginBottom: showFilters ? 8 : 12, fontSize: 12 }}
+            onClick={() => { tapHaptic(); setShowFilters((v) => !v) }}
+            aria-expanded={showFilters}
+          >
+            <Glyph name="medidas" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            Filtros{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ''}
+          </button>
+
+          {/* Panel de filtros avanzados — colapsado por defecto; envuelve en vez de scroll horizontal (items 245, 247, 253) */}
+          {showFilters && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+              {/* Sort en su propia fila full-width */}
+              <select
+                className="field"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortOption)}
+                style={{ fontSize: 13, width: '100%' }}
+              >
+                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              {/* Chips de filtro que envuelven a varios renglones */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {/* Proteína mínima */}
+                {PROTEIN_FILTER_OPTIONS.slice(1).map((o) => (
+                  <button
+                    key={o.value}
+                    className={proteinFilter === o.value ? 'chip active' : 'chip'}
+                    style={{ fontSize: 11, maxWidth: '100%' }}
+                    onClick={() => { tapHaptic(); setProteinFilter(proteinFilter === o.value ? 'none' : o.value) }}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+                {/* Prep time */}
+                {PREP_FILTER_OPTIONS.slice(1).map((o) => (
+                  <button
+                    key={o.value}
+                    className={prepFilter === o.value ? 'chip active' : 'chip'}
+                    style={{ fontSize: 11, maxWidth: '100%' }}
+                    onClick={() => { tapHaptic(); setPrepFilter(prepFilter === o.value ? 'none' : o.value) }}
+                  >
+                    <Glyph name="reloj" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{o.label}
+                  </button>
+                ))}
+                {/* Sin gluten / Sin lácteos (item 253) */}
+                <button
+                  className={filterGlutenFree ? 'chip active' : 'chip'}
+                  style={{ fontSize: 11, maxWidth: '100%' }}
+                  onClick={() => { tapHaptic(); setFilterGlutenFree((v) => !v) }}
+                  aria-pressed={filterGlutenFree}
+                >
+                  Sin gluten
+                </button>
+                <button
+                  className={filterDairyFree ? 'chip active' : 'chip'}
+                  style={{ fontSize: 11, maxWidth: '100%' }}
+                  onClick={() => { tapHaptic(); setFilterDairyFree((v) => !v) }}
+                  aria-pressed={filterDairyFree}
+                >
+                  Sin lácteos
+                </button>
+              </div>
             </div>
           )}
-
-          {/* Controles secundarios: sort + filtros (items 245, 247, 253) */}
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 6, marginBottom: 8 }}>
-            {/* Sort */}
-            <select
-              className="field"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortOption)}
-              style={{ fontSize: 12, padding: '5px 8px', height: 32, flexShrink: 0 }}
-            >
-              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            {/* Proteína mínima */}
-            {PROTEIN_FILTER_OPTIONS.slice(1).map((o) => (
-              <button
-                key={o.value}
-                className={proteinFilter === o.value ? 'chip active' : 'chip'}
-                style={{ flexShrink: 0, fontSize: 11 }}
-                onClick={() => { tapHaptic(); setProteinFilter(proteinFilter === o.value ? 'none' : o.value) }}
-              >
-                {o.label}
-              </button>
-            ))}
-            {/* Prep time */}
-            {PREP_FILTER_OPTIONS.slice(1).map((o) => (
-              <button
-                key={o.value}
-                className={prepFilter === o.value ? 'chip active' : 'chip'}
-                style={{ flexShrink: 0, fontSize: 11 }}
-                onClick={() => { tapHaptic(); setPrepFilter(prepFilter === o.value ? 'none' : o.value) }}
-              >
-                <Glyph name="reloj" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{o.label}
-              </button>
-            ))}
-            {/* Sin gluten / Sin lácteos (item 253) */}
-            <button
-              className={filterGlutenFree ? 'chip active' : 'chip'}
-              style={{ flexShrink: 0, fontSize: 11 }}
-              onClick={() => { tapHaptic(); setFilterGlutenFree((v) => !v) }}
-              aria-pressed={filterGlutenFree}
-            >
-              Sin gluten
-            </button>
-            <button
-              className={filterDairyFree ? 'chip active' : 'chip'}
-              style={{ flexShrink: 0, fontSize: 11 }}
-              onClick={() => { tapHaptic(); setFilterDairyFree((v) => !v) }}
-              aria-pressed={filterDairyFree}
-            >
-              Sin lácteos
-            </button>
-          </div>
 
           {/* Comparador CTA — aparece cuando hay 2 seleccionadas (item 254) */}
           {compareSet.size === 2 && (
@@ -510,156 +541,66 @@ export function Recetario() {
                       className="card"
                       style={{ outline: inCompare ? `2px solid var(--brand-700)` : undefined }}
                     >
-                      {/* Header */}
+                      {/* Header — título + kcal + toggle Comparar compacto */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{r.name}</span>
-                          {/* Badges: prepMin, proteinSource */}
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                            {r.prepMin != null && (
-                              <span className="badge" style={{ background: 'var(--surface)', color: 'var(--ink-700)', fontSize: 10 }}>
+                          {/* Badge informativo principal: tiempo de prep (proteinSource pasa al detalle) */}
+                          {r.prepMin != null && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                              <span className="badge" style={{ background: 'var(--surface)', color: 'var(--ink-700)', fontSize: 10, maxWidth: '100%' }}>
                                 <Glyph name="reloj" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{r.prepMin} min
                               </span>
-                            )}
-                            {r.proteinSource && (
-                              <span
-                                className="badge"
-                                style={{ background: 'var(--surface)', color: PROTEIN_SOURCE_COLOR[r.proteinSource] ?? 'var(--ink-400)', fontSize: 10 }}
-                                title={PROTEIN_SOURCE_LABEL[r.proteinSource]}
-                              >
-                                {PROTEIN_SOURCE_LABEL[r.proteinSource]}
-                              </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                         <span className="mono sm" style={{ flexShrink: 0, fontWeight: 700, color: 'var(--brand-700)' }}>
                           {scaledKcal} kcal
                         </span>
+                        {/* Comparar toggle (item 254) — acción avanzada, icono compacto en el header */}
+                        <button
+                          className="iconbtn"
+                          style={{ flexShrink: 0, width: 30, height: 30, background: inCompare ? 'var(--brand-100)' : 'var(--ink-100)', color: inCompare ? 'var(--brand-700)' : 'var(--ink-400)' }}
+                          title={inCompare ? 'Quitar de comparación' : compareSet.size >= 2 ? 'Máx 2 recetas' : 'Comparar'}
+                          aria-label={inCompare ? 'Quitar de comparación' : 'Comparar receta'}
+                          aria-pressed={inCompare}
+                          onClick={() => toggleCompare(r.name)}
+                          disabled={!inCompare && compareSet.size >= 2}
+                        >
+                          <Glyph name="balanza" size={15} color="currentColor" />
+                        </button>
                       </div>
 
-                      {/* Macros texto */}
-                      <div className="sm mono" style={{ color: 'var(--ink-700)', marginTop: 4 }}>
-                        P {scaledProtein} · C {scaledCarbs} · G {scaledFat}
-                        {r.servings != null && (
-                          <span style={{ color: 'var(--ink-400)', marginLeft: 8 }}>
-                            · {r.servings} {r.servings === 1 ? 'porción' : 'porciones'}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Donut + leyenda (item 262 / 263) */}
+                      {/* Macros: donut + leyenda — única representación de macros en colapsado (item 262 / 263) */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
                         <MacroDonut protein={r.protein} carbs={r.carbs} fat={r.fat} size={36} />
-                        <div className="sm" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                          <span style={{ color: MACRO_COLOR.protein }}>■ P {scaledProtein} g</span>
-                          <span style={{ color: MACRO_COLOR.carbs }}>■ C {scaledCarbs} g</span>
-                          <span style={{ color: MACRO_COLOR.fat }}>■ G {scaledFat} g</span>
+                        <div className="sm" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
+                          <span style={{ color: MACRO_COLOR.protein, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}><MacroDot color={MACRO_COLOR.protein} />P {scaledProtein} g</span>
+                          <span style={{ color: MACRO_COLOR.carbs, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}><MacroDot color={MACRO_COLOR.carbs} />C {scaledCarbs} g</span>
+                          <span style={{ color: MACRO_COLOR.fat, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}><MacroDot color={MACRO_COLOR.fat} />G {scaledFat} g</span>
                           {r.fiber != null && (
-                            <span style={{ color: 'var(--success)' }}><Glyph name="hoja" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{Math.round(r.fiber * multiplier)} g fibra</span>
+                            <span style={{ color: 'var(--success)', whiteSpace: 'nowrap' }}><Glyph name="hoja" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{Math.round(r.fiber * multiplier)} g fibra</span>
+                          )}
+                          {r.servings != null && (
+                            <span style={{ color: 'var(--ink-400)', whiteSpace: 'nowrap' }}>{r.servings} {r.servings === 1 ? 'porción' : 'porciones'}</span>
                           )}
                         </div>
                       </div>
-
-                      {/* Ratio kcal/g P (item 249) */}
-                      {ratio != null && (
-                        <div className="sm" style={{ color: ratioColor, marginTop: 4 }}>
-                          {ratioLabel} · {ratio} kcal por g de proteína
-                        </div>
-                      )}
 
                       {/* Tags */}
                       {r.tags.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                           {r.tags.map((t) => (
-                            <span key={t} className="badge badge-mint">{t}</span>
+                            <span key={t} className="badge badge-mint" style={{ maxWidth: '100%' }}>{t}</span>
                           ))}
                         </div>
                       )}
 
-                      {/* Stepper de porciones (item 244) */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
-                        <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>Porciones:</span>
-                        {PORTION_STEPS.map((step) => (
-                          <button
-                            key={step}
-                            className={multiplier === step ? 'chip active' : 'chip'}
-                            style={{ padding: '3px 8px', fontSize: 11, flexShrink: 0 }}
-                            onClick={() => { tapHaptic(); setPortionMap((p) => ({ ...p, [r.name]: step })) }}
-                            aria-pressed={multiplier === step}
-                          >
-                            ×{step}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Expandir ingredientes (item 272: haptic diferenciado) */}
-                      <button
-                        className="btn-link sm"
-                        style={{ padding: 0, marginTop: 10, display: 'flex', alignItems: 'center', gap: 4 }}
-                        onClick={() => {
-                          exp ? null : lightHaptic()
-                          setOpen(exp ? null : r.name)
-                        }}
-                      >
-                        {exp ? 'Ocultar ingredientes' : `Ver ingredientes (${r.ingredients.length})`}
-                      </button>
-
-                      {/* Ingredientes expandidos (item 264: badge proteína principal) */}
-                      <AnimatePresence>
-                        {exp && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            style={{ overflow: 'hidden' }}
-                          >
-                            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              {r.ingredients.map((ing) => (
-                                <div key={ing.name} className="sm" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink-700)' }}>
-                                  <span style={{ flex: 1 }}>{ing.name}</span>
-                                  {ing.name === topIngredient && (
-                                    <span className="badge badge-mint" style={{ fontSize: 9, flexShrink: 0 }}>Proteína principal</span>
-                                  )}
-                                  <span className="mono" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>{ing.grams} g</span>
-                                </div>
-                              ))}
-                              <p className="sm" style={{ color: 'var(--ink-400)', marginTop: 6, lineHeight: 1.4 }}>{r.prep}</p>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      {/* Acciones */}
-                      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                        {/* Comparar toggle (item 254) */}
-                        <button
-                          className={inCompare ? 'btn btn-outline btn-sm' : 'btn btn-outline btn-sm'}
-                          style={{ flexShrink: 0, padding: '6px 10px' }}
-                          title={inCompare ? 'Quitar de comparación' : compareSet.size >= 2 ? 'Máx 2 recetas' : 'Comparar'}
-                          onClick={() => toggleCompare(r.name)}
-                          disabled={!inCompare && compareSet.size >= 2}
-                        >
-                          {inCompare ? <><Glyph name="balanza" size={13} color="currentColor" />{' '}<Glyph name="check" size={13} color="currentColor" /></> : <Glyph name="balanza" size={13} color="currentColor" />}
-                        </button>
-                        <button
-                          className="btn btn-outline btn-sm"
-                          style={{ flex: 1 }}
-                          disabled={alreadySaved}
-                          onClick={() => {
-                            if (alreadySaved) return
-                            tapHaptic()
-                            dispatch({
-                              t: 'createFav',
-                              fav: { label: r.name, kcal: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat },
-                            })
-                            dispatch({ t: 'toast', msg: '✓ Platillo guardado' })
-                          }}
-                        >
-                          {alreadySaved ? 'Ya guardado' : 'Guardar'}
-                        </button>
+                      {/* Acción primaria: Agregar (brand) + Guardar (secundaria, ghost) */}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                         <button
                           className="btn btn-brand btn-sm"
-                          style={{ flex: 1 }}
+                          style={{ flex: 1, minWidth: 120 }}
                           onClick={() => {
                             tapHaptic()
                             dispatch({ t: 'addMeal', kcal: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat, label: r.name, ts })
@@ -668,7 +609,97 @@ export function Recetario() {
                         >
                           Agregar
                         </button>
+                        <button
+                          className="btn-link sm"
+                          style={{ flexShrink: 0, padding: '0 4px' }}
+                          disabled={alreadySaved}
+                          onClick={() => {
+                            if (alreadySaved) return
+                            tapHaptic()
+                            dispatch({
+                              t: 'createFav',
+                              fav: { label: r.name, kcal: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat },
+                            })
+                            dispatch({ t: 'toast', msg: 'Platillo guardado' })
+                          }}
+                        >
+                          {alreadySaved ? 'Ya guardado' : 'Guardar'}
+                        </button>
                       </div>
+
+                      {/* Expandir detalle: ingredientes + porciones + densidad proteica (item 272: haptic diferenciado) */}
+                      <button
+                        className="btn-link sm"
+                        style={{ padding: 0, marginTop: 10, display: 'flex', alignItems: 'center', gap: 4 }}
+                        onClick={() => {
+                          exp ? null : lightHaptic()
+                          setOpen(exp ? null : r.name)
+                        }}
+                        aria-expanded={exp}
+                      >
+                        {exp ? 'Ocultar detalle' : `Ver detalle e ingredientes (${r.ingredients.length})`}
+                      </button>
+
+                      {/* Detalle expandido: porciones, densidad proteica, ingredientes (item 264: badge proteína principal) */}
+                      <AnimatePresence>
+                        {exp && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            {/* proteinSource (movido al detalle) */}
+                            {r.proteinSource && (
+                              <div style={{ marginTop: 8 }}>
+                                <span
+                                  className="badge"
+                                  style={{ background: 'var(--surface)', color: PROTEIN_SOURCE_COLOR[r.proteinSource] ?? 'var(--ink-400)', fontSize: 10, maxWidth: '100%' }}
+                                  title={PROTEIN_SOURCE_LABEL[r.proteinSource]}
+                                >
+                                  {PROTEIN_SOURCE_LABEL[r.proteinSource]}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Stepper de porciones (item 244) */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                              <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>Porciones:</span>
+                              {PORTION_STEPS.map((step) => (
+                                <button
+                                  key={step}
+                                  className={multiplier === step ? 'chip active' : 'chip'}
+                                  style={{ padding: '3px 8px', fontSize: 11, flexShrink: 0 }}
+                                  onClick={() => { tapHaptic(); setPortionMap((p) => ({ ...p, [r.name]: step })) }}
+                                  aria-pressed={multiplier === step}
+                                >
+                                  ×{step}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Densidad proteica (item 249) — métrica avanzada, ahora en el detalle */}
+                            {ratio != null && (
+                              <div className="sm" style={{ color: ratioColor, marginTop: 8, minWidth: 0 }}>
+                                {ratioLabel}{' · '}<span style={{ whiteSpace: 'nowrap' }}>{ratio} kcal/g proteína</span>
+                              </div>
+                            )}
+
+                            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {r.ingredients.map((ing) => (
+                                <div key={ing.name} className="sm" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink-700)' }}>
+                                  <span style={{ flex: 1, minWidth: 0 }}>{ing.name}</span>
+                                  {ing.name === topIngredient && (
+                                    <span className="badge badge-mint" style={{ fontSize: 9, flexShrink: 0 }}>Proteína principal</span>
+                                  )}
+                                  <span className="mono" style={{ color: 'var(--ink-400)', flexShrink: 0, whiteSpace: 'nowrap' }}>{ing.grams} g</span>
+                                </div>
+                              ))}
+                              <p className="sm" style={{ color: 'var(--ink-400)', marginTop: 6, lineHeight: 1.4 }}>{r.prep}</p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </motion.div>
                 )
