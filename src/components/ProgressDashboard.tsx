@@ -507,6 +507,8 @@ export function ProgressDashboard() {
   const protocols = state.protocols ?? {}
 
   const allKeys = Object.keys(history).filter(k => k !== 'Altura' && history[k] && history[k].length > 0)
+  // medidas con suficientes datos para graficar/comparar una línea (≥2 puntos)
+  const measuresWithData = allKeys.filter(k => (history[k]?.length ?? 0) >= 2)
 
   // n=146: gestión de KPI order
   const [kpiMgrOpen, setKpiMgrOpen] = useState(false)
@@ -731,7 +733,8 @@ export function ProgressDashboard() {
               {/* n=168: Exportar CSV */}
               {exportBtn}
 
-      {/* n=149: Comparar dos medidas (overlay) */}
+      {/* n=149: Comparar dos medidas — solo si hay ≥2 medidas con datos suficientes (si no, no sirve) */}
+      {measuresWithData.length >= 2 && (
       <div style={{ marginBottom: 16, padding: 12, background: 'var(--ink-100)', borderRadius: 'var(--r-md)', border: '1px solid var(--ink-200)' }}>
         <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-700)', display: 'block', marginBottom: 8 }}>
           Comparar medidas
@@ -743,7 +746,7 @@ export function ProgressDashboard() {
             style={{ fontSize: 13, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--ink-200)', background: 'white', color: 'var(--ink-900)' }}
           >
             <option value="">Medida A</option>
-            {allKeys.map(k => <option key={k} value={k}>{k}</option>)}
+            {measuresWithData.map(k => <option key={k} value={k}>{k}</option>)}
           </select>
           <select
             value={compareB}
@@ -751,7 +754,7 @@ export function ProgressDashboard() {
             style={{ fontSize: 13, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid var(--ink-200)', background: 'white', color: 'var(--ink-900)' }}
           >
             <option value="">Medida B</option>
-            {allKeys.map(k => <option key={k} value={k}>{k}</option>)}
+            {measuresWithData.map(k => <option key={k} value={k}>{k}</option>)}
           </select>
           <button
             onClick={() => setShowCompare(!!(compareA && compareB))}
@@ -784,6 +787,7 @@ export function ProgressDashboard() {
           )}
         </AnimatePresence>
       </div>
+      )}
 
       {/* n=150: Semana A vs B */}
       <div style={{ marginBottom: 16, padding: 12, background: 'var(--ink-100)', borderRadius: 'var(--r-md)', border: '1px solid var(--ink-200)' }}>
