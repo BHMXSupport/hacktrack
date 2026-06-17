@@ -6,7 +6,7 @@
 // Loop 150: pulso del dot proporcional al % de presencia
 // Item 151: chip expandido con nota educativa + washout countdown
 // n=486: tooltip flotante con mini-curva de decaimiento (6h) al long-press (o tap si chip único)
-import { useState, useEffect, useRef, useId } from 'react'
+import { useState, useEffect, useRef, useId, useMemo } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../lib/store'
 import { presenceNow, PRESENCE_FLOOR_PCT, HALF_LIFE_H, washoutMs, getProductNote, buildPharmaSeries } from '../lib/pharma'
@@ -60,8 +60,11 @@ function DecayCurve({
   const PAD = 6
   const windowMs = hours * 3_600_000
 
-  // Construir curva usando buildPharmaSeries mirando hacia adelante
-  const pharma = buildPharmaSeries(state, { now: now + windowMs / 2, windowMs: windowMs / 2, mode: 'percent' })
+  // Construir curva usando buildPharmaSeries mirando hacia adelante (memoizado: es caro)
+  const pharma = useMemo(
+    () => buildPharmaSeries(state, { now: now + windowMs / 2, windowMs: windowMs / 2, mode: 'percent' }),
+    [state, now, windowMs],
+  )
   const serie = pharma.series.find((s) => s.product === product)
 
   if (!serie || serie.points.length < 2) {
@@ -234,8 +237,11 @@ export function ActiveNowChips() {
     Object.values(timers).forEach((t) => clearTimeout(t))
   }, [])
 
-  // presencia ≥ piso (% del pico) para no listar trazas irrelevantes; máximo 4 chips
-  const active = presenceNow(state, now).filter((p) => p.pct >= PRESENCE_FLOOR_PCT).slice(0, 4)
+  // presencia ≥ piso (% del pico) para no listar trazas irrelevantes; máximo 4 chips (memoizado)
+  const active = useMemo(
+    () => presenceNow(state, now).filter((p) => p.pct >= PRESENCE_FLOOR_PCT).slice(0, 4),
+    [state, now],
+  )
   if (active.length === 0) return null
 
   const goToCuerpo = () => {
