@@ -186,6 +186,10 @@ export function PharmaDashboard() {
     [state, now, win, mode],
   )
 
+  // Dosis por producto: una sola vez (antes se recalculaba en 4 memos distintos). collectDosesByProduct
+  // solo lee state.log, así que se memoiza con esa dependencia y los demás memos lo consumen.
+  const byProduct = useMemo(() => collectDosesByProduct(state), [state.log])
+
   const nextDose = useMemo(() => {
     const upcoming = upcomingDoses(state, new Date(now), 3, 30)
     return upcoming[0] ?? null
@@ -278,7 +282,6 @@ export function PharmaDashboard() {
   // ── item 276: línea vertical en el cruce del 25% (thresholdCrossTs) ──
   const threshold25Refs = useMemo(() => {
     if (mode !== 'percent') return []
-    const byProduct = collectDosesByProduct(state)
     const refs: { t: number; label: string; color: string }[] = []
     for (const s of data.series) {
       if (hidden.has(s.product)) continue
@@ -300,7 +303,6 @@ export function PharmaDashboard() {
       .filter((s) => !hidden.has(s.product) && (HALF_LIFE_H[s.product] ?? 0) > 0)
       .sort((a, b) => (HALF_LIFE_H[b.product] ?? 0) - (HALF_LIFE_H[a.product] ?? 0))
     if (!withHalf.length) return undefined
-    const byProduct = collectDosesByProduct(state)
     const s = withHalf[0]
     const halfMs = (HALF_LIFE_H[s.product] ?? 0) * H_MS
     const doses = byProduct.get(s.product)
@@ -342,7 +344,6 @@ export function PharmaDashboard() {
   // ── Análisis avanzado (para el panel colapsable) ──
   const advancedMetrics = useMemo(() => {
     if (!showAdvanced) return null
-    const byProduct = collectDosesByProduct(state)
 
     // Tss por producto (item 287)
     const tssItems = data.series.map((s) => ({
@@ -406,7 +407,6 @@ export function PharmaDashboard() {
 
   // ── item 279: badge de acumulación en la leyenda ──
   const accumProducts = useMemo(() => {
-    const byProduct = collectDosesByProduct(state)
     const set = new Set<string>()
     for (const s of data.series) {
       const doses = byProduct.get(s.product) ?? []
