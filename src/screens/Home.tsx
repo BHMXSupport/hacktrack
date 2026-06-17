@@ -44,6 +44,18 @@ function fmtCountdown(at: Date, now: Date): string {
   return rh === 0 ? `en ${d} d` : `en ${d} d ${rh}h`
 }
 
+/** ETA de la ventana de dosificación (PK): relativa, para que no parezca "hoy" cuando faltan días.
+ *  La ventana del 25 % del pico de un péptido de vida media larga cae a varios días → mostrar solo la
+ *  hora (fmtTime) era engañoso ("9:00 AM" parecía mañana cuando faltaban ~14 días). */
+function fmtDoseWindowEta(ts: number, now: number = Date.now()): string {
+  const ms = ts - now
+  const days = Math.round(ms / 86_400_000)
+  if (days >= 1) return `en ~${days} ${days === 1 ? 'día' : 'días'}`
+  const h = Math.round(ms / 3_600_000)
+  if (h >= 1) return `en ~${h} h`
+  return `hoy ${fmtTime(new Date(ts))}`
+}
+
 /** Número hero para KPI card. */
 function kpiHero(name: string, vals: Record<string, number>): string {
   const v = vals[name]
@@ -643,6 +655,260 @@ export function Home() {
           </div>
         </motion.section>
 
+        {/* ── 1a. Adherencia (primero) — 30 días + tira semanal ───────────────── */}
+        <motion.section
+          variants={staggerItem}
+          className="card"
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 20px 20px' }}
+        >
+          <h2
+            className="body"
+            style={{ fontWeight: 600, color: 'var(--ink-700)', marginBottom: 20, textAlign: 'center' }}
+          >
+            Adherencia · este mes
+          </h2>
+
+          {adh && adh.due === 0 ? (
+            <div
+              style={{
+                width: 152, height: 152, borderRadius: '50%', border: '11px solid var(--ink-100)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center',
+              }}
+            >
+              <span className="h2" style={{ margin: 0 }}>{adh.scheduled}</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', maxWidth: 110, lineHeight: 1.3 }}>
+                dosis este mes · aún sin vencer
+              </span>
+            </div>
+          ) : adh ? (
+            <>
+              <AdherenceRing
+                value={adh.pct}
+                goal={100}
+                size={152}
+                stroke={11}
+                label="adherencia"
+                unit="%"
+              />
+              <p className="sm" style={{ color: 'var(--ink-400)', textAlign: 'center', marginTop: 10 }}>
+                {adh.taken} de {adh.due} tomadas · {adh.scheduled} este mes
+              </p>
+              {(adh.missed > 0 || adh.upcoming > 0) && (
+                <div style={{ display: 'flex', gap: 14, marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {adh.missed > 0 && (
+                    <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--error)' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--error)' }} />
+                      {adh.missed} perdida{adh.missed === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  {adh.upcoming > 0 && (
+                    <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--ink-400)' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ink-300)' }} />
+                      {adh.upcoming} próxima{adh.upcoming === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              style={{
+                width: 152, height: 152, borderRadius: '50%', border: '11px solid var(--ink-100)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+              }}
+            >
+              <span className="sm" style={{ color: 'var(--ink-300)', textAlign: 'center', maxWidth: 100, lineHeight: 1.3 }}>
+                Sin protocolo aún
+              </span>
+            </div>
+          )}
+
+          {/* ── Tira semanal — Loop 156 + Item 155: rest vs missed ──────── */}
+          <div
+            style={{ display: 'flex', gap: 6, marginTop: 24, justifyContent: 'center', width: '100%' }}
+          >
+            {weekLabels.map((label, idx) => {
+              const stEx = weekStatusEx[idx]
+              const filled = stEx === 'taken'
+              const isToday = idx === todayWdsIdx
+              const dayOffset = idx - todayWdsIdx
+              const dayDate = new Date(today)
+              dayDate.setDate(today.getDate() + dayOffset)
+              const dayStr = dayDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+              // 'rest' = día de descanso por cadencia; 'missed' = tocaba y faltó
+              const isRest = stEx === 'rest'
+              const isMissed = stEx === 'missed'
+              const estado = filled
+                ? 'completado'
+                : isRest
+                ? 'descanso'
+                : isMissed
+                ? 'incompleto'
+                : isToday
+                ? 'hoy, sin completar'
+                : 'sin completar'
+              // colores: tomado=catColor, descanso=ink-100(muy tenue), incompleto=warning tenue, hoy=catColor 30%
+              const dotBg = filled
+                ? catColor
+                : isMissed
+                ? 'color-mix(in srgb, var(--warning) 35%, transparent)'
+                : isRest
+                ? 'var(--ink-100)'
+                : isToday
+                ? `color-mix(in srgb, ${catColor} 30%, transparent)`
+                : 'var(--ink-100)'
+              const dotBorder = isMissed
+                ? 'color-mix(in srgb, var(--warning) 60%, transparent)'
+                : isToday
+                ? catColor
+                : 'transparent'
+              return (
+                <div
+                  key={label}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}
+                >
+                  <span
+                    className="sm"
+                    style={{ fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? catColor : 'var(--ink-400)', letterSpacing: 0.2 }}
+                  >
+                    {label}
+                  </span>
+                  <div
+                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, paddingBottom: 8 }}
+                    aria-label={`${dayStr} — ${estado}`}
+                  >
+                    {/* Loop 156: spring celebrate cuando el día actual se completa; stagger fade-in días pasados */}
+                    <motion.div
+                      animate={{
+                        backgroundColor: dotBg,
+                        scale: (isToday && filled && !reduce) ? [0.6, 1.12, 1] : (idx < todayWdsIdx && filled && !reduce) ? [0.8, 1] : 1,
+                      }}
+                      transition={isToday && filled ? spring.celebrate : { duration: dur.fast }}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        border: `2px solid ${dotBorder}`,
+                      }}
+                    />
+                    {isToday && filled && (
+                      <div
+                        aria-hidden="true"
+                        style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', position: 'absolute', bottom: 0 }}
+                      />
+                    )}
+                    {/* punto de descanso — guión muy pequeño */}
+                    {isRest && !isToday && (
+                      <div
+                        aria-hidden="true"
+                        style={{ width: 6, height: 2, borderRadius: 999, background: 'var(--ink-200)', position: 'absolute', bottom: 1 }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ── Leyenda rest/missed (solo si hay protocolo con cadencia no-diaria) ── */}
+          {hasProtocol && (
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }} aria-hidden="true">
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-300)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ink-100)', border: '1px solid var(--ink-200)', display: 'block' }} />
+                descanso
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-400)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'color-mix(in srgb, var(--warning) 35%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 60%, transparent)', display: 'block' }} />
+                incompleto
+              </span>
+            </div>
+          )}
+
+          {/* ── Item 157: Sparkbar de adherencia últimas 8 semanas ─────── */}
+          {hasWeekAdh8 && (
+            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 10, letterSpacing: 0.3 }}>
+                Adherencia · últimas 8 semanas
+              </p>
+              <SparkBar data={weekAdh8} color={catColor} barW={11} barMaxH={32} gap={4} />
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }} aria-hidden="true">
+                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, display: 'block' }} />≥80%
+                </span>
+                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)', display: 'block' }} />50-79%
+                </span>
+                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--error)', display: 'block' }} />&lt;50%
+                </span>
+              </div>
+            </div>
+          )}
+        </motion.section>
+
+        {/* ── Densidad: toggle único para el detalle secundario / historial largo ── */}
+        {(state.importedProducts.length > 1 || heatmapData.length > 0) && (
+          <motion.div variants={staggerItem}>
+            <motion.button
+              onClick={() => setMoreDetailOpen((v) => !v)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--surface)',
+                border: '1px solid var(--ink-100)',
+                borderRadius: 'var(--r-md)',
+                padding: '14px 16px',
+                cursor: 'pointer',
+                boxShadow: 'var(--e1)',
+              }}
+              whileTap={{ scale: 0.99 }}
+              transition={spring.ui}
+              aria-expanded={moreDetailOpen}
+            >
+              <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-700)' }}>
+                Más detalle
+              </span>
+              <motion.span
+                animate={{ rotate: moreDetailOpen ? 270 : 90 }}
+                transition={{ duration: dur.fast }}
+                style={{ display: 'inline-flex', color: 'var(--ink-400)', lineHeight: 1 }}
+                aria-hidden="true"
+              >
+                <IcChevron size={16} />
+              </motion.span>
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* ── Item 132: rachas por producto (cuando hay >1 producto) — dentro de "Más detalle" ──── */}
+        {moreDetailOpen && state.importedProducts.length > 1 && (
+          <motion.div
+            variants={staggerItem}
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
+            <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
+              Racha por producto
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {state.importedProducts.map((p) => {
+                const s = productStreaks[p] ?? 0
+                return (
+                  <div key={p} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 500 }}>{p}</span>
+                    {s > 0
+                      ? <ProductStreakBadge streak={s} />
+                      : <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 11 }}>sin racha</span>
+                    }
+                  </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* ── 1b. Checklist "Tus dosis de hoy" (1-tap, sin escribir) ──── */}
         <motion.div variants={staggerItem}>
           <TodayDoses />
@@ -882,7 +1148,7 @@ export function Home() {
                 const statusLabel = status === 'green' ? 'Ok para tomar' : status === 'yellow' ? 'Pronto disponible' : 'Espera aún'
                 const lastDoseLabel = lastDoseTs ? `Última: ${fmtTime(new Date(lastDoseTs))}` : 'Sin dosis reciente'
                 const nextLabel = nextSafeTs && nextSafeTs > Date.now()
-                  ? `Próxima ventana: ${fmtTime(new Date(nextSafeTs))}`
+                  ? `Próxima ventana: ${fmtDoseWindowEta(nextSafeTs)}`
                   : ''
                 return (
                   <div key={product} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -1270,260 +1536,6 @@ export function Home() {
             >
               Registrar
             </motion.button>
-          </motion.div>
-        )}
-
-        {/* ── 3. Adherencia real 30 días + tira semanal ───────────────── */}
-        <motion.section
-          variants={staggerItem}
-          className="card"
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 20px 20px' }}
-        >
-          <h2
-            className="body"
-            style={{ fontWeight: 600, color: 'var(--ink-700)', marginBottom: 20, textAlign: 'center' }}
-          >
-            Adherencia · este mes
-          </h2>
-
-          {adh && adh.due === 0 ? (
-            <div
-              style={{
-                width: 152, height: 152, borderRadius: '50%', border: '11px solid var(--ink-100)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center',
-              }}
-            >
-              <span className="h2" style={{ margin: 0 }}>{adh.scheduled}</span>
-              <span className="sm" style={{ color: 'var(--ink-400)', maxWidth: 110, lineHeight: 1.3 }}>
-                dosis este mes · aún sin vencer
-              </span>
-            </div>
-          ) : adh ? (
-            <>
-              <AdherenceRing
-                value={adh.pct}
-                goal={100}
-                size={152}
-                stroke={11}
-                label="adherencia"
-                unit="%"
-              />
-              <p className="sm" style={{ color: 'var(--ink-400)', textAlign: 'center', marginTop: 10 }}>
-                {adh.taken} de {adh.due} tomadas · {adh.scheduled} este mes
-              </p>
-              {(adh.missed > 0 || adh.upcoming > 0) && (
-                <div style={{ display: 'flex', gap: 14, marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {adh.missed > 0 && (
-                    <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--error)' }}>
-                      <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--error)' }} />
-                      {adh.missed} perdida{adh.missed === 1 ? '' : 's'}
-                    </span>
-                  )}
-                  {adh.upcoming > 0 && (
-                    <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--ink-400)' }}>
-                      <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ink-300)' }} />
-                      {adh.upcoming} próxima{adh.upcoming === 1 ? '' : 's'}
-                    </span>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <div
-              style={{
-                width: 152, height: 152, borderRadius: '50%', border: '11px solid var(--ink-100)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
-              }}
-            >
-              <span className="sm" style={{ color: 'var(--ink-300)', textAlign: 'center', maxWidth: 100, lineHeight: 1.3 }}>
-                Sin protocolo aún
-              </span>
-            </div>
-          )}
-
-          {/* ── Tira semanal — Loop 156 + Item 155: rest vs missed ──────── */}
-          <div
-            style={{ display: 'flex', gap: 6, marginTop: 24, justifyContent: 'center', width: '100%' }}
-          >
-            {weekLabels.map((label, idx) => {
-              const stEx = weekStatusEx[idx]
-              const filled = stEx === 'taken'
-              const isToday = idx === todayWdsIdx
-              const dayOffset = idx - todayWdsIdx
-              const dayDate = new Date(today)
-              dayDate.setDate(today.getDate() + dayOffset)
-              const dayStr = dayDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-              // 'rest' = día de descanso por cadencia; 'missed' = tocaba y faltó
-              const isRest = stEx === 'rest'
-              const isMissed = stEx === 'missed'
-              const estado = filled
-                ? 'completado'
-                : isRest
-                ? 'descanso'
-                : isMissed
-                ? 'incompleto'
-                : isToday
-                ? 'hoy, sin completar'
-                : 'sin completar'
-              // colores: tomado=catColor, descanso=ink-100(muy tenue), incompleto=warning tenue, hoy=catColor 30%
-              const dotBg = filled
-                ? catColor
-                : isMissed
-                ? 'color-mix(in srgb, var(--warning) 35%, transparent)'
-                : isRest
-                ? 'var(--ink-100)'
-                : isToday
-                ? `color-mix(in srgb, ${catColor} 30%, transparent)`
-                : 'var(--ink-100)'
-              const dotBorder = isMissed
-                ? 'color-mix(in srgb, var(--warning) 60%, transparent)'
-                : isToday
-                ? catColor
-                : 'transparent'
-              return (
-                <div
-                  key={label}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}
-                >
-                  <span
-                    className="sm"
-                    style={{ fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? catColor : 'var(--ink-400)', letterSpacing: 0.2 }}
-                  >
-                    {label}
-                  </span>
-                  <div
-                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, paddingBottom: 8 }}
-                    aria-label={`${dayStr} — ${estado}`}
-                  >
-                    {/* Loop 156: spring celebrate cuando el día actual se completa; stagger fade-in días pasados */}
-                    <motion.div
-                      animate={{
-                        backgroundColor: dotBg,
-                        scale: (isToday && filled && !reduce) ? [0.6, 1.12, 1] : (idx < todayWdsIdx && filled && !reduce) ? [0.8, 1] : 1,
-                      }}
-                      transition={isToday && filled ? spring.celebrate : { duration: dur.fast }}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: '50%',
-                        border: `2px solid ${dotBorder}`,
-                      }}
-                    />
-                    {isToday && filled && (
-                      <div
-                        aria-hidden="true"
-                        style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', position: 'absolute', bottom: 0 }}
-                      />
-                    )}
-                    {/* punto de descanso — guión muy pequeño */}
-                    {isRest && !isToday && (
-                      <div
-                        aria-hidden="true"
-                        style={{ width: 6, height: 2, borderRadius: 999, background: 'var(--ink-200)', position: 'absolute', bottom: 1 }}
-                      />
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* ── Leyenda rest/missed (solo si hay protocolo con cadencia no-diaria) ── */}
-          {hasProtocol && (
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }} aria-hidden="true">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-300)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ink-100)', border: '1px solid var(--ink-200)', display: 'block' }} />
-                descanso
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-400)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'color-mix(in srgb, var(--warning) 35%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 60%, transparent)', display: 'block' }} />
-                incompleto
-              </span>
-            </div>
-          )}
-
-          {/* ── Item 157: Sparkbar de adherencia últimas 8 semanas ─────── */}
-          {hasWeekAdh8 && (
-            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 10, letterSpacing: 0.3 }}>
-                Adherencia · últimas 8 semanas
-              </p>
-              <SparkBar data={weekAdh8} color={catColor} barW={11} barMaxH={32} gap={4} />
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }} aria-hidden="true">
-                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, display: 'block' }} />≥80%
-                </span>
-                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)', display: 'block' }} />50-79%
-                </span>
-                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--error)', display: 'block' }} />&lt;50%
-                </span>
-              </div>
-            </div>
-          )}
-        </motion.section>
-
-        {/* ── Densidad: toggle único para el detalle secundario / historial largo ── */}
-        {(state.importedProducts.length > 1 || heatmapData.length > 0) && (
-          <motion.div variants={staggerItem}>
-            <motion.button
-              onClick={() => setMoreDetailOpen((v) => !v)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--surface)',
-                border: '1px solid var(--ink-100)',
-                borderRadius: 'var(--r-md)',
-                padding: '14px 16px',
-                cursor: 'pointer',
-                boxShadow: 'var(--e1)',
-              }}
-              whileTap={{ scale: 0.99 }}
-              transition={spring.ui}
-              aria-expanded={moreDetailOpen}
-            >
-              <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-700)' }}>
-                Más detalle
-              </span>
-              <motion.span
-                animate={{ rotate: moreDetailOpen ? 270 : 90 }}
-                transition={{ duration: dur.fast }}
-                style={{ display: 'inline-flex', color: 'var(--ink-400)', lineHeight: 1 }}
-                aria-hidden="true"
-              >
-                <IcChevron size={16} />
-              </motion.span>
-            </motion.button>
-          </motion.div>
-        )}
-
-        {/* ── Item 132: rachas por producto (cuando hay >1 producto) — dentro de "Más detalle" ──── */}
-        {moreDetailOpen && state.importedProducts.length > 1 && (
-          <motion.div
-            variants={staggerItem}
-            className="card"
-            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-          >
-            <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
-              Racha por producto
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {state.importedProducts.map((p) => {
-                const s = productStreaks[p] ?? 0
-                return (
-                  <div key={p} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 500 }}>{p}</span>
-                    {s > 0
-                      ? <ProductStreakBadge streak={s} />
-                      : <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 11 }}>sin racha</span>
-                    }
-                  </div>
-                )
-              })}
-            </div>
           </motion.div>
         )}
 
