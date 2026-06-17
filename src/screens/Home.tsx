@@ -16,7 +16,7 @@ import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, daySt
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { presenceNow, collectDosesByProduct, HALF_LIFE_H, nextDoseWindow } from '../lib/pharma'
 import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
-import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs, glassesToLiters, waterGoalLiters } from '../lib/nutrition'
+import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs, glassesToLiters, waterGoalLiters, getGlassMl } from '../lib/nutrition'
 import { vialDaysLeft, vialExpiryStatus, vialMgConsumed, vialMgRemaining, vialDosesRemaining } from '../lib/calc'
 import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
 import { StreakChip, ProductStreakBadge } from '../components/StreakChip'
@@ -218,7 +218,11 @@ export function Home() {
   // ── Loop 161: Widget hidratación ─────────────────────────────────────────
   const todayKey = isoKey(state.todayTs)
   const waterToday = state.nutrition[todayKey]?.water ?? 0
-  const waterGoal = state.profile.peso ? waterGoalGlasses(state.profile.peso) : 8
+  // hidratación en LITROS (los vasos no son comparables entre tamaños)
+  const glassMl = getGlassMl()
+  const waterL = glassesToLiters(waterToday, glassMl)
+  const waterGoalL = waterGoalLiters(state.profile.peso)
+  const waterPct = waterGoalL > 0 ? (waterL / waterGoalL) * 100 : 0
 
   // ── Item 124: Glucosa en ayunas widget ───────────────────────────────────
   const hasMetabolismo = Object.values(state.protocols).some(
@@ -719,46 +723,53 @@ export function Home() {
           className="card"
           style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
             <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>
               Hidratación hoy
             </p>
-            <p className="sm mono" style={{ margin: 0, color: 'var(--ink-400)' }}>
-              {glassesToLiters(waterToday)} / {waterGoalLiters(state.profile.peso)} L
+            <p className="sm mono" style={{ margin: 0 }}>
+              <span style={{ color: waterPct >= 100 ? 'var(--success)' : 'var(--ink-900)', fontWeight: 700 }}>{waterL}</span>
+              <span style={{ color: 'var(--ink-400)' }}> / {waterGoalL} L{waterPct >= 100 ? ' ✓' : ''}</span>
             </p>
           </div>
+          {/* progreso en LITROS (no en vasos: el tamaño del vaso varía) */}
           <div
-            role="group"
-            aria-label={`Hidratación: ${glassesToLiters(waterToday)} de ${waterGoalLiters(state.profile.peso)} litros`}
-            style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}
+            role="progressbar"
+            aria-valuenow={waterL}
+            aria-valuemin={0}
+            aria-valuemax={waterGoalL}
+            aria-label={`Hidratación: ${waterL} de ${waterGoalL} litros`}
+            style={{ height: 8, borderRadius: 999, background: 'var(--ink-100)', overflow: 'hidden' }}
           >
-            {Array.from({ length: waterGoal }).map((_, i) => {
-              const filled = i < waterToday
-              const isNext = i === waterToday
-              return (
-                <motion.button
-                  key={i}
-                  aria-label={filled ? `Vaso ${i + 1} — completado, toca para quitar` : `Vaso ${i + 1} — toca para agregar`}
-                  whileHover={!reduce ? { scale: 1.12 } : undefined}
-                  whileTap={!reduce ? { scale: 0.92 } : undefined}
-                  transition={spring.ui}
-                  onClick={() => dispatch({ t: 'water', delta: filled ? -1 : 1 })}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: filled
-                      ? 'var(--brand-500)'
-                      : 'var(--ink-100)',
-                    outline: isNext ? `2px solid var(--brand-300)` : 'none',
-                    outlineOffset: 1,
-                    transition: `background ${dur.fast}s`,
-                  }}
-                />
-              )
-            })}
+            <div style={{
+              width: `${Math.min(100, waterPct)}%`, height: '100%', borderRadius: 999,
+              background: waterPct >= 100 ? 'var(--success)' : 'var(--brand-500)',
+              transition: `width ${dur.base}s ease, background ${dur.base}s ease`,
+            }} />
+          </div>
+          {/* controles: quitar / agregar un vaso — con su tamaño visible para entender el cálculo */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <button
+              aria-label="Quitar un vaso"
+              disabled={waterToday === 0}
+              onClick={() => dispatch({ t: 'water', delta: -1 })}
+              style={{
+                width: 36, height: 36, borderRadius: 999, border: '1px solid var(--border)',
+                background: 'transparent', color: 'var(--ink-700)', fontSize: 20, lineHeight: 1,
+                cursor: waterToday === 0 ? 'not-allowed' : 'pointer', opacity: waterToday === 0 ? 0.4 : 1,
+              }}
+            >−</button>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>
+              {waterToday} {waterToday === 1 ? 'vaso' : 'vasos'} · {glassMl} ml c/u
+            </span>
+            <button
+              aria-label="Agregar un vaso"
+              onClick={() => dispatch({ t: 'water', delta: 1 })}
+              style={{
+                width: 36, height: 36, borderRadius: 999, border: 'none',
+                background: 'var(--brand-700)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: 'pointer',
+              }}
+            >+</button>
           </div>
         </motion.div>
 
