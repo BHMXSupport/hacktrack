@@ -168,6 +168,8 @@ export function CrearPlatillo() {
     : RECIPES_ENRICHED.slice(0, 12)
 
   const loadFromRecipe = (recipe: Recipe) => {
+    // Defensa: el contenido de recetas es Plus (igual que el Recetario). Sin Plus → paywall.
+    if (!state.settings.premium) { dispatch({ t: 'sheet', sheet: 'paywall' }); return }
     tapHaptic()
     const newRows: Row[] = []
     for (const ri of recipe.ingredients) {
@@ -206,16 +208,23 @@ export function CrearPlatillo() {
           )}
         </div>
 
-        {/* Partir de una receta (item 258) */}
+        {/* Partir de una receta (item 258) — contenido Plus (mismo catálogo que el Recetario, que sí cobra).
+            Sin Plus, el botón abre el paywall en vez de exponer las recetas (cerraba el bypass del paywall). */}
         <div>
           <button
             className="btn btn-outline btn-sm"
             style={{ width: '100%' }}
-            onClick={() => { tapHaptic(); setShowRecipePicker((v) => !v) }}
+            onClick={() => {
+              tapHaptic()
+              if (!state.settings.premium) { dispatch({ t: 'sheet', sheet: 'paywall' }); return }
+              setShowRecipePicker((v) => !v)
+            }}
           >
-            {showRecipePicker ? '✕ Cerrar selector de receta' : <><Glyph name="portapapeles" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Partir de una receta…</>}
+            {!state.settings.premium
+              ? <><Glyph name="candado" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Partir de una receta (Plus)</>
+              : showRecipePicker ? '✕ Cerrar selector de receta' : <><Glyph name="portapapeles" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Partir de una receta…</>}
           </button>
-          {showRecipePicker && (
+          {state.settings.premium && showRecipePicker && (
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <input
                 className="field"
