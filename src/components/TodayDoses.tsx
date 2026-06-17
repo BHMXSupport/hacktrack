@@ -425,6 +425,18 @@ export function TodayDoses() {
             // variants/initial/animate re-establecen la cascada de stagger: si no, al expandir con "Ver"
             // las tarjetas (variants=staggerItem) se quedan en initial (opacity 0) = en blanco hasta refrescar.
             <motion.div key="rows" variants={staggerParent} initial="initial" animate="animate">
+              {/* Si ya está todo hecho y lo expandiste con "Ver", deja volver a colapsar */}
+              {allDone && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 16px 0' }}>
+                  <button
+                    onClick={() => { tapHaptic(); setCollapsed(true); try { sessionStorage.setItem(collapseKey, '1') } catch { /* noop */ } }}
+                    aria-label="Ocultar dosis del día"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-400)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <span style={{ display: 'inline-flex', transform: 'rotate(-90deg)' }}><IcChevron size={13} /></span> Ocultar
+                  </button>
+                </div>
+              )}
               {/* Item 121: Registrar todo 1-tap */}
               {doneCount === 0 && siteQueue.length === 0 && activeProds.length > 0 && activeProds.every((p) => doseForProduct(state, p) !== null) && (
                 <div style={{ padding: '10px 16px 6px', borderTop: '1px solid var(--border)' }}>
