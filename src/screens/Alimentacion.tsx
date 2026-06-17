@@ -18,6 +18,7 @@ import { IcDrop, IcClose, IcChevron } from '../components/icons'
 import { Glyph } from '../components/glyphs'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
+import { PEPTIDES } from '../lib/catalog'
 import type { FoodFav, Meal } from '../lib/types'
 
 // WATER_GOAL is now dynamic (waterGoalGlasses), kept for backwards-compat w/ compositeStreak
@@ -238,6 +239,16 @@ export function Alimentacion() {
   const goalKcal = state.kcalGoal ?? tdeeVal
   const goalP = state.macroGoals?.protein ?? null
   const peso = state.profile?.peso ?? null
+  // Glucosa en ayunas — el REGISTRO vive aquí (Comida); Inicio solo muestra la tendencia
+  const hasMetabolismo = Object.values(state.protocols).some((p) => PEPTIDES[p.product]?.cat === 'Metabolismo')
+  const [glucosaInput, setGlucosaInput] = useState('')
+  const glucosaHoy = (() => {
+    const series = state.history['Glucosa ayunas']
+    if (!series || series.length === 0) return null
+    const sorted = [...series].sort((a, b) => b.ts - a.ts)
+    const dG = new Date(sorted[0].ts); const tG = new Date(state.todayTs)
+    return dG.toDateString() === tG.toDateString() ? sorted[0].value : null
+  })()
   // hora de registro elegida (ahora, o una hora de HOY para backfill); la franja se DERIVA de la hora
   const whenTs = parseHoraLabel(horaLabel, state.todayTs) ?? now
   const whenSlot = mealSlot(whenTs)
@@ -300,6 +311,10 @@ export function Alimentacion() {
   // d = ± vasos; se convierte a ml con el tamaño actual del vaso (cambiar el tamaño no altera lo ya tomado)
   const addWater = (d: number) => { tapHaptic(); dispatch({ t: 'water', delta: d * glassMl }) }
   const waterGoalL = waterGoalLiters(peso)
+  const saveGlucosa = () => {
+    const v = parseFloat(glucosaInput)
+    if (!isNaN(v) && v > 0) { dispatch({ t: 'saveMeasure', name: 'Glucosa ayunas', value: v }); setGlucosaInput(''); showToast('Glucosa guardada') }
+  }
   const logFav = (f: FoodFav) => {
     tapHaptic()
     dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined, ts: whenTs })
@@ -522,6 +537,36 @@ export function Alimentacion() {
             )}
           </AnimatePresence>
         </motion.section>
+
+        {/* ── Glucosa en ayunas (#124) — el REGISTRO vive aquí; Inicio solo muestra la tendencia ── */}
+        {hasMetabolismo && (
+          <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-700)' }}>Glucosa en ayunas</span>
+              {glucosaHoy !== null && <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>{glucosaHoy} mg/dL hoy</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                className="field"
+                type="number" inputMode="decimal"
+                placeholder={glucosaHoy !== null ? String(glucosaHoy) : 'mg/dL'}
+                value={glucosaInput}
+                onChange={(e) => setGlucosaInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') saveGlucosa() }}
+                aria-label="Glucosa en ayunas en mg/dL"
+                style={{ flex: 1, minWidth: 0, height: 44, fontSize: 16 }}
+              />
+              <button
+                className="btn btn-brand btn-sm"
+                style={{ width: 'auto', flexShrink: 0, padding: '0 16px' }}
+                disabled={!glucosaInput || isNaN(parseFloat(glucosaInput))}
+                onClick={saveGlucosa}
+                aria-label="Guardar glucosa en ayunas"
+              >Guardar</button>
+            </div>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 10 }}>Registro personal — no es consejo médico.</p>
+          </motion.section>
+        )}
 
         {/* ── Electrolitos del día (#477) — colapsado por defecto (secundario) ── */}
         <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>

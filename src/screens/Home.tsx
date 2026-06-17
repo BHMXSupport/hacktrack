@@ -236,7 +236,11 @@ export function Home() {
     if (d.toDateString() === todayD.toDateString()) return sorted[0].value
     return null
   }, [state.history, state.todayTs])
-  const [glucosaInput, setGlucosaInput] = useState('')
+  // serie de glucosa para el chart (Inicio solo muestra; se registra en Comida)
+  const glucosaSeries = useMemo(
+    () => [...(state.history['Glucosa ayunas'] ?? [])].sort((a, b) => a.ts - b.ts),
+    [state.history],
+  )
 
   // ── Item 156: sugerencia post-dosis Metabolismo ───────────────────────────
   const [showPesoSuggestion, setShowPesoSuggestion] = useState(false)
@@ -773,51 +777,17 @@ export function Home() {
                 </p>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder={glucosaHoy !== null ? String(glucosaHoy) : 'mg/dL'}
-                value={glucosaInput}
-                onChange={(e) => setGlucosaInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const v = parseFloat(glucosaInput)
-                    if (!isNaN(v) && v > 0) {
-                      dispatch({ t: 'saveMeasure', name: 'Glucosa ayunas', value: v })
-                      setGlucosaInput('')
-                    }
-                  }
-                }}
-                aria-label="Glucosa en ayunas en mg/dL"
-                style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 'var(--r-sm)',
-                  border: '1.5px solid var(--border)', background: 'var(--bg)',
-                  color: 'var(--ink-900)', fontSize: 16, fontFamily: 'inherit',
-                  outline: 'none',
-                }}
-              />
-              <button
-                onClick={() => {
-                  const v = parseFloat(glucosaInput)
-                  if (!isNaN(v) && v > 0) {
-                    dispatch({ t: 'saveMeasure', name: 'Glucosa ayunas', value: v })
-                    setGlucosaInput('')
-                  }
-                }}
-                disabled={!glucosaInput || isNaN(parseFloat(glucosaInput))}
-                aria-label="Guardar glucosa en ayunas"
-                style={{
-                  height: 40, padding: '0 16px', borderRadius: 'var(--r-sm)',
-                  background: 'var(--brand-700)', color: '#fff', border: 'none',
-                  fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  opacity: !glucosaInput || isNaN(parseFloat(glucosaInput)) ? 0.4 : 1,
-                  transition: 'opacity 0.15s',
-                }}
-              >
-                Guardar
-              </button>
-            </div>
+            {/* Inicio solo MUESTRA la tendencia; el registro de glucosa se hace en Comida */}
+            {glucosaSeries.length >= 2 ? (
+              <Sparkline data={glucosaSeries.map((s) => s.value)} color="var(--brand-700)" w={280} h={48} animKey="glucosa" interactive />
+            ) : (
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
+                {glucosaSeries.length === 1 ? `Último: ${glucosaSeries[0].value} mg/dL. ` : ''}Registra tu glucosa en Comida para ver la tendencia.
+              </p>
+            )}
+            <button className="btn-link sm" style={{ alignSelf: 'flex-start' }} onClick={() => dispatch({ t: 'tab', tab: 'comida' })}>
+              Registrar glucosa en Comida →
+            </button>
             <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 10 }}>
               Registro personal — no es consejo médico.
             </p>
