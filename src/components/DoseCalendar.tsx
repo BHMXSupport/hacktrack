@@ -167,7 +167,7 @@ function SevenDayAgenda({ state, now }: { state: ReturnType<typeof useApp>['stat
                   const taken = doseTakenOnProduct(state, day, it.product)
                   return (
                     <div key={`${it.product}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="sm mono" style={{ color: 'var(--ink-400)', minWidth: 44, fontSize: 11 }}>{fmtTime(it.date)}</span>
+                      <span className="sm mono" style={{ color: 'var(--ink-400)', minWidth: 52, whiteSpace: 'nowrap', textAlign: 'right', flexShrink: 0, fontSize: 11 }}>{fmtTime(it.date)}</span>
                       <span style={{ width: 7, height: 7, borderRadius: 999, background: color, flexShrink: 0 }} aria-hidden />
                       <span className="sm" style={{ flex: 1, color: taken ? 'var(--ink-300)' : 'var(--ink-900)', textDecoration: taken ? 'line-through' : 'none' }}>
                         {it.product}
