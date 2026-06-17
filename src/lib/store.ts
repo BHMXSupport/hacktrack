@@ -308,8 +308,6 @@ export function weekStatus(log: LogGroup[], today: Date, doseOnly = false): bool
   })
 }
 
-export const STREAK_GOAL = 30
-
 function fmtMeasureValue(name: string, v: number): string {
   const meta = MEASURE_META[name] ?? { kind: 'scale' as const, max: 100 }
   return meta.kind === 'scale' ? `${v} / ${meta.max}` : `${v}${meta.unit ? ' ' + meta.unit : ''}`

@@ -1,26 +1,16 @@
 import { useState, useMemo, useEffect, useDeferredValue, useRef, useCallback, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useApp, isoKey } from '../lib/store'
+import { useApp, isoKey, siteLabel } from '../lib/store'
 import { Chip, Segmented, Disclaimer } from '../components/controls'
 import { dayLabel, startOfDay, fmtTime, cyclePhaseInfo } from '../lib/cadence'
 import { MON, WD, MEASURE_ICON, CATEGORY_COLOR, PEPTIDES, MEASURE_META } from '../lib/catalog'
 import { Glyph } from '../components/glyphs'
 import { EmptyState } from '../components/EmptyState'
 import { tapHaptic } from '../lib/haptics'
-import type { LogItem, InjectionSite, RangeFilter } from '../lib/types'
+import type { LogItem, RangeFilter } from '../lib/types'
 import { productStreak, weekAdherencePctLast8, phaseForDate } from '../lib/calendar'
 import { presenceNow } from '../lib/pharma'
 import { Sparkline } from '../components/charts'
-
-// loop 140: etiquetas legibles para cada sitio de inyección
-const SITE_LABEL: Record<InjectionSite, string> = {
-  'abdomen-izq': 'Abdomen izq.',
-  'abdomen-der': 'Abdomen der.',
-  'muslo-izq':   'Muslo izq.',
-  'muslo-der':   'Muslo der.',
-  'gluteo-izq':  'Glúteo izq.',
-  'gluteo-der':  'Glúteo der.',
-}
 
 // etiqueta humana del grupo a partir de su clave de fecha estable
 function groupLabel(dateKey: string, todayTs: number): string {
@@ -407,7 +397,7 @@ function TimelineItem({
                 {item.u}
                 {item.type === 'dose' && item.site && (
                   <span style={{ marginLeft: 4, color: 'var(--brand-700)', fontWeight: 500 }}>
-                    · {SITE_LABEL[item.site]}
+                    · {siteLabel(item.site)}
                   </span>
                 )}
               </div>

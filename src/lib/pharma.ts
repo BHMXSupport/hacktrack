@@ -343,19 +343,6 @@ export function fmtApproxMg(mg: number): string {
 // NO son consejo médico ni recomendación de dosis. Los supuestos se documentan en cada función.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// #274 — Corrección por peso corporal
-// Supuesto: escala lineal (mg o µg por kg de peso). Solo cálculo; no implica dosis clínica.
-// µg/kg: retorna µg totales. mg/kg: retorna mg totales.
-export function mgPerKg(
-  amount: number,           // dosis administrada en mg (o µg si unit='ug/kg')
-  pesoKg: number,           // peso corporal en kg
-  unit: 'mg/kg' | 'ug/kg' = 'mg/kg',
-): number | null {
-  if (!isFinite(pesoKg) || pesoKg <= 0 || !isFinite(amount) || amount <= 0) return null
-  // Devuelve el total en la misma unidad que amount/kg × kg
-  return amount * pesoKg  // mg×kg = mg·kg⁻¹ total (o µg total)
-}
-
 // #275 — Ventana de re-dosificación óptima
 // Supuesto: la "presencia" decae exponencialmente desde el pico observado (peakOf).
 //   Cuando amountAt < targetPct × peakMg se considera ventana abierta.
