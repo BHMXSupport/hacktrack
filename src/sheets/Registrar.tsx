@@ -245,6 +245,11 @@ export function RegistrarSheet() {
     if (vialStr && aguaStr) setShowReconPanel(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product])
+  // Al AGREGAR un producto nuevo (wizard), abre la reconstitución para fijar mg de vial + ml de agua
+  // de una vez → así registrar dosis después en UI/clics es directo (no hay que convertir cada vez).
+  useEffect(() => {
+    if (isWizard && showRecon) setShowReconPanel(true)
+  }, [isWizard, showRecon])
 
   // item 424: alerta de caducidad (>28 días)
   const reconStale = reconDate != null && (Date.now() - reconDate) > 28 * 24 * 3600000
@@ -379,7 +384,7 @@ export function RegistrarSheet() {
         </motion.div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 120px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* Item 311: barra de progreso del wizard */}
         {isWizard && (
@@ -831,11 +836,12 @@ export function RegistrarSheet() {
 
       </div>
 
-      {/* ── CTA fijo al fondo ── */}
+      {/* ── CTA al fondo ── sticky (en flujo) para NO encimarse sobre los productos.
+          Antes era position:absolute pegado al fondo del CONTENIDO del .sheet → tapaba la última fila. */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1,
+        position: 'sticky', bottom: 0, zIndex: 1,
         padding: '16px 20px 24px',
-        background: 'linear-gradient(to top, var(--surface) 80%, transparent)',
+        background: 'linear-gradient(to top, var(--surface) 70%, transparent)',
       }}>
         {isWizard && wizardStep !== 'dosis' ? (
           <button className="btn btn-brand"
