@@ -14,7 +14,7 @@ import { Sparkline, TrendChart } from '../components/charts'
 import { PremiumGate } from '../components/PremiumGate'
 import { TimeWheel } from '../components/TimeWheel'
 import { EmptyState } from '../components/EmptyState'
-import { IcDrop, IcClose } from '../components/icons'
+import { IcDrop, IcClose, IcChevron } from '../components/icons'
 import { Glyph } from '../components/glyphs'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
@@ -48,6 +48,21 @@ let _delMealTimer: ReturnType<typeof setTimeout> | null = null
 const porLabel = (p: number | null) => (p == null ? 'auto' : p === 0.5 ? '½' : p === 1.5 ? '1½' : `${p}×`)
 const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
 
+// ── Chevron SVG rotable (reemplaza ▾/▴ de texto) ──
+function Caret({ open, color = 'var(--brand-700)' }: { open: boolean; color?: string }) {
+  return (
+    <IcChevron
+      size={16}
+      style={{ color, transform: open ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.18s ease', flexShrink: 0 }}
+    />
+  )
+}
+
+// ── Punto de color controlado (reemplaza el carácter ● de texto) ──
+function Dot({ color, size = 7 }: { color: string; size?: number }) {
+  return <span style={{ width: size, height: size, borderRadius: '50%', background: color, flexShrink: 0, display: 'inline-block' }} />
+}
+
 // ── Mini heatmap semanal de kcal (7 días) ──
 function WeekHeatmap({ s }: { s: ReturnType<typeof useApp>['state'] }) {
   const series = kcalSeries(s, 7)
@@ -55,24 +70,24 @@ function WeekHeatmap({ s }: { s: ReturnType<typeof useApp>['state'] }) {
   const max = Math.max(...series.map((d) => d.kcal), goal ?? 1, 1)
   const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
   return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 36 }}>
-      {series.map(({ ts, kcal, has }, i) => {
-        const pct = Math.min(1, kcal / max)
-        const dayIdx = new Date(ts).getDay() // 0=Dom
-        const label = days[(dayIdx + 6) % 7]
-        const color = !has ? 'var(--ink-100)' : goal && kcal > goal * 1.05 ? 'var(--warning)' : kcal > 0 ? 'var(--brand-500)' : 'var(--ink-100)'
-        return (
-          <div key={ts} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <div style={{ width: '100%', background: color, height: Math.max(4, Math.round(pct * 28)), borderRadius: 3, transition: 'height 0.25s ease' }} title={has ? `${kcal} kcal` : 'Sin registro'} />
-            <span className="sm" style={{ fontSize: 9, color: 'var(--ink-300)', fontWeight: 600 }}>{label}</span>
-          </div>
-        )
-      })}
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 36 }}>
+        {series.map(({ ts, kcal, has }) => {
+          const pct = Math.min(1, kcal / max)
+          const dayIdx = new Date(ts).getDay() // 0=Dom
+          const label = days[(dayIdx + 6) % 7]
+          const color = !has ? 'var(--ink-100)' : goal && kcal > goal * 1.05 ? 'var(--warning)' : kcal > 0 ? 'var(--brand-500)' : 'var(--ink-100)'
+          return (
+            <div key={ts} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div style={{ width: '100%', background: color, height: Math.max(4, Math.round(pct * 28)), borderRadius: 3, transition: 'height 0.25s ease' }} title={has ? `${kcal} kcal` : 'Sin registro'} />
+              <span className="sm" style={{ fontSize: 9, color: 'var(--ink-300)', fontWeight: 600 }}>{label}</span>
+            </div>
+          )
+        })}
+      </div>
       {goal && (
-        <div style={{ position: 'relative', left: -((series.length) * 6), width: 0, height: '100%', pointerEvents: 'none' }}>
-          {/* línea de meta — posición relativa al max */}
-          <div style={{ position: 'absolute', bottom: Math.round((goal / max) * 28) + 12, left: -100, right: 0, height: 1, borderTop: '1px dashed var(--border)', width: 160 }} />
-        </div>
+        /* línea de meta — dentro del ancho real, sin offsets negativos que sangren */
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: Math.round((goal / max) * 28) + 12, height: 1, borderTop: '1px dashed var(--border)', pointerEvents: 'none' }} />
       )}
     </div>
   )
@@ -120,6 +135,10 @@ export function Alimentacion() {
   const [showSlotDist, setShowSlotDist] = useState(false)
   const [showRecientes, setShowRecientes] = useState(false)
   const [showHeatmap, setShowHeatmap] = useState(false)
+  const [showElectro, setShowElectro] = useState(false) // electrolitos: secundario, colapsado por defecto
+  const [showProteinDetail, setShowProteinDetail] = useState(false) // detalle de proteína colapsable
+  const [showTimePortion, setShowTimePortion] = useState(false) // hora/porción colapsable
+  const [showAnalisis, setShowAnalisis] = useState(false) // sección "Análisis y tendencias" colapsable
 
   // edición inline de comidas (n°201 + n°221)
   const [editingMealId, setEditingMealId] = useState<string | null>(null)
@@ -212,6 +231,8 @@ export function Alimentacion() {
   // GLP-1 alert: bajo sodio es informativo (no consejo médico)
   const GLP1_NAMES = ['Semaglutida', 'Tirzepatida', 'Retatrutide', 'Ozempic', 'Wegovy']
   const hasGlp1Protocol = Object.keys(state.protocols).some((p) => GLP1_NAMES.some((g) => p.toLowerCase().includes(g.toLowerCase())))
+  // resumen de una línea para el estado colapsado de electrolitos
+  const electroSummary = `Na ${electrolytes.na} · K ${electrolytes.k} · Mg ${electrolytes.mg} mg`
 
   const goalKcal = state.kcalGoal ?? tdee(state)
   const goalP = state.macroGoals?.protein ?? null
@@ -251,9 +272,9 @@ export function Alimentacion() {
         : { text: `Déficit −${goalKcal - kcal} kcal`, color: 'var(--brand-700)' }
     : null
 
-  // Totals footer for meals list (§83)
+  // Totals footer for meals list (§83) — solo desglose de macros (el kcal ya domina arriba)
   const hasDayMacros = macros.hasMacros
-  const dayTotals = hasDayMacros ? `${kcal} kcal · P: ${macros.protein} g · C: ${macros.carbs} g · G: ${macros.fat} g` : null
+  const dayTotals = hasDayMacros ? `P: ${macros.protein} g · C: ${macros.carbs} g · G: ${macros.fat} g` : null
 
   // Distribución por franja
   const slotDist = useMemo(() => kcalBySlot(day.meals), [day.meals])
@@ -280,7 +301,7 @@ export function Alimentacion() {
   const logFav = (f: FoodFav) => {
     tapHaptic()
     dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined, ts: whenTs })
-    showToast(`✓ ${f.label} — ${Math.round(f.kcal * (portion ?? (f.defaultMultiplier && f.defaultMultiplier > 0 ? f.defaultMultiplier : 1)))} kcal`)
+    showToast(`${f.label} — ${Math.round(f.kcal * (portion ?? (f.defaultMultiplier && f.defaultMultiplier > 0 ? f.defaultMultiplier : 1)))} kcal agregado`)
     setQuery('')
   }
   // Para recientes efímeros (id empieza con _raw_): usar addMeal en lugar de addFavMeal
@@ -288,7 +309,7 @@ export function Alimentacion() {
     tapHaptic()
     if (f.id.startsWith('_raw_')) {
       dispatch({ t: 'addMeal', kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, label: f.label, fav: true, ts: whenTs })
-      showToast(`✓ ${f.label} — ${f.kcal} kcal`)
+      showToast(`${f.label} — ${f.kcal} kcal agregado`)
     } else {
       logFav(f)
     }
@@ -315,7 +336,7 @@ export function Alimentacion() {
     tapHaptic()
     const label = query.trim() || undefined
     dispatch({ t: 'addMeal', kcal: k, protein: parseFloat(pStr) || null, carbs: parseFloat(cStr) || null, fat: parseFloat(fStr) || null, label, fav: !!query.trim(), ts: whenTs })
-    showToast(`✓ ${label ?? 'Comida'} — ${k} kcal`)
+    showToast(`${label ?? 'Comida'} — ${k} kcal agregado`)
     setQuery(''); setKcalStr(''); setPStr(''); setCStr(''); setFStr(''); setShowMacros(false); setCreating(false); setMacroWarning(null); setKcalWarning(null)
   }
 
@@ -373,7 +394,7 @@ export function Alimentacion() {
         note: editMealDraft.noteStr.trim().slice(0, 100) || null,
       },
     })
-    showToast('✓ Comida actualizada')
+    showToast('Comida actualizada')
     closeEditMeal()
   }
 
@@ -435,11 +456,11 @@ export function Alimentacion() {
 
         {/* ── Strip de hidratación (#356 tamaño de vaso configurable) ── */}
         <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <IcDrop size={20} style={{ color: 'var(--brand-700)', flexShrink: 0 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-              <span className="sm mono" style={{ color: day.water >= waterGoal ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700 }}>{day.water}/{waterGoal} vasos</span>
-              <span className="xs" style={{ color: 'var(--ink-400)', fontSize: 11 }}>{totalL} L hoy · {glassMl} ml/vaso</span>
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0, overflow: 'hidden' }}>
+              <span className="sm mono" style={{ color: day.water >= waterGoal ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700, whiteSpace: 'nowrap' }}>{day.water}/{waterGoal} vasos</span>
+              <span className="xs" style={{ color: 'var(--ink-400)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{totalL} L hoy · {glassMl} ml/vaso</span>
             </div>
             <div
               role="progressbar"
@@ -447,19 +468,23 @@ export function Alimentacion() {
               aria-valuemin={0}
               aria-valuemax={waterGoal}
               aria-label="Meta de hidratación"
-              style={{ flex: 1, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}
+              style={{ flex: 1, minWidth: 60, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}
             >
               <div style={{ width: `${Math.min(100, (day.water / waterGoal) * 100)}%`, height: '100%', background: 'var(--brand-500)', borderRadius: 999, transition: 'width 0.25s ease, background 0.25s ease' }} />
             </div>
-            <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer' }}>−</button>
-            <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoal * 2} style={{ width: 34, height: 34, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoal * 2 ? 0.4 : 1, cursor: day.water >= waterGoal * 2 ? 'not-allowed' : 'pointer' }}>+</button>
-            <button
-              className="iconbtn"
-              aria-label="Configurar tamaño de vaso"
-              onClick={() => setShowGlassConfig((p) => !p)}
-              style={{ width: 34, height: 34, fontSize: 16, color: showGlassConfig ? 'var(--brand-700)' : 'var(--ink-400)' }}
-            ><Glyph name="engrane" size={16} color={showGlassConfig ? 'var(--brand-700)' : 'var(--ink-400)'} /></button>
+            <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34, flexShrink: 0, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer' }}>−</button>
+            <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoal * 2} style={{ width: 34, height: 34, flexShrink: 0, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoal * 2 ? 0.4 : 1, cursor: day.water >= waterGoal * 2 ? 'not-allowed' : 'pointer' }}>+</button>
           </div>
+          {/* Config de vaso a segundo nivel (libera ancho en la fila principal) */}
+          <button
+            aria-label="Configurar tamaño de vaso"
+            aria-expanded={showGlassConfig}
+            onClick={() => setShowGlassConfig((p) => !p)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: showGlassConfig ? 'var(--brand-700)' : 'var(--ink-400)' }}
+            className="sm"
+          >
+            <Glyph name="engrane" size={14} color="currentColor" /> Tamaño de vaso <Caret open={showGlassConfig} color="currentColor" />
+          </button>
           <AnimatePresence>
             {showGlassConfig && (
               <motion.div
@@ -470,8 +495,7 @@ export function Alimentacion() {
                 transition={{ duration: 0.2 }}
                 style={{ overflow: 'hidden' }}
               >
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-                  <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>Tamaño de vaso:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, alignItems: 'center' }}>
                   {GLASS_OPTIONS.map((ml) => (
                     <button
                       key={ml}
@@ -497,13 +521,22 @@ export function Alimentacion() {
           </AnimatePresence>
         </motion.section>
 
-        {/* ── Electrolitos del día (#477) ── */}
+        {/* ── Electrolitos del día (#477) — colapsado por defecto (secundario) ── */}
         <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)' }}><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Electrolitos del día</span>
-            <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 11 }}>mg estimados</span>
-          </div>
-          <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            onClick={() => setShowElectro((v) => !v)}
+            aria-expanded={showElectro}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0 }}
+          >
+            <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)', minWidth: 0 }}><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Electrolitos del día</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+              {!showElectro && <span className="xs mono" style={{ color: 'var(--ink-400)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{electroSummary}</span>}
+              <Caret open={showElectro} />
+            </span>
+          </button>
+          {showElectro && (
+          <>
+          <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
             {([
               { key: 'na' as const, label: 'Sodio', daily: 2300, color: 'var(--warning)' },
               { key: 'k' as const, label: 'Potasio', daily: 3500, color: 'var(--brand-500)' },
@@ -534,12 +567,14 @@ export function Alimentacion() {
               </span>
             </div>
           )}
+          </>
+          )}
         </motion.section>
 
         {/* ── Resumen del día ── */}
         <motion.section variants={staggerItem} className="card">
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <span className="mono" style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink-900)', lineHeight: 1.1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <span className="mono" style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink-900)', lineHeight: 1.1, minWidth: 0 }}>
               {kcal}<span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>{goalKcal ? ` / ${goalKcal} kcal` : ' kcal'}</span>
             </span>
             <GoalEditor />
@@ -608,47 +643,65 @@ export function Alimentacion() {
             </div>
           )}
 
-          {/* §82 — Chip sugerencia de proteína si no hay meta y hay peso */}
-          {suggestedProtein != null && (
-            <button
-              className="chip"
-              style={{ marginTop: 8, background: 'var(--brand-100)', color: 'var(--brand-700)', fontWeight: 600, border: '1px dashed var(--brand-300)', cursor: 'pointer' }}
-              onClick={() => dispatch({ t: 'setMacroGoals', goals: { protein: suggestedProtein, carbs: (state.macroGoals?.carbs ?? 0), fat: (state.macroGoals?.fat ?? 0) } })}
-            >
-              Meta sugerida: {suggestedProtein} g proteína →
-            </button>
-          )}
+          {/* Detalle de proteína — colapsado por defecto (regla de ≤1-2 chips a la vista) */}
+          {(suggestedProtein != null || (protRem && protRem.remaining > 0) || (pUnbalanced && macros.hasMacros && macros.protein > 20) || pqScore !== 'sin-datos') && (
+            <>
+              <button
+                onClick={() => setShowProteinDetail((v) => !v)}
+                aria-expanded={showProteinDetail}
+                className="sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--brand-700)', fontWeight: 600 }}
+              >
+                {showProteinDetail ? 'Ocultar detalle de proteína' : 'Ver detalle de proteína'} <Caret open={showProteinDetail} />
+              </button>
+              {showProteinDetail && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                  {/* §82 — Chip sugerencia de proteína si no hay meta y hay peso */}
+                  {suggestedProtein != null && (
+                    <button
+                      className="chip"
+                      style={{ alignSelf: 'flex-start', maxWidth: '100%', background: 'var(--brand-100)', color: 'var(--brand-700)', fontWeight: 600, border: '1px dashed var(--brand-300)', cursor: 'pointer', whiteSpace: 'normal' }}
+                      onClick={() => dispatch({ t: 'setMacroGoals', goals: { protein: suggestedProtein, carbs: (state.macroGoals?.carbs ?? 0), fat: (state.macroGoals?.fat ?? 0) } })}
+                    >
+                      Meta sugerida: {suggestedProtein} g proteína →
+                    </button>
+                  )}
 
-          {/* Proteína restante accionable */}
-          {protRem && protRem.remaining > 0 && (
-            <div className="sm" style={{ marginTop: 8, color: 'var(--brand-700)', fontWeight: 600 }}>
-              Faltan {protRem.remaining} g de proteína
-              {protRem.perMeal && protRem.mealsLeft > 0
-                ? ` en ~${protRem.mealsLeft} ${protRem.mealsLeft === 1 ? 'comida' : 'comidas'} → ~${protRem.perMeal} g/comida`
-                : ''}
-            </div>
-          )}
+                  {/* Proteína restante accionable */}
+                  {protRem && protRem.remaining > 0 && (
+                    <div className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>
+                      Faltan {protRem.remaining} g de proteína
+                      {protRem.perMeal && protRem.mealsLeft > 0
+                        ? ` en ~${protRem.mealsLeft} ${protRem.mealsLeft === 1 ? 'comida' : 'comidas'} → ~${protRem.perMeal} g/comida`
+                        : ''}
+                    </div>
+                  )}
 
-          {/* Alerta distribución proteína desigual */}
-          {pUnbalanced && macros.hasMacros && macros.protein > 20 && (
-            <div className="sm" style={{ marginTop: 6, color: 'var(--warning)', fontWeight: 600 }}>
-              Mayoría de proteína en una sola toma — distribuir puede ayudar a la síntesis (observacional)
-            </div>
-          )}
+                  {/* Alerta distribución proteína desigual */}
+                  {pUnbalanced && macros.hasMacros && macros.protein > 20 && (
+                    <div className="sm" style={{ color: 'var(--warning)', fontWeight: 600 }}>
+                      Mayoría de proteína en una sola toma — distribuir puede ayudar a la síntesis (observacional)
+                    </div>
+                  )}
 
-          {/* Calidad proteica */}
-          {pqScore !== 'sin-datos' && (
-            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className="sm" style={{ color: 'var(--ink-400)' }}>Calidad proteica:</span>
-              <span className="chip sm" style={{
-                background: pqScore === 'alta' ? 'rgba(34,197,94,0.1)' : pqScore === 'media' ? 'rgba(234,179,8,0.1)' : 'var(--bg)',
-                color: pqScore === 'alta' ? 'var(--success)' : pqScore === 'media' ? 'var(--warning)' : 'var(--ink-400)',
-                fontWeight: 700, border: '1px solid currentColor', padding: '1px 8px',
-              }}>
-                {pqScore === 'alta' ? '● Alta' : pqScore === 'media' ? '● Media' : '● Baja'}
-              </span>
-              <span className="sm" style={{ color: 'var(--ink-300)' }}>animal/vegetal · observacional</span>
-            </div>
+                  {/* Calidad proteica */}
+                  {pqScore !== 'sin-datos' && (
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <span className="sm" style={{ color: 'var(--ink-400)' }}>Calidad proteica:</span>
+                      <span className="chip sm" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        background: pqScore === 'alta' ? 'color-mix(in srgb, var(--success) 12%, transparent)' : pqScore === 'media' ? 'color-mix(in srgb, var(--warning) 12%, transparent)' : 'var(--bg)',
+                        color: pqScore === 'alta' ? 'var(--success)' : pqScore === 'media' ? 'var(--warning)' : 'var(--ink-400)',
+                        fontWeight: 700, border: '1px solid currentColor', padding: '1px 8px',
+                      }}>
+                        <Dot color="currentColor" /> {pqScore === 'alta' ? 'Alta' : pqScore === 'media' ? 'Media' : 'Baja'}
+                      </span>
+                      <span className="sm" style={{ color: 'var(--ink-300)' }}>animal/vegetal · observacional</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </motion.section>
 
@@ -667,22 +720,37 @@ export function Alimentacion() {
 
         {/* ── Predicciones por franja + barra inteligente ── */}
         <motion.section variants={staggerItem} className="card">
-          {/* Hora del registro (rueda con scroll → backfill; la franja se deriva sola) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: showWheel ? 8 : 8 }}>
-            <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora</span>
-            <button className="chip mono" onClick={() => setShowWheel((v) => !v)} style={{ fontWeight: 700 }}>{horaLabel} ▾</button>
-            {horaLabel !== 'Ahora' && <button className="chip" style={{ height: 30 }} onClick={() => { setHoraLabel('Ahora'); setShowWheel(false) }}>Ahora</button>}
-            <span className="sm" aria-live="polite" style={{ color: 'var(--brand-700)', fontWeight: 600, marginLeft: 'auto', textAlign: 'right' }}>Para tu {whenSlot}</span>
+          {/* Estado + acceso a ajustar hora/porción (colapsado por defecto) */}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            <button
+              onClick={() => setShowTimePortion((v) => !v)}
+              aria-expanded={showTimePortion}
+              className="sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--brand-700)', fontWeight: 600, minWidth: 0 }}
+            >
+              Ajustar hora/porción <span className="mono" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>· {horaLabel} · {porLabel(portion)}</span> <Caret open={showTimePortion} />
+            </button>
+            <span className="sm" aria-live="polite" style={{ color: 'var(--brand-700)', fontWeight: 600, marginLeft: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Para tu {whenSlot}</span>
           </div>
-          {showWheel && <div style={{ marginBottom: 10 }}><TimeWheel initial={new Date(whenTs)} onChange={setHoraLabel} /></div>}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 10 }}>
-            <span className="sm" style={{ color: 'var(--ink-400)', marginRight: 'auto' }}>Porción</span>
-            {PORTIONS.map((p) => (
-              <button key={String(p)} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 7px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
-                {porLabel(p)}
-              </button>
-            ))}
-          </div>
+          {showTimePortion && (
+            <>
+              {/* Hora del registro (rueda con scroll → backfill; la franja se deriva sola) */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora</span>
+                <button className="chip mono" onClick={() => setShowWheel((v) => !v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>{horaLabel} <Caret open={showWheel} color="currentColor" /></button>
+                {horaLabel !== 'Ahora' && <button className="chip" style={{ height: 30 }} onClick={() => { setHoraLabel('Ahora'); setShowWheel(false) }}>Ahora</button>}
+              </div>
+              {showWheel && <div style={{ marginBottom: 10 }}><TimeWheel initial={new Date(whenTs)} onChange={setHoraLabel} /></div>}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+                <span className="sm" style={{ color: 'var(--ink-400)', marginRight: 'auto' }}>Porción</span>
+                {PORTIONS.map((p) => (
+                  <button key={String(p)} onClick={() => setPortion(p)} className="sm mono" style={{ border: 0, borderRadius: 8, padding: '2px 7px', cursor: 'pointer', fontWeight: 700, background: portion === p ? 'var(--brand-700)' : 'var(--ink-100)', color: portion === p ? '#fff' : 'var(--ink-400)' }}>
+                    {porLabel(p)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Tarjetas de predicción (1 toque) con confianza visible */}
           {preds.length > 0 ? (
@@ -692,18 +760,25 @@ export function Alimentacion() {
                 const conf = predictionConfidence(state, f, whenTs)
                 return (
                   <button key={f.id} onClick={() => logFav(f)} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', border: '1px solid var(--border)', opacity: i === 0 ? 1 : i === 1 ? 0.92 : 0.84 }}>
-                    <span style={{ color: 'var(--brand-700)', flexShrink: 0 }}>
-                      {conf === 'habitual' ? <Glyph name="estrella" size={13} color="var(--brand-700)" /> : conf === 'frecuente' ? '↑' : '•'}
+                    <span style={{ color: 'var(--brand-700)', flexShrink: 0, display: 'inline-flex' }}>
+                      {conf === 'habitual'
+                        ? <Glyph name="estrella" size={13} color="var(--brand-700)" />
+                        : conf === 'frecuente'
+                          ? <Glyph name="cat-crecimiento" size={13} color="var(--brand-700)" />
+                          : <Dot color="var(--brand-700)" size={6} />}
                     </span>
                     <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {f.label}{mult !== 1 ? ` ·${porLabel(mult)}` : ''}
+                      {f.label}
                     </span>
+                    {mult !== 1 && (
+                      <span className="mono sm" style={{ color: 'var(--ink-400)', flexShrink: 0, fontWeight: 700 }}>{porLabel(mult)}</span>
+                    )}
                     {conf && (
                       <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 10, flexShrink: 0 }}>
                         {conf === 'habitual' ? 'habitual' : 'frecuente'}
                       </span>
                     )}
-                    <span className="mono sm" style={{ fontWeight: 700, marginLeft: 'auto', flexShrink: 0 }}>{Math.round(f.kcal * mult)}<span style={{ color: 'var(--ink-400)' }}> kcal</span></span>
+                    <span className="mono sm" style={{ fontWeight: 700, marginLeft: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>{Math.round(f.kcal * mult)}<span style={{ color: 'var(--ink-400)' }}> kcal</span></span>
                   </button>
                 )
               })}
@@ -717,16 +792,16 @@ export function Alimentacion() {
             />
           )}
 
-          {/* Crear platillo + Recetario — destacados */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-            <button className="btn btn-outline" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'crear-platillo', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}>＋ Crear platillo</button>
-            <button className="btn btn-brand" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'recetario', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}><Glyph name="destello" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Recetario</button>
+          {/* Acción primaria única: Recetario (brand). Crear platillo pasa a secundaria. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            <button className="btn btn-brand" style={{ height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'recetario', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}><Glyph name="destello" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Recetario</button>
+            <button className="sm" style={{ alignSelf: 'flex-start', background: 'none', border: 0, color: 'var(--brand-700)', fontWeight: 600, cursor: 'pointer', padding: 0 }} onClick={() => dispatch({ t: 'sheet', sheet: 'crear-platillo', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}>＋ Crear platillo</button>
           </div>
-          {/* Acciones rápidas (chips pequeños) */}
+          {/* Acciones rápidas (chips pequeños, menos prominentes) */}
           {(hasYesterday || lastMeal) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-              {hasYesterday && <button className="chip" onClick={copyYesterday}>Copiar de ayer</button>}
-              {lastMeal && <button className="chip" onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: lastMeal.kcal, protein: lastMeal.protein, carbs: lastMeal.carbs, fat: lastMeal.fat, label: (lastMeal.label ?? undefined), ts: whenTs }); showToast(`✓ ${lastMeal.label ?? 'Última comida'} — ${lastMeal.kcal} kcal`) }}>Repetir última</button>}
+              {hasYesterday && <button className="chip" style={{ maxWidth: '100%' }} onClick={copyYesterday}>Copiar de ayer</button>}
+              {lastMeal && <button className="chip" style={{ maxWidth: '100%' }} onClick={() => { tapHaptic(); dispatch({ t: 'addMeal', kcal: lastMeal.kcal, protein: lastMeal.protein, carbs: lastMeal.carbs, fat: lastMeal.fat, label: (lastMeal.label ?? undefined), ts: whenTs }); showToast(`${lastMeal.label ?? 'Última comida'} — ${lastMeal.kcal} kcal agregado`) }}>Repetir última</button>}
             </div>
           )}
 
@@ -751,8 +826,8 @@ export function Alimentacion() {
             {scanResult && (
               <div style={{ marginTop: 6, padding: '10px 12px', background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)', border: '1px solid var(--brand-500)', borderRadius: 'var(--r-sm)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-900)' }}>{scanResult.name}</span>
-                  <button className="xs" onClick={() => setScanResult(null)} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer' }}>✕</button>
+                  <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{scanResult.name}</span>
+                  <button aria-label="Cerrar resultado del escáner" onClick={() => setScanResult(null)} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><IcClose size={16} /></button>
                 </div>
                 <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>{scanResult.kcal} kcal por porción</span>
                 {(scanResult.protein != null || scanResult.carbs != null || scanResult.fat != null) && (
@@ -834,7 +909,7 @@ export function Alimentacion() {
               onClick={() => setShowRecientes((v) => !v)}
             >
               <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Recientes (7 días)</span>
-              <span className="sm" style={{ color: 'var(--brand-700)' }}>{showRecientes ? 'Ocultar' : `${recientes.length} alimentos ▾`}</span>
+              <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showRecientes ? 'Ocultar' : `${recientes.length} alimentos`} <Caret open={showRecientes} /></span>
             </button>
             {showRecientes && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
@@ -860,7 +935,7 @@ export function Alimentacion() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--ink-900)', color: '#fff', borderRadius: 12, padding: '10px 18px', zIndex: 999, display: 'flex', alignItems: 'center', gap: 12, maxWidth: 340, boxShadow: '0 4px 20px rgba(0,0,0,0.18)' }}
+            style={{ position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', left: '50%', transform: 'translateX(-50%)', background: 'var(--ink-900)', color: '#fff', borderRadius: 12, padding: '10px 18px', zIndex: 999, display: 'flex', alignItems: 'center', gap: 12, maxWidth: 'min(340px, calc(100vw - 32px))', boxShadow: '0 4px 20px rgba(0,0,0,0.18)' }}
           >
             <span className="sm" style={{ fontWeight: 600 }}>{toastMsg}</span>
             {undoPending && (
@@ -930,10 +1005,12 @@ export function Alimentacion() {
                               >
                                 <div className="sm" style={{ color: 'var(--ink-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
                                   {m.label || 'sin nombre'}
-                                  {m.protein ? ` · P: ${m.protein}g` : ''}
-                                  {m.carbs ? ` · C: ${m.carbs}g` : ''}
-                                  {m.fat ? ` · G: ${m.fat}g` : ''}
                                 </div>
+                                {(m.protein || m.carbs || m.fat) && (
+                                  <div className="xs mono" style={{ color: 'var(--ink-400)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {[m.protein ? `P: ${m.protein}g` : null, m.carbs ? `C: ${m.carbs}g` : null, m.fat ? `G: ${m.fat}g` : null].filter(Boolean).join(' · ')}
+                                  </div>
+                                )}
                                 {m.note && !isEditing && (
                                   <div className="xs" style={{ color: 'var(--ink-400)', fontStyle: 'italic', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {m.note}
@@ -945,8 +1022,8 @@ export function Alimentacion() {
                                 <button
                                   aria-label="Cancelar edición"
                                   onClick={closeEditMeal}
-                                  style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0, fontSize: 12 }}
-                                >✕</button>
+                                  style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
+                                ><IcClose size={16} /></button>
                               ) : (
                                 <button
                                   aria-label="Eliminar"
@@ -1036,9 +1113,9 @@ export function Alimentacion() {
                       })}
                     </div>
                   ))}
-                  {/* §83 — Footer totales del día cuando hay macros */}
+                  {/* §83 — Footer del día: solo desglose de macros (kcal ya domina arriba) */}
                   {dayTotals && (
-                    <div className="sm mono" style={{ color: 'var(--ink-400)', borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4, fontWeight: 600 }}>{dayTotals}</div>
+                    <div className="sm mono" style={{ color: 'var(--ink-400)', borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4, fontWeight: 600, overflowWrap: 'anywhere' }}>{dayTotals}</div>
                   )}
                 </div>
               )
@@ -1046,6 +1123,18 @@ export function Alimentacion() {
           </motion.section>
         )}
 
+        {/* ── Análisis y tendencias — agrupado y colapsado por defecto (menos abrumador) ── */}
+        <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
+          <button
+            onClick={() => setShowAnalisis((v) => !v)}
+            aria-expanded={showAnalisis}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0 }}
+          >
+            <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700, minWidth: 0 }}>Análisis y tendencias</span>
+            <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showAnalisis ? 'Ocultar' : 'Ver'} <Caret open={showAnalisis} /></span>
+          </button>
+        </motion.section>
+        {showAnalisis && (<>
         {/* ── Distribución calórica por franja horaria (chrono-nutrición) ── */}
         {slotDist.length >= 2 && (
           <motion.section variants={staggerItem} className="card">
@@ -1054,7 +1143,7 @@ export function Alimentacion() {
               onClick={() => setShowSlotDist((v) => !v)}
             >
               <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Distribución por franja</span>
-              <span className="sm" style={{ color: 'var(--brand-700)' }}>{showSlotDist ? 'Ocultar ▴' : 'Ver ▾'}</span>
+              <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showSlotDist ? 'Ocultar' : 'Ver'} <Caret open={showSlotDist} /></span>
             </button>
             {showSlotDist && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1101,7 +1190,7 @@ export function Alimentacion() {
             onClick={() => setShowHeatmap((v) => !v)}
           >
             <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Semana en kcal</span>
-            <span className="sm" style={{ color: 'var(--brand-700)' }}>{showHeatmap ? 'Ocultar ▴' : 'Ver ▾'}</span>
+            <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showHeatmap ? 'Ocultar' : 'Ver'} <Caret open={showHeatmap} /></span>
           </button>
           {showHeatmap && (
             <>
@@ -1112,6 +1201,10 @@ export function Alimentacion() {
             </>
           )}
         </motion.section>
+
+        {/* ── Tu protocolo en números (mini · Plus) ── */}
+        <AnchorMini />
+        </>)}
 
         {/* ── Acciones de exportación ── */}
         {day.meals.length > 0 && (
@@ -1133,9 +1226,6 @@ export function Alimentacion() {
             <MacroGoals />
           </PremiumGate>
         </motion.section>
-
-        {/* ── Tu protocolo en números (mini · Plus) ── */}
-        <AnchorMini />
 
         <motion.p variants={staggerItem} className="sm" style={{ color: 'var(--ink-300)', lineHeight: 1.4, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
           Registro personal de hidratación y nutrición. No es consejo nutricional ni médico.
@@ -1163,7 +1253,7 @@ function GoalEditor() {
             if (v != null && (v < 500 || v > 9999)) setUnusualToast(true)
             dispatch({ t: 'setKcalGoal', value: v }); setEdit(false)
           }}
-          style={{ width: 110 }}
+          style={{ width: 110, maxWidth: '100%' }}
         />
         {unusualToast && <span className="sm" style={{ color: 'var(--warning)' }}>Meta inusual</span>}
       </div>
