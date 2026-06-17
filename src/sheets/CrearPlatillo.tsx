@@ -4,6 +4,7 @@
 // 267 (steppers ±5g), 268 (por 100g), 269 (nombre auto-fallback), 270 (reorder ▲▼), 271 (EmptyState con chips).
 import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import { Glyph } from '../components/glyphs'
 import { Sheet } from '../components/Sheet'
 import { EmptyState } from '../components/EmptyState'
 import { useApp } from '../lib/store'
@@ -114,7 +115,7 @@ export function CrearPlatillo() {
 
   // Ratio kcal/g P (item 249)
   const pRatio = total.protein > 0 ? (total.kcal / total.protein).toFixed(1) : null
-  const pRatioLabel = pRatio == null ? null : Number(pRatio) < 8 ? '⚡ Densidad proteica alta' : Number(pRatio) <= 12 ? 'Densidad proteica media' : 'Densidad proteica baja'
+  const pRatioLabel = pRatio == null ? null : Number(pRatio) < 8 ? <><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Densidad proteica alta</> : Number(pRatio) <= 12 ? 'Densidad proteica media' : 'Densidad proteica baja'
   const pRatioColor = pRatio == null ? 'var(--ink-400)' : Number(pRatio) < 8 ? 'var(--success)' : 'var(--ink-400)'
 
   // Indicadores gluten/lácteos (item 253): se considera el platillo libre si TODOS los ingredientes anotados son true
@@ -212,7 +213,7 @@ export function CrearPlatillo() {
             style={{ width: '100%' }}
             onClick={() => { tapHaptic(); setShowRecipePicker((v) => !v) }}
           >
-            {showRecipePicker ? '✕ Cerrar selector de receta' : '📋 Partir de una receta…'}
+            {showRecipePicker ? '✕ Cerrar selector de receta' : <><Glyph name="portapapeles" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Partir de una receta…</>}
           </button>
           {showRecipePicker && (
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -421,14 +422,14 @@ export function CrearPlatillo() {
                 color: glutenStatus === 'incierto' ? 'var(--ink-400)' : '#fff',
                 fontSize: 10,
               }}>
-                {glutenStatus === 'libre' ? '✓ Sin gluten' : glutenStatus === 'contiene' ? '✗ Con gluten' : '? Gluten incierto'}
+                {glutenStatus === 'libre' ? <><Glyph name="check" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Sin gluten</> : glutenStatus === 'contiene' ? <><Glyph name="cross" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Con gluten</> : '? Gluten incierto'}
               </span>
               <span className="badge" style={{
                 background: dairyStatus === 'libre' ? 'var(--success)' : dairyStatus === 'contiene' ? 'var(--error)' : 'var(--surface)',
                 color: dairyStatus === 'incierto' ? 'var(--ink-400)' : '#fff',
                 fontSize: 10,
               }}>
-                {dairyStatus === 'libre' ? '✓ Sin lácteos' : dairyStatus === 'contiene' ? '✗ Con lácteos' : '? Lácteos inciertos'}
+                {dairyStatus === 'libre' ? <><Glyph name="check" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Sin lácteos</> : dairyStatus === 'contiene' ? <><Glyph name="cross" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Con lácteos</> : '? Lácteos inciertos'}
               </span>
             </div>
           </div>

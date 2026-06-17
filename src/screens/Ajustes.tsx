@@ -2,6 +2,7 @@
 import { useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IcBell, IcChevron, IcShield, IcCheck, IcBack, IcClose } from '../components/icons'
+import { Glyph } from '../components/glyphs'
 import { Toggle, Disclaimer, Segmented } from '../components/controls'
 import { Sparkline } from '../components/charts'
 import { AdherenceRing } from '../components/AdherenceRing'
@@ -398,7 +399,7 @@ function StockSheet({ product, onClose }: { product: string; onClose: () => void
               )}
               {remainMg <= 0 && (
                 <div style={{ color: 'var(--error)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
-                  ⚠️ Stock agotado — considera reponer
+                  <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Stock agotado — considera reponer
                 </div>
               )}
             </div>
@@ -815,7 +816,7 @@ export function Ajustes() {
                         </RowIcon>
                         <span className="row-main">
                           <span className="row-label">{alias ?? product}</span>
-                          {cadLabel && <span className="row-sub">{cadLabel}{lowStock && ' · ⚠️ Stock bajo'}</span>}
+                          {cadLabel && <span className="row-sub">{cadLabel}{lowStock && <> · <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Stock bajo</>}</span>}
                         </span>
                         <span className="row-end">
                           <IcChevron size={18} style={{ color: 'var(--ink-300)' }} />

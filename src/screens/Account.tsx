@@ -170,7 +170,7 @@ export function Account() {
           )}
           {name.trim() && (
             <p aria-live="polite" className="sm" style={{ color: 'var(--brand-700)', marginTop: 6, fontWeight: 600 }}>
-              Hola, {name.trim()} 👋
+              Hola, {name.trim()}
             </p>
           )}
         </div>

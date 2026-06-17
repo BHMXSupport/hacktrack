@@ -9,6 +9,7 @@ import { motion } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { Segmented, Chip, Disclaimer } from '../components/controls'
 import { IcDrop } from '../components/icons'
+import { Glyph } from '../components/glyphs'
 import { TimeWheel } from '../components/TimeWheel'
 import { spring, ease } from '../lib/motion'
 import { useApp } from '../lib/store'
@@ -710,7 +711,7 @@ export function RegistrarSheet() {
                       border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
                     }}>
                       <p className="sm" style={{ margin: 0, color: 'var(--warning)', fontWeight: 600 }}>
-                        ⚠ Vial reconstituido hace más de 28 días — verifica la estabilidad antes de usar.
+                        <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Vial reconstituido hace más de 28 días — verifica la estabilidad antes de usar.
                       </p>
                       <p className="sm" style={{ margin: '4px 0 0', color: 'var(--ink-400)' }}>Dato orientativo. No es consejo médico.</p>
                     </div>
@@ -774,7 +775,7 @@ export function RegistrarSheet() {
               <button className="btn-ghost sm"
                 style={{ alignSelf: 'flex-start', color: 'var(--ink-400)', fontWeight: 500 }}
                 onClick={() => setShowNota((v) => !v)}>
-                {showNota ? '▲ Ocultar nota' : '✏ Añadir nota (opcional)'}
+                {showNota ? '▲ Ocultar nota' : <><Glyph name="editar" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Añadir nota (opcional)</>}
               </button>
               {showNota && (
                 <div style={{ position: 'relative' }}>

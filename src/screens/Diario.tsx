@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useDeferredValue, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useDeferredValue, useRef, useCallback, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, isoKey } from '../lib/store'
 import { Chip, Segmented, Disclaimer } from '../components/controls'
@@ -1572,13 +1572,13 @@ export function Diario() {
               <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 8 }}>Tu diario</h2>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {([
-                  { icon: '⬅️', text: 'Desliza un registro hacia la izquierda para eliminarlo.' },
-                  { icon: '🔍', text: 'Usa el botón de búsqueda para filtrar por nombre o nota.' },
-                  { icon: '📤', text: 'Exporta tu diario a CSV desde el ícono en la cabecera.' },
-                  { icon: '🔥', text: 'La racha y adherencia aparecen debajo de los filtros.' },
-                ] as { icon: string; text: string }[]).map(({ icon, text }) => (
-                  <li key={icon} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
+                  { key: 'swipe',  icon: <span style={{ fontSize: 20 }}>←</span>, text: 'Desliza un registro hacia la izquierda para eliminarlo.' },
+                  { key: 'buscar', icon: <Glyph name="buscar"   size={20} color="currentColor" />, text: 'Usa el botón de búsqueda para filtrar por nombre o nota.' },
+                  { key: 'export', icon: <Glyph name="exportar" size={20} color="currentColor" />, text: 'Exporta tu diario a CSV desde el ícono en la cabecera.' },
+                  { key: 'racha',  icon: <Glyph name="racha"    size={20} color="currentColor" />, text: 'La racha y adherencia aparecen debajo de los filtros.' },
+                ] as { key: string; icon: ReactNode; text: string }[]).map(({ key, icon, text }) => (
+                  <li key={key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ flexShrink: 0 }}>{icon}</span>
                     <span style={{ fontSize: 14, color: 'var(--ink-700)', lineHeight: 1.45 }}>{text}</span>
                   </li>
                 ))}

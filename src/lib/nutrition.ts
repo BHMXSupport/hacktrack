@@ -114,7 +114,7 @@ export function predictions(s: AppState, now: number, n = 3): FoodFav[] {
     .map((x) => x.f)
 }
 
-// Confianza relativa de cada predicción (para badges ★/↑)
+// Confianza relativa de cada predicción (para badges /↑)
 // Devuelve 'habitual' si es la más frecuente en la franja, 'frecuente' si sube, null si solo es reciente
 export function predictionConfidence(s: AppState, fav: FoodFav, now: number): 'habitual' | 'frecuente' | null {
   const slot = mealSlot(now)

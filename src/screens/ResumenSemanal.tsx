@@ -3,6 +3,7 @@
 // afirma causalidad/eficacia ni recomienda dosis; "desde que iniciaste <producto>" es solo el ancla temporal.
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Glyph } from '../components/glyphs'
 import { useApp, adherence, isoKey, adherenceMonth } from '../lib/store'
 import {
   protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, kcalSeries, streakDetail, anchorProduct, protocolList, productKpis, dayMacros,
@@ -491,7 +492,7 @@ function ProductCards() {
                       border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
                     }}>
                       <span className="sm" style={{ color: 'var(--warning)' }}>
-                        ⚠ Se observa reducción en % grasa y % músculo simultáneamente — solo como dato de registro.
+                        <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Se observa reducción en % grasa y % músculo simultáneamente — solo como dato de registro.
                       </span>
                     </div>
                   )}
@@ -743,7 +744,11 @@ function classifyInsights(raw: string[]): ClassifiedInsight[] {
   })
 }
 
-const INSIGHT_GLYPH: Record<InsightType, string> = { logro: '★', alerta: '⚠', info: 'ℹ' }
+const INSIGHT_GLYPH: Record<InsightType, React.ReactNode> = {
+  logro: <Glyph name="estrella" size={14} color="currentColor" />,
+  alerta: <Glyph name="efecto" size={14} color="currentColor" />,
+  info: 'ℹ',
+}
 const INSIGHT_BG: Record<InsightType, string> = {
   logro: 'color-mix(in srgb, var(--brand-100) 60%, transparent)',
   alerta: 'color-mix(in srgb, var(--warning) 12%, transparent)',
@@ -868,7 +873,7 @@ export function ResumenSemanal() {
 
   // ── Compartir semana (n=372) Web Share API ──
   const handleShare = useCallback(async () => {
-    const text = `🔥 ${streak} ${streak === 1 ? 'día' : 'días'} · ${adh ? adh.pct + '%' : '—'} adherencia · ${avg7 != null ? avg7 + ' kcal/día' : '—'} — via Hacktrack`
+    const text = `Racha de ${streak} ${streak === 1 ? 'día' : 'días'} · ${adh ? adh.pct + '%' : '—'} adherencia · ${avg7 != null ? avg7 + ' kcal/día' : '—'} — via Hacktrack`
     try {
       if (navigator.share && navigator.canShare?.({ title: 'Mi semana en Hacktrack', text })) {
         await navigator.share({ title: 'Mi semana en Hacktrack', text })
@@ -905,7 +910,7 @@ export function ResumenSemanal() {
             }}
           >
             {streak > 0 && (
-              <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>🔥 {streak}d</span>
+              <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}><Glyph name="racha" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{streak}d</span>
             )}
             {adh && (
               <span className="sm mono" style={{ color: 'var(--ink-700)' }}>{adh.pct}% adh</span>
@@ -1002,7 +1007,7 @@ export function ResumenSemanal() {
             }}>
               <span className="sm" style={{ color: veryDeficit ? 'var(--error)' : 'var(--warning)' }}>
                 {veryDeficit
-                  ? `⚠ Déficit muy elevado (>${Math.abs(caloricDeficit!)} kcal) — solo como dato de registro.`
+                  ? <><Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Déficit muy elevado ({'>'}{Math.abs(caloricDeficit!)} kcal) — solo como dato de registro.</>
                   : `Déficit elevado (${Math.abs(caloricDeficit!)} kcal/día) — solo como dato de registro.`}
               </span>
             </div>

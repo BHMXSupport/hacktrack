@@ -5,6 +5,7 @@ import { IcClose, IcCheck } from '../components/icons'
 import { Segmented } from '../components/controls'
 import { Sparkline } from '../components/charts'
 import { dur, ease } from '../lib/motion'
+import { Glyph } from '../components/glyphs'
 
 type Plan = 'mensual' | 'anual'
 
@@ -38,9 +39,9 @@ const SOCIAL_PROOF_N = 1_200
 
 // ── Bullet chips del hero (N=399) ──────────────────────────────────────────────
 const HERO_BULLETS = [
-  { icon: '🔓', label: 'Sin límite de historial' },
-  { icon: '📈', label: 'Perspectivas avanzadas' },
-  { icon: '⬇️', label: 'Exporta tus datos' },
+  { icon: <Glyph name="candado" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />, label: 'Sin límite de historial' },
+  { icon: <Glyph name="cat-crecimiento" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />, label: 'Perspectivas avanzadas' },
+  { icon: '↓', label: 'Exporta tus datos' },
 ]
 
 // ── Datos sintéticos para la sparkline del hero (N=399) ────────────────────────
@@ -319,7 +320,7 @@ export function Paywall() {
             }}
           >
             <span className="body" style={{ color: '#fff', fontWeight: 600 }}>
-              🔥 Ya llevas {streak} día{streak !== 1 ? 's' : ''} de racha — no la pierdas
+              <Glyph name="racha" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Ya llevas {streak} día{streak !== 1 ? 's' : ''} de racha — no la pierdas
             </span>
           </motion.div>
         )}

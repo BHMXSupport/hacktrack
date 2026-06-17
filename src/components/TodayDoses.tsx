@@ -1,6 +1,6 @@
 // "Tus dosis de hoy" — checklist 1-tap: cada producto programado hoy con su dosis + botón "hecho".
 // Sin escribir: la dosis viene de la fase activa o de la última registrada (doseForProduct).
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { useApp, doseForProduct, nextInjectionSite } from '../lib/store'
 import type { InjectionSite } from '../lib/types'
@@ -10,6 +10,7 @@ import { doseToMg } from '../lib/calc'
 import { tapHaptic } from '../lib/haptics'
 import { PEPTIDES, CATEGORY_COLOR, EFFECT_OPTIONS } from '../lib/catalog'
 import { IcCheck } from './icons'
+import { Glyph } from './glyphs'
 import { staggerParent, staggerItem, spring, dur, ease } from '../lib/motion'
 import { presenceNow } from '../lib/pharma'
 
@@ -254,12 +255,12 @@ function getTimeGreeting(): { label: string; sub: string | null } {
 }
 
 // ── Item 158: chip de franja del día ─────────────────────────────────────────
-function getDaySlot(): { label: string; icon: string } {
+function getDaySlot(): { label: string; icon: ReactNode } {
   const h = new Date().getHours()
-  if (h >= 6 && h < 12) return { label: 'Mañana · 6–12h', icon: '🌅' }
-  if (h >= 12 && h < 18) return { label: 'Tarde · 12–18h', icon: '☀️' }
-  if (h >= 18) return { label: 'Noche · 18–24h', icon: '🌙' }
-  return { label: 'Madrugada · 0–6h', icon: '🌃' }
+  if (h >= 6 && h < 12) return { label: 'Mañana · 6–12h', icon: <Glyph name="amanecer" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> }
+  if (h >= 12 && h < 18) return { label: 'Tarde · 12–18h', icon: <Glyph name="sol" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> }
+  if (h >= 18) return { label: 'Noche · 18–24h', icon: <Glyph name="sueno" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> }
+  return { label: 'Madrugada · 0–6h', icon: <Glyph name="sueno" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> }
 }
 
 // ── Loop 137: semáforo de ventana de toma (inline — no toca cadence.ts) ────────
@@ -489,7 +490,7 @@ export function TodayDoses() {
     const next = upcomingDoses(state, new Date(), 1)[0]
     return (
       <div className="card" style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
-        <span style={{ fontSize: 28 }}>💤</span>
+        <Glyph name="sueno" size={28} color="var(--ink-300)" />
         <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>Hoy no toca ninguna dosis</span>
         {next && (
           <span className="sm" style={{ color: 'var(--ink-400)' }}>

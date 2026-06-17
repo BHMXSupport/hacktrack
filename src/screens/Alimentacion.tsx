@@ -15,6 +15,7 @@ import { PremiumGate } from '../components/PremiumGate'
 import { TimeWheel } from '../components/TimeWheel'
 import { EmptyState } from '../components/EmptyState'
 import { IcDrop, IcClose } from '../components/icons'
+import { Glyph } from '../components/glyphs'
 import { tapHaptic } from '../lib/haptics'
 import { staggerParent, staggerItem } from '../lib/motion'
 import type { FoodFav, Meal } from '../lib/types'
@@ -457,7 +458,7 @@ export function Alimentacion() {
               aria-label="Configurar tamaño de vaso"
               onClick={() => setShowGlassConfig((p) => !p)}
               style={{ width: 34, height: 34, fontSize: 16, color: showGlassConfig ? 'var(--brand-700)' : 'var(--ink-400)' }}
-            >⚙</button>
+            ><Glyph name="engrane" size={16} color={showGlassConfig ? 'var(--brand-700)' : 'var(--ink-400)'} /></button>
           </div>
           <AnimatePresence>
             {showGlassConfig && (
@@ -499,7 +500,7 @@ export function Alimentacion() {
         {/* ── Electrolitos del día (#477) ── */}
         <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)' }}>⚡ Electrolitos del día</span>
+            <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)' }}><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Electrolitos del día</span>
             <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 11 }}>mg estimados</span>
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
@@ -529,7 +530,7 @@ export function Alimentacion() {
           {hasGlp1Protocol && electrolytes.na < 1000 && (
             <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in srgb, var(--warning) 10%, transparent)', border: '1px solid var(--warning)', borderRadius: 'var(--r-sm)' }}>
               <span className="xs" style={{ color: 'var(--ink-700)' }}>
-                💧 <strong>Info educativa:</strong> Con GLP-1 el apetito disminuye, lo que puede reducir la ingesta de sodio. Asegúrate de consumir alimentos ricos en electrolitos. Consulta a tu médico.
+                <Glyph name="hidratacion" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> <strong>Info educativa:</strong> Con GLP-1 el apetito disminuye, lo que puede reducir la ingesta de sodio. Asegúrate de consumir alimentos ricos en electrolitos. Consulta a tu médico.
               </span>
             </div>
           )}
@@ -569,7 +570,7 @@ export function Alimentacion() {
               </span>
               <span className="sm" style={{ color: 'var(--ink-400)' }}>{chipTdee.detail}</span>
               {chipTdee.zone === 'deficit-agresivo' && (
-                <span className="sm" style={{ color: 'var(--error)', fontWeight: 600 }}>⚠ Déficit muy agresivo — registra más o considera si es intencional</span>
+                <span className="sm" style={{ color: 'var(--error)', fontWeight: 600 }}><Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Déficit muy agresivo — registra más o considera si es intencional</span>
               )}
             </div>
           )}
@@ -654,7 +655,7 @@ export function Alimentacion() {
         {/* ── Ventana de ayuno ── */}
         {showFasting && (
           <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 18 }}>⏱</span>
+            <Glyph name="reloj" size={18} color="currentColor" />
             <span className="sm" style={{ color: 'var(--ink-700)' }}>
               {fastingLabel(fastMins!)} — observacional, sin interpretación clínica
             </span>
@@ -692,7 +693,7 @@ export function Alimentacion() {
                 return (
                   <button key={f.id} onClick={() => logFav(f)} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', border: '1px solid var(--border)', opacity: i === 0 ? 1 : i === 1 ? 0.92 : 0.84 }}>
                     <span style={{ color: 'var(--brand-700)', flexShrink: 0 }}>
-                      {conf === 'habitual' ? '★' : conf === 'frecuente' ? '↑' : '•'}
+                      {conf === 'habitual' ? <Glyph name="estrella" size={13} color="var(--brand-700)" /> : conf === 'frecuente' ? '↑' : '•'}
                     </span>
                     <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {f.label}{mult !== 1 ? ` ·${porLabel(mult)}` : ''}
@@ -719,7 +720,7 @@ export function Alimentacion() {
           {/* Crear platillo + Recetario — destacados */}
           <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
             <button className="btn btn-outline" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'crear-platillo', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}>＋ Crear platillo</button>
-            <button className="btn btn-brand" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'recetario', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}>✦ Recetario</button>
+            <button className="btn btn-brand" style={{ flex: 1, height: 46, fontWeight: 700, gap: 6 }} onClick={() => dispatch({ t: 'sheet', sheet: 'recetario', arg: horaLabel === 'Ahora' ? null : String(whenTs) })}><Glyph name="destello" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Recetario</button>
           </div>
           {/* Acciones rápidas (chips pequeños) */}
           {(hasYesterday || lastMeal) && (
@@ -740,7 +741,7 @@ export function Alimentacion() {
                 onClick={openBarcodeScanner}
                 disabled={scannerActive}
                 style={{ width: 40, height: 40, flexShrink: 0, background: scannerActive ? 'var(--ink-100)' : 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: scannerActive ? 'wait' : 'pointer' }}
-              >{scannerActive ? '⏳' : '📷'}</button>
+              >{scannerActive ? <Glyph name="cat-antiaging" size={16} color="currentColor" /> : <Glyph name="camara" size={16} color="currentColor" />}</button>
             </div>
             {scanError && (
               <div style={{ marginTop: 6, padding: '6px 10px', background: 'color-mix(in srgb, var(--error) 8%, transparent)', border: '1px solid var(--error)', borderRadius: 'var(--r-sm)' }}>
@@ -841,7 +842,7 @@ export function Alimentacion() {
                   const mult = multOf(f)
                   return (
                     <button key={f.id} onClick={() => logReciente(f)} className="card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', border: '1px solid var(--border)' }}>
-                      <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>↩</span>
+                      <Glyph name="editar" size={13} color="var(--ink-400)" />
                       <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</span>
                       <span className="mono sm" style={{ marginLeft: 'auto', color: 'var(--ink-400)', flexShrink: 0 }}>{Math.round(f.kcal * mult)} kcal</span>
                     </button>
@@ -1081,12 +1082,12 @@ export function Alimentacion() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {pStreak >= 3 && (
                 <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '5px 11px', borderRadius: 14, whiteSpace: 'normal', lineHeight: 1.3, background: 'color-mix(in srgb, var(--success) 12%, transparent)', color: 'var(--success)', border: '1px solid var(--success)', fontWeight: 700 }}>
-                  🥩 {pStreak} días en meta de proteína
+                  <Glyph name="musculo" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> {pStreak} días en meta de proteína
                 </span>
               )}
               {diversity.unique >= 5 && (
                 <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '5px 11px', borderRadius: 14, whiteSpace: 'normal', lineHeight: 1.3, background: 'var(--brand-100)', color: 'var(--brand-700)', border: '1px solid var(--brand-300)', fontWeight: 700 }}>
-                  🌿 {diversity.unique} alimentos distintos · {diversity.level} variedad
+                  <Glyph name="hoja" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> {diversity.unique} alimentos distintos · {diversity.level} variedad
                 </span>
               )}
             </div>

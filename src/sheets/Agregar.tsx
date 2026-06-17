@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { IcDrop } from '../components/icons'
-import { GlyphCircle } from '../components/glyphs'
+import { GlyphCircle, Glyph } from '../components/glyphs'
 import { Chip } from '../components/controls'
 import { useApp } from '../lib/store'
 import { loggableKpis, MEASURE_ICON } from '../lib/catalog'
@@ -137,7 +137,7 @@ export function Agregar() {
             <button className="btn-ghost sm"
               style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', color: 'var(--ink-400)', background: 'var(--card)' }}
               onClick={() => setShowSearch(true)}>
-              🔍 Buscar dosis, medida…
+              <Glyph name="buscar" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Buscar dosis, medida…
             </button>
           ) : (
             <div style={{ position: 'relative' }}>

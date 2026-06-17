@@ -923,7 +923,7 @@ export function Home() {
               onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}
               aria-label="Abrir calculadora de reconstitución"
             >
-              🧮 Calculadora de reconstitución
+              <Glyph name="calculadora" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Calculadora de reconstitución
             </motion.button>
           </motion.div>
         )}
@@ -1968,7 +1968,7 @@ export function Home() {
               style={{ display: 'flex', flexDirection: 'column', gap: 12, borderLeft: '3px solid var(--brand-500)' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>Cierre del día 🌙</p>
+                <p className="sm" style={{ margin: 0, fontWeight: 600, color: 'var(--ink-700)' }}>Cierre del día <Glyph name="sueno" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /></p>
                 <button onClick={() => setDayClosed(true)} aria-label="Cerrar resumen del día"
                   style={{ background: 'none', border: 'none', color: 'var(--ink-300)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
               </div>
@@ -2027,7 +2027,7 @@ export function Home() {
               onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
               aria-label="Iniciar flujo de día de inyección"
             >
-              💉 Flujo de hoy — dosis + KPI + peso
+              <Glyph name="dose" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Flujo de hoy — dosis + KPI + peso
             </motion.button>
           </motion.div>
         )}

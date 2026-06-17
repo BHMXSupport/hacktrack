@@ -7,6 +7,7 @@
 // 273 (skeleton loader).
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Glyph } from '../components/glyphs'
 import { Sheet } from '../components/Sheet'
 import { PremiumGate } from '../components/PremiumGate'
 import { Segmented } from '../components/controls'
@@ -301,7 +302,7 @@ export function Recetario() {
               background: 'var(--brand-100)', borderRadius: 'var(--r-md)',
               padding: '10px 14px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'flex-start',
             }}>
-              <span style={{ color: 'var(--brand-700)', flexShrink: 0 }}>💡</span>
+              <Glyph name="idea" size={16} color="var(--brand-700)" style={{ flexShrink: 0 }} />
               <div>
                 <span className="sm" style={{ color: 'var(--brand-700)', fontWeight: 600 }}>{activeProduct} · </span>
                 <span className="sm" style={{ color: 'var(--ink-700)' }}>{peptideHint}</span>
@@ -413,7 +414,7 @@ export function Recetario() {
                 style={{ flexShrink: 0, fontSize: 11 }}
                 onClick={() => { tapHaptic(); setPrepFilter(prepFilter === o.value ? 'none' : o.value) }}
               >
-                ⏱ {o.label}
+                <Glyph name="reloj" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{o.label}
               </button>
             ))}
             {/* Sin gluten / Sin lácteos (item 253) */}
@@ -442,7 +443,7 @@ export function Recetario() {
               style={{ width: '100%', marginBottom: 12 }}
               onClick={() => setShowCompare(true)}
             >
-              ⚖ Comparar las {compareSet.size} seleccionadas
+              <Glyph name="balanza" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Comparar las {compareSet.size} seleccionadas
             </button>
           )}
           {compareSet.size === 1 && (
@@ -484,7 +485,7 @@ export function Recetario() {
 
                 // Ratio kcal/g P (item 249)
                 const ratio = r.protein > 0 ? (r.kcal / r.protein).toFixed(1) : null
-                const ratioLabel = ratio == null ? null : Number(ratio) < 8 ? '⚡ Densidad proteica alta' : Number(ratio) <= 12 ? 'Densidad proteica media' : 'Densidad proteica baja'
+                const ratioLabel = ratio == null ? null : Number(ratio) < 8 ? <><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Densidad proteica alta</> : Number(ratio) <= 12 ? 'Densidad proteica media' : 'Densidad proteica baja'
                 const ratioColor = ratio == null ? 'var(--ink-400)' : Number(ratio) < 8 ? 'var(--success)' : 'var(--ink-400)'
 
                 // Badge proteína principal (item 264)
@@ -517,7 +518,7 @@ export function Recetario() {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                             {r.prepMin != null && (
                               <span className="badge" style={{ background: 'var(--surface)', color: 'var(--ink-700)', fontSize: 10 }}>
-                                ⏱ {r.prepMin} min
+                                <Glyph name="reloj" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{r.prepMin} min
                               </span>
                             )}
                             {r.proteinSource && (
@@ -554,7 +555,7 @@ export function Recetario() {
                           <span style={{ color: MACRO_COLOR.carbs }}>■ C {scaledCarbs} g</span>
                           <span style={{ color: MACRO_COLOR.fat }}>■ G {scaledFat} g</span>
                           {r.fiber != null && (
-                            <span style={{ color: 'var(--success)' }}>🌿 {Math.round(r.fiber * multiplier)} g fibra</span>
+                            <span style={{ color: 'var(--success)' }}><Glyph name="hoja" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{Math.round(r.fiber * multiplier)} g fibra</span>
                           )}
                         </div>
                       </div>
@@ -638,7 +639,7 @@ export function Recetario() {
                           onClick={() => toggleCompare(r.name)}
                           disabled={!inCompare && compareSet.size >= 2}
                         >
-                          {inCompare ? '⚖ ✓' : '⚖'}
+                          {inCompare ? <><Glyph name="balanza" size={13} color="currentColor" />{' '}<Glyph name="check" size={13} color="currentColor" /></> : <Glyph name="balanza" size={13} color="currentColor" />}
                         </button>
                         <button
                           className="btn btn-outline btn-sm"

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
 import { dur, ease, spring } from '../lib/motion'
+import { Glyph } from './glyphs'
 
 const MILESTONES = [7, 14, 30, 60, 90, 180, 365]
 
@@ -65,8 +66,8 @@ export function StreakChip({ streak }: { streak: number }) {
           userSelect: 'none',
         }}
       >
-        {/* llama emoji — solo visual, aria-hidden */}
-        <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>🔥</span>
+        {/* llama — solo visual, aria-hidden */}
+        <span aria-hidden="true" style={{ lineHeight: 1 }}><Glyph name="racha" size={14} color="currentColor" /></span>
         <span
           ref={displayRef}
           className="sm mono"
@@ -140,7 +141,7 @@ export function ProductStreakBadge({ streak }: { streak: number }) {
         lineHeight: 1,
       }}
     >
-      <span aria-hidden="true">🔥</span>
+      <span aria-hidden="true"><Glyph name="racha" size={13} color="currentColor" /></span>
       <span ref={displayRef} className="mono">{streak}</span>
     </span>
   )
