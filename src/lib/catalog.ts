@@ -200,6 +200,28 @@ export function loggableKpis(selectedMeasures: string[]): KpiDef[] {
   return out
 }
 
+// Versión ampliada para el "+": además de las medidas elegidas, incluye TODAS las medidas de la
+// categoría de cada producto activo (las mismas que aparecen en "por producto" de Semana), tanto
+// escalas (Apetito, Saciedad, Náusea…) como objetivas (Peso, Cintura, Glucosa…). La sheet 'medida'
+// decide el input según MEASURE_META, así que sirve un KpiDef para cualquier medida.
+export function loggableKpisForState(
+  s: { selectedMeasures?: string[]; protocols?: Record<string, { product: string; archived?: boolean }> },
+): KpiDef[] {
+  const out: KpiDef[] = [KPIS[0]] // 'Cambio de medidas'
+  const seen = new Set<string>([KPIS[0].key])
+  const productMeasures = Object.values(s.protocols ?? {})
+    .filter((p) => p && !p.archived)
+    .flatMap((p) => { const cat = PEPTIDES[p.product]?.cat; return cat ? (MEASURES_BY[cat] ?? []) : [] })
+  const all = [...(s.selectedMeasures ?? []), ...productMeasures]
+  const names = all.length ? all : DEFAULT_SCALES
+  for (const m of [...names, 'Efecto secundario']) {
+    if (!m || seen.has(m)) continue
+    seen.add(m)
+    out.push(scaleKpiFor(m)) // kind='scale' nominal; la sheet 'medida' usa MEASURE_META para el input real
+  }
+  return out
+}
+
 // Campos objetivos de "Cambio de medidas" (se guardan en el perfil; IMC se deriva)
 export interface MedidaField { key: keyof import('./types').Profile; label: string; unit: string }
 export const MEDIDAS_FIELDS: MedidaField[] = [

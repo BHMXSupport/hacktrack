@@ -9,7 +9,7 @@ import { IcDrop } from '../components/icons'
 import { GlyphCircle, Glyph } from '../components/glyphs'
 import { Chip } from '../components/controls'
 import { useApp } from '../lib/store'
-import { loggableKpis, MEASURE_ICON } from '../lib/catalog'
+import { loggableKpisForState, MEASURE_ICON } from '../lib/catalog'
 import type { KpiDef } from '../lib/catalog'
 
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } }
@@ -53,7 +53,8 @@ function msLastMeasure(log: ReturnType<typeof useApp>['state']['log']): number |
 
 export function Agregar() {
   const { state, dispatch } = useApp()
-  const kpis = loggableKpis(state.selectedMeasures)
+  // incluye las medidas elegidas + las de la categoría de cada producto activo (= las de "por producto" en Semana)
+  const kpis = loggableKpisForState(state)
 
   // item 437: buscador fusionado
   const [query, setQuery] = useState('')
