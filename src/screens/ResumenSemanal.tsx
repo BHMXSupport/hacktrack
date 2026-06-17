@@ -40,6 +40,48 @@ function calcR2(data: number[]): number {
   return ssTot > 0 ? Math.max(0, Math.min(1, 1 - ssRes / ssTot)) : 1
 }
 
+// ── Accordion: agrupa el segundo nivel de Perspectivas Plus (colapsado por defecto, menos abrumador) ──
+function Accordion({ title, subtitle, defaultOpen = false, children }: { title: string; subtitle?: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <motion.div variants={staggerItem}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
+          padding: '4px 0',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="h2" style={{ color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
+          {subtitle && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>{subtitle}</div>}
+        </div>
+        <span style={{
+          display: 'inline-block', color: 'var(--ink-300)', fontSize: 12, lineHeight: 1, flexShrink: 0,
+          transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease',
+        }}>▼</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: dur.base, ease: ease.decelerate }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <motion.div variants={staggerItem} className="card">
@@ -119,8 +161,8 @@ function ComparativaCard() {
             <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2, marginBottom: 12 }}>
               Observacional — registros personales antes y desde el inicio del protocolo.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 72px 60px', gap: 6, marginBottom: 6 }}>
-              <span className="sm" style={{ color: 'var(--ink-400)' }}>Medida</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px 78px 64px', gap: 6, marginBottom: 6 }}>
+              <span className="sm" style={{ color: 'var(--ink-400)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Medida</span>
               <span className="sm" style={{ color: 'var(--ink-400)', textAlign: 'right' }}>Antes</span>
               <span className="sm" style={{ color: 'var(--ink-400)', textAlign: 'right' }}>Durante</span>
               <span className="sm" style={{ color: 'var(--ink-400)', textAlign: 'right' }}>Δ</span>
@@ -131,15 +173,15 @@ function ComparativaCard() {
                 const bad = delta != null && delta !== 0 && !good
                 const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
                 return (
-                  <div key={m} style={{ display: 'grid', gridTemplateColumns: '1fr 72px 72px 60px', gap: 6, alignItems: 'center' }}>
+                  <div key={m} style={{ display: 'grid', gridTemplateColumns: '1fr 78px 78px 64px', gap: 6, alignItems: 'center' }}>
                     <span className="sm" style={{ color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m}</span>
-                    <span className="mono sm" style={{ textAlign: 'right', color: 'var(--ink-400)' }}>
+                    <span className="mono sm" style={{ textAlign: 'right', color: 'var(--ink-400)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {beforeVal != null ? `${beforeVal}${unit}` : '—'}
                     </span>
-                    <span className="mono sm" style={{ textAlign: 'right', fontWeight: 700 }}>
+                    <span className="mono sm" style={{ textAlign: 'right', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {duringVal != null ? `${duringVal}${unit}` : '—'}
                     </span>
-                    <span className="mono sm" style={{ textAlign: 'right', color: col, fontWeight: 600 }}>
+                    <span className="mono sm" style={{ textAlign: 'right', color: col, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {delta != null ? `${delta > 0 ? '+' : ''}${delta}${unit.startsWith('/') ? '' : unit}` : '—'}
                     </span>
                   </div>
@@ -270,14 +312,15 @@ function AdherenciaProyeccionCard() {
         <span className="mono" style={{ fontSize: 28, fontWeight: 800, color: barColor, lineHeight: 1 }}>{projPct}%</span>
         <span className="sm" style={{ color: 'var(--ink-400)' }}>proyectado · meta 80%</span>
       </div>
-      <ProgressBar pct={projPct} color={barColor} />
-      <div style={{ position: 'relative', height: 0 }}>
+      {/* tick del 80% anclado DENTRO del ancho de la barra (no se sale ni se monta sobre el texto) */}
+      <div style={{ position: 'relative' }}>
+        <ProgressBar pct={projPct} color={barColor} />
         <div style={{
-          position: 'absolute', left: '80%', top: -8,
-          width: 1, height: 14, background: 'var(--ink-300)',
+          position: 'absolute', left: '80%', top: -3, height: 'calc(100% + 6px)',
+          width: 1, background: 'var(--ink-300)',
         }} />
       </div>
-      <div className="sm" style={{ color: 'var(--ink-700)', marginTop: 14, lineHeight: 1.45 }}>{msg}</div>
+      <div className="sm" style={{ color: 'var(--ink-700)', marginTop: 18, lineHeight: 1.45 }}>{msg}</div>
       <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 6 }}>
         {taken} tomadas · {due - taken} perdidas · {upcoming} pendientes este mes
       </div>
@@ -288,7 +331,7 @@ function AdherenciaProyeccionCard() {
 // ── Tarjeta PER-PRODUCTO: cada producto con tap-to-expand (n=296) ──
 // ── n°352: ventana de tiempo para ProductCards ──────────────────────────────
 const PROD_WINDOWS = [
-  { v: 7, l: '7d' }, { v: 30, l: '30d' }, { v: 0, l: 'Protocolo' },
+  { v: 7, l: '7d' }, { v: 30, l: '30d' }, { v: 0, l: 'Todo' },
 ] as const
 
 // n°352: productKpis con ventana de tiempo (usa MEASURES_BY/MEASURE_META/PEPTIDES ya importados)
@@ -377,17 +420,27 @@ function ProductCards() {
             style={{ cursor: 'pointer' }}
             onClick={() => setExpandedProto(isExpanded ? null : pr.product)}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{pr.product}</span>
-              <span className="sm" style={{ background: pr.color + '18', color: pr.color, padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>{pr.cat}</span>
-              <span className="sm" style={{ color: 'var(--ink-400)', marginLeft: 'auto' }}>{pr.daysActive} d activo</span>
+            {/* Renglón 1: nombre + categoría + chevron (el nombre trunca, los controles no) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.product}</span>
+              <span className="sm" style={{ background: pr.color + '18', color: pr.color, padding: '2px 9px', borderRadius: 999, fontWeight: 600, flexShrink: 0, maxWidth: '100%' }}>{pr.cat}</span>
+              {/* chevron */}
+              <span style={{
+                display: 'inline-block', color: 'var(--ink-300)', fontSize: 12, lineHeight: 1, flexShrink: 0,
+                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease',
+              }}>▼</span>
+            </div>
+            {/* Renglón 2: "NN d activo" a la izquierda, selector de ventana a la derecha */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+              <span className="sm" style={{ color: 'var(--ink-400)' }}>{pr.daysActive} d activo</span>
               {/* n°352: selector de ventana temporal por producto */}
-              <div style={{ display: 'flex', gap: 3, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', gap: 3, flexShrink: 0, marginLeft: 'auto' }} onClick={(e) => e.stopPropagation()}>
                 {PROD_WINDOWS.map((w) => (
                   <button key={w.v} onClick={() => setProductWindow((prev) => ({ ...prev, [pr.product]: w.v }))}
                     className="sm"
                     style={{
-                      padding: '2px 6px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 10,
+                      padding: '2px 8px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 10,
                       background: win === w.v ? 'var(--brand-500)' : 'var(--ink-100)',
                       color: win === w.v ? '#fff' : 'var(--ink-400)',
                     }}>
@@ -395,40 +448,23 @@ function ProductCards() {
                   </button>
                 ))}
               </div>
-              {/* chevron */}
-              <span style={{
-                display: 'inline-block', color: 'var(--ink-300)', fontSize: 12, lineHeight: 1,
-                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s ease',
-              }}>▼</span>
             </div>
-            {/* KPI primario siempre visible */}
+            {/* KPI primario siempre visible — colapsado: solo valor + delta del protocolo
+                (el delta vs. semana anterior se muestra al expandir, para no saturar) */}
             {primaryKpi && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-                <span className="sm" style={{ flex: 1, color: 'var(--ink-700)' }}>{primaryKpi.measure}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primaryKpi.measure}</span>
                 {primaryKpi.last == null ? (
                   <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'medida', arg: primaryKpi.measure }) }}>+ Registrar</button>
                 ) : (
                   <>
-                    <span className="mono sm" style={{ fontWeight: 700 }}>{primaryKpi.last}<span style={{ color: 'var(--ink-400)' }}>{primaryKpi.unit}</span></span>
+                    <span className="mono sm" style={{ fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>{primaryKpi.last}<span style={{ color: 'var(--ink-400)' }}>{primaryKpi.unit}</span></span>
                     {primaryKpi.delta != null && (() => {
                       const good = (primaryKpi.down && primaryKpi.delta < 0) || (!primaryKpi.down && primaryKpi.delta > 0)
                       const bad = primaryKpi.delta !== 0 && !good
                       const col = good ? 'var(--success)' : bad ? 'var(--warning)' : 'var(--ink-400)'
                       const dUnit = primaryKpi.unit.startsWith('/') ? '' : primaryKpi.unit
-                      return <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{primaryKpi.delta > 0 ? '+' : ''}{primaryKpi.delta}{dUnit}</span>
-                    })()}
-                    {/* n°96: delta vs. semana anterior */}
-                    {weeklyDeltas[primaryKpi.measure] != null && (() => {
-                      const wd = weeklyDeltas[primaryKpi.measure]!
-                      const good = primaryKpi.down ? wd < 0 : wd > 0
-                      const col = good ? 'var(--success)' : 'var(--warning)'
-                      const dUnit = primaryKpi.unit.startsWith('/') ? '' : primaryKpi.unit
-                      return (
-                        <span className="sm" style={{ color: col, fontSize: 10 }}>
-                          {wd > 0 ? '▲' : '▼'} {Math.abs(wd)}{dUnit} vs sem. ant.
-                        </span>
-                      )
+                      return <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col, flexShrink: 0 }}>{primaryKpi.delta > 0 ? '+' : ''}{primaryKpi.delta}{dUnit}</span>
                     })()}
                   </>
                 )}
@@ -457,17 +493,22 @@ function ProductCards() {
                       const wd = weeklyDeltas[k.measure]
                       const wdGood = wd != null && (k.down ? wd < 0 : wd > 0)
                       return (
-                        <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.measure}</span>
                           {k.last == null ? (
                             <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'medida', arg: k.measure }) }}>+ Registrar</button>
                           ) : (
                             <>
-                              <span className="mono sm" style={{ fontWeight: 700 }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
-                              {k.delta != null && <span className="mono sm" style={{ width: 52, textAlign: 'right', color: col }}>{k.delta > 0 ? '+' : ''}{k.delta}{dUnit}</span>}
-                              {wd != null && (
-                                <span className="sm" style={{ fontSize: 10, color: wdGood ? 'var(--success)' : 'var(--warning)', flexShrink: 0 }}>
-                                  {wd > 0 ? '▲' : '▼'}{Math.abs(wd)}{dUnit} 7d
+                              <span className="mono sm" style={{ fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
+                              {/* deltas agrupados (protocolo · 7d) en un solo bloque que no se parte */}
+                              {(k.delta != null || wd != null) && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                  {k.delta != null && <span className="mono sm" style={{ textAlign: 'right', color: col, whiteSpace: 'nowrap' }}>{k.delta > 0 ? '+' : ''}{k.delta}{dUnit}</span>}
+                                  {wd != null && (
+                                    <span className="sm" style={{ fontSize: 10, color: wdGood ? 'var(--success)' : 'var(--warning)', whiteSpace: 'nowrap' }}>
+                                      {wd > 0 ? '▲' : '▼'}{Math.abs(wd)}{dUnit} 7d
+                                    </span>
+                                  )}
                                 </span>
                               )}
                               {k.points.length >= 2 && (
@@ -510,8 +551,13 @@ function ProductCards() {
 function TrendsCard() {
   const { state } = useApp()
   const [win, setWin] = useState<number>(7)
-  const WINDOWS = [
-    { v: 7, l: '7d' }, { v: 14, l: '14d' }, { v: 30, l: '30d' }, { v: 60, l: '60d' }, { v: 9999, l: 'Todo' },
+  // n°350: primer nivel = 7d/30d/Todo; 14d/60d quedan tras el toggle "···" (menos abrumador)
+  const [showExtraWindows, setShowExtraWindows] = useState(false)
+  const PRIMARY_WINDOWS = [
+    { v: 7, l: '7d' }, { v: 30, l: '30d' }, { v: 9999, l: 'Todo' },
+  ]
+  const EXTRA_WINDOWS = [
+    { v: 14, l: '14d' }, { v: 60, l: '60d' },
   ]
   // Resolver 'Todo': longitud real del historial de peso
   const pesoAllFull = useMemo(() => [...(state.history['Peso'] ?? [])].sort((a, b) => a.ts - b.ts), [state.history])
@@ -607,59 +653,29 @@ function TrendsCard() {
 
   return (
     <Card title="Tendencias">
-      {/* Selector ampliado 7/14/30/60/Todo (n=350) */}
+      {/* Selector de ventana — primer nivel 7d/30d/Todo; 14d/60d tras "···" (n=350) */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-        {WINDOWS.map((o) => (
+        {PRIMARY_WINDOWS.map((o) => (
           <button key={o.v} className="chip" style={{
             flex: 1, justifyContent: 'center', minWidth: 36,
             background: win === o.v ? 'var(--brand-700)' : undefined,
             color: win === o.v ? '#fff' : undefined,
           }} onClick={() => setWin(o.v)}>{o.l}</button>
         ))}
-        {/* n°345: toggle de superposición multi-métrica */}
+        {showExtraWindows && EXTRA_WINDOWS.map((o) => (
+          <button key={o.v} className="chip" style={{
+            flex: 1, justifyContent: 'center', minWidth: 36,
+            background: win === o.v ? 'var(--brand-700)' : undefined,
+            color: win === o.v ? '#fff' : undefined,
+          }} onClick={() => setWin(o.v)}>{o.l}</button>
+        ))}
         <button className="chip" style={{
-          flexShrink: 0, background: overlayActive ? 'var(--brand-500)' : undefined,
-          color: overlayActive ? '#fff' : undefined,
-        }} onClick={() => setOverlayActive((v) => !v)} aria-pressed={overlayActive}>
-          Superponer
+          flexShrink: 0, minWidth: 36, justifyContent: 'center',
+          background: showExtraWindows ? 'var(--ink-100)' : undefined,
+        }} onClick={() => setShowExtraWindows((v) => !v)} aria-label="Más rangos de tiempo" aria-expanded={showExtraWindows}>
+          ···
         </button>
       </div>
-      {/* n°345: selector de 2ª métrica + overlay normalizado */}
-      <AnimatePresence>
-        {overlayActive && (
-          <motion.div
-            key="overlay-panel"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            style={{ overflow: 'hidden', marginBottom: 10 }}
-          >
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-              {OVERLAY_METRICS.filter((m, i, arr) => arr.indexOf(m) === i).slice(0, 6).map((m) => (
-                <button key={m} className="chip" style={{
-                  background: overlayMetric2 === m ? 'var(--warning)' : undefined,
-                  color: overlayMetric2 === m ? '#fff' : undefined,
-                  fontSize: 10,
-                }} onClick={() => setOverlayMetric2(m)}>{m}</button>
-              ))}
-            </div>
-            {pesoPts.length >= 2 && metric2Pts.length >= 2 && (
-              <div style={{ position: 'relative' }}>
-                <Sparkline data={normalize(pesoPts)} color="var(--brand-700)" w={280} h={40} animKey={`overlay-peso-${win}`} />
-                <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
-                  <Sparkline data={normalize(metric2Pts)} color="var(--warning)" w={280} h={40} animKey={`overlay-m2-${win}-${overlayMetric2}`} />
-                </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                  <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 10 }}>● Peso (norm.)</span>
-                  <span className="sm" style={{ color: 'var(--warning)', fontSize: 10 }}>● {overlayMetric2} (norm.)</span>
-                  <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 9 }}>0–100% normalizado</span>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
       {!hasAnyData ? (
         <EmptyState glyph="medidas" title="Sin datos todavía" subtitle="Registra peso, comidas o agua para ver tus tendencias." />
       ) : (
@@ -721,6 +737,56 @@ function TrendsCard() {
             <div className="sm" style={{ color: 'var(--ink-700)', marginBottom: 6 }}>Consistencia esta semana</div>
             <ConsistencyHeatmap days={consistencyDays} />
           </div>
+
+          {/* n°345: Superponer métricas — función avanzada, colapsada por defecto, al final */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <button className="chip" style={{
+              maxWidth: '100%',
+              background: overlayActive ? 'var(--brand-500)' : undefined,
+              color: overlayActive ? '#fff' : undefined,
+            }} onClick={() => setOverlayActive((v) => !v)} aria-pressed={overlayActive} aria-expanded={overlayActive}>
+              Superponer métricas
+            </button>
+            <AnimatePresence>
+              {overlayActive && (
+                <motion.div
+                  key="overlay-panel"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '10px 0 8px' }}>
+                    {OVERLAY_METRICS.filter((m, i, arr) => arr.indexOf(m) === i).slice(0, 6).map((m) => (
+                      <button key={m} className="chip" style={{
+                        maxWidth: '100%',
+                        background: overlayMetric2 === m ? 'var(--warning)' : undefined,
+                        color: overlayMetric2 === m ? '#fff' : undefined,
+                        fontSize: 10,
+                      }} onClick={() => setOverlayMetric2(m)}>{m}</button>
+                    ))}
+                  </div>
+                  {pesoPts.length >= 2 && metric2Pts.length >= 2 && (
+                    <div>
+                      {/* wrapper con altura explícita = reserva el espacio del sparkline absoluto */}
+                      <div style={{ position: 'relative', height: 40 }}>
+                        <Sparkline data={normalize(pesoPts)} color="var(--brand-700)" w={280} h={40} animKey={`overlay-peso-${win}`} />
+                        <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+                          <Sparkline data={normalize(metric2Pts)} color="var(--warning)" w={280} h={40} animKey={`overlay-m2-${win}-${overlayMetric2}`} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                        <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 10 }}>● Peso (norm.)</span>
+                        <span className="sm" style={{ color: 'var(--warning)', fontSize: 10 }}>● {overlayMetric2} (norm.)</span>
+                        <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 9 }}>0–100% normalizado</span>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       )}
     </Card>
@@ -747,7 +813,7 @@ function classifyInsights(raw: string[]): ClassifiedInsight[] {
 const INSIGHT_GLYPH: Record<InsightType, React.ReactNode> = {
   logro: <Glyph name="estrella" size={14} color="currentColor" />,
   alerta: <Glyph name="efecto" size={14} color="currentColor" />,
-  info: 'ℹ',
+  info: <Glyph name="foco" size={14} color="currentColor" />,
 }
 const INSIGHT_BG: Record<InsightType, string> = {
   logro: 'color-mix(in srgb, var(--brand-100) 60%, transparent)',
@@ -898,29 +964,36 @@ export function ResumenSemanal() {
       {/* ── Mini-header sticky (n=370) ── */}
       <AnimatePresence>
         {showStickyHeader && (
-          <motion.div
-            initial={{ y: -40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -40, opacity: 0 }}
-            transition={{ duration: dur.base, ease: ease.decelerate }}
-            style={{
-              position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-              background: 'var(--bg)', borderBottom: '1px solid var(--border)',
-              padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12,
-            }}
-          >
-            {streak > 0 && (
-              <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}><Glyph name="racha" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{streak}d</span>
-            )}
-            {adh && (
-              <span className="sm mono" style={{ color: 'var(--ink-700)' }}>{adh.pct}% adh</span>
-            )}
-            {pn?.weightDelta != null && (
-              <span className="sm mono" style={{ color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--warning)' }}>
-                {pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta} kg
-              </span>
-            )}
-          </motion.div>
+          // wrapper fijo centrado al ancho del .phone (no se sale en desktop/PWA ancha).
+          // El translateX(-50%) vive aquí para no chocar con la animación y de framer-motion.
+          <div style={{
+            position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
+            width: 'min(412px, 100%)', zIndex: 50, boxSizing: 'border-box',
+          }}>
+            <motion.div
+              initial={{ y: -40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -40, opacity: 0 }}
+              transition={{ duration: dur.base, ease: ease.decelerate }}
+              style={{
+                background: 'var(--bg)', borderBottom: '1px solid var(--border)',
+                padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              {streak > 0 && (
+                <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}><Glyph name="racha" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{streak}d</span>
+              )}
+              {adh && (
+                <span className="sm mono" style={{ color: 'var(--ink-700)' }}>{adh.pct}% adh</span>
+              )}
+              {pn?.weightDelta != null && (
+                <span className="sm mono" style={{ color: pn.weightDelta <= 0 ? 'var(--success)' : 'var(--warning)' }}>
+                  {pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta} kg
+                </span>
+              )}
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
@@ -1023,7 +1096,7 @@ export function ResumenSemanal() {
                   display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 10px',
                   borderRadius: 'var(--r-sm)', background: INSIGHT_BG[ins.type],
                 }}>
-                  <span style={{ fontSize: 14, color: INSIGHT_COL[ins.type], flexShrink: 0, lineHeight: 1.4 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', color: INSIGHT_COL[ins.type], flexShrink: 0, marginTop: 1 }}>
                     {INSIGHT_GLYPH[ins.type]}
                   </span>
                   <span className="sm" style={{ color: 'var(--ink-700)', lineHeight: 1.45 }}>{ins.text}</span>
@@ -1085,6 +1158,63 @@ export function ResumenSemanal() {
                 </div>
               </Card>
             )}
+
+            {/* ── Grupo: Adherencia y racha (abierto por defecto) ── */}
+            <Accordion title="Adherencia y racha" defaultOpen>
+              {/* Racha semanal con mini-timeline */}
+              <StreakWeekCard />
+              {/* Proyección de adherencia mensual */}
+              <AdherenciaProyeccionCard />
+              {/* Racha y hitos con CTA dinámico (n=357) */}
+              <Card title="Racha y hitos" subtitle="Días seguidos con dosis, agua y comida">
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                  <span className="mono" style={{ fontSize: 30, fontWeight: 800, color: 'var(--brand-700)' }}>{sd.streak}</span>
+                  <span className="sm" style={{ color: 'var(--ink-400)' }}>{sd.streak === 1 ? 'día' : 'días'} de racha</span>
+                </div>
+                {/* condiciones de hoy */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                  {([['Dosis', sd.today.dose], ['Agua', sd.today.water], ['Comida', sd.today.meal]] as const).map(([lbl, ok]) => (
+                    <span key={lbl} className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: ok ? 'var(--brand-100)' : 'var(--ink-100)', color: ok ? 'var(--brand-700)' : 'var(--ink-400)', fontWeight: 600, maxWidth: '100%' }}>
+                      <Glyph name={ok ? 'check' : 'cross'} size={13} color="currentColor" /> {lbl}
+                    </span>
+                  ))}
+                </div>
+                {/* CTA dinámico (n=357) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span className="sm" style={{
+                    color: sd.today.dose && sd.today.water && sd.today.meal ? 'var(--success)' : 'var(--ink-700)',
+                    flex: 1, minWidth: 0, lineHeight: 1.4,
+                  }}>
+                    {streakCta}
+                  </span>
+                  {!(sd.today.dose && sd.today.water && sd.today.meal) && (
+                    <button
+                      className="btn btn-outline btn-sm"
+                      style={{ flexShrink: 0 }}
+                      onClick={() => dispatch({ t: 'tab', tab: streakCtaTab })}
+                    >
+                      Ir →
+                    </button>
+                  )}
+                </div>
+                {/* progreso al siguiente hito */}
+                {sd.nextMilestone != null && (() => {
+                  const span = sd.nextMilestone - sd.prevMilestone
+                  const pct = span > 0 ? ((sd.streak - sd.prevMilestone) / span) * 100 : 0
+                  return (
+                    <>
+                      <div style={{ marginBottom: 6 }}>
+                        <ProgressBar pct={pct} />
+                      </div>
+                      <div className="sm" style={{ color: 'var(--ink-700)' }}>Próximo hito: {sd.nextMilestone} días · faltan {sd.nextMilestone - sd.streak}</div>
+                    </>
+                  )
+                })()}
+              </Card>
+            </Accordion>
+
+            {/* ── Grupo: Peso y proyección ── */}
+            <Accordion title="Peso y proyección" subtitle="Tu protocolo en números, comparativa y meta">
 
             {/* Tu protocolo en números — ANCLA */}
             {pn && (pn.deltaKcal != null || pn.weightDelta != null) && (
@@ -1153,26 +1283,6 @@ export function ResumenSemanal() {
 
             {/* Comparativa antes/durante protocolo */}
             <ComparativaCard />
-            {/* Racha semanal con mini-timeline */}
-            <StreakWeekCard />
-            {/* Proyección de adherencia mensual */}
-            <AdherenciaProyeccionCard />
-
-            {/* Progreso por producto — expandible (n=296) */}
-            <ProductCards />
-
-            {/* Margen energético (TDEE) */}
-            {t != null && (
-              <Card title="Margen energético" subtitle="Tu consumo vs tu gasto estimado">
-                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                  <div><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{t}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal gasto est.</div></div>
-                  <div><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{avg7 ?? '—'}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal consumo 7d</div></div>
-                  {avg7 != null && (() => { const m = avg7 - t; return (
-                    <div><div className="mono" style={{ fontSize: 22, fontWeight: 800, color: m < 0 ? 'var(--brand-700)' : 'var(--warning)' }}>{m > 0 ? '+' : ''}{m}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>{m < 0 ? 'déficit' : 'superávit'}</div></div>
-                  ) })()}
-                </div>
-              </Card>
-            )}
 
             {/* Proyección de meta (n=294 + ghost cuando no hay meta) */}
             {state.profile.metaPesoKg == null ? (
@@ -1231,51 +1341,28 @@ export function ResumenSemanal() {
               <Card title="Proyección de meta"><div className="sm" style={{ color: 'var(--ink-400)' }}>Registra tu peso unos días más para construir tu tendencia.</div></Card>
             )}
 
-            {/* Racha y hitos con CTA dinámico (n=357) */}
-            <Card title="Racha y hitos" subtitle="Días seguidos con dosis, agua y comida">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-                <span className="mono" style={{ fontSize: 30, fontWeight: 800, color: 'var(--brand-700)' }}>{sd.streak}</span>
-                <span className="sm" style={{ color: 'var(--ink-400)' }}>{sd.streak === 1 ? 'día' : 'días'} de racha</span>
-              </div>
-              {/* condiciones de hoy */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                {([['Dosis', sd.today.dose], ['Agua', sd.today.water], ['Comida', sd.today.meal]] as const).map(([lbl, ok]) => (
-                  <span key={lbl} className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: ok ? 'var(--brand-100)' : 'var(--ink-100)', color: ok ? 'var(--brand-700)' : 'var(--ink-400)', fontWeight: 600 }}>
-                    {ok ? '✓' : '○'} {lbl}
-                  </span>
-                ))}
-              </div>
-              {/* CTA dinámico (n=357) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <span className="sm" style={{
-                  color: sd.today.dose && sd.today.water && sd.today.meal ? 'var(--success)' : 'var(--ink-700)',
-                  flex: 1, lineHeight: 1.4,
-                }}>
-                  {streakCta}
-                </span>
-                {!(sd.today.dose && sd.today.water && sd.today.meal) && (
-                  <button
-                    className="btn btn-outline btn-sm"
-                    onClick={() => dispatch({ t: 'tab', tab: streakCtaTab })}
-                  >
-                    Ir →
-                  </button>
-                )}
-              </div>
-              {/* progreso al siguiente hito */}
-              {sd.nextMilestone != null && (() => {
-                const span = sd.nextMilestone - sd.prevMilestone
-                const pct = span > 0 ? ((sd.streak - sd.prevMilestone) / span) * 100 : 0
-                return (
-                  <>
-                    <div style={{ marginBottom: 6 }}>
-                      <ProgressBar pct={pct} />
-                    </div>
-                    <div className="sm" style={{ color: 'var(--ink-700)' }}>Próximo hito: {sd.nextMilestone} días · faltan {sd.nextMilestone - sd.streak}</div>
-                  </>
-                )
-              })()}
-            </Card>
+            </Accordion>
+
+            {/* ── Grupo: Por producto ── */}
+            <Accordion title="Por producto" subtitle="Tus métricas por protocolo">
+              {/* Progreso por producto — expandible (n=296) */}
+              <ProductCards />
+            </Accordion>
+
+            {/* ── Grupo: Energía / TDEE ── */}
+            {t != null && (
+              <Accordion title="Energía / TDEE" subtitle="Tu consumo vs tu gasto estimado">
+                <Card title="Margen energético" subtitle="Tu consumo vs tu gasto estimado">
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    <div><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{t}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal gasto est.</div></div>
+                    <div><div className="mono" style={{ fontSize: 22, fontWeight: 800 }}>{avg7 ?? '—'}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>kcal consumo 7d</div></div>
+                    {avg7 != null && (() => { const m = avg7 - t; return (
+                      <div><div className="mono" style={{ fontSize: 22, fontWeight: 800, color: m < 0 ? 'var(--brand-700)' : 'var(--warning)' }}>{m > 0 ? '+' : ''}{m}</div><div className="sm" style={{ color: 'var(--ink-400)' }}>{m < 0 ? 'déficit' : 'superávit'}</div></div>
+                    ) })()}
+                  </div>
+                </Card>
+              </Accordion>
+            )}
 
           </div>
         </PremiumGate>
