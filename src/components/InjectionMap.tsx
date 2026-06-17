@@ -1,7 +1,8 @@
 // InjectionMap — mapa de zonas de inyección sobre renders 3D (wireframe teal, frente y espalda).
-// Cuerpos generados con Higgsfield (nano_banana_2) + fondo recortado (transparentes); se montan sobre
-// un panel con el degradado oscuro de marca para que el glow teal resalte. Encima van 6 marcadores que
-// se colorean por recencia (rojo <1d, ámbar <2d, verde <3d, tenue si sin uso) y son tappables.
+// Cuerpos generados con Higgsfield (nano_banana_2) en UNA sola imagen sobre fondo blanco (glow idéntico),
+// partidos en dos y con el blanco keyed a transparente de forma limpia (figura oscura sobre blanco → sin halos).
+// Quedan transparentes: en card clara se ven oscuros con líneas teal; en oscuro brillan. Encima van 6 marcadores
+// que se colorean por recencia (rojo <1d, ámbar <2d, verde <3d, tenue si sin uso) y son tappables.
 // Orientación: FRENTE = espejo (izq de la persona → derecha de pantalla); ESPALDA = directo (la ves de atrás).
 import { useId, useState } from 'react'
 import type { InjectionSite } from '../lib/types'
@@ -33,8 +34,8 @@ const FRONT_MARKERS: Marker[] = [
   { site: 'muslo-izq', x: 58, y: 63 },
 ]
 const BACK_MARKERS: Marker[] = [
-  { site: 'gluteo-izq', x: 44, y: 52 }, // directo: persona-izq → pantalla-izq
-  { site: 'gluteo-der', x: 56, y: 52 },
+  { site: 'gluteo-izq', x: 44, y: 50 }, // directo: persona-izq → pantalla-izq
+  { site: 'gluteo-der', x: 56, y: 50 },
 ]
 
 interface LegendItem { color: string; label: string }
@@ -108,7 +109,7 @@ export function InjectionMap({ zones }: { zones: Record<InjectionSite, ZoneInfo>
         Mapa de inyección
       </figcaption>
 
-      {/* fondo blanco de la card; el interior de cada figura va horneado en oscuro para que el wireframe teal se vea */}
+      {/* figuras transparentes directamente sobre la card; sin panel ni recorte con halos */}
       <div
         role="group"
         aria-labelledby={titleId}
@@ -124,19 +125,21 @@ export function InjectionMap({ zones }: { zones: Record<InjectionSite, ZoneInfo>
       {/* detalle de la zona tocada */}
       <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--ink-700)', minHeight: 17 }} aria-live="polite">{detail}</p>
 
-      {/* ====== LEYENDA ====== */}
-      <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '6px 14px', margin: '10px 0 0', padding: '10px 0 0', borderTop: '1px solid var(--border)' }}>
+      {/* ====== LEYENDA (chips) ====== */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '12px 0 0', paddingTop: 10, borderTop: '1px solid var(--border)' }}>
         {LEGEND.map((item) => (
-          <li key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-700)' }}>
-            <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 'var(--r-md)', background: item.color, flex: '0 0 auto' }} />
+          <span
+            key={item.label}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 500,
+              color: 'var(--ink-700)', background: 'var(--ink-100)', borderRadius: 999, padding: '4px 10px',
+            }}
+          >
+            <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, boxShadow: `0 0 0 2px color-mix(in srgb, ${item.color} 20%, transparent)` }} />
             {item.label}
-          </li>
+          </span>
         ))}
-      </ul>
-
-      <p style={{ margin: '8px 0 0', fontSize: 10.5, color: 'var(--ink-300)' }}>
-        Refleja cuándo registraste cada zona por última vez. Dato personal, no es consejo médico.
-      </p>
+      </div>
     </figure>
   )
 }
