@@ -47,11 +47,13 @@ export function PremiumGate({
   return (
     // sin overflow:hidden aquí: el CTA se ancla con position:absolute sobre el preview
     <div style={{ position: 'relative' }}>
-      {/* preview borroso (se recorta a sí mismo) */}
+      {/* preview borroso (se recorta a sí mismo). maxHeight: con contenido muy alto (p.ej. la lista de
+          recetas del Recetario) el CTA quedaba centrado a miles de px de scroll → invisible. Acotamos la
+          zona bloqueada a ~440px para que el botón de desbloquear SIEMPRE se vea. */}
       <div
         aria-hidden
         {...({ inert: '' } as Record<string, string>)}
-        style={{ filter: 'blur(7px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.6, borderRadius: 'var(--r-lg)', overflow: 'hidden' }}
+        style={{ filter: 'blur(7px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.6, borderRadius: 'var(--r-lg)', overflow: 'hidden', maxHeight: 'min(60vh, 440px)' }}
       >
         {children}
       </div>
