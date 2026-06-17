@@ -19,7 +19,6 @@ import {
   doseIntervals,
   aucStabilityHint,
   coPresenceWindows,
-  nextDoseWindow,
   thresholdCrossTs,
   washoutMs,
 } from '../lib/pharma'
@@ -383,10 +382,7 @@ export function PharmaDashboard() {
       // Acumulación (item 279)
       const accum = hasAccumulation(doses as { product: string; value: number; ts: number }[], halfMs)
 
-      // nextDoseWindow por producto (item 377)
-      const ndw = nextDoseWindow(doses as { product: string; value: number; ts: number }[], halfMs, 0.25)
-
-      return { product: s.product, color: s.color, halfLifeH: s.halfLifeH, cv, cvLabel, intervals, targetIntervalH, hint, fi, isGlp1, accum, ndw }
+      return { product: s.product, color: s.color, halfLifeH: s.halfLifeH, cv, cvLabel, intervals, targetIntervalH, hint, fi, isGlp1, accum }
     })
 
     // Co-presencia (item 283)
@@ -411,19 +407,6 @@ export function PharmaDashboard() {
       }
     }
     return set
-  }, [data.series, state])
-
-  // ── item 377: próxima dosis (nextDoseWindow global) ──
-  const nextDoseWindowTs = useMemo(() => {
-    const byProduct = collectDosesByProduct(state)
-    let earliest: number | null = null
-    for (const s of data.series) {
-      const doses = byProduct.get(s.product) ?? []
-      const halfMs = s.halfLifeH * H_MS
-      const ndw = nextDoseWindow(doses as { product: string; value: number; ts: number }[], halfMs, 0.25)
-      if (ndw != null && (earliest == null || ndw < earliest)) earliest = ndw
-    }
-    return earliest
   }, [data.series, state])
 
   // ── Estado vacío: sin ninguna dosis registrada ──
@@ -537,10 +520,12 @@ export function PharmaDashboard() {
           </div>
         )}
 
-        {/* item 377 — pill "Próxima dosis en ~X h" */}
+        {/* pill "Próxima dosis en ~X" — usa la dosis PROGRAMADA (cadencia), igual que la línea de
+            referencia del gráfico. (Antes usaba la ventana PK del 25% agregada entre productos, lo que
+            daba "~0 min" en cuanto cualquier producto corto estaba ya por debajo del umbral.) */}
         <AnimatePresence>
-          {nextDoseWindowTs != null && nextDoseWindowTs > now && (
-            <NextDosePill key="ndw-pill" nextTs={nextDoseWindowTs} now={now} />
+          {nextDose && nextDose.date.getTime() > now && (
+            <NextDosePill key="ndw-pill" nextTs={nextDose.date.getTime()} now={now} />
           )}
         </AnimatePresence>
 
