@@ -150,7 +150,19 @@ function WeightPhaseOverlay({ samples, protocols, w = 320, h = 150 }: PhaseOverl
     }
   }
 
-  if (phaseBands.length === 0 && markers.length === 0) return null
+  // n=464: evitar texto-sobre-texto — ordenar por x, descartar marcadores a <16px
+  // del anterior visible y limitar a un máximo de 3 etiquetas.
+  const sortedMarkers = [...markers].sort((a, b) => a.x - b.x)
+  const visibleMarkers: Marker[] = []
+  let lastX = -Infinity
+  for (const m of sortedMarkers) {
+    if (m.x - lastX < 16) continue
+    visibleMarkers.push(m)
+    lastX = m.x
+    if (visibleMarkers.length >= 3) break
+  }
+
+  if (phaseBands.length === 0 && visibleMarkers.length === 0) return null
 
   return (
     <svg
@@ -184,31 +196,45 @@ function WeightPhaseOverlay({ samples, protocols, w = 320, h = 150 }: PhaseOverl
         </g>
       ))}
 
-      {/* n=464: líneas verticales de inicio/fase */}
-      {markers.map((m, i) => (
-        <g key={`marker-${i}`}>
-          <line
-            x1={m.x}
-            x2={m.x}
-            y1={PAD}
-            y2={ch}
-            stroke={m.color}
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-            opacity={0.7}
-          />
-          <text
-            x={m.x + 3}
-            y={ch - 4}
-            fontSize={8}
-            fill={m.color}
-            fontWeight={600}
-            style={{ userSelect: 'none' }}
-          >
-            {m.label}
-          </text>
-        </g>
-      ))}
+      {/* n=464: líneas verticales de inicio/fase (solo marcadores no encimados) */}
+      {visibleMarkers.map((m, i) => {
+        const labelW = m.label.length * 5 + 4
+        const clampedX = Math.min(m.x + 3, w - labelW - 2)
+        return (
+          <g key={`marker-${i}`}>
+            <line
+              x1={m.x}
+              x2={m.x}
+              y1={PAD}
+              y2={ch}
+              stroke={m.color}
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              opacity={0.7}
+            />
+            {/* fondo para que la etiqueta no se mezcle con la línea de datos */}
+            <rect
+              x={clampedX - 2}
+              y={ch - 13}
+              width={labelW}
+              height={11}
+              rx={2}
+              fill="var(--surface)"
+              opacity={0.7}
+            />
+            <text
+              x={clampedX}
+              y={ch - 4}
+              fontSize={8}
+              fill={m.color}
+              fontWeight={600}
+              style={{ userSelect: 'none' }}
+            >
+              {m.label}
+            </text>
+          </g>
+        )
+      })}
     </svg>
   )
 }
@@ -224,6 +250,8 @@ interface KpiCardProps {
 function KpiCard({ name, samples, protocols }: KpiCardProps) {
   const [chartOpen, setChartOpen] = useState(false)
   const [range, setRange] = useState<'7d' | '30d' | 'Todo'>('Todo')
+  // n=463/464: overlay de fases opt-in (no por defecto) para reducir densidad sobre el KPI
+  const [showPhases, setShowPhases] = useState(false)
 
   if (!samples.length) return null
   const sorted = [...samples].sort((a, b) => a.ts - b.ts)
@@ -258,7 +286,7 @@ function KpiCard({ name, samples, protocols }: KpiCardProps) {
     const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '→'
     const label = delta > 0 ? `+${delta}` : String(delta)
     deltaEl = (
-      <span className="mono" style={{ fontSize: 11, color: deltaColor, marginLeft: 6 }}>
+      <span className="mono" style={{ fontSize: 11, color: deltaColor, whiteSpace: 'nowrap' }}>
         {arrow}{label}
       </span>
     )
@@ -269,22 +297,25 @@ function KpiCard({ name, samples, protocols }: KpiCardProps) {
 
   return (
     <motion.div variants={staggerItem} className="card" style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
         <Glyph name={glyphId} size={20} color={color} />
-        <span className="body" style={{ flex: 1, color: 'var(--ink-700)' }}>{name}</span>
-        <span className="mono" style={{ color, fontVariantNumeric: 'tabular-nums' }}>
-          {formatValue(name, last.value)}
-        </span>
-        {deltaEl}
-        {/* n=147: botón Ver/Ocultar gráfica */}
-        {sorted.length >= 2 && (
-          <button
-            onClick={() => setChartOpen(v => !v)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand-700)', fontSize: 12, padding: '2px 6px', borderRadius: 'var(--r-sm)', marginLeft: 4, whiteSpace: 'nowrap' }}
-          >
-            {chartOpen ? 'Ocultar ▴' : 'Ver gráfica ▾'}
-          </button>
-        )}
+        <span className="body" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+        {/* valor + delta + toggle agrupados: pueden bajar de línea juntos sin partir el par valor/delta */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span className="mono" style={{ color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+            {formatValue(name, last.value)}
+          </span>
+          {deltaEl}
+          {/* n=147: botón Ver/Ocultar gráfica */}
+          {sorted.length >= 2 && (
+            <button
+              onClick={() => setChartOpen(v => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand-700)', fontSize: 12, padding: '2px 6px', borderRadius: 'var(--r-sm)', marginLeft: 4, whiteSpace: 'nowrap' }}
+            >
+              {chartOpen ? 'Ocultar ▴' : 'Ver gráfica ▾'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* n=147/148: gráfica expandible con selector de rango */}
@@ -298,7 +329,7 @@ function KpiCard({ name, samples, protocols }: KpiCardProps) {
             transition={{ duration: 0.2 }}
           >
             {/* n=148: selector de rango */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8, alignItems: 'center' }}>
               {(['7d', '30d', 'Todo'] as const).map(r => (
                 <button
                   key={r}
@@ -319,6 +350,22 @@ function KpiCard({ name, samples, protocols }: KpiCardProps) {
               </span>
             </div>
 
+            {/* n=463/464: toggle "Mostrar fases" — opt-in, solo en Peso con titulación activa */}
+            {isPeso && (() => {
+              const hasPhases = Object.values(protocols).some(
+                (p) => !p?.archived && PEPTIDES[p?.product ?? '']?.phaseWeeks,
+              )
+              if (!hasPhases) return null
+              return (
+                <button
+                  onClick={() => setShowPhases(v => !v)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand-700)', fontSize: 11, padding: '2px 0', marginBottom: 4, whiteSpace: 'nowrap' }}
+                >
+                  {showPhases ? 'Ocultar fases ▴' : 'Mostrar fases ▾'}
+                </button>
+              )
+            })()}
+
             {/* n=463/464: contenedor relativo para el overlay */}
             <div
               style={{
@@ -334,8 +381,8 @@ function KpiCard({ name, samples, protocols }: KpiCardProps) {
                 labels={timeLabels}
                 h={Math.max(90, Math.min(160, 70 + displaySamples.length * 6))}
               />
-              {/* n=463/464: overlay de fases solo en gráfica de Peso */}
-              {isPeso && (
+              {/* n=463/464: overlay de fases solo en gráfica de Peso y bajo demanda */}
+              {isPeso && showPhases && (
                 <WeightPhaseOverlay
                   samples={displaySamples}
                   protocols={protocols}
@@ -344,8 +391,8 @@ function KpiCard({ name, samples, protocols }: KpiCardProps) {
               )}
             </div>
 
-            {/* n=463/464: leyenda de fases (si aplica y hay protocolos con titulación) */}
-            {isPeso && (() => {
+            {/* n=463/464: leyenda de fases (solo si el overlay está activo) */}
+            {isPeso && showPhases && (() => {
               const protos = Object.values(protocols).filter(
                 (p) => !p?.archived && PEPTIDES[p?.product ?? '']?.phaseWeeks,
               )
@@ -357,9 +404,9 @@ function KpiCard({ name, samples, protocols }: KpiCardProps) {
                     const nPhases = entry?.phases ?? 0
                     const color = entry ? (CATEGORY_COLOR[entry.cat] ?? 'var(--brand-500)') : 'var(--brand-500)'
                     return Array.from({ length: nPhases }, (_, i) => (
-                      <span key={`${p?.product}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[i % PHASE_COLORS.length].replace('0.08', '0.35'), display: 'block' }} />
-                        <span style={{ fontSize: 10, color: 'var(--ink-400)' }}>
+                      <span key={`${p?.product}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[i % PHASE_COLORS.length].replace('0.08', '0.35'), display: 'block', flexShrink: 0 }} />
+                        <span style={{ fontSize: 10, color: 'var(--ink-400)', whiteSpace: 'nowrap' }}>
                           {p?.product} F{i + 1}
                         </span>
                       </span>
@@ -474,6 +521,9 @@ export function ProgressDashboard() {
 
   // n=150: semana A vs B
   const [weekCompOpen, setWeekCompOpen] = useState(false)
+
+  // Densidad: agrupar herramientas analíticas (CSV, comparar, semana A/B) tras un disclosure
+  const [toolsOpen, setToolsOpen] = useState(false)
 
   if (allKeys.length === 0) {
     return (
@@ -626,9 +676,6 @@ export function ProgressDashboard() {
 
   return (
     <div style={{ padding: '4px 0 8px' }}>
-      {/* n=168: Exportar CSV */}
-      {exportBtn}
-
       {/* n=146: Gestión de KPIs */}
       {kpiMgrPanel}
 
@@ -659,6 +706,30 @@ export function ProgressDashboard() {
           ))}
         </motion.div>
       )}
+
+      {/* Herramientas de análisis — colapsadas por defecto para bajar densidad */}
+      <div style={{ marginBottom: 16 }}>
+        <button
+          onClick={() => setToolsOpen(v => !v)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <Glyph name="medidas" size={16} color="var(--ink-400)" />
+          <span className="sm" style={{ fontWeight: 600, color: 'var(--ink-700)', flex: 1 }}>
+            Herramientas de análisis
+          </span>
+          <span className="sm" style={{ color: 'var(--ink-400)' }}>{toolsOpen ? '▴' : '▾'}</span>
+        </button>
+        <AnimatePresence>
+          {toolsOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.18 }}
+              style={{ overflow: 'hidden' }}
+            >
+              {/* n=168: Exportar CSV */}
+              {exportBtn}
 
       {/* n=149: Comparar dos medidas (overlay) */}
       <div style={{ marginBottom: 16, padding: 12, background: 'var(--ink-100)', borderRadius: 'var(--r-md)', border: '1px solid var(--ink-200)' }}>
@@ -774,6 +845,10 @@ export function ProgressDashboard() {
                   </table>
                 </div>
               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -43,19 +43,8 @@ function AdherenceBar({ pct }: { pct: number }) {
         transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
         style={{ position: 'relative', height: '100%', background: fillColor, borderRadius: 99 }}
       />
-      {/* Item 160: indicador visual "✓" dentro de la barra cuando >= 75% */}
-      {clamped >= 75 && (
-        <span
-          aria-hidden
-          style={{
-            position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)',
-            fontSize: 6, fontWeight: 900, color: 'rgba(255,255,255,0.8)', lineHeight: 1,
-            pointerEvents: 'none',
-          }}
-        >
-          ✓
-        </span>
-      )}
+      {/* Item 160: el estado ≥75% se comunica por el color del fill (var(--success)) + aria-label.
+          Se eliminó el glifo '✓' textual (ilegible a 8px de alto y fuera del design system). */}
       {/* Item 159: hitos interactivos con tooltip */}
       {[25, 50, 75].map((mk) => (
         <span key={mk} style={{ position: 'absolute', top: 0, bottom: 0, left: `${mk}%`, transform: 'translateX(-1px)', zIndex: 2 }}>
@@ -81,11 +70,18 @@ function AdherenceBar({ pct }: { pct: number }) {
                 exit={{ opacity: 0, y: 4, scale: 0.95 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
                 style={{
-                  position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)',
+                  position: 'absolute', bottom: 14, zIndex: 10,
+                  // hito 25% → ancla a la izquierda; 75% → a la derecha; 50% → centrado.
+                  // Evita que el tooltip sangre fuera de la card en los extremos.
+                  ...(mk === 25
+                    ? { left: 0 }
+                    : mk === 75
+                    ? { right: 0 }
+                    : { left: '50%', transform: 'translateX(-50%)' }),
                   background: 'var(--ink-900)', color: 'var(--surface)',
                   padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
-                  whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 10,
-                  boxShadow: 'var(--e2)',
+                  whiteSpace: 'normal', maxWidth: 220, width: 'max-content',
+                  pointerEvents: 'none', boxShadow: 'var(--e2)',
                 }}
               >
                 {tooltips[mk]}
@@ -165,14 +161,14 @@ function TitrationPhasesAll() {
             {/* n=144: chips de fase + input de dosis por fase */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
               {Array.from({ length: n }, (_, i) => {
-                const weeksPart = phaseWeeks ? ` · sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}` : ''
-                const levelPart = ` · nivel ${i + 1}`
+                // Label corto en el chip (evita bleed): semanas → caption inferior; nivel implícito en "Fase N".
+                const weeksPart = phaseWeeks ? `sem ${i * phaseWeeks + 1}–${(i + 1) * phaseWeeks}` : ''
                 const phaseDose = protocol.phaseDoses?.[i]
                 return (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <motion.div whileTap={{ scale: 0.94 }} transition={spring.ui} style={{ display: 'inline-flex' }}>
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, maxWidth: '100%' }}>
+                    <motion.div whileTap={{ scale: 0.94 }} transition={spring.ui} style={{ display: 'inline-flex', maxWidth: '100%' }}>
                       <Chip
-                        label={`Fase ${i + 1}${weeksPart}${levelPart}`}
+                        label={`Fase ${i + 1}`}
                         active={i === cur}
                         color="var(--brand-700)"
                         onClick={() => setPhase(i)}
@@ -193,8 +189,8 @@ function TitrationPhasesAll() {
                         dispatch({ t: 'updateProtocolFor', product: protocol.product, patch: { phaseDoses: newDoses } })
                       }}
                     />
-                    <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 10 }}>
-                      Dosis de esta fase (mg)
+                    <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 10, whiteSpace: 'nowrap' }}>
+                      {weeksPart ? `${weeksPart} · mg` : 'Dosis (mg)'}
                     </span>
                   </div>
                 )
@@ -256,6 +252,8 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
 }) {
   const { state, dispatch } = useApp()
   const products = Object.values(state.protocols)
+  // Densidad: una acción primaria visible por tarjeta; secundarias tras menú "Más".
+  const [menuOpen, setMenuOpen] = useState<string | null>(null)
 
   if (products.length === 0) {
     return (
@@ -360,50 +358,77 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
               >
                 Editar protocolo
               </motion.button>
-              {/* n°481: duplicar protocolo como variante */}
-              <motion.button
-                className="btn btn-outline btn-sm"
-                style={{ width: 'auto', padding: '0 12px' }}
-                whileTap={{ scale: 0.97 }}
-                transition={spring.ui}
-                aria-label={`Duplicar ${p.product}`}
-                onClick={() => {
-                  const candidates = Object.keys(PEPTIDES).filter((k) => !state.protocols[k] && k !== p.product)
-                  if (candidates.length === 0) {
-                    dispatch({ t: 'toast', msg: 'No hay productos disponibles para duplicar' })
-                    return
-                  }
-                  // Duplicate to first available product not in protocols — user can rename via edit
-                  const target = candidates[0]
-                  dispatch({ t: 'setProtocol', product: target })
-                  dispatch({
-                    t: 'updateProtocolFor',
-                    product: target,
-                    patch: {
-                      cadence: { ...p.cadence },
-                      progOn: p.progOn,
-                      progN: p.progN,
-                      curPhase: p.curPhase,
-                      phaseDoses: p.phaseDoses ? [...p.phaseDoses] : undefined,
-                      reminderTime: p.reminderTime,
-                    },
-                  })
-                  dispatch({ t: 'toast', msg: `Protocolo duplicado a ${target} — edítalo para ajustarlo` })
-                }}
-              >
-                Duplicar
-              </motion.button>
+              {/* Acciones secundarias (Duplicar / Quitar) tras un menú "Más" — una acción primaria por tarjeta */}
               <motion.button
                 className="btn btn-ghost btn-sm"
-                style={{ width: 'auto', padding: '0 12px', marginLeft: 'auto', color: 'var(--error)' }}
-                onClick={() => dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: `product:${p.product}` })}
+                style={{ width: 'auto', padding: '0 12px', marginLeft: 'auto', color: 'var(--ink-400)' }}
+                onClick={() => setMenuOpen((cur) => (cur === p.product ? null : p.product))}
                 whileTap={{ scale: 0.97 }}
                 transition={spring.ui}
-                aria-label={`Quitar ${p.product}`}
+                aria-expanded={menuOpen === p.product}
+                aria-label={`Más acciones para ${p.product}`}
               >
-                Quitar
+                {menuOpen === p.product ? 'Menos ▴' : 'Más ▾'}
               </motion.button>
             </div>
+
+            <AnimatePresence>
+              {menuOpen === p.product && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.18 }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* n°481: duplicar protocolo como variante */}
+                    <motion.button
+                      className="btn btn-outline btn-sm"
+                      style={{ width: 'auto', padding: '0 12px' }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={spring.ui}
+                      aria-label={`Duplicar ${p.product}`}
+                      onClick={() => {
+                        const candidates = Object.keys(PEPTIDES).filter((k) => !state.protocols[k] && k !== p.product)
+                        if (candidates.length === 0) {
+                          dispatch({ t: 'toast', msg: 'No hay productos disponibles para duplicar' })
+                          return
+                        }
+                        // Duplicate to first available product not in protocols — user can rename via edit
+                        const target = candidates[0]
+                        dispatch({ t: 'setProtocol', product: target })
+                        dispatch({
+                          t: 'updateProtocolFor',
+                          product: target,
+                          patch: {
+                            cadence: { ...p.cadence },
+                            progOn: p.progOn,
+                            progN: p.progN,
+                            curPhase: p.curPhase,
+                            phaseDoses: p.phaseDoses ? [...p.phaseDoses] : undefined,
+                            reminderTime: p.reminderTime,
+                          },
+                        })
+                        dispatch({ t: 'toast', msg: `Protocolo duplicado a ${target} — edítalo para ajustarlo` })
+                      }}
+                    >
+                      Duplicar
+                    </motion.button>
+                    <motion.button
+                      className="btn btn-ghost btn-sm"
+                      style={{ width: 'auto', padding: '0 12px', marginLeft: 'auto', color: 'var(--error)' }}
+                      onClick={() => dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: `product:${p.product}` })}
+                      whileTap={{ scale: 0.97 }}
+                      transition={spring.ui}
+                      aria-label={`Quitar ${p.product}`}
+                    >
+                      Quitar
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )
       })}
@@ -602,12 +627,55 @@ function KpiCorrelationCard() {
   )
 }
 
+// ── Sección colapsable (disclosure) para bajar densidad del primer nivel ──────
+function Disclosure({ title, open, onToggle, children }: {
+  title: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <motion.div variants={staggerItem} style={{ marginTop: 16 }}>
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+          padding: '10px 0', borderBottom: '1px solid var(--ink-100)',
+        }}
+      >
+        <span className="sm" style={{ flex: 1, minWidth: 0, fontWeight: 600, color: 'var(--ink-700)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {title}
+        </span>
+        <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>{open ? '▴' : '▾'}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: ease.standard }}
+            style={{ overflow: 'hidden' }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 // ── Pantalla principal ────────────────────────────────────────────────────────
 export function Progreso() {
   const { state, dispatch } = useApp()
   const view = state.progresoView
   const setView = (v: 'cal' | 'avances') => dispatch({ t: 'setProgresoView', view: v })
   const [pickerOpen, setPickerOpen] = useState(false)
+  // Densidad: primer nivel = calendario + resumen; el resto tras disclosures cerrados por defecto.
+  const [productsOpen, setProductsOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   function pick(product: string) {
     // solo-agregar: todos los productos quedan activos a la vez. Para quitar → botón "Quitar" (con confirmación).
@@ -681,30 +749,43 @@ export function Progreso() {
               animate="animate"
               exit="exit"
             >
-              {/* Calendario de dosis */}
+              {/* Primer nivel: calendario + resumen semanal (una acción primaria por pantalla) */}
               <DoseCalendar />
 
               {/* Resumen semanal de adherencia */}
               <WeeklySummary onAddProtocol={openAddProduct} />
 
-              {/* Lista de productos — cada uno con su protocolo editable */}
-              <ProductsList
-                pickerOpen={pickerOpen}
-                setPickerOpen={setPickerOpen}
-                ProductPicker={ProductPicker}
-              />
+              {/* Gestión de productos — colapsada por defecto (lista + reconstitución) */}
+              <Disclosure
+                title="Gestión de productos"
+                open={productsOpen}
+                onToggle={() => setProductsOpen(v => !v)}
+              >
+                {/* Lista de productos — cada uno con su protocolo editable */}
+                <ProductsList
+                  pickerOpen={pickerOpen}
+                  setPickerOpen={setPickerOpen}
+                  ProductPicker={ProductPicker}
+                />
+                {/* Calculadora de reconstitución */}
+                <ReconstitutionButton />
+              </Disclosure>
 
-              {/* Fases de titulación — una por cada producto con titulación activa */}
-              <TitrationPhasesAll />
+              {/* Análisis avanzado — colapsado por defecto (titulación, fase OFF, correlación) */}
+              <Disclosure
+                title="Análisis avanzado"
+                open={advancedOpen}
+                onToggle={() => setAdvancedOpen(v => !v)}
+              >
+                {/* Fases de titulación — una por cada producto con titulación activa */}
+                <TitrationPhasesAll />
 
-              {/* n°422: tarjeta fase OFF */}
-              <OffPhaseCards />
+                {/* n°422: tarjeta fase OFF */}
+                <OffPhaseCards />
 
-              {/* n°376: correlación KPI ↔ dosis */}
-              <KpiCorrelationCard />
-
-              {/* Calculadora de reconstitución — siempre visible */}
-              <ReconstitutionButton />
+                {/* n°376: correlación KPI ↔ dosis */}
+                <KpiCorrelationCard />
+              </Disclosure>
             </motion.div>
           ) : (
             <motion.div

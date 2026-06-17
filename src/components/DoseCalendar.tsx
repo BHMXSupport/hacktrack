@@ -10,7 +10,7 @@ import { fmtDate, fmtTime, cadenceLabel, startOfDay, dayDiff } from '../lib/cade
 import { CATEGORY_COLOR, PEPTIDES } from '../lib/catalog'
 import { buildIcs, downloadIcs, upcomingDoses, doseTakenOnProduct } from '../lib/calendar'
 import { Segmented } from './controls'
-import { IcBack, IcBell, IcChevron, IcCalendarExport } from './icons'
+import { IcBack, IcBell, IcChevron, IcCalendarExport, IcCheck } from './icons'
 import { CalendarMonth } from './CalendarMonth'
 import { CalendarAgenda } from './CalendarAgenda'
 
@@ -107,7 +107,7 @@ function ActivityHeatmap({
                 <span style={{
                   fontSize: 12,
                   fontWeight: isToday(cell.day) ? 700 : 400,
-                  color: cell.count > 0 ? 'var(--brand-900)' : 'var(--ink-400)',
+                  color: cell.count > 0 ? 'var(--ink-900)' : 'var(--ink-400)',
                   lineHeight: 1,
                 }}>
                   {cell.day}
@@ -169,14 +169,16 @@ function SevenDayAgenda({ state, now }: { state: ReturnType<typeof useApp>['stat
                     <div key={`${it.product}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="sm mono" style={{ color: 'var(--ink-400)', minWidth: 52, whiteSpace: 'nowrap', textAlign: 'right', flexShrink: 0, fontSize: 11 }}>{fmtTime(it.date)}</span>
                       <span style={{ width: 7, height: 7, borderRadius: 999, background: color, flexShrink: 0 }} aria-hidden />
-                      <span className="sm" style={{ flex: 1, color: taken ? 'var(--ink-300)' : 'var(--ink-900)', textDecoration: taken ? 'line-through' : 'none' }}>
+                      <span className="sm" style={{ flex: 1, minWidth: 0, color: taken ? 'var(--ink-300)' : 'var(--ink-900)', textDecoration: taken ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {it.product}
                       </span>
                       {taken && (
-                        <span className="sm" style={{ color: 'var(--success)', fontSize: 10, fontWeight: 600 }}>✓</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--success)', flexShrink: 0 }} aria-label="Tomada">
+                          <IcCheck size={13} />
+                        </span>
                       )}
                       {isToday && !taken && (
-                        <span className="sm" style={{ color: 'var(--warning)', fontSize: 10, fontWeight: 600 }}>Pendiente</span>
+                        <span className="sm" style={{ color: 'var(--warning)', fontSize: 10, fontWeight: 600, flexShrink: 0, whiteSpace: 'nowrap' }}>Pendiente</span>
                       )}
                     </div>
                   )
@@ -204,6 +206,8 @@ export function DoseCalendar() {
   const [toast, setToast] = useState(false)
   // n=456: tres modos de vista: estados / adherencia (heatmap) / actividad total (densidad)
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>('estados')
+  // Densidad: leyenda interactiva colapsada por defecto (menos capas visibles a la vez)
+  const [legendOpen, setLegendOpen] = useState(false)
 
   // n=499: mover dosis programada
   const [moveDoseTarget, setMoveDoseTarget] = useState<{ date: Date; products: string[] } | null>(null)
@@ -321,14 +325,14 @@ export function DoseCalendar() {
             </span>
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
           <IcBell size={14} style={{ color: next ? 'var(--brand-700)' : 'var(--ink-300)', flexShrink: 0 }} />
           {next ? (
-            <span className="sm" style={{ color: 'var(--brand-700)' }}>
+            <span className="sm" style={{ color: 'var(--brand-700)', minWidth: 0 }}>
               Próxima:{' '}
               <strong style={{ fontWeight: 600 }}>{nextProduct}</strong>
               {' · '}
-              {fmtDate(next, now)} {fmtTime(next)}
+              <span style={{ whiteSpace: 'nowrap' }}>{fmtDate(next, now)} {fmtTime(next)}</span>
             </span>
           ) : (
             <span className="sm" style={{ color: 'var(--ink-400)' }}>Sin próxima toma</span>
@@ -397,7 +401,7 @@ export function DoseCalendar() {
 
           {/* Loop 170 + n=456: Toggle Vista: Estados / Adherencia / Actividad */}
           <div
-            style={{ padding: '0 16px 6px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}
+            style={{ padding: '0 16px 6px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}
           >
             <span className="sm" style={{ color: 'var(--ink-400)' }}>Vista:</span>
             <div
@@ -405,10 +409,12 @@ export function DoseCalendar() {
               aria-label="Modo de vista del calendario"
               style={{
                 display: 'flex',
+                flexWrap: 'wrap',
                 gap: 2,
                 background: 'var(--ink-100)',
                 borderRadius: 'var(--r-sm, 8px)',
                 padding: 3,
+                maxWidth: '100%',
               }}
             >
               {(
@@ -549,12 +555,26 @@ export function DoseCalendar() {
         <CalendarAgenda />
       )}
 
-      {/* ── (#6) LEYENDA INTERACTIVA ─────────────────────────────── */}
+      {/* ── (#6) LEYENDA INTERACTIVA (colapsada por defecto) ─────────── */}
       {heatmapMode !== 'actividad' && (
         <div style={{ padding: '0 16px 8px' }}>
-          <p className="sm" style={{ color: 'var(--ink-400)', marginBottom: 8, marginTop: 12 }}>
-            Leyenda
-          </p>
+          <button
+            onClick={() => setLegendOpen(v => !v)}
+            aria-expanded={legendOpen}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0', marginTop: 4, textAlign: 'left' }}
+          >
+            <span className="sm" style={{ color: 'var(--ink-400)', flex: 1 }}>Leyenda</span>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>{legendOpen ? '▴' : '▾'}</span>
+          </button>
+          <AnimatePresence>
+            {legendOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.18 }}
+                style={{ overflow: 'hidden' }}
+              >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {tracked.map(t => {
               const entry = PEPTIDES[t.product]
@@ -599,10 +619,13 @@ export function DoseCalendar() {
               )
             })}
           </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
-      {/* ── (#9) EXPORTAR A CALENDARIO ───────────────────────────── */}
+      {/* ── (#9) EXPORTAR A CALENDARIO (acción secundaria) ────────── */}
       <div style={{ padding: '4px 16px 20px' }}>
         <button
           className="btn btn-outline btn-sm"

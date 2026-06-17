@@ -92,7 +92,7 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex, heatmap = false }
         fontSize: 13,
         fontWeight: 500,
         color: hasScheduled
-          ? (adhPct !== null && adhPct >= 80 ? 'var(--brand-900)' : 'var(--ink-700)')
+          ? (adhPct !== null && adhPct >= 80 ? 'var(--ink-900)' : 'var(--ink-700)')
           : 'var(--ink-300)',
         lineHeight: 1,
       }}>
@@ -148,12 +148,12 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex, heatmap = false }
     const dots = visibleProds.slice(0, 3)
     const extra = visibleProds.length > 3 ? visibleProds.length - 3 : 0
     inner = (
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
         <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-900)', lineHeight: 1 }}>
           {dayNum}
         </span>
         {visibleProds.length > 0 && (
-          <span style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <span style={{ display: 'flex', gap: 2, alignItems: 'center', height: 6 }}>
             {dots.map((p) => (
               <span
                 key={p}
@@ -245,8 +245,8 @@ export function CalendarMonth({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr) auto',
-          gap: '0 4px',
+          gridTemplateColumns: 'repeat(7, 1fr) 26px',
+          gap: '0 2px',
           marginBottom: 4,
         }}
       >
@@ -265,8 +265,8 @@ export function CalendarMonth({
             {label}
           </span>
         ))}
-        {/* columna de adherencia — encabezado vacío */}
-        <span style={{ width: 34 }} />
+        {/* columna de adherencia — encabezado mínimo (%) */}
+        <span style={{ textAlign: 'right', fontSize: 9, fontWeight: 600, color: 'var(--ink-300)', lineHeight: '24px' }}>%</span>
       </div>
 
       {/* Filas de semanas */}
@@ -283,8 +283,8 @@ export function CalendarMonth({
             key={wi}
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(7, 1fr) auto',
-              gap: '0 4px',
+              gridTemplateColumns: 'repeat(7, 1fr) 26px',
+              gap: '0 2px',
               alignItems: 'center',
             }}
           >
@@ -312,14 +312,13 @@ export function CalendarMonth({
               )
             })}
 
-            {/* Indicador de adherencia semanal */}
+            {/* Indicador de adherencia semanal — solo el número (el header marca '%') */}
             <div
               style={{
-                width: 34,
+                width: 26,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
-                paddingLeft: 4,
               }}
             >
               {adh !== null && (
@@ -332,8 +331,9 @@ export function CalendarMonth({
                     lineHeight: 1,
                     whiteSpace: 'nowrap',
                   }}
+                  aria-label={`Adherencia semanal ${adh}%`}
                 >
-                  {adh}%
+                  {adh}
                 </span>
               )}
             </div>
