@@ -144,7 +144,7 @@ export function DayDetail() {
 
   return (
     <Sheet title={fmtDate(d, now)} onClose={handleClose}>
-      <div style={{ padding: '0 2px 28px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ padding: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* ── item 326: resumen de adherencia de la semana ── */}
         {totalCount > 0 && (
@@ -190,25 +190,26 @@ export function DayDetail() {
                   <div key={product} style={{ padding: '14px 16px', borderBottom: idx < prods.length - 1 ? '1px solid var(--border)' : undefined, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: taken ? 'var(--success)' : missed ? 'var(--warning)' : catColor }} />
-                      <span className="body" style={{ flex: 1, fontWeight: 600, color: 'var(--ink-900)' }}>{product}</span>
+                      <span className="body" style={{ flex: 1, minWidth: 0, fontWeight: 600, color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product}</span>
                       {taken ? (
-                        <span className="sm" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--success)', fontWeight: 600 }}>
+                        <span className="sm" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--success)', fontWeight: 600, flexShrink: 0 }}>
                           <IcCheck size={15} style={{ stroke: 'var(--success)' }} />
                           Registrada
                         </span>
                       ) : (
-                        <span className="sm" style={{ color: missed ? 'var(--warning)' : 'var(--ink-300)' }}>
+                        <span className="sm" style={{ color: missed ? 'var(--warning)' : 'var(--ink-300)', flexShrink: 0 }}>
                           {missed ? 'Pendiente' : 'Programada'}
                         </span>
                       )}
                     </div>
                     {showActions && (
-                      <div style={{ display: 'flex', gap: 8, paddingLeft: 20 }}>
-                        <button className="btn btn-brand btn-sm" style={{ flex: 1, height: 40, fontSize: 14, borderRadius: 'var(--r-sm)' }} onClick={() => handleQuickLog(product)}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 20 }}>
+                        <button className="btn btn-brand btn-sm" style={{ width: '100%', height: 40, fontSize: 14, borderRadius: 'var(--r-sm)' }} onClick={() => handleQuickLog(product)}>
                           Registrar
                         </button>
-                        <button className="btn btn-outline btn-sm" style={{ flex: 1, height: 40, fontSize: 14, borderRadius: 'var(--r-sm)' }} onClick={() => handleDetailLog(product)}>
-                          Con detalle
+                        {/* densidad: una acción primaria por tarjeta — «Con detalle» pasa a secundaria (ghost) */}
+                        <button className="btn-ghost sm" style={{ alignSelf: 'flex-start', color: 'var(--brand-700)', fontWeight: 500, height: 'auto', padding: '2px 0' }} onClick={() => handleDetailLog(product)}>
+                          Registrar con detalle
                         </button>
                       </div>
                     )}
@@ -227,9 +228,9 @@ export function DayDetail() {
               {phases.map(({ product, phase, dose }) => (
                 <div key={product} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: 'var(--e2)' }}>
                   <GlyphCircle name="cat-metabolismo" color="var(--brand-500)" size={18} box={36} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)' }}>{product}</span>
-                    <span className="sm" style={{ marginLeft: 8, color: 'var(--ink-400)' }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product}</span>
+                    <span className="sm" style={{ color: 'var(--ink-400)' }}>
                       Fase {phase + 1}{dose != null ? ` · ${dose} mg` : ''}
                     </span>
                   </div>
@@ -343,26 +344,26 @@ function ItemRow({
 
   return (
     <div style={{ borderBottom: idx < total - 1 ? '1px solid var(--border)' : undefined }}>
-      {/* Fila principal */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+      {/* Fila principal — gap reducido y acciones compactas para no desbordar (~376px útiles) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px' }}>
         <GlyphCircle name={glyphForItem(item.ic)} color={item.cat} size={16} box={34} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', lineHeight: 1.3 }}>{item.n}</div>
-          {item.u && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 1 }}>{item.u}</div>}
+          <div className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.n}</div>
+          {item.u && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.u}</div>}
           {/* item 302: mostrar nota si existe */}
           {item.note && (
-            <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 2, fontStyle: 'italic' }}>
+            <div className="sm" style={{ color: 'var(--ink-300)', marginTop: 2, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {item.note}
             </div>
           )}
         </div>
 
-        <span className="mono sm" style={{ color: 'var(--ink-300)', flexShrink: 0, fontSize: 12 }}>{item.t}</span>
+        <span className="mono sm" style={{ color: 'var(--ink-300)', flexShrink: 0, fontSize: 12, whiteSpace: 'nowrap' }}>{item.t}</span>
 
         {/* item 302: botón editar completo */}
         {canEdit && (
-          <button className="iconbtn" style={{ flexShrink: 0, width: 30, height: 30, color: 'var(--ink-400)' }}
+          <button className="iconbtn" style={{ flexShrink: 0, width: 28, height: 28, color: 'var(--ink-400)' }}
             aria-label={`Editar ${item.n}`}
             onClick={() => onEditFull(item.id, String(item.value ?? ''), item.unit ?? '', item.note ?? '')}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -372,8 +373,8 @@ function ItemRow({
           </button>
         )}
 
-        {/* Botón borrar */}
-        <button className="iconbtn" style={{ flexShrink: 0, width: 30, height: 30 }}
+        {/* Botón borrar — acción destructiva secundaria, más tenue */}
+        <button className="iconbtn" style={{ flexShrink: 0, width: 28, height: 28, color: 'var(--ink-300)', background: 'transparent' }}
           aria-label={`Borrar ${item.n}`}
           onClick={() => onDelete(item.id)}>
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -436,7 +437,9 @@ function ItemRow({
                 title="Solo editar hora">
                 Solo hora
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={onCancelEdit}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={onCancelEdit} aria-label="Cancelar edición">
+                <Glyph name="cross" size={14} color="currentColor" />
+              </button>
             </div>
           </motion.div>
         )}

@@ -245,6 +245,12 @@ export function RegistrarSheet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product])
   const showRecon = needsRecon(unit)
+  // densidad: panel de reconstitución colapsado por defecto (se abre solo si ya hay datos)
+  const [showReconPanel, setShowReconPanel] = useState(false)
+  useEffect(() => {
+    if (vialStr && aguaStr) setShowReconPanel(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product])
 
   // item 424: alerta de caducidad (>28 días)
   const reconStale = reconDate != null && (Date.now() - reconDate) > 28 * 24 * 3600000
@@ -430,21 +436,21 @@ export function RegistrarSheet() {
               padding: '12px 16px', borderRadius: 12,
               border: '1px solid var(--border)', background: 'var(--card)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: '50%',
                   background: 'color-mix(in srgb, var(--brand-700) 10%, transparent)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: 'var(--brand-700)',
+                  color: 'var(--brand-700)', flexShrink: 0,
                 }}>
                   <IcDrop size={20} />
                 </div>
-                <span className="body" style={{ fontWeight: 500 }}>
+                <span className="body" style={{ fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {product || 'Selecciona un producto'}
                 </span>
               </div>
               <button className="btn-ghost sm"
-                style={{ color: 'var(--brand-700)', fontWeight: 600 }}
+                style={{ color: 'var(--brand-700)', fontWeight: 600, flexShrink: 0 }}
                 onClick={() => setShowPicker((v) => !v)}>
                 Cambiar
               </button>
@@ -558,7 +564,7 @@ export function RegistrarSheet() {
                   </div>
                 )}
                 {cadMode === 'sem' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <span className="sm" style={{ color: 'var(--ink-400)' }}>Cada</span>
                     <button className="stepbtn" aria-label="Menos"
                       onClick={() => setLocalCad((p) => ({ ...p, every: Math.max(1, p.every - 1) }))}>−</button>
@@ -569,7 +575,7 @@ export function RegistrarSheet() {
                   </div>
                 )}
                 {cadMode === 'mes' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <span className="sm" style={{ color: 'var(--ink-400)' }}>Cada</span>
                     <button className="stepbtn" aria-label="Menos"
                       onClick={() => setLocalCad((p) => ({ ...p, every: Math.max(1, p.every - 1) }))}>−</button>
@@ -648,11 +654,12 @@ export function RegistrarSheet() {
                 ))}
               </div>
               <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', textAlign: 'center' }}>
-                Paso: {UNIT_STEP[unit]} {unit} · mantén presionado para rampa
+                Paso: {UNIT_STEP[unit]} {unit}
+                <span style={{ color: 'var(--ink-200)' }}> · mantén ± para rampa</span>
               </p>
 
-              {/* item 430: chips de últimas 3 dosis */}
-              {doseChips.length > 0 && (
+              {/* item 430: chips de últimas 3 dosis — solo cuando el campo está vacío (menos ruido) */}
+              {doseChips.length > 0 && !dose && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'center' }}>
                   <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>Dosis recientes</p>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -672,8 +679,15 @@ export function RegistrarSheet() {
                 </div>
               )}
 
-              {/* Reconstitución del vial */}
-              {showRecon && (
+              {/* Reconstitución del vial — colapsable (densidad) */}
+              {showRecon && !showReconPanel && (
+                <button className="btn-ghost sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brand-700)', fontWeight: 500 }}
+                  onClick={() => setShowReconPanel(true)}>
+                  <IcDrop size={14} /> ¿Convertir a mg? (reconstitución del vial)
+                </button>
+              )}
+              {showRecon && showReconPanel && (
                 <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--border)', width: '100%', boxSizing: 'border-box' }}>
                   <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 10, textAlign: 'center' }}>
                     Reconstitución del vial <span style={{ color: 'var(--ink-300)' }}>· para saber cuántos mg son tus {unit === 'mL' ? 'mL' : 'unidades'}</span>
@@ -786,10 +800,10 @@ export function RegistrarSheet() {
                     placeholder="Sitio de inyección, notas personales, estado general…"
                     value={nota}
                     onChange={(e) => setNota(e.target.value)}
-                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 14, boxSizing: 'border-box' }}
+                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 14, boxSizing: 'border-box', paddingBottom: 24 }}
                     aria-label="Nota opcional del registro"
                   />
-                  <span className="sm" style={{ position: 'absolute', bottom: 6, right: 10, color: 'var(--ink-300)' }}>
+                  <span className="sm" style={{ position: 'absolute', bottom: 8, right: 10, color: 'var(--ink-300)', background: 'var(--card)', padding: '0 2px', borderRadius: 4, pointerEvents: 'none' }}>
                     {nota.length}/200
                   </span>
                 </div>
@@ -804,9 +818,9 @@ export function RegistrarSheet() {
 
       {/* ── CTA fijo al fondo ── */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1,
         padding: '16px 20px 24px',
-        background: 'linear-gradient(to top, var(--card) 80%, transparent)',
+        background: 'linear-gradient(to top, var(--surface) 80%, transparent)',
       }}>
         {isWizard && wizardStep !== 'dosis' ? (
           <button className="btn btn-brand"

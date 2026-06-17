@@ -117,7 +117,7 @@ export function DoseConfirm() {
   }
 
   return (
-    <Sheet title={step === 'time' ? '¿A qué hora te la aplicaste?' : '¿Cómo te sientes?'} onClose={close}>
+    <Sheet title={step === 'time' ? '¿A qué hora?' : '¿Cómo te sientes?'} onClose={close}>
       <AnimatePresence mode="wait" initial={false}>
         {step === 'time' ? (
           <motion.div

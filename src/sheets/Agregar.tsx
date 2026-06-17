@@ -149,8 +149,9 @@ export function Agregar() {
                 style={{ paddingRight: 36 }}
               />
               <button onClick={() => { setQuery(''); setShowSearch(false) }}
-                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-400)' }}>
-                ✕
+                aria-label="Limpiar búsqueda"
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-400)', display: 'flex' }}>
+                <Glyph name="cross" size={14} color="currentColor" />
               </button>
             </div>
           )}
@@ -171,8 +172,8 @@ export function Agregar() {
                       cursor: 'pointer', textAlign: 'left',
                     }}>
                     <GlyphCircle name={r.icon} color={r.color} size={16} box={32} />
-                    <div>
-                      <p className="sm" style={{ margin: 0, fontWeight: 600 }}>{r.label}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="sm" style={{ margin: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</p>
                       <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>{r.sub}</p>
                     </div>
                   </button>
@@ -190,17 +191,18 @@ export function Agregar() {
             <motion.div
               initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
               style={{
-                padding: '10px 14px', borderRadius: 'var(--r-sm)',
-                background: 'color-mix(in srgb, var(--brand-100) 30%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--brand-300) 40%, transparent)',
+                padding: '4px 2px',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                borderBottom: '1px solid var(--border)',
               }}
             >
-              <p className="sm" style={{ margin: 0, color: 'var(--ink-700)', flex: 1 }}>
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', flex: 1, minWidth: 0 }}>
                 No registras cómo te sientes en {gapH != null ? Math.round(gapH / 24) : '2'} días — tus tendencias se desactualizan.
               </p>
-              <button className="btn-ghost sm" style={{ flexShrink: 0, color: 'var(--ink-400)' }}
-                onClick={() => setDismissedGap(true)}>✕</button>
+              <button className="btn-ghost sm" style={{ flexShrink: 0, color: 'var(--ink-400)', height: 'auto', padding: '0 4px' }}
+                onClick={() => setDismissedGap(true)} aria-label="Ocultar aviso">
+                <Glyph name="cross" size={13} color="currentColor" />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -254,7 +256,7 @@ export function Agregar() {
             <button className="btn btn-outline btn-sm"
               style={{ width: '100%' }}
               onClick={() => setStackMode((v) => !v)}>
-              {stackMode ? 'Cancelar stack' : '⊕ Registrar stack (2-5 productos)'}
+              {stackMode ? 'Cancelar stack' : 'Registrar stack (2-5 productos)'}
             </button>
             <AnimatePresence>
               {stackMode && (
@@ -277,12 +279,12 @@ export function Agregar() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
                         {[...stackSelected].map((p) => (
                           <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span className="sm" style={{ flex: 1, fontWeight: 600 }}>{p}</span>
+                            <span className="sm" style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</span>
                             <input className="field mono" type="number" inputMode="decimal" placeholder="dosis (mg)"
                               value={stackDoses[p] ?? ''}
                               onChange={(e) => setStackDoses((d) => ({ ...d, [p]: e.target.value }))}
-                              style={{ width: 100, fontSize: 14, textAlign: 'right' }} />
-                            <span className="sm" style={{ color: 'var(--ink-400)', width: 24 }}>mg</span>
+                              style={{ width: 100, flexShrink: 0, fontSize: 14, textAlign: 'right' }} />
+                            <span className="sm" style={{ color: 'var(--ink-400)', width: 24, flexShrink: 0 }}>mg</span>
                           </div>
                         ))}
                         <button className="btn btn-brand"

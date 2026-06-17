@@ -87,7 +87,9 @@ export function MedidaSheet() {
     setInputMode(next)
     try { localStorage.setItem(STORAGE_KEY, next) } catch {}
   }
-  const modeLabel = inputMode === 'buttons' ? '≡ Slider' : inputMode === 'slider' ? '# Número' : '⊞ 5 niveles'
+  // densidad: el label describe el modo ACTUAL (no el siguiente) — menos carga cognitiva
+  const modeName = inputMode === 'buttons' ? '5 niveles' : inputMode === 'slider' ? 'Slider' : 'Número'
+  const modeLabel = `Modo: ${modeName} · cambiar`
 
   // item 329: producto vinculado al efecto secundario
   const activeProducts = Object.keys(state.protocols).filter((p) => !state.protocols[p]?.archived)
@@ -246,8 +248,15 @@ export function MedidaSheet() {
                 textTransform: 'uppercase', letterSpacing: '0.04em',
               }}
             >
-              {/* item 319: etiqueta semántica según bucket */}
-              {quickLabels[Math.min(4, Math.floor((value / maxVal) * 5))]}
+              {/* item 319: etiqueta semántica — en modo botones deriva del botón activo
+                  para no desincronizarse con la cuadrícula de 5 niveles (bug de consistencia) */}
+              {(() => {
+                const qi = QUICK_VALUES.indexOf(value)
+                const idx = inputMode === 'buttons' && qi >= 0
+                  ? qi
+                  : Math.min(4, Math.floor(((value - 1) / Math.max(1, maxVal - 1)) * 5))
+                return quickLabels[Math.min(4, Math.max(0, idx))]
+              })()}
             </motion.span>
           )}
         </motion.div>

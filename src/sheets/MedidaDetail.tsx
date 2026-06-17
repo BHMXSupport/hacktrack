@@ -77,25 +77,25 @@ export function MedidaDetailSheet() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: dur.base, ease: ease.decelerate }}
-          style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingTop: 4 }}
+          style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingTop: 4, flexWrap: 'wrap' }}
         >
           {lastValue !== null ? (
             <>
               <span
                 className="mono"
-                style={{ fontSize: 52, fontWeight: 700, lineHeight: 1, color: accentColor }}
+                style={{ fontSize: 52, fontWeight: 700, lineHeight: 1, color: accentColor, whiteSpace: 'nowrap' }}
               >
                 {lastValue}
               </span>
               {unitLabel && (
-                <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 500 }}>
+                <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                   {unitLabel}
                 </span>
               )}
               {deltaRaw !== null && deltaRaw !== 0 && (
                 <span
                   className="sm mono"
-                  style={{ marginLeft: 4, fontWeight: 700, color: deltaColor }}
+                  style={{ marginLeft: 4, fontWeight: 700, color: deltaColor, whiteSpace: 'nowrap', flexBasis: '100%' }}
                   aria-label={`Delta vs. anterior: ${deltaRaw > 0 ? '+' : ''}${deltaRaw}`}
                 >
                   {deltaArrow}{Math.abs(deltaRaw)} vs. anterior
@@ -119,13 +119,16 @@ export function MedidaDetailSheet() {
             <p className="sm" style={{ margin: '0 0 8px', color: 'var(--ink-400)', fontWeight: 500 }}>
               Tus datos
             </p>
-            <LineChart
-              data={values}
-              color={accentColor}
-              w={320}
-              h={140}
-              labels={labels}
-            />
+            {/* contenedor full-width: el SVG usa viewBox + width:100%, así escala sin bleed */}
+            <div style={{ width: '100%', overflow: 'hidden' }}>
+              <LineChart
+                data={values}
+                color={accentColor}
+                w={320}
+                h={140}
+                labels={labels}
+              />
+            </div>
           </motion.div>
         ) : (
           <div

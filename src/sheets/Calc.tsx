@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Sheet } from '../components/Sheet'
 import { Segmented, Disclaimer } from '../components/controls'
 import { IcDrop } from '../components/icons'
+import { Glyph } from '../components/glyphs'
 import { useApp } from '../lib/store'
 import { calcRecon, copyToRegisterToast } from '../lib/calc'
 import type { SyringeScale } from '../lib/types'
@@ -39,7 +40,7 @@ const SYRINGE_PRESETS: SyringePreset[] = [
   },
   {
     // item 426: pluma dosificadora — cada clic ≈ mg por factor configurable
-    id: 'pluma', label: 'Pluma', sublabel: 'Clics→mg', capacityUI: null,
+    id: 'pluma', label: 'Pluma', sublabel: 'Clics', capacityUI: null,
     svgPath: 'M14 2h4l2 4v60l-2 4h-4l-2-4V6l2-4zM12 10h8M12 58h8',
   },
 ]
@@ -179,18 +180,19 @@ export function CalcSheet() {
                     padding: '10px 14px', borderRadius: 'var(--r-sm)',
                     background: 'var(--card)', border: '1px solid var(--border)',
                   }}>
-                    <div>
-                      <p className="sm" style={{ margin: 0, fontWeight: 600 }}>{rec.label}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="sm" style={{ margin: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rec.label}</p>
                       <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>{rec.vialMg} mg / {rec.aguaMl} mL</p>
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                       <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 10px' }}
                         onClick={() => loadSavedRecon(rec)}>
                         Usar
                       </button>
                       <button className="btn btn-ghost btn-sm" style={{ width: 'auto', padding: '0 10px', color: 'var(--error)' }}
-                        onClick={() => dispatch({ t: 'deleteRecon', id: rec.id })}>
-                        ✕
+                        onClick={() => dispatch({ t: 'deleteRecon', id: rec.id })}
+                        aria-label={`Borrar ${rec.label}`}>
+                        <Glyph name="cross" size={14} color="currentColor" />
                       </button>
                     </div>
                   </div>
@@ -232,7 +234,9 @@ export function CalcSheet() {
                   disabled={!saveLabel.trim()}>
                   Guardar
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowSaveForm(false)}>✕</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowSaveForm(false)} aria-label="Cancelar">
+                  <Glyph name="cross" size={14} color="currentColor" />
+                </button>
               </div>
             )}
           </div>
@@ -268,7 +272,7 @@ export function CalcSheet() {
                     }
                   }}
                   style={{
-                    flex: 1, padding: '10px 6px', borderRadius: 'var(--r-sm)',
+                    flex: 1, minWidth: 0, padding: '8px 4px', borderRadius: 'var(--r-sm)',
                     border: isActive ? '2px solid var(--brand-700)' : '1.5px solid var(--border)',
                     background: isActive ? 'color-mix(in srgb, var(--brand-700) 8%, transparent)' : 'var(--card)',
                     cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
@@ -296,10 +300,10 @@ export function CalcSheet() {
                       </>
                     )}
                   </svg>
-                  <span className="sm" style={{ fontWeight: 600, color: isActive ? 'var(--brand-700)' : 'var(--ink-700)' }}>
+                  <span className="sm" style={{ fontWeight: 600, color: isActive ? 'var(--brand-700)' : 'var(--ink-700)', whiteSpace: 'nowrap' }}>
                     {p.label}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--ink-400)' }}>{p.sublabel}</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-400)', whiteSpace: 'nowrap' }}>{p.sublabel}</span>
                 </button>
               )
             })}
@@ -337,8 +341,9 @@ export function CalcSheet() {
               style={{ fontSize: 48, fontWeight: 700, color: r.overCapacity ? 'var(--error)' : 'var(--brand-700)', lineHeight: 1 }}>
               {r.ui} UI
             </span>
-            <span className="sm" style={{ color: 'var(--ink-400)' }}>
-              ≈ {r.mL} mL · {r.conc} mg/mL · U-100
+            <span className="sm" style={{ color: 'var(--ink-400)', textAlign: 'center', maxWidth: '100%', lineHeight: 1.5 }}>
+              ≈ {r.mL} mL · {r.conc} mg/mL
+              <br />U-100
             </span>
             {r.overCapacity && (
               <span className="sm" style={{ color: 'var(--error)', fontWeight: 600, marginTop: 6 }}>
