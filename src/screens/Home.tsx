@@ -191,7 +191,8 @@ export function Home() {
   const todayWdsIdx = [1, 2, 3, 4, 5, 6, 0][today.getDay()]
 
   // KPI cards: máx 4 medidas seleccionadas
-  const kpiMeasures = state.selectedMeasures.slice(0, 4)
+  // Excluye 'Altura' (estática, nunca cambia → KPI plano inútil); vive en el perfil para BMI/TDEE.
+  const kpiMeasures = state.selectedMeasures.filter((m) => m !== 'Altura').slice(0, 4)
 
   // Estado para decidir si hay protocolo o no
   const hasProtocol = !!state.protocol
@@ -483,7 +484,7 @@ export function Home() {
   const [morningCheckDone, setMorningCheckDone] = useState(false)
   const [morningAnswers, setMorningAnswers] = useState<Record<string, number>>({})
   const isEarlyMorning = nowH < 10  // hasta las 10 AM
-  const morningCheckMeasures = state.selectedMeasures.slice(0, 3)
+  const morningCheckMeasures = state.selectedMeasures.filter((m) => m !== 'Altura').slice(0, 3)
   const hasMorningData = morningCheckMeasures.every((m) => {
     const series = state.history[m] ?? []
     if (series.length === 0) return false

@@ -695,7 +695,8 @@ export function reducer(s: AppState, a: Action): AppState {
       const samples: { name: string; value: number; ts: number }[] = []
       const mv: Record<string, number> = { ...s.measureValues }
       if (a.values.peso != null) { samples.push({ name: 'Peso', value: a.values.peso, ts }); mv['Peso'] = a.values.peso }
-      if (a.values.est != null) { samples.push({ name: 'Altura', value: a.values.est, ts }); mv['Altura'] = a.values.est }
+      // Altura: estática (no cambia) → NO se graba como medida con timeline; vive en el perfil (est) para BMI/TDEE.
+      if (a.values.est != null) { mv['Altura'] = a.values.est }
       if (a.values.grasa != null) { samples.push({ name: '% grasa', value: a.values.grasa, ts }); mv['% grasa'] = a.values.grasa }
       if (a.values.musculo != null) { samples.push({ name: '% músculo', value: a.values.musculo, ts }); mv['% músculo'] = a.values.musculo }
       if (profile.bmi != null) { samples.push({ name: 'IMC', value: profile.bmi, ts }); mv['IMC'] = profile.bmi }

@@ -32,7 +32,7 @@ function fmtDate(ts: number): string {
 function exportCsv(history: Record<string, MeasureSample[]>) {
   const BOM = '﻿'
   const rows: string[] = ['medida,fecha,valor']
-  const allKeys = Object.keys(history).filter(k => history[k] && history[k].length > 0)
+  const allKeys = Object.keys(history).filter(k => k !== 'Altura' && history[k] && history[k].length > 0)
   const sorted = [...allKeys].sort()
   for (const name of sorted) {
     const samples = [...history[name]].sort((a, b) => a.ts - b.ts)
@@ -506,7 +506,7 @@ export function ProgressDashboard() {
   const history = state.history
   const protocols = state.protocols ?? {}
 
-  const allKeys = Object.keys(history).filter(k => history[k] && history[k].length > 0)
+  const allKeys = Object.keys(history).filter(k => k !== 'Altura' && history[k] && history[k].length > 0)
 
   // n=146: gestión de KPI order
   const [kpiMgrOpen, setKpiMgrOpen] = useState(false)

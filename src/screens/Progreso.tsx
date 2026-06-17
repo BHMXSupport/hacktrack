@@ -537,7 +537,8 @@ function KpiCorrelationCard() {
   const [selKpi, setSelKpi] = useState<string>('')
 
   const kpiOptions = useMemo(() => {
-    return Object.keys(state.history).filter((k) => (state.history[k]?.length ?? 0) > 0)
+    // Excluye 'Altura' (estática, no correlaciona con nada)
+    return Object.keys(state.history).filter((k) => k !== 'Altura' && (state.history[k]?.length ?? 0) > 0)
   }, [state.history])
 
   const activeKpi = selKpi || kpiOptions[0] || ''
@@ -685,6 +686,15 @@ export function Progreso() {
   const [productsOpen, setProductsOpen] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
+  // Mostrar "Análisis avanzado" SOLO si hay algo que mostrar: titulación activa, fase OFF de ciclo,
+  // o KPIs correlacionables (excluyendo Altura, que es estática). Para protocolos simples salía vacío → se oculta.
+  const advProtos = Object.values(state.protocols)
+  const advToday = new Date(state.todayTs)
+  const showAdvancedPanel =
+    advProtos.some((p) => p.progOn) ||
+    advProtos.some((p) => p.cadence.mode === 'ciclo' && cyclePhase(p.cadence, advToday, new Date(p.startDate))?.phase === 'off') ||
+    (advProtos.length > 0 && Object.keys(state.history).some((k) => k !== 'Altura' && (state.history[k]?.length ?? 0) > 0))
+
   function pick(product: string) {
     // solo-agregar: todos los productos quedan activos a la vez. Para quitar → botón "Quitar" (con confirmación).
     if (state.protocols[product]) {
@@ -779,21 +789,23 @@ export function Progreso() {
                 <ReconstitutionButton />
               </Disclosure>
 
-              {/* Análisis avanzado — colapsado por defecto (titulación, fase OFF, correlación) */}
-              <Disclosure
-                title="Análisis avanzado"
-                open={advancedOpen}
-                onToggle={() => setAdvancedOpen(v => !v)}
-              >
-                {/* Fases de titulación — una por cada producto con titulación activa */}
-                <TitrationPhasesAll />
+              {/* Análisis avanzado — solo si hay contenido (titulación / fase OFF / correlación); si no, se oculta */}
+              {showAdvancedPanel && (
+                <Disclosure
+                  title="Análisis avanzado"
+                  open={advancedOpen}
+                  onToggle={() => setAdvancedOpen(v => !v)}
+                >
+                  {/* Fases de titulación — una por cada producto con titulación activa */}
+                  <TitrationPhasesAll />
 
-                {/* n°422: tarjeta fase OFF */}
-                <OffPhaseCards />
+                  {/* n°422: tarjeta fase OFF */}
+                  <OffPhaseCards />
 
-                {/* n°376: correlación KPI ↔ dosis */}
-                <KpiCorrelationCard />
-              </Disclosure>
+                  {/* n°376: correlación KPI ↔ dosis */}
+                  <KpiCorrelationCard />
+                </Disclosure>
+              )}
             </motion.div>
           ) : (
             <motion.div
