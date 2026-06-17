@@ -234,7 +234,8 @@ export function Alimentacion() {
   // resumen de una línea para el estado colapsado de electrolitos
   const electroSummary = `Na ${electrolytes.na} · K ${electrolytes.k} · Mg ${electrolytes.mg} mg`
 
-  const goalKcal = state.kcalGoal ?? tdee(state)
+  const tdeeVal = useMemo(() => tdee(state), [state])
+  const goalKcal = state.kcalGoal ?? tdeeVal
   const goalP = state.macroGoals?.protein ?? null
   const peso = state.profile?.peso ?? null
   // hora de registro elegida (ahora, o una hora de HOY para backfill); la franja se DERIVA de la hora
@@ -250,8 +251,7 @@ export function Alimentacion() {
   // Suggested protein from weight (§82)
   const suggestedProtein = (!goalP && peso) ? proteinSuggestion(peso) : null
 
-  // Chip TDEE inteligente
-  const tdeeVal = tdee(state)
+  // Chip TDEE inteligente (tdeeVal ya memoizado arriba)
   const chipTdee = (tdeeVal && kcal > 0) ? tdeeChip(kcal, tdeeVal) : null
 
   // Proteína restante accionable
@@ -279,15 +279,15 @@ export function Alimentacion() {
   // Distribución por franja
   const slotDist = useMemo(() => kcalBySlot(day.meals), [day.meals])
 
-  // Calidad proteica (observacional)
-  const pqScore = proteinQualityScore(day.meals)
-  const pUnbalanced = isProteinUnbalanced(day.meals)
+  // Calidad proteica (observacional) — memoizados: no deben recalcular en cada tecla del buscador
+  const pqScore = useMemo(() => proteinQualityScore(day.meals), [day.meals])
+  const pUnbalanced = useMemo(() => isProteinUnbalanced(day.meals), [day.meals])
 
   // Racha de calidad (proteína)
-  const pStreak = proteinQualityStreak(state)
+  const pStreak = useMemo(() => proteinQualityStreak(state), [state])
 
   // Diversidad semanal
-  const diversity = weeklyDiversityScore(state)
+  const diversity = useMemo(() => weeklyDiversityScore(state), [state])
 
   // Recientes (7 días)
   const recientes = useMemo(() => recentFoods(state, 8), [state])
