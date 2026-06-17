@@ -7,7 +7,7 @@ import { Glyph } from '../components/glyphs'
 import { useApp, isoKey, adherenceMonth } from '../lib/store'
 import {
   weightProjection, kcalSeries, productKpis, dayMacros, protocolList,
-  getGlassMl, glassesToLiters, waterGoalLiters,
+  litersFromMl, waterGoalLiters,
 } from '../lib/nutrition'
 import { Sparkline, TrendChart, MacroBar, ConsistencyHeatmap, R2Chip, movingAverage } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
@@ -571,8 +571,7 @@ export function TrendsCard() {
   const pesoWin = pesoAllFull.filter((p) => p.ts >= state.todayTs - effectiveWin * DAY)
   const pesoPts = (pesoWin.length >= 2 ? pesoWin : pesoAllFull).map((p) => p.value)
   // Agua en LITROS (los vasos no son comparables entre tamaños): litros = vasos × ml real del vaso
-  const glassMl = getGlassMl()
-  const waterLiterPts = useMemo(() => waterPts.map((g) => glassesToLiters(g, glassMl)), [waterPts, glassMl])
+  const waterLiterPts = useMemo(() => waterPts.map(litersFromMl), [waterPts])
   const waterGoalL = waterGoalLiters(state.profile.peso)
 
   // MA-7 sobre el peso: solo activa en ventana ≥14d
@@ -611,7 +610,7 @@ export function TrendsCard() {
       const g = state.log.find((x) => x.dateKey === k)
       return {
         dose: !!g?.items.some((it) => it.type === 'dose'),
-        water: !!nut && glassesToLiters(nut.water, glassMl) >= waterGoalL,
+        water: !!nut && litersFromMl(nut.water) >= waterGoalL,
         meal: !!nut && nut.meals.length > 0,
       }
     })

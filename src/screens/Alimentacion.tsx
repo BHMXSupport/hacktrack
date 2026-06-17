@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp, isoKey, mealSlot } from '../lib/store'
 import {
   dayMacros, predictions, predictionConfidence, fuzzySearch, protocolNumbers, anchorProduct,
-  tdee, tdeeChip, kcalFromMacros, proteinSuggestion, waterGoalGlasses, kcalSeries,
+  tdee, tdeeChip, kcalFromMacros, proteinSuggestion, waterGoalGlasses, kcalSeries, litersFromMl, waterGoalLiters,
   proteinRemaining, fastingMinutes, fastingLabel, kcalBySlot, macroPercents, proteinQualityScore,
   isProteinUnbalanced, weeklyDiversityScore, proteinQualityStreak, recentFoods,
   exportNutritionCsv, shareDayText,
@@ -153,8 +153,8 @@ export function Alimentacion() {
   })
   const [showGlassConfig, setShowGlassConfig] = useState(false)
   const GLASS_OPTIONS = [250, 330, 500] as const
-  const totalMl = day.water * glassMl
-  const totalL = (totalMl / 1000).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+  const totalMl = day.water  // 'water' ahora es VOLUMEN en ml (no conteo de vasos)
+  const totalL = litersFromMl(totalMl)
 
   // n°476: barcode scanner (BarcodeDetector Web API)
   const [scannerActive, setScannerActive] = useState(false)
@@ -297,7 +297,9 @@ export function Alimentacion() {
     setTimeout(() => setToastMsg(null), 3000)
   }
 
-  const addWater = (d: number) => { tapHaptic(); dispatch({ t: 'water', delta: d }) }
+  // d = ± vasos; se convierte a ml con el tamaño actual del vaso (cambiar el tamaño no altera lo ya tomado)
+  const addWater = (d: number) => { tapHaptic(); dispatch({ t: 'water', delta: d * glassMl }) }
+  const waterGoalL = waterGoalLiters(peso)
   const logFav = (f: FoodFav) => {
     tapHaptic()
     dispatch({ t: 'addFavMeal', id: f.id, portion: portion ?? undefined, ts: whenTs })
@@ -459,21 +461,21 @@ export function Alimentacion() {
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <IcDrop size={20} style={{ color: 'var(--brand-700)', flexShrink: 0 }} />
             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0, overflow: 'hidden' }}>
-              <span className="sm mono" style={{ color: day.water >= waterGoal ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700, whiteSpace: 'nowrap' }}>{day.water}/{waterGoal} vasos</span>
-              <span className="xs" style={{ color: 'var(--ink-400)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{totalL} L hoy · {glassMl} ml/vaso</span>
+              <span className="sm mono" style={{ color: totalL >= waterGoalL ? 'var(--success)' : 'var(--ink-700)', fontWeight: 700, whiteSpace: 'nowrap' }}>{totalL} / {waterGoalL} L{totalL >= waterGoalL ? ' ✓' : ''}</span>
+              <span className="xs" style={{ color: 'var(--ink-400)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>≈ {Math.round(day.water / glassMl)} vasos · {glassMl} ml/vaso</span>
             </div>
             <div
               role="progressbar"
-              aria-valuenow={day.water}
+              aria-valuenow={totalL}
               aria-valuemin={0}
-              aria-valuemax={waterGoal}
-              aria-label="Meta de hidratación"
+              aria-valuemax={waterGoalL}
+              aria-label="Meta de hidratación en litros"
               style={{ flex: 1, minWidth: 60, height: 6, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}
             >
-              <div style={{ width: `${Math.min(100, (day.water / waterGoal) * 100)}%`, height: '100%', background: 'var(--brand-500)', borderRadius: 999, transition: 'width 0.25s ease, background 0.25s ease' }} />
+              <div style={{ width: `${Math.min(100, waterGoalL > 0 ? (totalL / waterGoalL) * 100 : 0)}%`, height: '100%', background: totalL >= waterGoalL ? 'var(--success)' : 'var(--brand-500)', borderRadius: 999, transition: 'width 0.25s ease, background 0.25s ease' }} />
             </div>
             <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34, flexShrink: 0, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer' }}>−</button>
-            <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoal * 2} style={{ width: 34, height: 34, flexShrink: 0, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoal * 2 ? 0.4 : 1, cursor: day.water >= waterGoal * 2 ? 'not-allowed' : 'pointer' }}>+</button>
+            <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoalL * 2000} style={{ width: 34, height: 34, flexShrink: 0, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoalL * 2000 ? 0.4 : 1, cursor: day.water >= waterGoalL * 2000 ? 'not-allowed' : 'pointer' }}>+</button>
           </div>
           {/* Config de vaso a segundo nivel (libera ancho en la fila principal) */}
           <button

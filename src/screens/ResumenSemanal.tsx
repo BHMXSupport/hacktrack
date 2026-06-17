@@ -7,7 +7,7 @@ import { Glyph } from '../components/glyphs'
 import { useApp, adherence, isoKey } from '../lib/store'
 import {
   protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, streakDetail, anchorProduct, protocolList,
-  getGlassMl, glassesToLiters, waterGoalLiters,
+  litersFromMl, waterGoalLiters,
 } from '../lib/nutrition'
 import { Sparkline, TrendChart, R2Chip } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
@@ -90,12 +90,11 @@ export function ResumenSemanal() {
   const waterPrevAvg = waterPrevDays.length ? Math.round(waterPrevDays.reduce((a, b) => a + b, 0) / waterPrevDays.length) : null
 
   // Agua en LITROS (vasos no son comparables entre tamaños): consumido = vasos × ml real; meta calibrada a 250ml
-  const glassMl = getGlassMl()
   const waterAvgRaw = waterDays.length ? waterDays.reduce((a, b) => a + b, 0) / waterDays.length : 0
-  const waterAvgL = glassesToLiters(waterAvgRaw, glassMl)
+  const waterAvgL = litersFromMl(waterAvgRaw)
   const waterGoalL = waterGoalLiters(state.profile.peso)
   const waterPrevAvgRaw = waterPrevDays.length ? waterPrevDays.reduce((a, b) => a + b, 0) / waterPrevDays.length : null
-  const waterDeltaL = waterPrevAvgRaw != null ? Math.round((waterAvgL - glassesToLiters(waterPrevAvgRaw, glassMl)) * 10) / 10 : null
+  const waterDeltaL = waterPrevAvgRaw != null ? Math.round((waterAvgL - litersFromMl(waterPrevAvgRaw)) * 10) / 10 : null
 
   const avg7 = avgKcal(state, 7)
   const streak = compositeStreak(state)
@@ -118,7 +117,7 @@ export function ResumenSemanal() {
   const wellnessScore = useMemo(() => {
     const adhScore = adh ? adh.pct * 0.4 : 0
     // días que alcanzaron la meta de agua EN LITROS (no en vasos, que dependen del tamaño)
-    const waterScore = (waterDays.filter((g) => glassesToLiters(g, glassMl) >= waterGoalL).length / 7) * 100 * 0.25
+    const waterScore = (waterDays.filter((g) => litersFromMl(g) >= waterGoalL).length / 7) * 100 * 0.25
     const mealScore = (kcalDays.length / 7) * 100 * 0.20
     // variación de peso → 15%: si hay tendencia y va hacia la meta, full; sino proporcional
     let weightScore = 0

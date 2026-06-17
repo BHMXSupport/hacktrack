@@ -371,6 +371,10 @@ export function getGlassMl(): number {
 export function glassesToLiters(glasses: number, glassMl: number = getGlassMl()): number {
   return Math.round((glasses * glassMl) / 100) / 10
 }
+// El agua se almacena en MILILITROS (volumen acumulado). litros = ml / 1000, redondeado a 1 decimal.
+export function litersFromMl(ml: number): number {
+  return Math.round(ml / 100) / 10
+}
 // meta diaria de agua en litros (calibrada a vasos de 250 ml → ~2 L; independiente del vaso del usuario)
 export function waterGoalLiters(pesoKg: number | null): number {
   const glasses = pesoKg ? waterGoalGlasses(pesoKg) : 8

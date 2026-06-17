@@ -368,7 +368,16 @@ export function hydrate(s: AppState): AppState {
     }))
   }
 
-  return syncActive({ ...s, protocols, log, activeProduct })
+  // Migración de agua: 'water' pasó de CONTEO DE VASOS a MILILITROS (para que cambiar el tamaño del vaso
+  // NO reinterprete lo ya tomado). Valores viejos (conteo de vasos, <50) → × tamaño de vaso. Idempotente:
+  // los valores ya en ml (≥150) no se vuelven a tocar (el vaso mínimo es ≥150 ml).
+  const gMl = (() => { try { return Number(localStorage.getItem('hacktrack-glass-ml') ?? '250') || 250 } catch { return 250 } })()
+  const nutrition: typeof s.nutrition = {}
+  for (const [k, v] of Object.entries(s.nutrition ?? {})) {
+    nutrition[k] = (v.water > 0 && v.water < 50) ? { ...v, water: Math.round(v.water * gMl) } : v
+  }
+
+  return syncActive({ ...s, protocols, log, activeProduct, nutrition })
 }
 
 // ── reducer ──────────────────────────────────────────────────────────────────

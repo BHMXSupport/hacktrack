@@ -16,7 +16,7 @@ import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, daySt
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { presenceNow, collectDosesByProduct, HALF_LIFE_H, nextDoseWindow } from '../lib/pharma'
 import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
-import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs, glassesToLiters, waterGoalLiters, getGlassMl } from '../lib/nutrition'
+import { weightProjection, weeklyInsights, protocolStartTs, litersFromMl, waterGoalLiters } from '../lib/nutrition'
 import { vialDaysLeft, vialExpiryStatus, vialMgConsumed, vialMgRemaining, vialDosesRemaining } from '../lib/calc'
 import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
 import { StreakChip, ProductStreakBadge } from '../components/StreakChip'
@@ -217,10 +217,9 @@ export function Home() {
 
   // ── Loop 161: Widget hidratación ─────────────────────────────────────────
   const todayKey = isoKey(state.todayTs)
-  const waterToday = state.nutrition[todayKey]?.water ?? 0
-  // hidratación en LITROS (los vasos no son comparables entre tamaños)
-  const glassMl = getGlassMl()
-  const waterL = glassesToLiters(waterToday, glassMl)
+  const waterTodayMl = state.nutrition[todayKey]?.water ?? 0  // ahora en MILILITROS (volumen)
+  // hidratación en LITROS — Inicio es solo lectura; se registra desde Comida
+  const waterL = litersFromMl(waterTodayMl)
   const waterGoalL = waterGoalLiters(state.profile.peso)
   const waterPct = waterGoalL > 0 ? (waterL / waterGoalL) * 100 : 0
 
@@ -747,30 +746,14 @@ export function Home() {
               transition: `width ${dur.base}s ease, background ${dur.base}s ease`,
             }} />
           </div>
-          {/* controles: quitar / agregar un vaso — con su tamaño visible para entender el cálculo */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <button
-              aria-label="Quitar un vaso"
-              disabled={waterToday === 0}
-              onClick={() => dispatch({ t: 'water', delta: -1 })}
-              style={{
-                width: 36, height: 36, borderRadius: 999, border: '1px solid var(--border)',
-                background: 'transparent', color: 'var(--ink-700)', fontSize: 20, lineHeight: 1,
-                cursor: waterToday === 0 ? 'not-allowed' : 'pointer', opacity: waterToday === 0 ? 0.4 : 1,
-              }}
-            >−</button>
-            <span className="sm" style={{ color: 'var(--ink-400)' }}>
-              {waterToday} {waterToday === 1 ? 'vaso' : 'vasos'} · {glassMl} ml c/u
-            </span>
-            <button
-              aria-label="Agregar un vaso"
-              onClick={() => dispatch({ t: 'water', delta: 1 })}
-              style={{
-                width: 36, height: 36, borderRadius: 999, border: 'none',
-                background: 'var(--brand-700)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: 'pointer',
-              }}
-            >+</button>
-          </div>
+          {/* Inicio solo muestra; se registra desde Comida */}
+          <button
+            className="btn-link sm"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => dispatch({ t: 'tab', tab: 'comida' })}
+          >
+            Registrar agua en Comida →
+          </button>
         </motion.div>
 
         {/* Item 124: Widget glucosa en ayunas (solo con protocolo Metabolismo) */}
