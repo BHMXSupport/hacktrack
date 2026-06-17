@@ -7,6 +7,7 @@ import { Glyph } from '../components/glyphs'
 import { useApp, isoKey, adherenceMonth } from '../lib/store'
 import {
   weightProjection, kcalSeries, productKpis, dayMacros, protocolList,
+  getGlassMl, glassesToLiters, waterGoalLiters,
 } from '../lib/nutrition'
 import { Sparkline, TrendChart, MacroBar, ConsistencyHeatmap, R2Chip, movingAverage } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
@@ -569,6 +570,10 @@ export function TrendsCard() {
   const waterPts = useMemo(() => kcalAll.map((d) => state.nutrition[isoKey(d.ts)]?.water ?? 0), [kcalAll, state.nutrition])
   const pesoWin = pesoAllFull.filter((p) => p.ts >= state.todayTs - effectiveWin * DAY)
   const pesoPts = (pesoWin.length >= 2 ? pesoWin : pesoAllFull).map((p) => p.value)
+  // Agua en LITROS (los vasos no son comparables entre tamaños): litros = vasos × ml real del vaso
+  const glassMl = getGlassMl()
+  const waterLiterPts = useMemo(() => waterPts.map((g) => glassesToLiters(g, glassMl)), [waterPts, glassMl])
+  const waterGoalL = waterGoalLiters(state.profile.peso)
 
   // MA-7 sobre el peso: solo activa en ventana ≥14d
   const pesoMA = useMemo(() => effectiveWin >= 14 && pesoPts.length >= 7 ? movingAverage(pesoPts, 7) : [], [pesoPts, effectiveWin])
@@ -606,26 +611,33 @@ export function TrendsCard() {
       const g = state.log.find((x) => x.dateKey === k)
       return {
         dose: !!g?.items.some((it) => it.type === 'dose'),
-        water: !!nut && nut.water >= 8,
+        water: !!nut && glassesToLiters(nut.water, glassMl) >= waterGoalL,
         meal: !!nut && nut.meals.length > 0,
       }
     })
   }, [state.todayTs, state.nutrition, state.log])
 
-  // overlay multi-métrica (normalizada 0–100%) — toggle
+  // overlay multi-métrica (normalizada 0–100%) — la BASE es Peso; se compara contra una 2ª métrica.
   const [overlayActive, setOverlayActive] = useState(false)
   const [overlayMetric2, setOverlayMetric2] = useState<string>('Calorías')
-  const OVERLAY_METRICS = ['Calorías', 'Hidratación', 'Peso', ...state.selectedMeasures.slice(0, 3)]
   const normalize = (arr: number[]): number[] => {
     if (arr.length < 2) return arr
     const min = Math.min(...arr), max = Math.max(...arr)
     const range = max - min || 1
     return arr.map((v) => Math.round(((v - min) / range) * 100))
   }
-  const metric2Pts = overlayMetric2 === 'Calorías' ? kcalPts
-    : overlayMetric2 === 'Hidratación' ? waterPts.filter((w) => w > 0)
-    : overlayMetric2 === 'Peso' ? pesoPts
-    : (state.history[overlayMetric2] ?? []).filter((s) => s.ts >= state.todayTs - effectiveWin * DAY).map((s) => s.value)
+  // puntos de cualquier métrica candidata (agua en litros). 'Peso' es la base, no se ofrece como 2ª.
+  const metricPts = (m: string): number[] =>
+    m === 'Calorías' ? kcalPts
+    : m === 'Hidratación' ? waterLiterPts.filter((w) => w > 0)
+    : (state.history[m] ?? []).filter((s) => s.ts >= state.todayTs - effectiveWin * DAY).map((s) => s.value)
+  // SOLO se ofrecen métricas con datos suficientes (≥2 puntos) → así todas las opciones funcionan.
+  const overlayOptions = [...new Set(['Calorías', 'Hidratación', ...state.selectedMeasures.slice(0, 3)])]
+    .filter((m) => metricPts(m).length >= 2)
+  const activeOverlay = overlayOptions.includes(overlayMetric2) ? overlayMetric2 : (overlayOptions[0] ?? '')
+  const metric2Pts = activeOverlay ? metricPts(activeOverlay) : []
+  // el overlay solo aplica si hay base (Peso) y al menos una 2ª métrica con datos
+  const canOverlay = pesoPts.length >= 2 && overlayOptions.length > 0
 
   const hasAnyData = pesoPts.length >= 2 || kcalPts.length >= 2 || waterPts.some((w) => w > 0)
 
@@ -707,8 +719,8 @@ export function TrendsCard() {
             <Row label="Peso" pts={pesoPts} unit=" kg" color="var(--brand-700)" animKeyPrefix="peso" />
           )}
           <Row label="Calorías/día" pts={kcalPts} unit="" color="var(--brand-500)" animKeyPrefix="kcal" />
-          {/* Hidratación con línea de meta */}
-          <Row label="Hidratación" pts={waterPts} unit=" vasos" color="var(--brand-300)" animKeyPrefix="agua" refY={8} />
+          {/* Hidratación en LITROS con línea de meta */}
+          <Row label="Hidratación" pts={waterLiterPts} unit=" L" color="var(--brand-300)" animKeyPrefix="agua" refY={waterGoalL} />
 
           {/* Barra de macros apilada */}
           {macroAvg && (
@@ -737,55 +749,57 @@ export function TrendsCard() {
             <ConsistencyHeatmap days={consistencyDays} />
           </div>
 
-          {/* Superponer métricas — función avanzada, colapsada por defecto */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-            <button className="chip" style={{
-              maxWidth: '100%',
-              background: overlayActive ? 'var(--brand-500)' : undefined,
-              color: overlayActive ? '#fff' : undefined,
-            }} onClick={() => setOverlayActive((v) => !v)} aria-pressed={overlayActive} aria-expanded={overlayActive}>
-              Superponer métricas
-            </button>
-            <AnimatePresence>
-              {overlayActive && (
-                <motion.div
-                  key="overlay-panel"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '10px 0 8px' }}>
-                    {OVERLAY_METRICS.filter((m, i, arr) => arr.indexOf(m) === i).slice(0, 6).map((m) => (
-                      <button key={m} className="chip" style={{
-                        maxWidth: '100%',
-                        background: overlayMetric2 === m ? 'var(--warning)' : undefined,
-                        color: overlayMetric2 === m ? '#fff' : undefined,
-                        fontSize: 10,
-                      }} onClick={() => setOverlayMetric2(m)}>{m}</button>
-                    ))}
-                  </div>
-                  {pesoPts.length >= 2 && metric2Pts.length >= 2 && (
-                    <div>
-                      {/* wrapper con altura explícita = reserva el espacio del sparkline absoluto */}
-                      <div style={{ position: 'relative', height: 40 }}>
-                        <Sparkline data={normalize(pesoPts)} color="var(--brand-700)" w={280} h={40} animKey={`overlay-peso-${win}`} />
-                        <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
-                          <Sparkline data={normalize(metric2Pts)} color="var(--warning)" w={280} h={40} animKey={`overlay-m2-${win}-${overlayMetric2}`} />
+          {/* Comparar con el peso (base = Peso) — solo aparece si hay peso + alguna 2ª métrica con datos */}
+          {canOverlay && (
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <button className="chip" style={{
+                maxWidth: '100%',
+                background: overlayActive ? 'var(--brand-500)' : undefined,
+                color: overlayActive ? '#fff' : undefined,
+              }} onClick={() => setOverlayActive((v) => !v)} aria-pressed={overlayActive} aria-expanded={overlayActive}>
+                Comparar con tu peso
+              </button>
+              <AnimatePresence>
+                {overlayActive && (
+                  <motion.div
+                    key="overlay-panel"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    {/* solo se listan métricas con datos suficientes → todas las opciones funcionan */}
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '10px 0 8px' }}>
+                      {overlayOptions.slice(0, 6).map((m) => (
+                        <button key={m} className="chip" style={{
+                          maxWidth: '100%',
+                          background: activeOverlay === m ? 'var(--warning)' : undefined,
+                          color: activeOverlay === m ? '#fff' : undefined,
+                          fontSize: 10,
+                        }} onClick={() => setOverlayMetric2(m)}>{m}</button>
+                      ))}
+                    </div>
+                    {metric2Pts.length >= 2 && (
+                      <div>
+                        <div style={{ position: 'relative', height: 40 }}>
+                          <Sparkline data={normalize(pesoPts)} color="var(--brand-700)" w={280} h={40} animKey={`overlay-peso-${win}`} />
+                          <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+                            <Sparkline data={normalize(metric2Pts)} color="var(--warning)" w={280} h={40} animKey={`overlay-m2-${win}-${activeOverlay}`} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                          <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 10 }}>● Peso (norm.)</span>
+                          <span className="sm" style={{ color: 'var(--warning)', fontSize: 10 }}>● {activeOverlay} (norm.)</span>
+                          <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 9 }}>0–100% normalizado</span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-                        <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 10 }}>● Peso (norm.)</span>
-                        <span className="sm" style={{ color: 'var(--warning)', fontSize: 10 }}>● {overlayMetric2} (norm.)</span>
-                        <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 9 }}>0–100% normalizado</span>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       )}
     </Card>

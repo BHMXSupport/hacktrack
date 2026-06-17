@@ -359,6 +359,24 @@ export function waterGoalGlasses(pesoKg: number): number {
   return Math.max(8, Math.round(pesoKg * 0.033))
 }
 
+// ── Agua en LITROS ────────────────────────────────────────────────────────────
+// El agua se guarda como CONTEO DE VASOS, pero el tamaño del vaso (ml) es configurable, así que
+// "8 vasos" no es comparable entre tamaños. Para KPIs/dashboards/gráficas mostramos litros.
+const STD_GLASS_ML = 250 // vaso estándar para calibrar la META (la meta en L no depende del vaso real)
+// tamaño del vaso configurado por el usuario (Alimentación lo guarda en localStorage); default 250 ml
+export function getGlassMl(): number {
+  try { return Number(localStorage.getItem('hacktrack-glass-ml') ?? '250') || 250 } catch { return 250 }
+}
+// litros consumidos = vasos × tamaño real del vaso, redondeado a 1 decimal
+export function glassesToLiters(glasses: number, glassMl: number = getGlassMl()): number {
+  return Math.round((glasses * glassMl) / 100) / 10
+}
+// meta diaria de agua en litros (calibrada a vasos de 250 ml → ~2 L; independiente del vaso del usuario)
+export function waterGoalLiters(pesoKg: number | null): number {
+  const glasses = pesoKg ? waterGoalGlasses(pesoKg) : 8
+  return Math.round((glasses * STD_GLASS_ML) / 100) / 10
+}
+
 // ── Proteína restante accionable: "Faltan X g en Y comidas → ~Z g/comida" ──
 export interface ProteinRemaining {
   remaining: number       // g que faltan para la meta

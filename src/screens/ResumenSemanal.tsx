@@ -7,6 +7,7 @@ import { Glyph } from '../components/glyphs'
 import { useApp, adherence, isoKey } from '../lib/store'
 import {
   protocolNumbers, tdee, avgKcal, weightProjection, compositeStreak, weeklyInsights, streakDetail, anchorProduct, protocolList,
+  getGlassMl, glassesToLiters, waterGoalLiters,
 } from '../lib/nutrition'
 import { Sparkline, TrendChart, R2Chip } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
@@ -87,7 +88,14 @@ export function ResumenSemanal() {
     if (d) waterPrevDays.push(d.water)
   }
   const waterPrevAvg = waterPrevDays.length ? Math.round(waterPrevDays.reduce((a, b) => a + b, 0) / waterPrevDays.length) : null
-  const waterDelta = waterPrevAvg != null ? waterAvg - waterPrevAvg : null
+
+  // Agua en LITROS (vasos no son comparables entre tamaños): consumido = vasos × ml real; meta calibrada a 250ml
+  const glassMl = getGlassMl()
+  const waterAvgRaw = waterDays.length ? waterDays.reduce((a, b) => a + b, 0) / waterDays.length : 0
+  const waterAvgL = glassesToLiters(waterAvgRaw, glassMl)
+  const waterGoalL = waterGoalLiters(state.profile.peso)
+  const waterPrevAvgRaw = waterPrevDays.length ? waterPrevDays.reduce((a, b) => a + b, 0) / waterPrevDays.length : null
+  const waterDeltaL = waterPrevAvgRaw != null ? Math.round((waterAvgL - glassesToLiters(waterPrevAvgRaw, glassMl)) * 10) / 10 : null
 
   const avg7 = avgKcal(state, 7)
   const streak = compositeStreak(state)
@@ -109,7 +117,8 @@ export function ResumenSemanal() {
   // ── WellnessScore ──
   const wellnessScore = useMemo(() => {
     const adhScore = adh ? adh.pct * 0.4 : 0
-    const waterScore = (waterDays.filter((w) => w >= 8).length / 7) * 100 * 0.25
+    // días que alcanzaron la meta de agua EN LITROS (no en vasos, que dependen del tamaño)
+    const waterScore = (waterDays.filter((g) => glassesToLiters(g, glassMl) >= waterGoalL).length / 7) * 100 * 0.25
     const mealScore = (kcalDays.length / 7) * 100 * 0.20
     // variación de peso → 15%: si hay tendencia y va hacia la meta, full; sino proporcional
     let weightScore = 0
@@ -246,19 +255,19 @@ export function ResumenSemanal() {
         <div style={{ display: 'flex', gap: 12 }}>
           <div style={{ flex: 1 }}><Card title="Dosis"><div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>{doses}</div></Card></div>
           <div style={{ flex: 1 }}>
-            <Card title="Hidratación" subtitle="Promedio/día vs meta (8)">
+            <Card title="Hidratación" subtitle={`Promedio/día vs meta (${waterGoalL} L)`}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                 <div className="mono" style={{ fontSize: 24, fontWeight: 800 }}>
-                  {waterAvg}<span className="sm" style={{ color: 'var(--ink-400)' }}> / 8</span>
+                  {waterAvgL}<span className="sm" style={{ color: 'var(--ink-400)' }}> / {waterGoalL} L</span>
                 </div>
-                {waterDelta != null && Math.abs(waterDelta) >= 1 && (
-                  <span className="sm mono" style={{ color: waterDelta >= 0 ? 'var(--success)' : 'var(--warning)', fontSize: 11 }}>
-                    {waterDelta >= 0 ? '▲' : '▼'} {Math.abs(waterDelta)} vasos
+                {waterDeltaL != null && Math.abs(waterDeltaL) >= 0.1 && (
+                  <span className="sm mono" style={{ color: waterDeltaL >= 0 ? 'var(--success)' : 'var(--warning)', fontSize: 11 }}>
+                    {waterDeltaL >= 0 ? '▲' : '▼'} {Math.abs(waterDeltaL)} L
                   </span>
                 )}
               </div>
               <div style={{ marginTop: 8 }}>
-                <ProgressBar pct={(waterAvg / 8) * 100} color="var(--brand-300)" />
+                <ProgressBar pct={waterGoalL > 0 ? (waterAvgL / waterGoalL) * 100 : 0} color="var(--brand-300)" />
               </div>
             </Card>
           </div>

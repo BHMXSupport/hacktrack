@@ -16,7 +16,7 @@ import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, daySt
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { presenceNow, collectDosesByProduct, HALF_LIFE_H, nextDoseWindow } from '../lib/pharma'
 import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
-import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs } from '../lib/nutrition'
+import { weightProjection, weeklyInsights, waterGoalGlasses, protocolStartTs, glassesToLiters, waterGoalLiters } from '../lib/nutrition'
 import { vialDaysLeft, vialExpiryStatus, vialMgConsumed, vialMgRemaining, vialDosesRemaining } from '../lib/calc'
 import { VIAL_SHELF_DAYS, DEFAULT_SHELF_DAYS } from '../lib/catalog'
 import { StreakChip, ProductStreakBadge } from '../components/StreakChip'
@@ -724,12 +724,12 @@ export function Home() {
               Hidratación hoy
             </p>
             <p className="sm mono" style={{ margin: 0, color: 'var(--ink-400)' }}>
-              {waterToday}/{waterGoal} vasos
+              {glassesToLiters(waterToday)} / {waterGoalLiters(state.profile.peso)} L
             </p>
           </div>
           <div
             role="group"
-            aria-label={`Hidratación: ${waterToday} de ${waterGoal} vasos`}
+            aria-label={`Hidratación: ${glassesToLiters(waterToday)} de ${waterGoalLiters(state.profile.peso)} litros`}
             style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}
           >
             {Array.from({ length: waterGoal }).map((_, i) => {
