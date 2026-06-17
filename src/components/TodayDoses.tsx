@@ -22,9 +22,10 @@ interface SiteSelectorProps {
   suggested: InjectionSite
   onSelect: (site: InjectionSite) => void
   onSkip: () => void
+  progress?: { index: number; total: number } // "Marcar todo" guiado: dosis X de Y
 }
 
-function SiteSelector({ suggested, onSelect, onSkip }: SiteSelectorProps) {
+function SiteSelector({ suggested, onSelect, onSkip, progress }: SiteSelectorProps) {
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
@@ -33,8 +34,11 @@ function SiteSelector({ suggested, onSelect, onSkip }: SiteSelectorProps) {
       transition={{ duration: 0.22, ease: 'easeOut' }}
       style={{ overflow: 'hidden', padding: '8px 16px 10px', borderTop: '1px solid var(--border)' }}
     >
-      <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 6, fontWeight: 500 }}>
-        Zona de inyección
+      <div className="sm" style={{ color: 'var(--ink-400)', marginBottom: 6, fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <span>Zona de inyección</span>
+        {progress && (
+          <span style={{ color: 'var(--brand-700)', fontWeight: 700 }}>Dosis {progress.index} de {progress.total}</span>
+        )}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
         {SITE_OPTIONS.map((opt) => {
@@ -452,6 +456,9 @@ export function TodayDoses() {
   })
   // loop 140: producto esperando selección de zona de inyección
   const [pendingSiteProduct, setPendingSiteProduct] = useState<string | null>(null)
+  // "Marcar todo" guiado: cola de productos pendientes de elegir sitio (uno a la vez, en el mismo flujo)
+  const [siteQueue, setSiteQueue] = useState<string[]>([])
+  const [siteQueueTotal, setSiteQueueTotal] = useState(0) // total inicial de la cola (para "dosis X de Y")
   // loop 138: nota borrador por producto (se mantiene hasta que se registra la dosis)
   const [noteByProduct, setNoteByProduct] = useState<Record<string, string>>({})
   // loop 139: producto cuya dosis recién registrada espera selección de efecto
@@ -524,20 +531,18 @@ export function TodayDoses() {
     }
   }
 
-  // "Marcar todo": registra TODAS las dosis pendientes de golpe, SIN asignar sitio (no fabrica un lugar
-  // "random"). Si quieres registrar dónde inyectaste, marca cada dosis individualmente y elige el sitio.
-  // (Antes hacía activeProds.forEach(markDone), pero markDone(tap) solo hace setPendingSiteProduct → en
-  // loop solo quedaba el último y NO registraba nada.)
+  // "Marcar todo" GUIADO: inicia un flujo donde eliges el sitio de inyección de CADA dosis, una a una.
+  // No registra de golpe ni asigna un sitio random: pone en cola todas las dosis pendientes y abre el
+  // selector de sitio de la primera; al elegir/omitir, commitDose registra esa dosis y avanza a la siguiente.
   function markAllDone() {
     tapHaptic()
-    for (const p of activeProds) {
-      if (doseTakenOnProduct(state, today, p)) continue
-      const dose = doseForProduct(state, p)
-      if (!dose) continue
-      const rec = state.productRecon[p]
-      const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
-      dispatch({ t: 'logDose', product: p, value: dose.value, unit: dose.unit, ts: tsFor(p), doseMg })
-    }
+    const pending = activeProds.filter(
+      (p) => !doseTakenOnProduct(state, today, p) && doseForProduct(state, p) !== null,
+    )
+    if (pending.length === 0) return
+    setSiteQueue(pending)
+    setSiteQueueTotal(pending.length)
+    setPendingSiteProduct(pending[0])
   }
 
   // loop 140 + 138 + 139: registra la dosis con o sin sitio/nota, luego pide efecto
@@ -549,11 +554,18 @@ export function TodayDoses() {
     const scheduledTs = tsFor(product)
     const note = noteByProduct[product]?.trim() || undefined  // loop 138
     dispatch({ t: 'logDose', product, value: dose.value, unit: dose.unit, ts: scheduledTs, doseMg, site, note })
-    setPendingSiteProduct(null)
     // limpiar el borrador de nota de este producto
     setNoteByProduct((prev) => { const n = { ...prev }; delete n[product]; return n })
-    // loop 139: abrir picker de efecto post-dosis
-    setPendingEffectProduct(product)
+    if (siteQueue.length > 0) {
+      // Flujo "Marcar todo" guiado: avanza al siguiente sitio (sin abrir el picker de efecto, para no cortar el flujo)
+      const rest = siteQueue.filter((p) => p !== product)
+      setSiteQueue(rest)
+      setPendingSiteProduct(rest.length > 0 ? rest[0] : null)
+    } else {
+      // Flujo individual: cierra el selector y ofrece registrar el efecto post-dosis (loop 139)
+      setPendingSiteProduct(null)
+      setPendingEffectProduct(product)
+    }
   }
 
   // loop 139: guarda el efecto en el logItem recién registrado para este producto
@@ -793,7 +805,7 @@ export function TodayDoses() {
             // las tarjetas (variants=staggerItem) se quedan en initial (opacity 0) = en blanco hasta refrescar.
             <motion.div key="rows" variants={staggerParent} initial="initial" animate="animate">
               {/* Item 121: Registrar todo 1-tap */}
-              {doneCount === 0 && activeProds.length > 0 && activeProds.every((p) => doseForProduct(state, p) !== null) && (
+              {doneCount === 0 && siteQueue.length === 0 && activeProds.length > 0 && activeProds.every((p) => doseForProduct(state, p) !== null) && (
                 <div style={{ padding: '10px 16px 6px', borderTop: '1px solid var(--border)' }}>
                   <button
                     onClick={markAllDone}
@@ -1010,6 +1022,7 @@ export function TodayDoses() {
                               suggested={suggestedSite}
                               onSelect={(site) => commitDose(product, site)}
                               onSkip={() => commitDose(product)}
+                              progress={siteQueue.length > 0 ? { index: siteQueueTotal - siteQueue.length + 1, total: siteQueueTotal } : undefined}
                             />
                           </>
                         )}
