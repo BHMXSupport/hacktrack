@@ -1,7 +1,7 @@
 // Tab 'inicio' — dashboard de wellness premium "Quiet Signal".
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, useReducedMotion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
-import { useApp, adherenceMonth, isoKey, computeStreak } from '../lib/store'
+import { useApp, adherenceMonth, isoKey, computeStreak, injectionZoneRecency } from '../lib/store'
 import { CATEGORY_COLOR, MEASURE_ICON, MEASURE_META, WDS, PEPTIDES } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
@@ -11,6 +11,7 @@ import { IcClose, IcChevron } from '../components/icons'
 import { UserAvatar, TrustChip } from '../components/identity'
 import { TodayDoses } from '../components/TodayDoses'
 import { ActiveNowChips } from '../components/ActiveNowChips'
+import { InjectionMap } from '../components/InjectionMap'
 import { LastDoseLine } from '../components/LastDoseLine'
 import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, dayStatusEx, doseTakenOnProduct } from '../lib/calendar'
 import { startOfDay, fmtTime } from '../lib/cadence'
@@ -631,6 +632,13 @@ export function Home() {
         <motion.div variants={staggerItem}>
           <TodayDoses />
         </motion.div>
+
+        {/* ── 1b-2. Mapa de zonas de inyección (recencia: rojo<1d, ámbar<2d, verde<3d) ── */}
+        {Object.keys(state.protocols).length > 0 && (
+          <motion.div variants={staggerItem}>
+            <InjectionMap recency={injectionZoneRecency(state)} />
+          </motion.div>
+        )}
 
         {/* ── 1c. "Activo ahora": péptidos con presencia estimada → Cuerpo ── */}
         <motion.div variants={staggerItem}>
