@@ -13,7 +13,9 @@ function fmtAgo(ts: number, now: number): string {
   if (min < 1) return 'hace un momento'
   if (min < 60) return `hace ${min} min`
   const h = Math.floor(min / 60)
-  if (h < 24) return `hace ${h} h${min % 60 ? ` ${min % 60} min` : ''}`
+  // Loop 142: cuando ya hay horas, omitir los minutos — evita 'hace 23 h 45 min' (la cadena más larga
+  // que aplastaba la unidad). El minuto exacto es ruido a esa escala.
+  if (h < 24) return `hace ${h} h`
   const d = Math.floor(h / 24)
   if (d === 1) return 'ayer'
   if (d < 7) return `hace ${d} días`
@@ -56,10 +58,13 @@ export function LastDoseLine() {
   const ago = fmtAgo(last.ts, now)
   // ventana de deshacer: 15 min
   const canUndo = now - last.ts < 15 * 60_000
-  // loop 138/139: mostrar nota y efecto solo si la dosis es reciente (≤24h)
+  // loop 138/139: nota y efecto disponibles solo si la dosis es reciente (≤24h)
+  // Ahora viven detrás del MISMO chevron que el historial (un solo punto de expansión, sin auto-abrir).
   const isRecent = now - last.ts < 24 * 60 * 60_000
-  const showNote = isRecent && !!last.note
-  const showEffect = isRecent && !!last.effect
+  const hasNote = isRecent && !!last.note
+  const hasEffect = isRecent && !!last.effect
+  const showNote = expanded && hasNote
+  const showEffect = expanded && hasEffect
 
   // Loop 142: navega al diario (tab diario)
   const handleTap = () => {
@@ -78,6 +83,8 @@ export function LastDoseLine() {
 
   // historial: últimas 3 (excluyendo la primera ya visible)
   const history = pastDoses.slice(1, 4)
+  // hay algo que expandir si hay historial o nota/efecto recientes
+  const hasExpandable = history.length > 0 || hasNote || hasEffect
 
   return (
     // Loop 143: fade+x de entrada/salida del componente completo (AnimatePresence en el padre / Home)
@@ -91,15 +98,19 @@ export function LastDoseLine() {
         overflow: 'hidden',
       }}
     >
-      {/* Fila principal */}
-      <button
-        type="button"
+      {/* Fila principal — div role=button para no anidar el chevron (botón dentro de botón = HTML inválido) */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={handleTap}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleTap() } }}
         aria-expanded={expanded}
         aria-label={`Última toma: ${last.u}, ${ago}. ${expanded ? 'Contraer' : 'Expandir'} historial`}
         style={{
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          rowGap: 4,
           gap: 8,
           padding: '10px 14px',
           width: '100%',
@@ -110,8 +121,15 @@ export function LastDoseLine() {
         }}
       >
         <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ink-300)', flexShrink: 0 }} aria-hidden="true" />
-        <span className="sm" style={{ color: 'var(--ink-400)' }} aria-hidden="true">Última toma:</span>
-        <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600 }} aria-hidden="true">{last.u}</span>
+        <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }} aria-hidden="true">Última toma:</span>
+        {/* anti-bleed: la unidad/dosis se encoge con ellipsis en vez de empujar el tiempo/Deshacer/chevron fuera */}
+        <span
+          className="sm"
+          style={{ color: 'var(--ink-700)', fontWeight: 600, minWidth: 0, flex: '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          aria-hidden="true"
+        >
+          {last.u}
+        </span>
 
         {/* Loop 143: fade del tiempo con key para re-animar al cambiar */}
         <AnimatePresence mode="wait" initial={false}>
@@ -156,18 +174,19 @@ export function LastDoseLine() {
           </motion.button>
         )}
 
-        {/* Indicador expandir (solo si hay historial) */}
-        {history.length > 0 && (
-          <motion.span
+        {/* Indicador expandir (historial y/o nota/efecto) — botón real, ya no anidado */}
+        {hasExpandable && (
+          <motion.button
+            type="button"
             onClick={handleToggleExpand}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleToggleExpand(e) }}
-            role="button"
-            tabIndex={0}
             animate={{ rotate: expanded ? 180 : 0, transition: spring.ui }}
-            aria-hidden="true"
+            aria-label={expanded ? 'Contraer historial' : 'Expandir historial'}
             style={{
               display: 'flex',
               alignItems: 'center',
+              background: 'none',
+              border: 0,
+              padding: 0,
               color: 'var(--ink-400)',
               cursor: 'pointer',
               flexShrink: 0,
@@ -177,9 +196,9 @@ export function LastDoseLine() {
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </motion.span>
+          </motion.button>
         )}
-      </button>
+      </div>
 
       {/* Loop 138/139: nota y efecto de la última dosis (si es reciente ≤24h) */}
       <AnimatePresence initial={false}>
@@ -196,7 +215,7 @@ export function LastDoseLine() {
               {showNote && (
                 <span
                   className="sm"
-                  style={{ color: 'var(--ink-400)', fontStyle: 'italic', lineHeight: 1.4 }}
+                  style={{ color: 'var(--ink-400)', fontStyle: 'italic', lineHeight: 1.4, maxWidth: '100%', overflowWrap: 'anywhere' }}
                   aria-label={`Nota: ${last.note}`}
                 >
                   {last.note}

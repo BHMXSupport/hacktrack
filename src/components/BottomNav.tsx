@@ -52,7 +52,7 @@ function StreakBadge({ streak }: { streak: number }) {
       transition={spring.ui}
       style={{
         position: 'absolute',
-        top: -2,
+        top: 0,
         right: -4,
         minWidth: 15,
         height: 15,
@@ -187,14 +187,19 @@ export function BottomNav() {
         >
           <span style={{ position: 'relative' }}>
             <Icon />
-            {isHome && <PendingBadge visible={hasPending && !reduce} />}
-            {/* n=458: badge de racha en tab Inicio */}
-            {isHome && !reduce && <StreakBadge streak={streak} />}
+            {/* Prioridad: el pendiente (accionable) gana; la racha solo si no hay pendiente,
+                para que los dos badges nunca se apilen en la misma esquina. */}
+            {isHome && hasPending && <PendingBadge visible={!reduce} />}
+            {/* n=458: badge de racha en tab Inicio (solo si no hay pendiente) */}
+            {isHome && !hasPending && !reduce && <StreakBadge streak={streak} />}
           </span>
           {/* n=458: mini-tira semanal en tab Diario */}
           {isDiario && <WeekStrip days={week} />}
         </motion.span>
-        {label}
+        {/* Cinturón de seguridad anti-bleed: la etiqueta recorta limpio en vez de empujar la fila */}
+        <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {label}
+        </span>
       </button>
     )
   }
@@ -248,6 +253,7 @@ export function BottomNav() {
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
                     minWidth: 58,
+                    maxWidth: '40vw',
                   }}
                   onClick={(e) => {
                     e.stopPropagation()
