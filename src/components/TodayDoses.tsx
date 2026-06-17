@@ -856,6 +856,10 @@ export function TodayDoses() {
                         position: 'relative', overflow: 'hidden',
                       }}
                     >
+                      {/* Envoltura swipe: paneles + fila draggable juntos, para que el panel verde
+                          (bottom:0, posicionado) NO se estire ni se pinte sobre los campos expandidos
+                          (nota / sitio de inyección) que van debajo. */}
+                      <div style={{ position: 'relative', overflow: 'hidden' }}>
                       {/* n°433: swipe-reveal panels */}
                       {!taken && !skipped && (
                         <div aria-hidden="true" style={{
@@ -969,6 +973,7 @@ export function TodayDoses() {
                         )}
                         </div>
                       </motion.div>
+                      </div>{/* /envoltura swipe */}
 
                       {/* Loop 138 + Loop 140: campo de nota + selector de zona (aparecen tras pulsar "Marcar") */}
                       <AnimatePresence>
