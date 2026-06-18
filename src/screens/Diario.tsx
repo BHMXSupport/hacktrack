@@ -7,7 +7,6 @@ import { MON, WD, MEASURE_ICON, CATEGORY_COLOR, PEPTIDES, MEASURE_META } from '.
 import { Glyph } from '../components/glyphs'
 import { EmptyState } from '../components/EmptyState'
 import { tapHaptic } from '../lib/haptics'
-import { litersFromMl, getGlassMl, waterGoalLiters } from '../lib/nutrition'
 import type { LogItem, RangeFilter } from '../lib/types'
 import { productStreak, weekAdherencePctLast8, phaseForDate } from '../lib/calendar'
 import { presenceNow } from '../lib/pharma'
@@ -696,8 +695,6 @@ export function Diario() {
   // n°85: panel estadístico colapsable
   const [statsOpen, setStatsOpen] = useState(false)
 
-  // densidad: acciones rápidas (hidratación + repetir) colapsadas por defecto
-  const [quickOpen, setQuickOpen] = useState(false)
 
   // n°238: agrupación por semana
   const [groupBy, setGroupBy] = useState<'dia' | 'semana'>('dia')
@@ -791,22 +788,7 @@ export function Diario() {
 
   const accentColor = state.curGoal ? CATEGORY_COLOR[state.curGoal] : 'var(--brand-700)'
 
-  // n°183: última dosis para FAB "Repetir última"
-  const lastDose = useMemo(() => {
-    for (const g of deferredFiltered) {
-      for (const it of g.items) {
-        if (it.type === 'dose') return it
-      }
-    }
-    return null
-  }, [deferredFiltered])
 
-  // n°226: hidratación del día
-  const todayIsoKey = isoKey(state.todayTs)
-  // El agua se almacena en MILILITROS (igual que el resto de la app). Mostrar en litros vs meta en litros.
-  const waterMl = state.nutrition[todayIsoKey]?.water ?? 0
-  const waterL = litersFromMl(waterMl)
-  const waterGoalL = waterGoalLiters(state.profile.peso)
 
   // n°85: estadísticas por medida
   const measureStats = useMemo(() => {
@@ -1303,131 +1285,7 @@ export function Diario() {
         </div>
       )}
 
-      {/* densidad §22: Acciones rápidas (hidratación + repetir) colapsadas por defecto */}
-      {!isEmpty && (typeFilter === 'todo' || lastDose) && (
-        <div style={{ marginBottom: 16 }}>
-          <button
-            type="button"
-            onClick={() => setQuickOpen((v) => !v)}
-            aria-expanded={quickOpen}
-            style={{
-              width: '100%',
-              background: 'none',
-              border: '1px solid var(--ink-200)',
-              borderRadius: 'var(--r-md)',
-              padding: '8px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              color: 'var(--ink-700)',
-              fontWeight: 600,
-              fontSize: 13,
-            }}
-          >
-            Acciones rápidas
-            <Chevron dir={quickOpen ? 'down' : 'right'} size={16} color="var(--ink-400)" />
-          </button>
-          <AnimatePresence initial={false}>
-            {quickOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                style={{ overflow: 'hidden' }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 10 }}>
-
-      {/* n°226: fila de hidratación cuando typeFilter='todo' */}
-      {typeFilter === 'todo' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '10px 14px',
-          borderRadius: 'var(--r-md)',
-          background: 'color-mix(in srgb, var(--brand-500) 7%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--brand-500) 16%, transparent)',
-        }}>
-          <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600, flexShrink: 0 }}>
-            Hoy: {waterL.toFixed(1)} / {waterGoalL} L
-          </span>
-          <div style={{ flex: 1, minWidth: 0, height: 4, borderRadius: 2, background: 'var(--ink-100)', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: `${Math.min(100, (waterL / waterGoalL) * 100)}%`,
-              background: 'var(--brand-500)',
-              borderRadius: 2,
-              transition: 'width 0.3s',
-            }} />
-          </div>
-          <button
-            type="button"
-            aria-label="Agregar un vaso de agua"
-            onClick={() => { tapHaptic(); dispatch({ t: 'water', delta: getGlassMl() }) }}
-            style={{
-              background: 'var(--brand-500)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 'var(--r-sm)',
-              width: 28,
-              height: 28,
-              fontSize: 18,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            +
-          </button>
-        </div>
-      )}
-
-      {/* n°183: FAB 'Repetir última dosis' */}
-      {lastDose && (
-        <div style={{
-          padding: '10px 14px',
-          borderRadius: 'var(--r-md)',
-          background: 'color-mix(in srgb, var(--brand-700) 8%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--brand-700) 18%, transparent)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}>
-          <span className="sm" style={{ color: 'var(--ink-700)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
-            Repetir: {lastDose.product ?? lastDose.n} · {lastDose.u.split(' · ')[1] ?? ''}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              tapHaptic()
-              dispatch({ t: 'sheet', sheet: 'registrar', arg: lastDose.product ?? undefined })
-            }}
-            style={{
-              background: 'var(--brand-500)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 'var(--r-sm)',
-              padding: '5px 14px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            Registrar
-          </button>
-        </div>
-      )}
-
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+      {/* Captura consolidada: agua → pestaña Comida; "repetir dosis" → FAB Agregar. Diario = historial/búsqueda/edición. */}
 
       {/* n°85: panel estadístico cuando typeFilter='medida' */}
       {typeFilter === 'medida' && measureStats && measureStats.length > 0 && (

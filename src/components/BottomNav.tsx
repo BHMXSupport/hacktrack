@@ -2,8 +2,8 @@
 // n=435: FAB con menú radial al long-press (Dosis / Medida / Comida).
 // n=436: botón lupa de búsqueda global (despacha 'sheet' a 'search' — sheet definida en sheets/Search.tsx).
 // n=458: badge de racha + mini-tira semanal en tabs Inicio/Diario.
-import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { useCallback } from 'react'
 import { useApp, weekStatus } from '../lib/store'
 import { protocolStreak } from '../lib/calendar'
 import type { TabId } from '../lib/store'
@@ -100,32 +100,8 @@ function WeekStrip({ days }: { days: boolean[] }) {
   )
 }
 
-// n=435: items del menú radial
-interface RadialItem {
-  label: string
-  sheet?: 'registrar' | 'medida' | 'agregar'
-  tab?: 'comida'        // algunos items navegan a una pestaña en vez de abrir una hoja
-  angle: number // grados desde arriba (negativo = izquierda)
-}
-
-const RADIAL_ITEMS: RadialItem[] = [
-  { label: 'Dosis', sheet: 'registrar', angle: -50 },
-  { label: 'Medida', sheet: 'medida', angle: 0 },
-  // "Comida" lleva a la pestaña Comida (ahí se registra alimento); antes abría 'agregar' (dosis/medida) → no era comida.
-  { label: 'Comida', tab: 'comida', angle: 50 },
-]
-
-const RADIUS = 72 // px de separación del FAB
-
-function radialPos(angle: number) {
-  const rad = ((angle - 90) * Math.PI) / 180
-  return {
-    x: Math.cos(rad) * RADIUS,
-    y: Math.sin(rad) * RADIUS,
-  }
-}
-
-// Bottom nav: 6 tabs (3 + FAB + 3) + FAB central que abre la hoja "Agregar".
+// Bottom nav: 6 tabs (3 + FAB + 3) + FAB central que abre la hoja "Agregar" (captura universal:
+// Dosis · Comida · Medidas). El menú radial long-press se retiró: una sola UI de captura, sin duplicar.
 export function BottomNav() {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
@@ -140,36 +116,10 @@ export function BottomNav() {
   const streak = protocolStreak(state, today)
   const week = weekStatus(state.log, today, true) // doseOnly
 
-  // n=435: menú radial
-  const [radialOpen, setRadialOpen] = useState(false)
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const didLongPress = useRef(false)
-
-  const onFabPointerDown = useCallback(() => {
-    didLongPress.current = false
-    longPressTimer.current = setTimeout(() => {
-      didLongPress.current = true
-      setRadialOpen(true)
-    }, 350)
-  }, [])
-
-  const onFabPointerUp = useCallback(() => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
-  }, [])
-
+  // FAB → abre la hoja de captura universal "Agregar" (Dosis · Comida · Medidas)
   const onFabClick = useCallback(() => {
-    if (didLongPress.current) { didLongPress.current = false; return }
-    setRadialOpen(false)
     dispatch({ t: 'sheet', sheet: 'agregar' })
   }, [dispatch])
-
-  // Cerrar menú radial al tap fuera
-  useEffect(() => {
-    if (!radialOpen) return
-    const close = () => setRadialOpen(false)
-    document.addEventListener('pointerdown', close)
-    return () => document.removeEventListener('pointerdown', close)
-  }, [radialOpen])
 
   const Tab = ([id, label, Icon]: (typeof TABS)[number]) => {
     const active = state.tab === id
@@ -209,83 +159,10 @@ export function BottomNav() {
 
   return (
     <nav className="bottomnav">
-      {/* n=435: menú radial sobre el FAB */}
-      <AnimatePresence>
-        {radialOpen && (
-          <motion.div
-            key="radial"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              position: 'absolute',
-              bottom: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              pointerEvents: 'none',
-              zIndex: 100,
-            }}
-          >
-            {RADIAL_ITEMS.map((item, i) => {
-              const { x, y } = radialPos(item.angle)
-              return (
-                <motion.button
-                  key={item.label}
-                  initial={{ opacity: 0, x: 0, y: 0, scale: 0.6 }}
-                  animate={{ opacity: 1, x, y: -Math.abs(y) - 32, scale: 1 }}
-                  exit={{ opacity: 0, x: 0, y: 0, scale: 0.6 }}
-                  transition={{ ...spring.celebrate, delay: i * 0.04 }}
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    pointerEvents: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--r-md)',
-                    padding: '8px 12px',
-                    boxShadow: 'var(--e2)',
-                    cursor: 'pointer',
-                    color: 'var(--ink-900)',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    minWidth: 58,
-                    maxWidth: '40vw',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setRadialOpen(false)
-                    if (item.tab) dispatch({ t: 'tab', tab: item.tab })
-                    else if (item.sheet) dispatch({ t: 'sheet', sheet: item.sheet })
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  aria-label={item.label}
-                >
-                  {item.label}
-                </motion.button>
-              )
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <motion.button
         className="navfab"
         aria-label="Agregar registro"
-        aria-haspopup={radialOpen ? 'menu' : undefined}
-        aria-expanded={radialOpen}
-        onPointerDown={onFabPointerDown}
-        onPointerUp={onFabPointerUp}
-        onPointerLeave={onFabPointerUp}
         onClick={onFabClick}
-        onContextMenu={(e) => e.preventDefault()}
-        animate={radialOpen ? { rotate: 45, scale: 0.9 } : { rotate: 0, scale: 1 }}
         whileTap={reduce ? undefined : { scale: 0.84 }}
         transition={spring.celebrate}
       >

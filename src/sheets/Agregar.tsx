@@ -251,6 +251,28 @@ export function Agregar() {
           <div style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.6)', fontSize: 22, lineHeight: 1 }}>›</div>
         </motion.button>
 
+        {/* Comida → su pestaña (Comida es dueña de la captura de nutrición: comida, agua, glucosa) */}
+        <motion.button
+          variants={item} initial="initial" animate="animate"
+          onClick={() => { dispatch({ t: 'tab', tab: 'comida' }); dispatch({ t: 'sheet', sheet: null }) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 16, width: '100%',
+            padding: '16px 20px', borderRadius: 16,
+            background: 'var(--card)', border: '1.5px solid var(--border)',
+            cursor: 'pointer', textAlign: 'left',
+          }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'color-mix(in srgb, var(--brand-500) 14%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--brand-700)' }}>
+            <Glyph name="apetito" size={22} color="currentColor" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span className="body" style={{ fontWeight: 700, color: 'var(--ink-900)' }}>Comida</span>
+            <span className="sm" style={{ color: 'var(--ink-400)' }}>Registra comida, agua o glucosa</span>
+          </div>
+          <div style={{ marginLeft: 'auto', color: 'var(--ink-300)', fontSize: 20, lineHeight: 1 }}>›</div>
+        </motion.button>
+
         {/* item 315: registrar stack */}
         {activeProducts.length >= 2 && (
           <div>
