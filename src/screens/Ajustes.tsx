@@ -585,7 +585,8 @@ export function Ajustes() {
     }
   }
 
-  // ── importar respaldo JSON ────────────────────────────────────────────────
+  // ── importar respaldo JSON (con confirmación: restaurar SOBRESCRIBE todo) ─────────────────
+  const [pendingRestore, setPendingRestore] = useState<{ state: Record<string, unknown>; fecha: string | null; registros: number; productos: number } | null>(null)
   const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -594,11 +595,12 @@ export function Ajustes() {
       try {
         const parsed = JSON.parse(ev.target?.result as string)
         const importedState = parsed.state ?? parsed
-        // Validación básica
         if (!importedState.log || !importedState.settings) throw new Error('Formato inválido')
-        // Restaurar el respaldo COMPLETO (log, nutrition, history, measureValues, protocolos editados,
-        // recon, aliases, settings…), no solo productos+perfil. El toast lo pone la propia acción.
-        dispatch({ t: 'replaceState', state: importedState })
+        // NO restaurar de inmediato: mostrar resumen + confirmación (un toque accidental reemplazaba TODO sin aviso).
+        const registros = Array.isArray(importedState.log) ? (importedState.log as Array<{ items?: unknown[] }>).reduce((a, g) => a + (g.items?.length ?? 0), 0) : 0
+        const productos = importedState.protocols ? Object.keys(importedState.protocols).length : 0
+        const fecha = typeof parsed.exportedAt === 'string' ? new Date(parsed.exportedAt).toLocaleDateString('es-MX') : (typeof parsed.exportedAt === 'number' ? new Date(parsed.exportedAt).toLocaleDateString('es-MX') : null)
+        setPendingRestore({ state: importedState, fecha, registros, productos })
       } catch {
         dispatch({ t: 'toast', msg: 'Error al leer el archivo — verifica que sea un respaldo válido' })
       }
@@ -634,6 +636,29 @@ export function Ajustes() {
 
   return (
     <>
+      {/* Confirmación de restauración — restaurar SOBRESCRIBE todo, así que pedimos confirmar con un resumen */}
+      {pendingRestore && (
+        <div onClick={() => setPendingRestore(null)}
+          style={{ position: 'absolute', inset: 0, zIndex: 90, background: 'color-mix(in srgb, var(--ink-900) 55%, transparent)', display: 'flex', alignItems: 'flex-end' }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '22px 20px calc(20px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <h3 className="h3" style={{ margin: 0, color: 'var(--ink-900)' }}>¿Restaurar este respaldo?</h3>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-400)' }}>
+              {pendingRestore.fecha ? `Respaldo del ${pendingRestore.fecha}. ` : ''}{pendingRestore.registros} registro{pendingRestore.registros !== 1 ? 's' : ''} · {pendingRestore.productos} producto{pendingRestore.productos !== 1 ? 's' : ''}.
+            </p>
+            <p className="sm" style={{ margin: 0, color: 'var(--error)', fontWeight: 600 }}>
+              Reemplazará TODOS tus datos actuales (diario, medidas, comida, protocolos). No se puede deshacer.
+            </p>
+            <button className="btn" style={{ height: 48, width: '100%', background: 'var(--error)', color: '#fff', border: 'none' }}
+              onClick={() => { dispatch({ t: 'replaceState', state: pendingRestore.state as Partial<typeof state> }); setPendingRestore(null) }}>
+              Restaurar y reemplazar mis datos
+            </button>
+            <button className="btn btn-ghost" style={{ height: 44, width: '100%' }} onClick={() => setPendingRestore(null)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
       <motion.div
         initial={{ x: '100%' }}
         animate={{ x: 0 }}

@@ -5,7 +5,6 @@ import { staggerParent, staggerItem } from '../lib/motion'
 import { IcDrop } from '../components/icons'
 import { BiohackmxConnect } from '../components/BiohackmxConnect'
 import { Disclaimer } from '../components/controls'
-import { AppleLogo, GoogleLogo } from '../components/SocialAuth'
 import { TrustBadge } from '../components/identity'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -74,22 +73,11 @@ export function Login() {
         <motion.div variants={staggerItem}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }} aria-hidden="true">
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            <span className="sm" style={{ color: 'var(--ink-400)', whiteSpace: 'nowrap' }}>o continúa con</span>
+            <span className="sm" style={{ color: 'var(--ink-400)', whiteSpace: 'nowrap' }}>o con tu correo</span>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
         </motion.div>
-
-        <motion.div variants={staggerItem}>
-          {/* labels cortas (el logo identifica el proveedor) para no desbordar a 412px */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-            <button className="btn btn-outline btn-social" type="button" aria-label="Continuar con Apple" style={{ minWidth: 0 }}>
-              <AppleLogo /> Apple
-            </button>
-            <button className="btn btn-outline btn-social" type="button" aria-label="Continuar con Google" style={{ minWidth: 0 }}>
-              <GoogleLogo /> Google
-            </button>
-          </div>
-        </motion.div>
+        {/* Apple/Google ocultos hasta tener backend de auth real (sin onClick se leían como bug). */}
 
         <motion.div variants={staggerItem}>
           <form onSubmit={enter} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>

@@ -69,8 +69,10 @@ export function detectPlatform(): PlatformInfo {
   return { isIOS, isAndroid, isStandalone, inApp, iosSafari, isDesktop: !isIOS && !isAndroid }
 }
 
-// ¿Mostrar el asistente? Sí siempre que NO esté instalada (corriendo desde el navegador).
-// Sin escape "continuar en navegador": la beta se usa instalada.
+// ¿Mostrar el asistente? Sí siempre que NO esté instalada (corriendo desde el navegador), EXCEPTO en
+// escritorio: ahí no hay "instalar PWA" claro, así que forzarlo dejaba al usuario (revisor, colaborador,
+// Jan en Chrome de escritorio) en un callejón sin salida. En móvil se mantiene el gate sin escape a navegador.
 export function shouldShowInstallGate(): boolean {
-  return !detectPlatform().isStandalone
+  const p = detectPlatform()
+  return !p.isStandalone && !p.isDesktop
 }

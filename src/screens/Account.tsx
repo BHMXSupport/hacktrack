@@ -5,7 +5,6 @@ import { IcDrop, IcBack } from '../components/icons'
 import { staggerParent, staggerItem } from '../lib/motion'
 import { BiohackmxConnect } from '../components/BiohackmxConnect'
 import { Disclaimer, PasswordStrength } from '../components/controls'
-import { AppleLogo, GoogleLogo } from '../components/SocialAuth'
 import { TrustBadge } from '../components/identity'
 import { OnboardingProgress } from '../components/OnboardingProgress'
 import { PrivacyAccordion } from '../components/PrivacyAccordion'
@@ -116,27 +115,8 @@ export function Account() {
         <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
       </motion.div>
 
-      {/* Botones sociales — labels cortas (el logo identifica el proveedor) para no desbordar a 412px */}
-      <motion.div variants={staggerItem} style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-        <button
-          className="btn btn-outline btn-social"
-          type="button"
-          aria-label="Continuar con Apple"
-          style={{ minWidth: 0 }}
-        >
-          <AppleLogo />
-          Apple
-        </button>
-        <button
-          className="btn btn-outline btn-social"
-          type="button"
-          aria-label="Continuar con Google"
-          style={{ minWidth: 0 }}
-        >
-          <GoogleLogo />
-          Google
-        </button>
-      </motion.div>
+      {/* Apple/Google ocultos hasta tener backend de auth real: como botones sin acción se leían como bug
+          en la pantalla de entrada (el momento de mayor fragilidad de confianza). Se re-agregan con su onClick. */}
 
       {/* Formulario email / contraseña */}
       <motion.div variants={staggerItem}>

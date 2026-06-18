@@ -14,6 +14,7 @@ export function Welcome() {
   const icon = goal ? (CATEGORY_ICON[goal] ?? 'cat-explorar') : 'cat-explorar'
   const nMedidas = state.selectedMeasures.length
   const nProductos = Object.keys(state.protocols).length
+  const hasProducts = nProductos > 0
 
   const items = [
     {
@@ -92,10 +93,12 @@ export function Welcome() {
             {name}
           </div>
           <div className="h2" style={{ color, fontWeight: 700, marginBottom: 8 }}>
-            Tu protocolo está listo
+            {hasProducts ? 'Tu protocolo está listo' : 'Tu espacio está listo'}
           </div>
           <div className="body" style={{ color: 'var(--ink-400)', maxWidth: 300, margin: '0 auto' }}>
-            Empieza a registrar y observa tu progreso a lo largo del tiempo.
+            {hasProducts
+              ? 'Empieza a registrar y observa tu progreso a lo largo del tiempo.'
+              : 'Agrega tu primer producto para empezar a registrar tus dosis.'}
           </div>
         </motion.div>
 
@@ -134,10 +137,17 @@ export function Welcome() {
             className="btn btn-brand"
             whileTap={{ scale: 0.97 }}
             transition={spring.ui}
-            onClick={() => dispatch({ t: 'finishOnboarding' })}
+            onClick={() => {
+              dispatch({ t: 'finishOnboarding' })
+              // sin productos → llevar directo al alta del primer producto (no a un Inicio vacío)
+              if (!hasProducts) {
+                dispatch({ t: 'tab', tab: 'protocolo' })
+                dispatch({ t: 'sheet', sheet: 'registrar' })
+              }
+            }}
             style={{ height: 52, borderRadius: 16, fontSize: 16 }}
           >
-            Ver mi plan
+            {hasProducts ? 'Ver mi plan' : 'Agregar mi primer producto'}
           </motion.button>
         </motion.div>
       </motion.div>
