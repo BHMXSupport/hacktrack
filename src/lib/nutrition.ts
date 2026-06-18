@@ -1,7 +1,7 @@
 // Analítica de Alimentación + Resumen (features premium). Todo es OBSERVACIONAL sobre los datos del usuario:
 // nunca causalidad, nunca se nombra un péptido junto a un resultado de peso, sin consejo médico.
 import type { AppState } from './store'
-import { isoKey, mealSlot } from './store'
+import { isoKey, mealSlot, trackedProtocols, productsOnDay } from './store'
 import type { MeasureSample, FoodFav } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, CATEGORY_COLOR } from './catalog'
 
@@ -311,14 +311,17 @@ export function weightProjection(s: AppState): WeightProjection | null {
 // (ml>=8 = un sorbo) → el requisito de agua era trivial.
 export function compositeStreak(s: AppState): number {
   const goalMl = waterGoalLiters(s.profile.peso) * 1000
+  const tracked = trackedProtocols(s)
   let streak = 0
   const base = new Date(s.todayTs)
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 365; i++) { // tope 365 (antes 90 truncaba rachas largas)
     const day = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i) // día calendario local (DST-safe)
     const k = isoKey(day.getTime())
     const nut = s.nutrition[k]
     const g = s.log.find((x) => x.dateKey === k)
-    const dose = !!g?.items.some((it) => it.type === 'dose')
+    // dosis cumplida: se registró, O la cadencia no programaba toma ese día (descanso) / sin protocolo.
+    // (Antes exigía dosis TODOS los días → un protocolo no-diario rompía la racha cada descanso.)
+    const dose = productsOnDay(day, tracked).length === 0 || !!g?.items.some((it) => it.type === 'dose')
     const meal = !!nut && nut.meals.length > 0
     const water = !!nut && nut.water >= goalMl
     if (dose && meal && water) streak++
@@ -342,8 +345,10 @@ export function streakDetail(s: AppState): StreakDetail {
   const k = isoKey(s.todayTs)
   const nut = s.nutrition[k]
   const g = s.log.find((x) => x.dateKey === k)
+  // dosis de hoy cumplida si se registró o si hoy es día de descanso/sin protocolo (coherente con compositeStreak)
+  const doseScheduledToday = productsOnDay(new Date(s.todayTs), trackedProtocols(s)).length > 0
   const today = {
-    dose: !!g?.items.some((it) => it.type === 'dose'),
+    dose: !doseScheduledToday || !!g?.items.some((it) => it.type === 'dose'),
     water: !!nut && nut.water >= goalMl,
     meal: !!nut && nut.meals.length > 0,
   }

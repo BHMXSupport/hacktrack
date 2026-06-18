@@ -4,7 +4,8 @@
 // n=458: badge de racha + mini-tira semanal en tabs Inicio/Diario.
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useApp, computeStreak, weekStatus } from '../lib/store'
+import { useApp, weekStatus } from '../lib/store'
+import { protocolStreak } from '../lib/calendar'
 import type { TabId } from '../lib/store'
 import { IcHome, IcDiary, IcProto, IcVida, IcFood, IcWeek } from './icons'
 import { spring } from '../lib/motion'
@@ -136,7 +137,7 @@ export function BottomNav() {
   const hasPending = prods.length > doneCount
 
   // n=458: racha y semana
-  const streak = computeStreak(state.log, today)
+  const streak = protocolStreak(state, today)
   const week = weekStatus(state.log, today, true) // doseOnly
 
   // n=435: menú radial

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { motion, useMotionValue, useTransform, animate, useReducedMotion } from 'framer-motion'
 import { dur, ease, spring } from '../lib/motion'
 import { useApp } from '../lib/store'
-import { computeStreak } from '../lib/store'
+import { protocolStreak } from '../lib/calendar'
 
 // Anillo de adherencia/racha: draw-on + count-up + celebración al cumplir meta.
 // Segundo arco exterior (~4px) que mapea la racha actual (0–30 días → 0–360°).
@@ -27,7 +27,7 @@ export function AdherenceRing({
 
   // Obtener racha del store si no se pasa como prop
   const { state } = useApp()
-  const streak = streakProp ?? computeStreak(state.log, new Date(state.todayTs))
+  const streak = streakProp ?? protocolStreak(state, new Date(state.todayTs))
 
   const STREAK_MAX = 30
   const streakPct = Math.min(1, streak / STREAK_MAX)

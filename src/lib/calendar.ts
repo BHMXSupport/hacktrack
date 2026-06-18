@@ -1,6 +1,6 @@
 // Hacktrack — helpers del calendario (estados por día, fases, adherencia semanal, agenda, export .ics).
 import type { AppState } from './store'
-import { trackedProtocols, productsOnDay, isoKey } from './store'
+import { trackedProtocols, productsOnDay, isoKey, tallyDoses } from './store'
 import { startOfDay, dayDiff } from './cadence'
 import { PEPTIDES } from './catalog'
 
@@ -76,6 +76,8 @@ export function dayStatusEx(s: AppState, d: Date, now: Date): DayStateEx {
 /**
  * productStreak: días consecutivos con ≥1 dosis de ESE producto (hacia atrás desde hoy).
  * Ignora días en que la cadencia no programa toma (días de descanso no rompen la racha).
+ * Gracia al día en curso: HOY (i===0) no rompe la racha aunque aún no se haya registrado la dosis
+ * (si no, el badge mostraría 0 por la mañana antes de dosificar).
  */
 export function productStreak(s: AppState, product: string, today: Date): number {
   const tracked = trackedProtocols(s).find((t) => t.product === product)
@@ -92,8 +94,34 @@ export function productStreak(s: AppState, product: string, today: Date): number
       continue
     }
     const took = doseTakenOnProduct(s, d, product)
-    if (!took) break
-    count++
+    if (took) count++
+    else if (i !== 0) break // hoy en curso no rompe (gracia); días pasados sin toma sí
+    d = new Date(d.getTime() - 86400000)
+  }
+  return count
+}
+
+/**
+ * protocolStreak: racha GLOBAL del protocolo = días consecutivos (hacia atrás desde hoy) en que se
+ * cumplieron TODAS las dosis programadas. Fuente única para Inicio/BottomNav/Paywall/Ajustes/AdherenceRing
+ * (antes usaban computeStreak, que NO respetaba días de descanso ni daba gracia al día en curso → en un
+ * protocolo no-diario la racha se rompía cada descanso y mostraba 0 por la mañana).
+ * - 'taken'   → +1 (todas las dosis del día registradas)
+ * - 'rest'/'none'/'scheduled' → neutral (no suma, no rompe; descanso por cadencia o día aún sin vencer)
+ * - 'missed'  → rompe, salvo si es HOY (gracia al día en curso)
+ */
+export function protocolStreak(s: AppState, today: Date, now: Date = new Date()): number {
+  const tracked = trackedProtocols(s)
+  if (!tracked.length) return 0
+  const earliest = Math.min(...tracked.map((t) => startOfDay(t.start).getTime()))
+  let count = 0
+  let d = startOfDay(today)
+  for (let i = 0; i < 365; i++) {
+    if (d.getTime() < earliest) break
+    const st = dayStatusEx(s, d, now)
+    if (st === 'taken') count++
+    else if (st === 'missed' && i !== 0) break // hoy en curso nunca rompe (gracia)
+    // 'rest' / 'none' / 'scheduled' / 'missed'-hoy → neutral
     d = new Date(d.getTime() - 86400000)
   }
   return count
@@ -133,18 +161,15 @@ export function phaseForDate(s: AppState, d: Date, product?: string): number | n
   return Math.min((p.progN ?? 1) - 1, Math.max(0, Math.floor(weeks / phaseWeeks)))
 }
 
-// adherencia de una semana (7 fechas L→D) — POR PRODUCTO programado. `now` = hora real.
+// adherencia de una semana (fechas contiguas L→D) — delega al motor único tallyDoses (store) para no
+// mantener una segunda copia de la fórmula. `now` = hora real. Cuenta solo dosis ya vencidas (due).
 export function weekAdherencePct(s: AppState, weekDays: Date[], now: Date): number | null {
-  let due = 0
-  let taken = 0
-  for (const d of weekDays) {
-    for (const p of dayProducts(s, d)) {
-      if (doseSkippedOnProduct(s, d, p) && !doseTakenOnProduct(s, d, p)) continue  // skip sin toma real: ignorar (la toma gana)
-      if (doseTakenOnProduct(s, d, p)) { due++; taken++ }
-      else if (now.getTime() > dueTime(s, d, p).getTime()) { due++ }
-    }
-  }
-  return due === 0 ? null : Math.round((taken / due) * 100)
+  if (weekDays.length === 0) return null
+  const from = startOfDay(weekDays[0]).getTime()
+  const to = startOfDay(weekDays[weekDays.length - 1]).getTime()
+  const t = tallyDoses(s, from, to, now)
+  const due = t.taken + t.missed
+  return due === 0 ? null : Math.round((t.taken / due) * 100)
 }
 
 /**
@@ -153,19 +178,11 @@ export function weekAdherencePct(s: AppState, weekDays: Date[], now: Date): numb
  * Usado por el heat-map de intensidad en CalendarMonth.
  */
 export function dayAdherencePct(s: AppState, d: Date, now: Date): number | null {
-  const prods = dayProducts(s, d)
-  if (prods.length === 0) return null
-  // excluir skips sin toma real
-  const effective = prods.filter((p) => doseTakenOnProduct(s, d, p) || !doseSkippedOnProduct(s, d, p))
-  if (effective.length === 0) return null
-  // solo contar dosis cuya hora ya venció (como hace weekAdherencePct)
-  let due = 0
-  let taken = 0
-  for (const p of effective) {
-    if (doseTakenOnProduct(s, d, p)) { due++; taken++ }
-    else if (now.getTime() > dueTime(s, d, p).getTime()) { due++ }
-  }
-  return due === 0 ? null : Math.round((taken / due) * 100)
+  // mismo motor único que la semana (tallyDoses), acotado a un solo día
+  const ms = startOfDay(d).getTime()
+  const t = tallyDoses(s, ms, ms, now)
+  const due = t.taken + t.missed
+  return due === 0 ? null : Math.round((t.taken / due) * 100)
 }
 
 export interface PendingDose { date: Date; product: string; id?: string }

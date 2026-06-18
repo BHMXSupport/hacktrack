@@ -6,7 +6,8 @@ import { Glyph } from '../components/glyphs'
 import { Toggle, Disclaimer, Segmented } from '../components/controls'
 import { Sparkline } from '../components/charts'
 import { AdherenceRing } from '../components/AdherenceRing'
-import { useApp, computeStreak } from '../lib/store'
+import { useApp, adherence as adherenceCalc } from '../lib/store'
+import { protocolStreak } from '../lib/calendar'
 import type { ThemeMode, FontScale, UnitSystem } from '../lib/types'
 import { requestNotif, notifPermission, notifSupported } from '../lib/notifications'
 import { dur, ease, spring } from '../lib/motion'
@@ -431,8 +432,8 @@ function ProtocolHeroCard() {
   const { protocol, protocols, activeProduct } = state
   if (!protocol || !activeProduct) return null
 
-  const streak = computeStreak(state.log, new Date(state.todayTs))
-  const adherence = Math.min(100, streak * 3.34) // rough pct of 30-day goal
+  const streak = protocolStreak(state, new Date(state.todayTs))
+  const adherence = adherenceCalc(state, 30)?.pct ?? 0 // adherencia real de 30 días (antes: streak×3.34 inventado)
 
   return (
     <motion.button
@@ -627,7 +628,7 @@ export function Ajustes() {
   const secondReminderMin: number | null = (settings.secondReminderMin ?? null) as number | null
 
   // ── racha para badge de urgencia de trial ────────────────────────────────
-  const streak = computeStreak(state.log, new Date(state.todayTs))
+  const streak = protocolStreak(state, new Date(state.todayTs))
 
   const close = () => dispatch({ t: 'sheet', sheet: null })
 

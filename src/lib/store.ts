@@ -308,19 +308,6 @@ function pushHistory(
   return next
 }
 
-// P0-2: racha = días consecutivos (desde hoy hacia atrás) con ≥1 dosis — por clave de fecha estable
-export function computeStreak(log: LogGroup[], today: Date): number {
-  let count = 0
-  let d = startOfDay(today)
-  for (;;) {
-    const g = log.find((x) => x.dateKey === isoKey(d.getTime()))
-    if (!g?.items.some((it) => it.type === 'dose')) break
-    count++
-    d = new Date(d.getTime() - 86400000)
-  }
-  return count
-}
-
 // estado on/off de la tira semanal por clave de fecha. doseOnly = solo días con dosis (adherencia).
 export function weekStatus(log: LogGroup[], today: Date, doseOnly = false): boolean[] {
   return weekStrip(today).map((d) => {
@@ -1268,10 +1255,12 @@ export interface AdherenceStat {
   // compat: algunos consumidores leían .scheduled como denominador "registrado"
 }
 
-interface DoseTally { taken: number; missed: number; upcoming: number }
+export interface DoseTally { taken: number; missed: number; upcoming: number }
 
-// núcleo: cuenta dosis de todos los productos en [fromMs, toMs] (días, inclusive)
-function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseTally {
+// núcleo ÚNICO de conteo de adherencia: cuenta dosis de todos los productos en [fromMs, toMs] (días, inclusive).
+// Lo consumen adherence()/adherenceMonth() (store) y weekAdherencePct()/dayAdherencePct() (calendar) → un solo
+// motor de adherencia para toda la app (antes calendar.ts tenía su propia copia divergente).
+export function tallyDoses(s: AppState, fromMs: number, toMs: number, now: Date): DoseTally {
   const tracked = trackedProtocols(s)
   const today = startOfDay(new Date(s.todayTs))
   const todayKey = isoKey(today.getTime())

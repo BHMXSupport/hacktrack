@@ -1,7 +1,7 @@
 // Tab 'inicio' — dashboard de wellness premium "Quiet Signal".
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, useReducedMotion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
-import { useApp, adherenceMonth, isoKey, computeStreak, injectionZoneRecency } from '../lib/store'
+import { useApp, adherenceMonth, isoKey, injectionZoneRecency } from '../lib/store'
 import { CATEGORY_COLOR, MEASURE_ICON, MEASURE_META, WDS, PEPTIDES, MEDIDAS_ONLY_MEASURES } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
@@ -13,7 +13,7 @@ import { TodayDoses } from '../components/TodayDoses'
 import { ActiveNowChips } from '../components/ActiveNowChips'
 import { InjectionMap } from '../components/InjectionMap'
 import { LastDoseLine } from '../components/LastDoseLine'
-import { dayProducts, upcomingDoses, productStreak, weekAdherencePctLast8, dayStatusEx, doseTakenOnProduct } from '../lib/calendar'
+import { dayProducts, upcomingDoses, productStreak, protocolStreak, weekAdherencePctLast8, dayStatusEx, doseTakenOnProduct } from '../lib/calendar'
 import { startOfDay, fmtTime } from '../lib/cadence'
 import { presenceNow, collectDosesByProduct, HALF_LIFE_H, nextDoseWindow } from '../lib/pharma'
 import { dur, ease, spring, staggerParent, staggerItem } from '../lib/motion'
@@ -343,8 +343,9 @@ export function Home() {
     })
   }, [state.productRecon, state.log, state.importedProducts, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Item 131: racha global compositeStreak ───────────────────────────────
-  const compositeStreak = useMemo(() => computeStreak(state.log, today), [state.log, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Item 131: racha global del protocolo (cadence-aware + gracia al día en curso) ─────────
+  // 'now' se omite a propósito: solo afectaría a la gracia de hoy, que ya nunca rompe → evita recomputar cada tick
+  const compositeStreak = useMemo(() => protocolStreak(state, today), [state.log, state.protocols, state.todayTs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Item 132: racha por producto (para los chips de protocolo) ───────────
   const productStreaks = useMemo(() =>

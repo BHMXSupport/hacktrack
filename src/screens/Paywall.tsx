@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { useApp, computeStreak } from '../lib/store'
+import { useApp } from '../lib/store'
+import { protocolStreak } from '../lib/calendar'
 import { IcClose, IcCheck } from '../components/icons'
 import { Segmented } from '../components/controls'
 import { Sparkline } from '../components/charts'
@@ -67,7 +68,7 @@ export function Paywall() {
   const [plan, setPlan] = useState<Plan>('mensual')
   const reduce = useReducedMotion()
 
-  const streak = computeStreak(state.log, new Date(state.todayTs))
+  const streak = protocolStreak(state, new Date(state.todayTs))
   const trialEndsAt = state.settings.trialEndsAt as number | null | undefined
   const hadTrial    = trialEndsAt != null
   const trialActive = hadTrial && trialEndsAt! > Date.now()
