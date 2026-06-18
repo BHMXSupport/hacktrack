@@ -470,7 +470,7 @@ export function RegistrarSheet() {
             borderRadius: 'var(--r-sm)', padding: '10px 14px',
             display: 'flex', flexDirection: 'column', gap: 6,
           }}>
-            <p className="sm" style={{ margin: 0, fontWeight: 700, color: 'var(--warning)' }}>
+            <p className="sm" style={{ margin: 0, fontWeight: 700, color: 'var(--warning-ink)' }}>
               ¡Ya registraste {product} hace {doubleDoseWarning.elapsedText}!
             </p>
             <p className="sm" style={{ margin: 0, color: 'var(--ink-700)' }}>
@@ -478,7 +478,7 @@ export function RegistrarSheet() {
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-outline btn-sm"
-                style={{ width: 'auto', padding: '0 12px', color: 'var(--warning)', borderColor: 'color-mix(in srgb, var(--warning) 50%, transparent)' }}
+                style={{ width: 'auto', padding: '0 12px', color: 'var(--warning-ink)', borderColor: 'color-mix(in srgb, var(--warning) 50%, transparent)' }}
                 onClick={() => setDismissWarning(true)} aria-label="Sí, registrar de todas formas">
                 Sí, registrar igual
               </button>
@@ -788,7 +788,7 @@ export function RegistrarSheet() {
                       background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
                       border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
                     }}>
-                      <p className="sm" style={{ margin: 0, color: 'var(--warning)', fontWeight: 600 }}>
+                      <p className="sm" style={{ margin: 0, color: 'var(--warning-ink)', fontWeight: 600 }}>
                         <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Vial reconstituido hace más de 28 días — verifica la estabilidad antes de usar.
                       </p>
                       <p className="sm" style={{ margin: '4px 0 0', color: 'var(--ink-400)' }}>Dato orientativo. No es consejo médico.</p>

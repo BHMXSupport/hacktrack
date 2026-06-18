@@ -351,7 +351,7 @@ export function CalcSheet() {
               </span>
             )}
             {!r.overCapacity && r.lowPrecision && (
-              <span className="sm" style={{ color: 'var(--warning)', marginTop: 6 }}>
+              <span className="sm" style={{ color: 'var(--warning-ink)', marginTop: 6 }}>
                 Menos de 5 UI: difícil de medir con precisión.
               </span>
             )}
@@ -363,7 +363,7 @@ export function CalcSheet() {
                 background: 'color-mix(in srgb, var(--warning) 10%, transparent)',
                 border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
               }}>
-                <p className="sm" style={{ margin: 0, fontWeight: 700, color: 'var(--warning)' }}>
+                <p className="sm" style={{ margin: 0, fontWeight: 700, color: 'var(--warning-ink)' }}>
                   Volumen fuera del rango habitual ({rangeMin}–{rangeMax} mL)
                 </p>
                 <p className="sm" style={{ margin: '4px 0 0', color: 'var(--ink-400)' }}>

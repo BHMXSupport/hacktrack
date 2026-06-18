@@ -532,7 +532,7 @@ export function ProductCards() {
                       background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
                       border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
                     }}>
-                      <span className="sm" style={{ color: 'var(--warning)' }}>
+                      <span className="sm" style={{ color: 'var(--warning-ink)' }}>
                         <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />Se observa reducción en % grasa y % músculo simultáneamente — solo como dato de registro.
                       </span>
                     </div>
@@ -789,7 +789,7 @@ export function TrendsCard() {
                         </div>
                         <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
                           <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 10 }}>● Peso (norm.)</span>
-                          <span className="sm" style={{ color: 'var(--warning)', fontSize: 10 }}>● {activeOverlay} (norm.)</span>
+                          <span className="sm" style={{ color: 'var(--warning-ink)', fontSize: 10 }}>● {activeOverlay} (norm.)</span>
                           <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 9 }}>0–100% normalizado</span>
                         </div>
                       </div>

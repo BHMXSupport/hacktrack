@@ -11,11 +11,13 @@ function Column({
   index,
   onIndex,
   fmt,
+  label,
 }: {
   items: (number | string)[]
   index: number
   onIndex: (i: number) => void
   fmt?: (v: number | string) => string
+  label: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const raf = useRef<number>()
@@ -36,10 +38,31 @@ function Column({
     })
   }
 
+  // a11y: teclado (antes era un div con solo onScroll → invisible para teclado y lectores de pantalla)
+  function goTo(i: number) {
+    const clamped = Math.max(0, Math.min(items.length - 1, i))
+    if (ref.current) ref.current.scrollTop = clamped * ITEM
+    if (clamped !== index) onIndex(clamped)
+  }
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); goTo(index + 1) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); goTo(index - 1) }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0) }
+    else if (e.key === 'End') { e.preventDefault(); goTo(items.length - 1) }
+  }
+
   return (
     <div
       ref={ref}
       onScroll={onScroll}
+      onKeyDown={onKeyDown}
+      role="spinbutton"
+      tabIndex={0}
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={items.length - 1}
+      aria-valuenow={index}
+      aria-valuetext={String(fmt ? fmt(items[index]) : items[index])}
       style={{
         height: ITEM * 3,
         overflowY: 'auto',
@@ -48,6 +71,7 @@ function Column({
         textAlign: 'center',
         scrollbarWidth: 'none',
         WebkitOverflowScrolling: 'touch',
+        borderRadius: 12,
       }}
     >
       <div style={{ height: ITEM }} aria-hidden />
@@ -99,10 +123,10 @@ export function TimeWheel({ initial, onChange }: { initial?: Date; onChange: (la
           pointerEvents: 'none',
         }}
       />
-      <Column items={HOURS} index={hi} onIndex={setHi} />
+      <Column items={HOURS} index={hi} onIndex={setHi} label="Hora" />
       <div style={{ lineHeight: `${ITEM * 3}px`, fontFamily: 'JetBrains Mono', fontWeight: 700, color: 'var(--ink-400)' }}>:</div>
-      <Column items={MINS} index={mi} onIndex={setMi} fmt={(v) => String(v).padStart(2, '0')} />
-      <Column items={APS} index={ai} onIndex={setAi} />
+      <Column items={MINS} index={mi} onIndex={setMi} fmt={(v) => String(v).padStart(2, '0')} label="Minutos" />
+      <Column items={APS} index={ai} onIndex={setAi} label="AM o PM" />
     </div>
   )
 }

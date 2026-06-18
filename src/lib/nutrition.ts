@@ -251,8 +251,8 @@ export function tdeeChip(kcal: number, tdeeVal: number): TdeeChip {
   switch (zone) {
     case 'deficit-agresivo': return { zone, label: 'Déficit agresivo', color: 'var(--error)', detail: `−${Math.round(diff)} kcal bajo TDEE (>${Math.round((1 - kcal / tdeeVal) * 100)}%)` }
     case 'deficit':          return { zone, label: 'Déficit', color: 'var(--brand-700)', detail: `−${Math.round(diff)} kcal bajo tu TDEE estimado` }
-    case 'mantenimiento':    return { zone, label: 'Mantenimiento', color: 'var(--success)', detail: `Cerca de tu TDEE (${tdeeVal} kcal)` }
-    case 'superavit':        return { zone, label: 'Superávit', color: 'var(--warning)', detail: `+${Math.round(diff)} kcal sobre tu TDEE estimado` }
+    case 'mantenimiento':    return { zone, label: 'Mantenimiento', color: 'var(--success-ink)', detail: `Cerca de tu TDEE (${tdeeVal} kcal)` }
+    case 'superavit':        return { zone, label: 'Superávit', color: 'var(--warning-ink)', detail: `+${Math.round(diff)} kcal sobre tu TDEE estimado` }
   }
 }
 

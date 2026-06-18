@@ -264,8 +264,8 @@ export function PharmaDashboard() {
       const halfMs = s.halfLifeH * H_MS
       const cv = dosingRegularityCV(doses)
       const cvLabel = cv == null ? null
-        : cv < 15 ? { label: 'Regular', color: 'var(--success)' }
-        : cv < 30 ? { label: 'Irregular', color: 'var(--warning)' }
+        : cv < 15 ? { label: 'Regular', color: 'var(--success-ink)' }
+        : cv < 30 ? { label: 'Irregular', color: 'var(--warning-ink)' }
         : { label: 'Muy irregular', color: 'var(--error)' }
 
       // Intervalo objetivo del protocolo (horas) si existe
@@ -688,7 +688,7 @@ export function PharmaDashboard() {
                         fontSize: 8,
                         fontFamily: 'JetBrains Mono, monospace',
                         fontWeight: 700,
-                        color: 'var(--warning)',
+                        color: 'var(--warning-ink)',
                         background: 'var(--surface)',
                         border: '1px solid var(--warning)',
                         borderRadius: 999,

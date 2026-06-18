@@ -579,7 +579,7 @@ export function Recetario() {
                           <span style={{ color: MACRO_COLOR.carbs, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}><MacroDot color={MACRO_COLOR.carbs} />C {scaledCarbs} g</span>
                           <span style={{ color: MACRO_COLOR.fat, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}><MacroDot color={MACRO_COLOR.fat} />G {scaledFat} g</span>
                           {r.fiber != null && (
-                            <span style={{ color: 'var(--success)', whiteSpace: 'nowrap' }}><Glyph name="hoja" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{Math.round(r.fiber * multiplier)} g fibra</span>
+                            <span style={{ color: 'var(--success-ink)', whiteSpace: 'nowrap' }}><Glyph name="hoja" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} />{Math.round(r.fiber * multiplier)} g fibra</span>
                           )}
                           {r.servings != null && (
                             <span style={{ color: 'var(--ink-400)', whiteSpace: 'nowrap' }}>{r.servings} {r.servings === 1 ? 'porción' : 'porciones'}</span>

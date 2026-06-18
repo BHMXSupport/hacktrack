@@ -41,8 +41,8 @@ const BACK_MARKERS: Marker[] = [
 interface LegendItem { color: string; label: string }
 const LEGEND: LegendItem[] = [
   { color: 'var(--error)', label: '< 1 día' },
-  { color: 'var(--warning)', label: '< 2 días' },
-  { color: 'var(--success)', label: '< 3 días' },
+  { color: 'var(--warning-ink)', label: '< 2 días' },
+  { color: 'var(--success-ink)', label: '< 3 días' },
   { color: 'var(--ink-300)', label: 'Sin uso reciente' },
 ]
 

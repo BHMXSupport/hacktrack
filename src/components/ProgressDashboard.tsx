@@ -781,7 +781,7 @@ export function ProgressDashboard() {
               />
               <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
                 <span style={{ fontSize: 12, color: 'var(--brand-700)' }}>— {compareA}</span>
-                <span style={{ fontSize: 12, color: 'var(--warning)' }}>- - {compareB}</span>
+                <span style={{ fontSize: 12, color: 'var(--warning-ink)' }}>- - {compareB}</span>
               </div>
             </motion.div>
           )}

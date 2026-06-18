@@ -279,7 +279,7 @@ export function TodayDoses() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 6 }}
                 transition={{ duration: dur.base, ease: ease.decelerate }}
-                style={{ fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: 0.6 }}
+                style={{ fontWeight: 700, color: 'var(--success-ink)', textTransform: 'uppercase', letterSpacing: 0.6 }}
               >
                 ¡Todo listo por hoy!
               </motion.span>
@@ -291,7 +291,7 @@ export function TodayDoses() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 6 }}
                 transition={{ duration: dur.base, ease: ease.decelerate }}
-                style={{ textTransform: 'uppercase', letterSpacing: 0.6, color: 'var(--success)', fontWeight: 700 }}
+                style={{ textTransform: 'uppercase', letterSpacing: 0.6, color: 'var(--success-ink)', fontWeight: 700 }}
               >
                 ¡Todo en orden hoy!
               </motion.span>
@@ -398,7 +398,7 @@ export function TodayDoses() {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '10px 16px', borderTop: '1px solid var(--border)',
               }}>
-                <span className="sm" style={{ color: 'var(--success)', fontWeight: 600 }}>
+                <span className="sm" style={{ color: 'var(--success-ink)', fontWeight: 600 }}>
                   {activeProds.length}/{activeProds.length} completadas
                   {lastDoneTs ? ` · hoy a las ${fmtTime(new Date(lastDoneTs))}` : ''}
                   {skippedProds.length > 0 ? ` · ${skippedProds.length} saltada${skippedProds.length !== 1 ? 's' : ''}` : ''}
@@ -590,7 +590,7 @@ export function TodayDoses() {
                             )}
                             {/* Item 119: badge ¡Perdida! cuando reminderTime ya pasó y no se ha tomado */}
                             {!taken && !skipped && hasReminder && Date.now() > tsFor(product) && (
-                              <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', padding: '1px 7px', borderRadius: 99, marginTop: 3 }}>¡Perdida!</span>
+                              <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning-ink)', padding: '1px 7px', borderRadius: 99, marginTop: 3 }}>¡Perdida!</span>
                             )}
                             {/* n°419: badge de presencia estimada (solo si hay presencia y no tomada hoy) */}
                             {!taken && !skipped && presencePct > 2 && (
@@ -714,7 +714,7 @@ export function TodayDoses() {
                 background: 'color-mix(in srgb, var(--warning) 6%, transparent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               }}>
-                <span className="sm" style={{ color: 'var(--warning)', fontWeight: 600 }}>
+                <span className="sm" style={{ color: 'var(--warning-ink)', fontWeight: 600 }}>
                   {missedStreakCount} días sin dosis registradas
                 </span>
                 <button

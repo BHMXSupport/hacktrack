@@ -173,12 +173,12 @@ function SevenDayAgenda({ state, now }: { state: ReturnType<typeof useApp>['stat
                         {it.product}
                       </span>
                       {taken && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--success)', flexShrink: 0 }} aria-label="Tomada">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--success-ink)', flexShrink: 0 }} aria-label="Tomada">
                           <IcCheck size={13} />
                         </span>
                       )}
                       {isToday && !taken && (
-                        <span className="sm" style={{ color: 'var(--warning)', fontSize: 10, fontWeight: 600, flexShrink: 0, whiteSpace: 'nowrap' }}>Pendiente</span>
+                        <span className="sm" style={{ color: 'var(--warning-ink)', fontSize: 10, fontWeight: 600, flexShrink: 0, whiteSpace: 'nowrap' }}>Pendiente</span>
                       )}
                     </div>
                   )

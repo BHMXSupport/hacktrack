@@ -133,7 +133,7 @@ function DayCell({ d, now, state, dispatch, hidden, cellIndex, heatmap = false }
           height: 30,
           borderRadius: '50%',
           border: '1.5px solid var(--warning)',
-          color: 'var(--warning)',
+          color: 'var(--warning-ink)',
           fontSize: 13,
           fontWeight: 600,
           lineHeight: 1,

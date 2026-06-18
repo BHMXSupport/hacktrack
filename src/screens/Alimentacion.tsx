@@ -277,9 +277,9 @@ export function Alimentacion() {
   // Caloric balance label (§83)
   const deficitLabel = goalKcal
     ? kcal >= goalKcal * 0.97 && kcal <= goalKcal * 1.03
-      ? { text: 'En meta', color: 'var(--success)' }
+      ? { text: 'En meta', color: 'var(--success-ink)' }
       : kcal > goalKcal
-        ? { text: `Superávit +${kcal - goalKcal} kcal`, color: 'var(--warning)' }
+        ? { text: `Superávit +${kcal - goalKcal} kcal`, color: 'var(--warning-ink)' }
         : { text: `Déficit −${goalKcal - kcal} kcal`, color: 'var(--brand-700)' }
     : null
 
@@ -585,9 +585,9 @@ export function Alimentacion() {
           <>
           <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
             {([
-              { key: 'na' as const, label: 'Sodio', daily: 2300, color: 'var(--warning)' },
+              { key: 'na' as const, label: 'Sodio', daily: 2300, color: 'var(--warning-ink)' },
               { key: 'k' as const, label: 'Potasio', daily: 3500, color: 'var(--brand-500)' },
-              { key: 'mg' as const, label: 'Magnesio', daily: 400, color: 'var(--success)' },
+              { key: 'mg' as const, label: 'Magnesio', daily: 400, color: 'var(--success-ink)' },
             ] as const).map(({ key, label, daily, color }) => {
               const val = electrolytes[key]
               const pct = Math.min(100, (val / daily) * 100)
@@ -726,7 +726,7 @@ export function Alimentacion() {
 
                   {/* Alerta distribución proteína desigual */}
                   {pUnbalanced && macros.hasMacros && macros.protein > 20 && (
-                    <div className="sm" style={{ color: 'var(--warning)', fontWeight: 600 }}>
+                    <div className="sm" style={{ color: 'var(--warning-ink)', fontWeight: 600 }}>
                       Mayoría de proteína en una sola toma — distribuir puede ayudar a la síntesis (observacional)
                     </div>
                   )}
@@ -918,9 +918,9 @@ export function Alimentacion() {
                         <span className="sm" style={{ color: 'var(--ink-400)' }}>kcal</span>
                       </div>
                       {/* §81 macro-kcal mismatch warning */}
-                      {macroWarning && <span className="sm" style={{ color: 'var(--warning)', marginTop: 2 }}>{macroWarning}</span>}
+                      {macroWarning && <span className="sm" style={{ color: 'var(--warning-ink)', marginTop: 2 }}>{macroWarning}</span>}
                       {/* §85 kcal guardrail */}
-                      {kcalWarning && <span className="sm" style={{ color: 'var(--warning)', marginTop: 2 }}>{kcalWarning}</span>}
+                      {kcalWarning && <span className="sm" style={{ color: 'var(--warning-ink)', marginTop: 2 }}>{kcalWarning}</span>}
                     </div>
                     {showMacros ? (
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -1217,7 +1217,7 @@ export function Alimentacion() {
             <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700, display: 'block', marginBottom: 8 }}>Señales de calidad</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {pStreak >= 3 && (
-                <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '5px 11px', borderRadius: 14, whiteSpace: 'normal', lineHeight: 1.3, background: 'color-mix(in srgb, var(--success) 12%, transparent)', color: 'var(--success)', border: '1px solid var(--success)', fontWeight: 700 }}>
+                <span className="sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '5px 11px', borderRadius: 14, whiteSpace: 'normal', lineHeight: 1.3, background: 'color-mix(in srgb, var(--success) 12%, transparent)', color: 'var(--success-ink)', border: '1px solid var(--success)', fontWeight: 700 }}>
                   <Glyph name="musculo" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> {pStreak} días en meta de proteína
                 </span>
               )}
@@ -1302,7 +1302,7 @@ function GoalEditor() {
           }}
           style={{ width: 110, maxWidth: '100%' }}
         />
-        {unusualToast && <span className="sm" style={{ color: 'var(--warning)' }}>Meta inusual</span>}
+        {unusualToast && <span className="sm" style={{ color: 'var(--warning-ink)' }}>Meta inusual</span>}
       </div>
     )
   }

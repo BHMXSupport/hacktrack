@@ -104,7 +104,7 @@ function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
         aria-label={`${product} marcado`}
       >
         <Glyph name="check" size={14} color="var(--success)" />
-        <span className="sm" style={{ color: 'var(--success)', fontWeight: 600 }}>Marcado</span>
+        <span className="sm" style={{ color: 'var(--success-ink)', fontWeight: 600 }}>Marcado</span>
       </motion.span>
     )
   }
@@ -221,7 +221,7 @@ function AgendaByDay({
                       return badge ? (
                         <span
                           className="sm"
-                          style={{ color: 'var(--warning)', fontWeight: 600, fontSize: 10, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          style={{ color: 'var(--warning-ink)', fontWeight: 600, fontSize: 10, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                         >
                           {badge}
                         </span>

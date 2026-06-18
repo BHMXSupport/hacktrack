@@ -841,7 +841,7 @@ export function Ajustes() {
                             <span className="row-sub" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                               <span>{cadLabel}</span>
                               {lowStock && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--warning)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--warning-ink)' }}>
                                   · <Glyph name="efecto" size={13} color="currentColor" style={{ verticalAlign: '-2px' }} /> Stock bajo
                                 </span>
                               )}

@@ -219,7 +219,7 @@ export function DayDetail() {
                       <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: taken ? 'var(--success)' : missed ? 'var(--warning)' : catColor }} />
                       <span className="body" style={{ flex: 1, minWidth: 0, fontWeight: 600, color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product}</span>
                       {taken ? (
-                        <span className="sm" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--success)', fontWeight: 600, flexShrink: 0 }}>
+                        <span className="sm" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--success-ink)', fontWeight: 600, flexShrink: 0 }}>
                           <IcCheck size={15} style={{ stroke: 'var(--success)' }} />
                           Registrada
                         </span>

@@ -3,6 +3,9 @@
   --brand-900:#063B36; --brand-700:#0E5A52; --brand-500:#1B8A7D; --brand-300:#5FC9B8; --brand-100:#D6F2EC;
   --lime:#B6F09C; --lime-deep:#7BC96F; --ember:#FF7A59; --ember-deep:#E85D3A;
   --success:#2FB57C; --warning:#E8A317; --error:#E4564B;
+  /* Variantes para TEXTO (AA ≥4.5:1 sobre fondo claro): --success/--warning brillantes solo pasan AA como
+     relleno, no como texto. Usar --success-ink/--warning-ink cuando el color va en 'color:' de un texto/icono. */
+  --success-ink:#137A52; --warning-ink:#9A5B00;
   --ink-900:#0B1220; --ink-700:#1B2740; --ink-400:#586781; --ink-300:#7E8BA6; --ink-200:#D7DEEC; --ink-100:#EEF2F8; --ink-0:#FFF;
   --bg:#F7F9FC; --surface:#FFFFFF; --card:#FFFFFF; --border:#E9EDF4;
   --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px;
@@ -12,6 +15,7 @@
 [data-theme="dark"]{
   --bg:#0B1220; --surface:#121A2B; --card:#1B2740; --border:#26324d;
   --ink-900:#EEF2F8; --ink-700:#B4BFD4; --ink-400:#8A98B5; --ink-300:#6B7795; --ink-200:#2A3550; --ink-100:#1B2740;
+  --success-ink:#3FC98C; --warning-ink:#F2B945; /* en oscuro: brillantes (pasan AA sobre fondo oscuro) */
   --e2:0 4px 16px rgba(0,0,0,.35); --e3:0 14px 36px rgba(0,0,0,.5);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
