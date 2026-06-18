@@ -91,6 +91,7 @@ const Perfil       = lazy(() => import('./screens/Perfil').then((m) => ({ defaul
 const Paywall      = lazy(() => import('./screens/Paywall').then((m) => ({ default: m.Paywall })))
 // Sheets
 import { BottomNav } from './components/BottomNav'
+import { ErrorBoundary } from './components/ErrorBoundary'
 const RegistrarSheet  = lazy(() => import('./sheets/Registrar').then((m) => ({ default: m.RegistrarSheet })))
 const CalcSheet       = lazy(() => import('./sheets/Calc').then((m) => ({ default: m.CalcSheet })))
 const MedidaSheet     = lazy(() => import('./sheets/Medida').then((m) => ({ default: m.MedidaSheet })))
@@ -199,7 +200,12 @@ function AppShell() {
       <AnimatePresence mode="wait">
         <motion.div key={state.tab} variants={fade} initial="initial" animate="animate" exit="exit"
           style={{ position: 'absolute', inset: 0 }}>
-          <Tab />
+          {/* Boundary por pantalla: si una tab crashea al renderizar (p.ej. tras registrar una dosis),
+              muestra un fallback recuperable en lugar de pantalla en blanco; la nav de abajo sigue viva.
+              resetKey=tab → al cambiar de pestaña se limpia el error. */}
+          <ErrorBoundary resetKey={state.tab} scope={'tab:' + state.tab}>
+            <Tab />
+          </ErrorBoundary>
         </motion.div>
       </AnimatePresence>
 
@@ -218,9 +224,17 @@ function AppShell() {
       </button>
 
       <BottomNav />
-      <SheetHost />
+      <ErrorBoundary resetKey={state.sheet} scope="sheet">
+        <SheetHost />
+      </ErrorBoundary>
       <Suspense fallback={<SheetFallback />}>
-        <AnimatePresence>{FullModal && <FullModal key={state.sheet} />}</AnimatePresence>
+        <AnimatePresence>
+          {FullModal && (
+            <ErrorBoundary resetKey={state.sheet} scope={'modal:' + state.sheet}>
+              <FullModal key={state.sheet} />
+            </ErrorBoundary>
+          )}
+        </AnimatePresence>
       </Suspense>
       <Toast />
     </>
