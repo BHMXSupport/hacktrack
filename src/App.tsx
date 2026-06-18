@@ -327,6 +327,21 @@ export function App() {
     void registerSW()
   }, [])
 
+  // Prefetch de los chunks lazy de las tabs cuando el navegador está idle tras cargar.
+  // Sin esto, la PRIMERA visita a cada pestaña descarga su chunk on-demand → spinner / "no scrollea,
+  // esperas" (en MÓVIL no hay hover, así que no había ningún prefetch). Al precargarlos en background,
+  // los cambios de pestaña son instantáneos. import() comparte chunk con el lazyRetry (Vite dedup).
+  useEffect(() => {
+    const prefetch = () => {
+      void import('./screens/Home'); void import('./screens/Diario'); void import('./screens/Progreso')
+      void import('./screens/Vida'); void import('./screens/Alimentacion'); void import('./screens/ResumenSemanal')
+      void import('./sheets/Registrar'); void import('./sheets/Agregar') // flujo del "+"
+    }
+    const ric = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500))
+    const id = ric(prefetch)
+    return () => { (window.cancelIdleCallback ?? window.clearTimeout)(id as number) }
+  }, [])
+
   // ── Deep-link desde App Shortcuts del manifest (items 314 + 438) ─────────────
   // Captura ?action=log|medida|microlog al iniciar la app desde el shortcut del OS.
   // Se ejecuta una sola vez al montar (el estado de screen puede estar en 's-app' o en el flow).
