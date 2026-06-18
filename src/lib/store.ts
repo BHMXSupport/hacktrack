@@ -428,10 +428,28 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'setMeasures':
       return { ...s, selectedMeasures: a.measures }
     case 'setBaseline': {
+      // El baseline del onboarding ahora CONECTA con los KPIs/medidas: escribe measureValues + history
+      // (igual que saveMedidas) además del profile, para que Peso/Altura/IMC ya aparezcan en las cards de
+      // Inicio y en "Cambio de medidas" sin tener que re-llenarse. metaPesoKg alimenta la proyección de meta.
       const p = { ...s.profile }
-      if (a.peso != null) p.peso = a.peso
-      if (a.est != null) p.est = a.est
-      return { ...s, profile: p, ...(a.metaPesoKg != null ? { profile: { ...p, metaPesoKg: a.metaPesoKg } } : {}) }
+      const mv = { ...s.measureValues }
+      const now = Date.now()
+      const samples: { name: string; value: number; ts: number }[] = []
+      if (a.peso != null) { p.peso = a.peso; mv['Peso'] = a.peso; samples.push({ name: 'Peso', value: a.peso, ts: now }) }
+      if (a.est != null) { p.est = a.est; mv['Altura'] = a.est }
+      if (a.metaPesoKg != null) p.metaPesoKg = a.metaPesoKg
+      const peso = p.peso, est = p.est // consts locales → TS estrecha el null antes de bmiCalc
+      if (peso != null && est != null) {
+        const bmi = bmiCalc(peso, est) // puede ser null si los datos no son válidos
+        p.bmi = bmi
+        if (bmi != null) { mv['IMC'] = bmi; samples.push({ name: 'IMC', value: bmi, ts: now }) }
+      }
+      return {
+        ...s,
+        profile: p,
+        measureValues: mv,
+        history: samples.length ? pushHistory(s.history, samples) : s.history,
+      }
     }
     case 'setLocalOnly':
       return { ...s, localOnly: a.value }
