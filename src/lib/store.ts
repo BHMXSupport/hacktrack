@@ -58,7 +58,8 @@ export interface AppState {
   draftDose: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null  // "copiar a mi registro" desde la calc (con reconstitución)
   toast: string | null
   toastUndoId: string | null   // id del log a deshacer desde el toast (ej. dosis recién registrada)
-  deletedLogBuffer: LogItem | null  // buffer de 1 item para deshacer borrado
+  // buffer para deshacer borrado: el item + las muestras de history removidas (para restaurarlas en undo)
+  deletedLogBuffer: { item: LogItem; samples: { name: string; sample: MeasureSample }[] } | null
 
   // ── Nuevos campos (aditivos, retrocompatibles) ──────────────────────────────
   calcDraft: { vialStr: string; aguaStr: string; dosisStr: string; unit: string } | null  // estado efímero de la calculadora
@@ -364,6 +365,33 @@ export function syncActive(s: AppState): AppState {
     protocol: activeProduct ? (s.protocols[activeProduct] ?? null) : null,
     importedProducts: Object.keys(s.protocols),
   }
+}
+
+// Recalcula los cachés de medidas (measureValues + campos objetivos del profile + bmi) desde el history,
+// que es la fuente de verdad de la serie. Solo toca las medidas `affected` (las que ganaron/perdieron una
+// muestra) → las estáticas como Altura (sin history) quedan intactas. Mantiene todo coherente al borrar/undo.
+function rebuildMeasureCaches(
+  history: Record<string, MeasureSample[]>,
+  baseMv: Record<string, number>,
+  baseProfile: Profile,
+  affected: string[],
+): { measureValues: Record<string, number>; profile: Profile } {
+  const measureValues = { ...baseMv }
+  const profile = { ...baseProfile }
+  for (const name of affected) {
+    const samples = history[name] ?? []
+    const prof = MEASURE_META[name]?.prof
+    if (samples.length) {
+      const latest = samples.reduce((a, b) => (b.ts >= a.ts ? b : a))
+      measureValues[name] = latest.value
+      if (prof) (profile as Record<string, number | null>)[prof] = latest.value
+    } else {
+      delete measureValues[name]
+      if (prof) (profile as Record<string, number | null>)[prof] = null
+    }
+  }
+  profile.bmi = profile.peso != null && profile.est != null ? bmiCalc(profile.peso, profile.est) : null
+  return { measureValues, profile }
 }
 
 // migra estado legado (un solo `protocol` + `importedProducts`) al mapa multi-protocolo
@@ -790,28 +818,79 @@ export function reducer(s: AppState, a: Action): AppState {
         .map((g) => ({ ...g, items: g.items.filter((it) => it.id !== a.id) }))
         .filter((g) => g.items.length > 0)
       let history = s.history
+      let measureValues = s.measureValues
+      let profile = s.profile
+      let protocols = s.protocols
+      const removedSamples: { name: string; sample: MeasureSample }[] = []
       if (deleted?.type === 'medida') {
+        // quitar las muestras de ESTE registro (mismo ts), guardándolas para el undo
         history = {}
-        for (const k of Object.keys(s.history)) history[k] = s.history[k].filter((sm) => sm.ts !== deleted!.ts)
+        for (const k of Object.keys(s.history)) {
+          const keep: MeasureSample[] = []
+          for (const sm of s.history[k]) {
+            if (sm.ts === deleted.ts) removedSamples.push({ name: k, sample: sm })
+            else keep.push(sm)
+          }
+          if (keep.length) history[k] = keep
+        }
+        // recalcular measureValues + profile + bmi desde el history (caché ya no diverge de la verdad)
+        const affected = [...new Set(removedSamples.map((r) => r.name))]
+        const rebuilt = rebuildMeasureCaches(history, s.measureValues, s.profile, affected)
+        measureValues = rebuilt.measureValues
+        profile = rebuilt.profile
+      } else if (deleted?.type === 'dose' && (deleted.doseMg ?? 0) > 0 && deleted.product) {
+        // devolver al vial los mg que esta dosis había consumido (usedMg solo crecía → "queda X mg" mentía)
+        const proto = s.protocols[deleted.product]
+        if (proto?.vialStock) {
+          protocols = { ...s.protocols, [deleted.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg - (deleted.doseMg ?? 0)) } } }
+        }
       }
       return {
         ...s,
         log,
         history,
+        measureValues,
+        profile,
+        protocols,
         logged: log.length > 0,
         sheet: null,
-        deletedLogBuffer: deleted ?? null,
+        deletedLogBuffer: deleted ? { item: deleted, samples: removedSamples } : null,
         toast: deleted ? 'Registro borrado' : s.toast,
         toastUndoId: deleted ? `__undo_delete__${deleted.id}` : null,
       }
     }
 
-    // loop 77/137: deshacer el borrado (re-inserta desde el buffer)
+    // loop 77/137: deshacer el borrado (re-inserta el item + restaura muestras/stock de vial)
     case 'undoDeleteLog': {
       if (!s.deletedLogBuffer) return s
+      const { item, samples } = s.deletedLogBuffer
+      const log = prependToLog(s.log, item)
+      let history = s.history
+      let measureValues = s.measureValues
+      let profile = s.profile
+      let protocols = s.protocols
+      if (samples.length) {
+        history = { ...s.history }
+        for (const { name, sample } of samples) {
+          history[name] = [...(history[name] ?? []), sample].sort((x, y) => x.ts - y.ts)
+        }
+        const affected = [...new Set(samples.map((r) => r.name))]
+        const rebuilt = rebuildMeasureCaches(history, s.measureValues, s.profile, affected)
+        measureValues = rebuilt.measureValues
+        profile = rebuilt.profile
+      } else if (item.type === 'dose' && (item.doseMg ?? 0) > 0 && item.product) {
+        const proto = s.protocols[item.product]
+        if (proto?.vialStock) {
+          protocols = { ...s.protocols, [item.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: proto.vialStock.usedMg + (item.doseMg ?? 0) } } }
+        }
+      }
       return {
         ...s,
-        log: prependToLog(s.log, s.deletedLogBuffer),
+        log,
+        history,
+        measureValues,
+        profile,
+        protocols,
         logged: true,
         deletedLogBuffer: null,
         toast: null,
@@ -828,9 +907,11 @@ export function reducer(s: AppState, a: Action): AppState {
       const now = new Date(a.ts)
       // Eliminar de su grupo actual
       let movedItem: LogItem | undefined
+      let oldTs: number | undefined
       let log = s.log.map((g) => {
         const it = g.items.find((i) => i.id === a.id)
         if (it) {
+          oldTs = it.ts
           movedItem = { ...it, ts: a.ts, t: fmtTime(now) }
           return { ...g, items: g.items.filter((i) => i.id !== a.id) }
         }
@@ -839,7 +920,16 @@ export function reducer(s: AppState, a: Action): AppState {
       if (!movedItem) return s
       // Re-insertar en el grupo correcto (puede ser el mismo día u otro)
       log = prependToLog(log, movedItem)
-      return { ...s, log }
+      // Si es una medida, mover también su muestra en history del ts viejo al nuevo (si no, el punto de la
+      // gráfica se queda en la fecha vieja y deleteLog ya no lo reconcilia por ts → muestra huérfana).
+      let history = s.history
+      if (movedItem.type === 'medida' && oldTs != null && oldTs !== a.ts) {
+        history = {}
+        for (const k of Object.keys(s.history)) {
+          history[k] = s.history[k].map((sm) => (sm.ts === oldTs ? { ...sm, ts: a.ts } : sm)).sort((x, y) => x.ts - y.ts)
+        }
+      }
+      return { ...s, log, history }
     }
 
     case 'setSetting':
@@ -907,6 +997,7 @@ export function reducer(s: AppState, a: Action): AppState {
     // Si es una dosis y value!=null, también actualiza productDoses[product].
     case 'editLog': {
       let updatedProductDoses = s.productDoses
+      let updatedProtocols = s.protocols
       const log = s.log.map((g) => ({
         ...g,
         items: g.items.map((it) => {
@@ -914,7 +1005,17 @@ export function reducer(s: AppState, a: Action): AppState {
           const patched: LogItem = { ...it }
           if (a.patch.value !== undefined) patched.value = a.patch.value
           if (a.patch.unit !== undefined) patched.unit = a.patch.unit
-          if (a.patch.doseMg !== undefined) patched.doseMg = a.patch.doseMg ?? undefined
+          if (a.patch.doseMg !== undefined) {
+            patched.doseMg = a.patch.doseMg ?? undefined
+            // mover el stock del vial por el delta de mg (si no, el "queda X mg" se desfasa al editar la dosis)
+            if (it.type === 'dose' && it.product) {
+              const delta = (a.patch.doseMg ?? 0) - (it.doseMg ?? 0)
+              const proto = updatedProtocols[it.product]
+              if (proto?.vialStock && delta !== 0) {
+                updatedProtocols = { ...updatedProtocols, [it.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg + delta) } } }
+              }
+            }
+          }
           if (a.patch.note !== undefined) patched.note = a.patch.note ?? undefined
           // si es dosis y cambió el value, actualiza la dosis recordada por producto (unidad nueva o la actual)
           if (it.type === 'dose' && it.product && a.patch.value != null) {
@@ -924,7 +1025,7 @@ export function reducer(s: AppState, a: Action): AppState {
           return patched
         }),
       }))
-      return { ...s, log, productDoses: updatedProductDoses }
+      return { ...s, log, productDoses: updatedProductDoses, protocols: updatedProtocols }
     }
 
     case 'setCalcDraft':

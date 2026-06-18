@@ -15,6 +15,7 @@ import { useApp, isoKey } from '../lib/store'
 import { dayProducts, doseTakenOnProduct, loggedItemsForDay, phaseForDate, weekAdherencePct } from '../lib/calendar'
 import { fmtDate, fmtTime, weekStrip } from '../lib/cadence'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
+import { doseToMg } from '../lib/calc'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -131,9 +132,17 @@ export function DayDetail() {
   function confirmFullEdit() {
     if (!editFull) return
     const val = parseFloat(editFull.value)
+    const unit = editFull.unit || ''
+    // Recalcular los mg CANÓNICOS para que Vida (farmacocinética) y el stock del vial usen el valor nuevo,
+    // no el viejo. Para UI/mL hace falta la reconstitución del producto.
+    const editedItem = state.log.flatMap((g) => g.items).find((i) => i.id === editFull.id)
+    const recon = editedItem?.product ? state.productRecon[editedItem.product] : undefined
+    const doseMg = !isNaN(val) && val > 0 ? doseToMg(val, unit, recon?.vialMg, recon?.aguaMl) : null
     dispatch({ t: 'editLog', id: editFull.id, patch: {
       value: isNaN(val) ? null : val,
       unit: editFull.unit || null,
+      // solo se manda si se pudo recalcular; si no (UI/mL sin reconstitución), se deja el doseMg anterior
+      ...(doseMg != null ? { doseMg } : {}),
       note: editFull.note.trim() || null,
     } })
     dispatch({ t: 'toast', msg: 'Registro actualizado' })
