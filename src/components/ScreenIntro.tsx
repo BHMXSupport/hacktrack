@@ -3,6 +3,19 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+// Limpia las marcas de "ya viste la intro" (todas las hk_intro_* + el coach de Diario) para que, tras
+// borrar datos / crear cuenta nueva, las guías de primera vez vuelvan a aparecer.
+export function resetFirstRunTips(): void {
+  try {
+    const remove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && (k.startsWith('hk_intro') || k === 'hk_diario_coach')) remove.push(k)
+    }
+    remove.forEach((k) => localStorage.removeItem(k))
+  } catch { /* storage no disponible */ }
+}
+
 export function ScreenIntro({ storageKey, title, tips }: { storageKey: string; title: string; tips: string[] }) {
   const [show, setShow] = useState(() => {
     try { return !localStorage.getItem(storageKey) } catch { return false }

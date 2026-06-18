@@ -1,6 +1,6 @@
 // useFocusTrap — n=494: contención de foco en modales/sheets abiertas.
 // WCAG 2.1.2: cicla Tab/Shift+Tab dentro del ref; Escape llama onClose.
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 const FOCUSABLE = [
   'a[href]',
@@ -16,6 +16,12 @@ export function useFocusTrap(
   active: boolean,
   onClose?: () => void,
 ) {
+  // onClose suele ser una arrow inline (identidad nueva cada render). Si va en las deps, el efecto se
+  // RE-EJECUTA en cada tecla → su timer de 50ms roba el foco al input y baja el teclado. Lo guardamos en
+  // un ref para usar siempre el último onClose SIN re-correr el efecto.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     if (!active) return
     const el = ref.current
@@ -38,7 +44,7 @@ export function useFocusTrap(
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose?.()
+        onCloseRef.current?.()
         return
       }
       if (e.key !== 'Tab') return
@@ -65,5 +71,6 @@ export function useFocusTrap(
       document.removeEventListener('keydown', handler)
       prev?.focus()
     }
-  }, [active, onClose]) // ref is stable (framer-motion ref doesn't change)
+    // Solo [active]: NO onClose (va por ref) → el efecto no se re-ejecuta al escribir. ref es estable.
+  }, [active])
 }

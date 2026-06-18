@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, useAnimate, AnimatePresence } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
+import { resetFirstRunTips } from '../components/ScreenIntro'
 import { Disclaimer } from '../components/controls'
 import { useApp } from '../lib/store'
 import { errorHaptic } from '../lib/haptics'
@@ -47,8 +48,10 @@ export function ConfirmDeleteSheet() {
   function handleDelete() {
     if (!confirmed) return
     if (isAccount) {
+      resetFirstRunTips() // cuenta nueva tras borrar → vuelven a salir las guías de primera vez
       dispatch({ t: 'arcoDelete' })
     } else if (isLogout) {
+      resetFirstRunTips()
       dispatch({ t: 'reset' })
     } else if (isProduct && productName) {
       dispatch({ t: 'deleteProduct', product: productName })
