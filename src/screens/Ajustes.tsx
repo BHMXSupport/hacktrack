@@ -1294,7 +1294,8 @@ export function Ajustes() {
                 className="row"
                 style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
                 aria-label="Importar de BiohackMX"
-                onClick={() => dispatch({ t: 'go', screen: 's-import' })}
+                // usuario ya en la app: el back de Import debe regresar a la app, no a login
+                onClick={() => { dispatch({ t: 'setReturnTo', screen: 's-app' }); dispatch({ t: 'go', screen: 's-import' }) }}
               >
                 <RowIcon>
                   <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-700)' }}>

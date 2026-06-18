@@ -7,6 +7,7 @@ import { Disclaimer } from '../components/controls'
 import { EmptyState } from '../components/EmptyState'
 import { MOCK_BIOHACKMX_PURCHASES, PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
 import { spring, sharedAxisX, staggerParent, staggerItem } from '../lib/motion'
+import biohackmxLogo from '../assets/biohackmx-logo.png'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -135,7 +136,7 @@ function todayIso(): string {
 
 // Conectar cuenta BiohackMX → elegir de TUS compras cuáles estás usando y quieres trackear
 export function Import() {
-  const { dispatch } = useApp()
+  const { state, dispatch } = useApp()
   const [phase, setPhase] = useState<Phase>('connect')
   const [consent, setConsent] = useState(false)
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -148,7 +149,11 @@ export function Import() {
   // #108: configuración por producto
   const [configs, setConfigs] = useState<Record<string, OrderConfig>>({})
 
-  const back = () => dispatch({ t: 'go', screen: 's-app' })
+  // Back de la pantalla de conexión → regresa al ORIGEN (login/crear cuenta, o la app si es re-importación
+  // desde Ajustes), NO te mete a la app vacía. returnTo lo setean Login/Account/Ajustes al navegar aquí.
+  const back = () => dispatch({ t: 'go', screen: state.returnTo ?? 's-login' })
+  // Entrar a la app sin elegir productos — solo DESPUÉS de conectar (fase orders), "lo agrego manualmente".
+  const enterApp = () => dispatch({ t: 'go', screen: 's-app' })
 
   const toggle = (p: string) =>
     setSel((s) => {
@@ -235,7 +240,16 @@ export function Import() {
     <div className="scroll" style={{ paddingBottom: 'max(32px, calc(16px + env(safe-area-inset-bottom, 0px)))' }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px 8px', paddingTop: 'max(16px, env(safe-area-inset-top))', position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 10 }}>
-        <button className="iconbtn" onClick={phase === 'orders-config' ? () => setPhase('orders') : phase === 'preview' ? () => setPhase('orders-config') : back} aria-label="Regresar">
+        <button
+          className="iconbtn"
+          onClick={
+            phase === 'orders-config' ? () => setPhase('orders')
+            : phase === 'preview' ? () => setPhase('orders-config')
+            : phase === 'orders' ? () => setPhase('connect')
+            : back // fase connect → regresa a login/crear cuenta
+          }
+          aria-label="Regresar"
+        >
           <IcBack />
         </button>
         <span className="h2" style={{ margin: 0 }}>Conectar BiohackMX</span>
@@ -248,8 +262,13 @@ export function Import() {
           {phase === 'connect' && (
             <motion.div key="connect" variants={sharedAxisX} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center', padding: 28 }}>
-                <div style={{ background: 'color-mix(in srgb, var(--brand-300) 16%, transparent)', borderRadius: 18, padding: 14 }}>
-                  <BiohackmxFlask size={40} />
+                {/* Logo real de BiohackMX sobre el fondo oscuro de marca (el wordmark es blanco/mint → necesita fondo oscuro) */}
+                <div style={{
+                  alignSelf: 'stretch', display: 'flex', justifyContent: 'center', alignItems: 'center',
+                  background: 'linear-gradient(135deg, #1f2937 0%, #0f172a 100%)',
+                  borderRadius: 16, padding: '20px 24px',
+                }}>
+                  <img src={biohackmxLogo} alt="BiohackMX" style={{ width: '100%', maxWidth: 200, height: 'auto', display: 'block' }} />
                 </div>
                 <div className="h2">Conecta tu cuenta de BiohackMX</div>
                 <p className="body" style={{ margin: 0, color: 'var(--ink-700)' }}>
@@ -279,7 +298,8 @@ export function Import() {
                   <BiohackmxFlask size={20} style={{ filter: 'brightness(0) invert(1)' }} />
                   Conectar con BiohackMX
                 </button>
-                <button className="btn btn-outline" onClick={back}>Lo agrego manualmente</button>
+                {/* "Lo agrego manualmente" se removió de aquí: iniciar sesión es obligatorio.
+                    La opción de omitir productos vive en la fase 'orders' (ya conectado). */}
               </div>
             </motion.div>
           )}
@@ -406,7 +426,8 @@ export function Import() {
                     ? 'Configurar 1 producto'
                     : `Configurar ${sel.size} productos`}
                 </button>
-                <button className="btn btn-outline" onClick={back}>Lo agrego manualmente</button>
+                {/* Ya conectado: si no quiere elegir ningún péptido, entra a la app y los agrega manualmente */}
+                <button className="btn btn-outline" onClick={enterApp}>Lo agrego manualmente</button>
               </div>
             </motion.div>
           )}
