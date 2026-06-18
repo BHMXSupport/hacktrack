@@ -1,4 +1,4 @@
-import { useReducer, useEffect, lazy, Suspense, type ComponentType } from 'react'
+import { useReducer, useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { AppContext, reducer, initialState, useApp, hydrate } from './lib/store'
 import { upcomingDoses, doseTakenOnProduct } from './lib/calendar'
@@ -116,6 +116,8 @@ const Paywall      = lazyRetry(() => import('./screens/Paywall').then((m) => ({ 
 // Sheets
 import { BottomNav } from './components/BottomNav'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { InstallGate } from './components/InstallGate'
+import { shouldShowInstallGate } from './lib/install'
 const RegistrarSheet  = lazyRetry(() => import('./sheets/Registrar').then((m) => ({ default: m.RegistrarSheet })))
 const CalcSheet       = lazyRetry(() => import('./sheets/Calc').then((m) => ({ default: m.CalcSheet })))
 const MedidaSheet     = lazyRetry(() => import('./sheets/Medida').then((m) => ({ default: m.MedidaSheet })))
@@ -321,6 +323,8 @@ function Root() {
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, initialState, loadState)
+  // ¿abrieron el link en el navegador sin instalar? → mostrar el asistente de instalación (forzado)
+  const [showInstall] = useState(shouldShowInstallGate)
 
   // registrar SW para push real (item 401) — una vez al montar
   useEffect(() => {
@@ -455,6 +459,9 @@ export function App() {
                 }}
               />
             )}
+            {/* Asistente de instalación: aparece al abrir el link en el navegador (no instalada).
+                Detecta iPhone/Android y guía la instalación. Sin escape: la beta se usa instalada. */}
+            {showInstall && <InstallGate />}
           </div>
         </div>
       </MotionConfig>
