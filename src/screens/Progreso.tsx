@@ -706,6 +706,9 @@ export function Progreso() {
   }
 
   function openAddProduct() {
+    // El picker vive dentro del disclosure "Gestión de productos" (colapsado por defecto) → hay que
+    // EXPANDIRLO también, si no el picker se abre oculto y el botón "no hace nada".
+    setProductsOpen(true)
     setPickerOpen(true)
   }
 

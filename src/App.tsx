@@ -117,6 +117,7 @@ const Paywall      = lazyRetry(() => import('./screens/Paywall').then((m) => ({ 
 import { BottomNav } from './components/BottomNav'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { InstallGate } from './components/InstallGate'
+import { ScreenIntro } from './components/ScreenIntro'
 import { shouldShowInstallGate } from './lib/install'
 const RegistrarSheet  = lazyRetry(() => import('./sheets/Registrar').then((m) => ({ default: m.RegistrarSheet })))
 const CalcSheet       = lazyRetry(() => import('./sheets/Calc').then((m) => ({ default: m.CalcSheet })))
@@ -228,6 +229,51 @@ function SheetHost() {
 
 const TAB_SCREENS = { inicio: Home, diario: Diario, protocolo: Progreso, vida: Vida, comida: Alimentacion, semana: ResumenSemanal }
 
+// Intro de primera vez por pestaña (aparece una sola vez, como el coach de Diario). Diario se excluye
+// porque ya tiene su propia guía. Clave por tab en localStorage → cada pantalla se explica una vez.
+const TAB_INTROS: Record<string, { title: string; tips: string[] }> = {
+  inicio: {
+    title: 'Inicio',
+    tips: [
+      'Aquí ves tu adherencia, tu próxima dosis y el mapa de zonas de inyección.',
+      "Toca 'Registrar' para anotar la dosis del día.",
+      'El botón + (abajo) registra dosis, comida o una medida rápida.',
+    ],
+  },
+  protocolo: {
+    title: 'Progreso',
+    tips: [
+      'Calendario de tus dosis y tu adherencia de la semana.',
+      "Agrega productos con '+ Agregar producto' o en 'Gestión de productos'.",
+      "En 'Avances' ves tus tendencias y la fase de cada protocolo.",
+    ],
+  },
+  vida: {
+    title: 'Vida',
+    tips: [
+      'Gráficas de tus métricas (energía, sueño, ánimo…) a lo largo del tiempo.',
+      'Superpón varias métricas para ver cómo se relacionan.',
+      'Registra nuevas medidas con el botón +.',
+    ],
+  },
+  comida: {
+    title: 'Comida',
+    tips: [
+      'Registra tus comidas, agua y electrolitos del día.',
+      'Compara tus macros contra las metas que tú defines.',
+      'Con el botón + agregas un platillo.',
+    ],
+  },
+  semana: {
+    title: 'Tu semana',
+    tips: [
+      'Resumen de tu semana: adherencia, dosis, hidratación y calorías.',
+      "Las 'Señales' destacan tus cambios y logros de la semana.",
+      "Comparte tu resumen con el botón 'Compartir'.",
+    ],
+  },
+}
+
 function AppShell() {
   const { state, dispatch } = useApp()
   // modales full-screen montados sobre el shell (Ajustes ahora se abre desde el engranaje arriba-derecha)
@@ -252,6 +298,17 @@ function AppShell() {
           </ErrorBoundary>
         </motion.div>
       </AnimatePresence>
+
+      {/* Intro de primera vez por pestaña (una sola vez c/u). key={tab} → remonta al cambiar de tab y
+          revisa su propia clave en localStorage. Diario no está en el mapa (ya tiene su guía). */}
+      {TAB_INTROS[state.tab] && (
+        <ScreenIntro
+          key={state.tab}
+          storageKey={`hk_intro_${state.tab}`}
+          title={TAB_INTROS[state.tab].title}
+          tips={TAB_INTROS[state.tab].tips}
+        />
+      )}
 
       {/* Engranaje de Ajustes — arriba a la derecha, global */}
       <button
