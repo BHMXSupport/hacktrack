@@ -178,6 +178,7 @@ export type Action =
   | { t: 'setDraftDose'; draft: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null }
   | { t: 'arcoDelete' }                                               // P0-5
   | { t: 'reset' }                                                    // P1-7
+  | { t: 'replaceState'; state: Partial<AppState> }                  // restaurar respaldo completo
   | { t: 'toast'; msg: string | null }
   | { t: 'editLogTime'; id: string; ts: number }
   | { t: 'undoDeleteLog' }
@@ -880,6 +881,19 @@ export function reducer(s: AppState, a: Action): AppState {
     // P1-7: reinicio total de estado (logout / rehacer onboarding)
     case 'reset':
       return { ...initialState, todayTs: startOfDay(new Date()).getTime(), screen: 's-onboarding' }
+
+    // Restaurar respaldo COMPLETO: antes el import solo recreaba productos + perfil y perdía log/nutrition/
+    // history/measureValues/recon/aliases/settings. Ahora reemplaza todo el estado (defaults para campos
+    // faltantes vía initialState) y resincroniza cachés.
+    case 'replaceState':
+      return syncActive({
+        ...initialState,
+        ...a.state,
+        screen: 's-app',
+        sheet: null,
+        toast: 'Respaldo restaurado correctamente',
+        toastUndoId: null,
+      })
 
     case 'toast':
       return { ...s, toast: a.msg, toastUndoId: null } // un toast normal no trae acción de deshacer

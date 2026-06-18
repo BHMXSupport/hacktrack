@@ -595,17 +595,9 @@ export function Ajustes() {
         const importedState = parsed.state ?? parsed
         // Validación básica
         if (!importedState.log || !importedState.settings) throw new Error('Formato inválido')
-        // Rehidratar dispatch por acción (reseteamos y rellenamos)
-        dispatch({ t: 'reset' })
-        // Importar productos y protocolos
-        if (importedState.protocols) {
-          const names = Object.keys(importedState.protocols)
-          if (names.length > 0) dispatch({ t: 'importProducts', names })
-        }
-        if (importedState.profile) {
-          dispatch({ t: 'setProfileFields', patch: importedState.profile })
-        }
-        dispatch({ t: 'toast', msg: 'Respaldo restaurado correctamente' })
+        // Restaurar el respaldo COMPLETO (log, nutrition, history, measureValues, protocolos editados,
+        // recon, aliases, settings…), no solo productos+perfil. El toast lo pone la propia acción.
+        dispatch({ t: 'replaceState', state: importedState })
       } catch {
         dispatch({ t: 'toast', msg: 'Error al leer el archivo — verifica que sea un respaldo válido' })
       }
