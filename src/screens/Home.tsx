@@ -1235,8 +1235,8 @@ export function Home() {
                           <div style={{ position: 'relative' }}>
                             <div aria-hidden="true" style={{
                               position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)',
-                              height: 8, borderRadius: 4, pointerEvents: 'none', opacity: answered ? 1 : 0.5,
-                              background: `linear-gradient(to right, var(--brand-500) ${fillPct}%, var(--ink-100) ${fillPct}%)`,
+                              height: 10, borderRadius: 5, pointerEvents: 'none', opacity: answered ? 1 : 0.5,
+                              background: `linear-gradient(to right, var(--brand-700) ${fillPct}%, var(--ink-100) ${fillPct}%)`,
                             }} />
                             <input type="range" min={1} max={max} step={1} value={val}
                               onChange={(e) => setMorningAnswers((prev) => ({ ...prev, [m]: Number(e.target.value) }))}

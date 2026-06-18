@@ -393,21 +393,29 @@ export function MedidaSheet() {
           )}
         </AnimatePresence>
 
-        {/* CTA */}
-        <button className="btn btn-brand"
-          onClick={handleSave}
-          disabled={!touched}
-          style={{ marginTop: 4, opacity: touched ? 1 : 0.45, cursor: touched ? 'pointer' : 'not-allowed' }}>
-          {touched
-            ? 'Guardar'
-            : inputMode === 'buttons'
-            ? 'Elige un nivel'
-            : inputMode === 'num'
-            ? 'Ingresa un valor'
-            : 'Mueve para elegir tu valor'}
-        </button>
-
         <Disclaimer kind="measure" />
+
+        {/* CTA sticky al fondo — en sheets largos (escala + nota + historial) el botón quedaba fuera
+            del alcance del pulgar. Mismo patrón que Registrar. */}
+        <div style={{
+          position: 'sticky', bottom: 0, zIndex: 1, marginTop: 4,
+          paddingTop: 8,
+          paddingBottom: 'max(8px, env(safe-area-inset-bottom, 0px))',
+          background: 'linear-gradient(to top, var(--surface) 72%, transparent)',
+        }}>
+          <button className="btn btn-brand"
+            onClick={handleSave}
+            disabled={!touched}
+            style={{ width: '100%', opacity: touched ? 1 : 0.45, cursor: touched ? 'pointer' : 'not-allowed' }}>
+            {touched
+              ? 'Guardar'
+              : inputMode === 'buttons'
+              ? 'Elige un nivel'
+              : inputMode === 'num'
+              ? 'Ingresa un valor'
+              : 'Mueve para elegir tu valor'}
+          </button>
+        </div>
       </div>
     </Sheet>
   )
