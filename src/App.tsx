@@ -237,7 +237,7 @@ const TAB_INTROS: Record<string, { title: string; tips: string[] }> = {
     tips: [
       'Tu resumen del día: adherencia, próxima dosis y el mapa de zonas de inyección.',
       "Toca 'Registrar' para anotar la dosis del día.",
-      'El botón + (abajo) abre el registro rápido de una dosis o una medida.',
+      'El botón + (abajo) abre el registro rápido: una dosis, comida o una medida.',
     ],
   },
   protocolo: {

@@ -154,7 +154,7 @@ export function CalcSheet() {
   const savedRecons = state.savedRecons ?? []
 
   return (
-    <Sheet title="Calculadora de unidades" onClose={() => dispatch({ t: 'sheet', sheet: 'registrar' })}>
+    <Sheet title="Calculadora de reconstitución" onClose={() => dispatch({ t: 'sheet', sheet: 'registrar' })}>
       <div style={{ padding: '0 20px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* Encabezado */}

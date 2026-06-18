@@ -9,7 +9,7 @@ export function Vida() {
       <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '24px 20px 40px' }}>
         <motion.h1 variants={staggerItem} className="h1" style={{ marginBottom: 4 }}>Vida</motion.h1>
         <motion.p variants={staggerItem} className="sm" style={{ color: 'var(--ink-400)', margin: 0 }}>
-          Cuánto sigue activo cada péptido en tu cuerpo
+          Presencia estimada de cada péptido — guía educativa, no un dato clínico
         </motion.p>
         <PharmaDashboard />
       </motion.div>

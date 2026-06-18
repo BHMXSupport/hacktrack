@@ -921,11 +921,6 @@ export function Diario() {
     dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: id })
   }
 
-  function handleUndoDelete() {
-    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
-    dispatch({ t: 'undoDeleteLog' })
-  }
-
   function handleExport() {
     tapHaptic()
     const allItems = deferredFiltered.flatMap((g) => g.items)
@@ -948,54 +943,8 @@ export function Diario() {
       {/* inject shimmer keyframes */}
       <style>{skeletonKeyframes}</style>
 
-      {/* n°76: toast de borrado con deshacer — oculto mientras el coach (z2000) esté abierto */}
-      <AnimatePresence>
-        {state.deletedLogBuffer && !showCoach && (
-          <motion.div
-            key="undo-toast"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            style={{
-              position: 'fixed',
-              // bajo el notch: en cel con safe-area el toast caía bajo la status bar (invisible)
-              top: 'max(12px, calc(env(safe-area-inset-top, 0px) + 8px))',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 1000,
-              maxWidth: 'calc(100% - 24px)',
-              background: 'var(--ink-700)',
-              color: '#fff',
-              borderRadius: 'var(--r-md)',
-              padding: '10px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              boxShadow: 'var(--e3)',
-              fontSize: 14,
-            }}
-          >
-            <span style={{ minWidth: 0 }}>Registro borrado</span>
-            <button
-              type="button"
-              onClick={handleUndoDelete}
-              style={{
-                background: 'var(--brand-500)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 'var(--r-sm)',
-                padding: '3px 10px',
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              Deshacer
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* El toast de "Registro borrado · Deshacer" lo muestra el Toast GLOBAL (App.tsx, abajo) vía toastUndoId
+          → antes había DOS toasts simultáneos (este arriba + el global abajo). Se quita el local. */}
 
       {/* cabecera */}
       <motion.div
@@ -1497,9 +1446,9 @@ export function Diario() {
                           onClick={(e) => {
                             e.stopPropagation()
                             tapHaptic()
-                            dispatch({ t: 'sheet', sheet: 'registrar', arg: group.dateKey })
+                            dispatch({ t: 'sheet', sheet: 'registrar' })
                           }}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'registrar', arg: group.dateKey }) } }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'registrar' }) } }}
                           style={{
                             fontSize: 11,
                             color: 'var(--brand-700)',

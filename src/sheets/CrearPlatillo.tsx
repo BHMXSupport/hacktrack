@@ -144,15 +144,10 @@ export function CrearPlatillo() {
     fat:     r0(total.fat),
   }
 
-  // Guardar con validación de nombre (item 269)
+  // Guardar (item 269). Sin nombre → usa el auto-nombre (fav.label ya lo resuelve) y guarda de una;
+  // antes el 1er tap solo "sugería" el nombre y exigía un 2º tap (doble-tap silencioso).
   const handleSave = (andAdd: boolean) => {
     if (total.kcal <= 0) return
-    if (!name.trim()) {
-      // Pre-rellena el nombre con el auto-nombre sugerido
-      setName(autoName(rows))
-      setNamePending(true)
-      return
-    }
     tapHaptic()
     dispatch({ t: 'createFav', fav })
     if (andAdd) {

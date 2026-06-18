@@ -383,7 +383,7 @@ export function RegistrarSheet() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <Sheet title="Registrar" onClose={() => dispatch({ t: 'sheet', sheet: null })}>
+    <Sheet title="Registrar dosis" onClose={() => dispatch({ t: 'sheet', sheet: null })}>
 
       {/* Reconciliación de hora — 1ª dosis "Ahora" con desfase vs el recordatorio.
           El usuario decide qué hora cuenta; "ajustar recordatorio" lo manda al editor (no lo cambiamos nosotros). */}
