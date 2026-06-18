@@ -41,11 +41,6 @@ export function Account() {
     dispatch({ t: 'go', screen: 's-welcome' })
   }
 
-  function handleLocalOnly() {
-    dispatch({ t: 'setLocalOnly', value: true })
-    dispatch({ t: 'go', screen: 's-welcome' })
-  }
-
   return (
     <div
       className="scroll"
@@ -288,18 +283,6 @@ export function Account() {
             He leído el Aviso de Privacidad y acepto
           </span>
         </label>
-      </motion.div>
-
-      {/* Modo local — opción prominente */}
-      <motion.div variants={staggerItem} style={{ marginBottom: 8 }}>
-        <button
-          type="button"
-          className="btn btn-outline"
-          style={{ width: '100%', height: 48, borderRadius: 14, fontSize: 15, fontWeight: 600, color: 'var(--ink-700)' }}
-          onClick={handleLocalOnly}
-        >
-          Continuar sin cuenta · solo local
-        </button>
       </motion.div>
 
       {/* Footer */}
