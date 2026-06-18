@@ -151,10 +151,14 @@ export function Home() {
   // ── Loop 163: Pull-to-refresh ────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false)
   const pullY = useMotionValue(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const PULL_THRESHOLD = 60
   const handlePanStart = useCallback(() => { pullY.set(0) }, [pullY])
   const handlePan = useCallback((_e: PointerEvent, info: { delta: { y: number } }) => {
-    if (typeof window !== 'undefined' && window.scrollY > 0) return
+    // El scroller REAL es .scroll (overflow-y:auto), NO la ventana. window.scrollY siempre era 0 →
+    // el guard nunca cortaba y el pull se procesaba a MITAD de página (acumulaba pullY al scrollear
+    // hacia arriba) → disparaba refresh + re-render pesado = scroll "congelado". Ahora: solo en el tope.
+    if (!scrollRef.current || scrollRef.current.scrollTop > 0) return
     const next = Math.max(0, Math.min(PULL_THRESHOLD * 1.5, pullY.get() + info.delta.y))
     pullY.set(next)
   }, [pullY])
@@ -533,7 +537,7 @@ export function Home() {
   const showMorningCheck = isEarlyMorning && !hasMorningData && morningCheckMeasures.length > 0 && !morningCheckDone
 
   return (
-    <div className="scroll has-nav">
+    <div className="scroll has-nav" ref={scrollRef}>
       {/* ── Loop 163: Pull-to-refresh spinner ─────────────────────────────── */}
       <AnimatePresence>
         {refreshing && (
