@@ -587,7 +587,6 @@ function KpiCorrelationCard() {
     <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <span className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Correlación KPI ↔ dosis</span>
-        <button className="btn btn-ghost btn-sm" style={{ width: 'auto', padding: '0 8px', fontSize: 12 }} onClick={() => dispatch({ t: 'sheet', sheet: 'medida' })}>+ Medida</button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -843,42 +842,7 @@ export function Progreso() {
         </motion.div>
       </motion.div>
 
-      {/* n=155: FAB 'Registrar medida rápida' en Avances */}
-      <AnimatePresence>
-        {view === 'avances' && (
-          <motion.button
-            aria-label="Registrar medida rápida"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            transition={spring.ui}
-            onClick={() => dispatch({ t: 'sheet', sheet: 'medida' })}
-            style={{
-              // Píldora etiquetada (no un '+' suelto) para NO confundirse con el FAB '+' del nav
-              position: 'fixed',
-              bottom: 84,
-              right: 16,
-              height: 44,
-              padding: '0 16px',
-              borderRadius: 99,
-              background: 'var(--brand-700)',
-              color: 'white',
-              border: 'none',
-              boxShadow: 'var(--e3)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-              zIndex: 100,
-              lineHeight: 1,
-            }}
-          >
-            <span style={{ fontSize: 18, fontWeight: 700 }}>+</span> Medida
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {/* Captura de medidas consolidada en el FAB global (Inicio/nav). Progreso = vista de protocolo + correlaciones. */}
     </div>
   )
 }

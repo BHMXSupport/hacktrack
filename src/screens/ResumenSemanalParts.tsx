@@ -455,7 +455,7 @@ export function ProductCards() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
                 <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primaryKpi.measure}</span>
                 {primaryKpi.last == null ? (
-                  <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'medida', arg: primaryKpi.measure }) }}>+ Registrar</button>
+                  <span className="sm" style={{ color: 'var(--ink-300)', flexShrink: 0 }}>Sin registro</span>
                 ) : (
                   <>
                     <span className="mono sm" style={{ fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>{primaryKpi.last}<span style={{ color: 'var(--ink-400)' }}>{primaryKpi.unit}</span></span>
@@ -496,7 +496,7 @@ export function ProductCards() {
                         <div key={k.measure} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <span className="sm" style={{ flex: 1, minWidth: 0, color: 'var(--ink-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.measure}</span>
                           {k.last == null ? (
-                            <button className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); dispatch({ t: 'sheet', sheet: 'medida', arg: k.measure }) }}>+ Registrar</button>
+                            <span className="sm" style={{ color: 'var(--ink-300)', flexShrink: 0 }}>Sin registro</span>
                           ) : (
                             <>
                               <span className="mono sm" style={{ fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>{k.last}<span style={{ color: 'var(--ink-400)' }}>{k.unit}</span></span>
