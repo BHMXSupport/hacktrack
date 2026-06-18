@@ -823,9 +823,13 @@ export function reducer(s: AppState, a: Action): AppState {
       let protocols = s.protocols
       const removedSamples: { name: string; sample: MeasureSample }[] = []
       if (deleted?.type === 'medida') {
-        // quitar las muestras de ESTE registro (mismo ts), guardándolas para el undo
+        // Acotar a la medida de ESTE registro: si n es un nombre de medida con serie, solo esa medida; si es
+        // un combo ('Cambio de medidas', no está en history) → todas las del mismo ts. Evita borrar muestras
+        // de OTRA medida que casualmente comparta el ts.
+        const singleName = deleted.n && s.history[deleted.n] ? deleted.n : null
         history = {}
         for (const k of Object.keys(s.history)) {
+          if (singleName && k !== singleName) { history[k] = s.history[k]; continue } // otra medida: intacta
           const keep: MeasureSample[] = []
           for (const sm of s.history[k]) {
             if (sm.ts === deleted.ts) removedSamples.push({ name: k, sample: sm })
@@ -924,8 +928,11 @@ export function reducer(s: AppState, a: Action): AppState {
       // gráfica se queda en la fecha vieja y deleteLog ya no lo reconcilia por ts → muestra huérfana).
       let history = s.history
       if (movedItem.type === 'medida' && oldTs != null && oldTs !== a.ts) {
+        // acotar a la medida editada (no mover muestras de OTRA medida que comparta ts)
+        const singleName = movedItem.n && s.history[movedItem.n] ? movedItem.n : null
         history = {}
         for (const k of Object.keys(s.history)) {
+          if (singleName && k !== singleName) { history[k] = s.history[k]; continue }
           history[k] = s.history[k].map((sm) => (sm.ts === oldTs ? { ...sm, ts: a.ts } : sm)).sort((x, y) => x.ts - y.ts)
         }
       }
@@ -976,14 +983,15 @@ export function reducer(s: AppState, a: Action): AppState {
     // history/measureValues/recon/aliases/settings. Ahora reemplaza todo el estado (defaults para campos
     // faltantes vía initialState) y resincroniza cachés.
     case 'replaceState':
-      return syncActive({
-        ...initialState,
-        ...a.state,
+      // hydrate aplica las migraciones del respaldo (agua vasos→ml, reconstrucción de protocols desde
+      // protocol/importedProducts, estampado de dosis legado) y resincroniza cachés. Luego fijamos lo efímero.
+      return {
+        ...hydrate({ ...initialState, ...a.state } as AppState),
         screen: 's-app',
         sheet: null,
         toast: 'Respaldo restaurado correctamente',
         toastUndoId: null,
-      })
+      }
 
     case 'toast':
       return { ...s, toast: a.msg, toastUndoId: null } // un toast normal no trae acción de deshacer
