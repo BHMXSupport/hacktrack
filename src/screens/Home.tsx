@@ -1223,26 +1223,34 @@ export function Home() {
                 return (
                   <div key={m} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <label className="sm" style={{ color: 'var(--ink-400)', fontWeight: 500 }}>{m}{meta?.unit ? ` (${meta.unit})` : ''}</label>
-                    {meta?.kind === 'scale' ? (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {Array.from({ length: (meta.max ?? 10) }, (_, i) => {
-                          const val = i + 1
-                          const selected = morningAnswers[m] === val
-                          return (
-                            <button key={val}
-                              onClick={() => setMorningAnswers((prev) => ({ ...prev, [m]: val }))}
-                              aria-label={`${m}: ${val}`}
-                              style={{
-                                width: 34, height: 34, borderRadius: '50%', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                                background: selected ? 'var(--brand-500)' : 'var(--ink-100)',
-                                color: selected ? '#fff' : 'var(--ink-700)',
-                              }}>
-                              {val}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : (
+                    {meta?.kind === 'scale' ? (() => {
+                      // Slider horizontal 1–max (antes: max botones en fila → se desbordaban con max=100).
+                      // No escribe hasta que el usuario lo toca: si no, queda sin registrar (no se guarda).
+                      const max = meta.max ?? 100
+                      const answered = typeof morningAnswers[m] === 'number'
+                      const val = answered ? (morningAnswers[m] as number) : Math.round(max / 2)
+                      const fillPct = ((val - 1) / Math.max(1, max - 1)) * 100
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <div style={{ position: 'relative' }}>
+                            <div aria-hidden="true" style={{
+                              position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)',
+                              height: 8, borderRadius: 4, pointerEvents: 'none', opacity: answered ? 1 : 0.5,
+                              background: `linear-gradient(to right, var(--brand-500) ${fillPct}%, var(--ink-100) ${fillPct}%)`,
+                            }} />
+                            <input type="range" min={1} max={max} step={1} value={val}
+                              onChange={(e) => setMorningAnswers((prev) => ({ ...prev, [m]: Number(e.target.value) }))}
+                              aria-label={`${m}: ${answered ? `${val} de ${max}` : 'sin registrar, desliza para elegir'}`}
+                              style={{ width: '100%', height: 36, cursor: 'pointer', position: 'relative', zIndex: 1 }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span className="sm" style={{ color: 'var(--ink-300)' }}>1</span>
+                            <span className="mono" style={{ fontWeight: 700, fontSize: 15, color: answered ? 'var(--brand-700)' : 'var(--ink-300)' }}>{answered ? val : '—'}</span>
+                            <span className="sm" style={{ color: 'var(--ink-300)' }}>{max}</span>
+                          </div>
+                        </div>
+                      )
+                    })() : (
                       <input type="number" inputMode="decimal" value={v}
                         onChange={(e) => setMorningAnswers((prev) => ({ ...prev, [m]: Number(e.target.value) }))}
                         placeholder={meta?.unit ?? ''}
