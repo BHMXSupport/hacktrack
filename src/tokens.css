@@ -66,8 +66,8 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 .btn-ghost{background:transparent;color:var(--ink-400);height:46px;border:0;cursor:pointer;font-family:'Inter';-webkit-appearance:none;appearance:none;padding:0 8px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:var(--e2)}
 .scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:clip;padding:max(22px,env(safe-area-inset-top)) 18px max(28px,env(safe-area-inset-bottom))}
-/* deja espacio para la bottom-nav en pantallas con tabs (+ safe-area del home-indicator) */
-.scroll.has-nav{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+/* deja espacio para la bottom-nav + el FAB que sobresale ~22px por encima (+ safe-area del home-indicator) */
+.scroll.has-nav{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
 @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
 
 /* Colores de categoría (design system Quiet Signal) */
@@ -149,7 +149,7 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
   padding:8px 18px max(20px,env(safe-area-inset-bottom));box-shadow:var(--e3)}
 .sheet-handle{width:42px;height:5px;border-radius:999px;background:var(--ink-200);margin:8px auto 6px}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;margin:4px 0 14px}
-.iconbtn{width:36px;height:36px;border-radius:999px;border:0;background:var(--ink-100);color:var(--ink-700);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.iconbtn{width:44px;height:44px;border-radius:999px;border:0;background:var(--ink-100);color:var(--ink-700);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none}
 
 /* Disclaimer */
 .disclaimer{font-size:12px;line-height:17px;color:var(--ink-300);text-align:center;padding:14px 10px}

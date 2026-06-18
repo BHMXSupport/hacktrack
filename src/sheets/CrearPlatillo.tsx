@@ -352,7 +352,7 @@ export function CrearPlatillo() {
                         aria-label="Subir ingrediente"
                         onClick={() => moveRow(idx, -1)}
                         disabled={idx === 0}
-                        style={{ background: 'none', border: 0, color: idx === 0 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === 0 ? 'default' : 'pointer', padding: 0, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ background: 'none', border: 0, color: idx === 0 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === 0 ? 'default' : 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 -15px' }}
                       >
                         <IcChevron size={14} style={{ transform: 'rotate(-90deg)' }} />
                       </button>
@@ -360,7 +360,7 @@ export function CrearPlatillo() {
                         aria-label="Bajar ingrediente"
                         onClick={() => moveRow(idx, 1)}
                         disabled={idx === rows.length - 1}
-                        style={{ background: 'none', border: 0, color: idx === rows.length - 1 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === rows.length - 1 ? 'default' : 'pointer', padding: 0, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ background: 'none', border: 0, color: idx === rows.length - 1 ? 'var(--ink-200)' : 'var(--ink-400)', cursor: idx === rows.length - 1 ? 'default' : 'pointer', padding: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 -15px' }}
                       >
                         <IcChevron size={14} style={{ transform: 'rotate(90deg)' }} />
                       </button>

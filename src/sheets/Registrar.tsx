@@ -840,7 +840,8 @@ export function RegistrarSheet() {
           Antes era position:absolute pegado al fondo del CONTENIDO del .sheet → tapaba la última fila. */}
       <div style={{
         position: 'sticky', bottom: 0, zIndex: 1,
-        padding: '16px 20px 24px',
+        padding: '16px 20px',
+        paddingBottom: 'max(24px, calc(16px + env(safe-area-inset-bottom, 0px)))',
         background: 'linear-gradient(to top, var(--surface) 70%, transparent)',
       }}>
         {isWizard && wizardStep !== 'dosis' ? (

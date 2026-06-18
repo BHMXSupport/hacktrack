@@ -124,14 +124,14 @@ export function Paywall() {
           className="iconbtn"
           aria-label="Cerrar"
           onClick={close}
-          style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <IcClose size={22} />
         </button>
         <div style={{ width: 40 }} />
       </header>
 
-      <main style={{ display: 'flex', flexDirection: 'column', gap: 28, padding: '0 20px 48px' }}>
+      <main style={{ display: 'flex', flexDirection: 'column', gap: 28, padding: '0 20px', paddingBottom: 'max(48px, calc(48px + env(safe-area-inset-bottom, 0px)))' }}>
 
         {/* ── Social proof anónima (N=397) ──────────────────────────────────── */}
         <div style={{ textAlign: 'center' }}>

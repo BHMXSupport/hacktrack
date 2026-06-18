@@ -195,7 +195,8 @@ export function ResumenSemanal() {
               transition={{ duration: dur.base, ease: ease.decelerate }}
               style={{
                 background: 'var(--bg)', borderBottom: '1px solid var(--border)',
-                padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 12,
+                // paddingTop incluye el notch → la barra fija no queda bajo la status bar
+                padding: 'calc(8px + env(safe-area-inset-top, 0px)) 20px 8px', display: 'flex', alignItems: 'center', gap: 12,
                 flexWrap: 'wrap',
               }}
             >
@@ -217,17 +218,22 @@ export function ResumenSemanal() {
 
       <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* ── Header con WellnessRing + Compartir ── */}
-        <motion.div variants={staggerItem} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flex: 1 }}>
+        <motion.div variants={staggerItem} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 130px', minWidth: 0 }}>
             <h1 className="h1" style={{ margin: 0 }}>Tu semana</h1>
             <p className="sm" style={{ color: 'var(--ink-400)', marginTop: 4 }}>Últimos 7 días</p>
           </div>
-          <WellnessRing score={wellnessScore} />
+          {/* flexShrink:0 → el anillo nunca se aplasta */}
+          <div style={{ flexShrink: 0, lineHeight: 0 }}>
+            <WellnessRing score={wellnessScore} />
+          </div>
           {canShare && (
             <button
               className="btn btn-outline btn-sm"
               onClick={handleShare}
               aria-label="Compartir resumen semanal"
+              // .btn trae width:100% → forzar auto + no encoger para que no solape el anillo
+              style={{ width: 'auto', flexShrink: 0 }}
             >
               Compartir
             </button>

@@ -230,6 +230,8 @@ export function Home() {
   const [weekSummaryOpen, setWeekSummaryOpen] = useState(false)
   // Densidad: historial largo + detalle secundario detrás de "Más detalle" (colapsado por defecto)
   const [moreDetailOpen, setMoreDetailOpen] = useState(false)
+  // pip activo del carrusel de KPIs (compactMode) — reactivo al scroll (antes estaba hardcodeado a 0)
+  const [kpiPip, setKpiPip] = useState(0)
   // memoizados: no dependen de `now`, así que no deben recalcular en cada tick de 30s
   const insights = useMemo(() => weeklyInsights(state), [state])
   const weekAdh = adh ? Math.round(adh.pct) : null
@@ -1548,6 +1550,11 @@ export function Home() {
               /* Scroll horizontal de chips compactos */
               <motion.div variants={staggerItem} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div
+                  onScroll={(e) => {
+                    // card ≈ minWidth 120 + gap 10 = 130 → índice activo del pip
+                    const idx = Math.round(e.currentTarget.scrollLeft / 130)
+                    setKpiPip(Math.max(0, Math.min(idx, kpiMeasures.length - 1)))
+                  }}
                   style={{
                     display: 'flex',
                     gap: 10,
@@ -1555,6 +1562,7 @@ export function Home() {
                     scrollSnapType: 'x mandatory',
                     WebkitOverflowScrolling: 'touch',
                     paddingBottom: 4,
+                    paddingRight: 4, // margen de "peek" → la última tarjeta no queda pegada/cortada al borde
                     scrollbarWidth: 'none',
                   }}
                   role="list"
@@ -1621,7 +1629,7 @@ export function Home() {
                 {/* pip-indicator de puntos */}
                 <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }} aria-hidden="true">
                   {kpiMeasures.map((_, i) => (
-                    <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i === 0 ? 'var(--brand-500)' : 'var(--ink-100)' }} />
+                    <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i === kpiPip ? 'var(--brand-500)' : 'var(--ink-100)', transition: 'background .15s' }} />
                   ))}
                 </div>
               </motion.div>

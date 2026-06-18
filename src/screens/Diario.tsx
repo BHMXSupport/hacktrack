@@ -973,7 +973,8 @@ export function Diario() {
             exit={{ opacity: 0, y: -12 }}
             style={{
               position: 'fixed',
-              top: 12,
+              // bajo el notch: en cel con safe-area el toast caía bajo la status bar (invisible)
+              top: 'max(12px, calc(env(safe-area-inset-top, 0px) + 8px))',
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 1000,

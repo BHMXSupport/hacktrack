@@ -161,7 +161,7 @@ export function Goal() {
       </motion.div>
 
       {/* CTA + disclaimer */}
-      <div style={{ padding: '28px 16px 40px', textAlign: 'center' }}>
+      <div style={{ padding: '28px 16px', paddingBottom: 'max(40px, calc(24px + env(safe-area-inset-bottom, 0px)))', textAlign: 'center' }}>
         <button
           className="btn btn-brand"
           aria-disabled={selected.size === 0}

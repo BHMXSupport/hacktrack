@@ -305,7 +305,7 @@ export function Perfil() {
             style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px',
               borderBottom: '1px solid var(--border)', position: 'sticky',
-              top: 'env(safe-area-inset-top, 0px)', background: 'var(--bg)', zIndex: 10,
+              top: 0, background: 'var(--bg)', zIndex: 10,
             }}
           >
             <button className="iconbtn" onClick={close} aria-label="Volver">

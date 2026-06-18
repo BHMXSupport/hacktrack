@@ -346,10 +346,15 @@ export function Onboarding() {
           onClick={skipToGoal}
           style={{
             width: 'auto',
-            height: 36,
+            minWidth: 44,
+            minHeight: 44,
+            height: 44,
             padding: '0 12px',
             fontSize: 14,
             color: 'var(--ink-400)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           Saltar

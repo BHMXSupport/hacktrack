@@ -48,6 +48,8 @@ export function Baseline() {
           zIndex: 40,
           background: 'var(--bg)',
           borderBottom: '1px solid transparent',
+          // .scroll ya aporta el clearance del notch + el cubre-notch global lo tapa visualmente →
+          // el header solo necesita su padding base (sin env, que duplicaría).
           padding: '12px 18px 8px',
         }}
       >
@@ -71,7 +73,7 @@ export function Baseline() {
         variants={staggerParent}
         initial="initial"
         animate="animate"
-        style={{ flex: 1, padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 28 }}
+        style={{ flex: 1, padding: '24px 20px', paddingBottom: 'max(40px, calc(24px + env(safe-area-inset-bottom, 0px)))', display: 'flex', flexDirection: 'column', gap: 28 }}
       >
         {/* Título */}
         <motion.div variants={staggerItem}>

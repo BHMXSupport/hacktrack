@@ -363,7 +363,7 @@ function ItemRow({
 
         {/* item 302: botón editar completo */}
         {canEdit && (
-          <button className="iconbtn" style={{ flexShrink: 0, width: 28, height: 28, color: 'var(--ink-400)' }}
+          <button className="iconbtn" style={{ flexShrink: 0, width: 44, height: 44, color: 'var(--ink-400)', margin: '-8px -8px -8px 0' }}
             aria-label={`Editar ${item.n}`}
             onClick={() => onEditFull(item.id, String(item.value ?? ''), item.unit ?? '', item.note ?? '')}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -374,7 +374,7 @@ function ItemRow({
         )}
 
         {/* Botón borrar — acción destructiva secundaria, más tenue */}
-        <button className="iconbtn" style={{ flexShrink: 0, width: 28, height: 28, color: 'var(--ink-300)', background: 'transparent' }}
+        <button className="iconbtn" style={{ flexShrink: 0, width: 44, height: 44, color: 'var(--ink-300)', background: 'transparent', margin: '-8px -8px -8px 0' }}
           aria-label={`Borrar ${item.n}`}
           onClick={() => onDelete(item.id)}>
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

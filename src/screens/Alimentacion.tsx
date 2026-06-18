@@ -468,7 +468,7 @@ export function Alimentacion() {
 
   return (
     <div className="scroll has-nav">
-      <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: '44px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ padding: 'max(44px, env(safe-area-inset-top, 44px)) 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <motion.h1 variants={staggerItem} className="h1" style={{ margin: 0 }}>Alimentación</motion.h1>
 
         {/* ── Strip de hidratación (#356 tamaño de vaso configurable) ── */}
@@ -489,8 +489,8 @@ export function Alimentacion() {
             >
               <div style={{ width: `${Math.min(100, waterGoalL > 0 ? (totalL / waterGoalL) * 100 : 0)}%`, height: '100%', background: totalL >= waterGoalL ? 'var(--success)' : 'var(--brand-500)', borderRadius: 999, transition: 'width 0.25s ease, background 0.25s ease' }} />
             </div>
-            <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ width: 34, height: 34, flexShrink: 0, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer' }}>−</button>
-            <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoalL * 2000} style={{ width: 34, height: 34, flexShrink: 0, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoalL * 2000 ? 0.4 : 1, cursor: day.water >= waterGoalL * 2000 ? 'not-allowed' : 'pointer' }}>+</button>
+            <button className="iconbtn" aria-label="Quitar vaso" onClick={() => addWater(-1)} disabled={day.water === 0} style={{ minWidth: 44, minHeight: 44, width: 44, height: 44, flexShrink: 0, opacity: day.water === 0 ? 0.4 : 1, cursor: day.water === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+            <button className="iconbtn" aria-label="Agregar vaso" onClick={() => addWater(1)} disabled={day.water >= waterGoalL * 2000} style={{ minWidth: 44, minHeight: 44, width: 44, height: 44, flexShrink: 0, background: 'var(--brand-700)', color: '#fff', opacity: day.water >= waterGoalL * 2000 ? 0.4 : 1, cursor: day.water >= waterGoalL * 2000 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
           </div>
           {/* Config de vaso a segundo nivel (libera ancho en la fila principal) */}
           <button
@@ -600,8 +600,8 @@ export function Alimentacion() {
                   </div>
                   <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 10 }}>{Math.round(pct)}% de {daily} mg</span>
                   <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
-                    <button className="iconbtn" style={{ flex: 1, height: 28, fontSize: 14 }} onClick={() => updateElectrolyte(key, -100)} disabled={val === 0}>−</button>
-                    <button className="iconbtn" style={{ flex: 1, height: 28, fontSize: 13, background: color, color: '#fff' }} onClick={() => updateElectrolyte(key, 100)}>+100</button>
+                    <button className="iconbtn" style={{ flex: 1, minHeight: 44, height: 44, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => updateElectrolyte(key, -100)} disabled={val === 0}>−</button>
+                    <button className="iconbtn" style={{ flex: 1, minHeight: 44, height: 44, fontSize: 13, background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => updateElectrolyte(key, 100)}>+100</button>
                   </div>
                 </div>
               )
@@ -785,7 +785,7 @@ export function Alimentacion() {
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 <span className="sm" style={{ color: 'var(--ink-400)' }}>Hora</span>
                 <button className="chip mono" onClick={() => setShowWheel((v) => !v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>{horaLabel} <Caret open={showWheel} color="currentColor" /></button>
-                {horaLabel !== 'Ahora' && <button className="chip" style={{ height: 30 }} onClick={() => { setHoraLabel('Ahora'); setShowWheel(false) }}>Ahora</button>}
+                {horaLabel !== 'Ahora' && <button className="chip" style={{ minHeight: 44, height: 44 }} onClick={() => { setHoraLabel('Ahora'); setShowWheel(false) }}>Ahora</button>}
               </div>
               {showWheel && <div style={{ marginBottom: 10 }}><TimeWheel initial={new Date(whenTs)} onChange={setHoraLabel} /></div>}
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
@@ -862,7 +862,7 @@ export function Alimentacion() {
                 title="Escanear código de barras"
                 onClick={openBarcodeScanner}
                 disabled={scannerActive}
-                style={{ width: 40, height: 40, flexShrink: 0, background: scannerActive ? 'var(--ink-100)' : 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: scannerActive ? 'wait' : 'pointer' }}
+                style={{ minWidth: 44, minHeight: 44, width: 44, height: 44, flexShrink: 0, background: scannerActive ? 'var(--ink-100)' : 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: scannerActive ? 'wait' : 'pointer' }}
               >{scannerActive ? <Glyph name="cat-antiaging" size={16} color="currentColor" /> : <Glyph name="camara" size={16} color="currentColor" />}</button>
             </div>
             {scanError && (
@@ -874,7 +874,7 @@ export function Alimentacion() {
               <div style={{ marginTop: 6, padding: '10px 12px', background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)', border: '1px solid var(--brand-500)', borderRadius: 'var(--r-sm)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{scanResult.name}</span>
-                  <button aria-label="Cerrar resultado del escáner" onClick={() => setScanResult(null)} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><IcClose size={16} /></button>
+                  <button aria-label="Cerrar resultado del escáner" onClick={() => setScanResult(null)} style={{ background: 'none', border: 0, color: 'var(--ink-300)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, minWidth: 44, minHeight: 44 }}><IcClose size={16} /></button>
                 </div>
                 <span className="sm mono" style={{ color: 'var(--brand-700)', fontWeight: 700 }}>{scanResult.kcal} kcal por porción</span>
                 {(scanResult.protein != null || scanResult.carbs != null || scanResult.fat != null) && (
@@ -884,7 +884,7 @@ export function Alimentacion() {
                 )}
                 <button
                   className="btn btn-brand"
-                  style={{ marginTop: 4, height: 36 }}
+                  style={{ marginTop: 4, height: 44 }}
                   onClick={() => {
                     setQuery(scanResult.name)
                     setKcalStr(String(scanResult.kcal))
@@ -1054,7 +1054,7 @@ export function Alimentacion() {
                                   {m.label || 'sin nombre'}
                                 </div>
                                 {(m.protein || m.carbs || m.fat) && (
-                                  <div className="xs mono" style={{ color: 'var(--ink-400)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <div className="xs mono" style={{ color: 'var(--ink-400)', marginTop: 1, whiteSpace: 'normal', wordBreak: 'break-word' }}>
                                     {[m.protein ? `P: ${m.protein}g` : null, m.carbs ? `C: ${m.carbs}g` : null, m.fat ? `G: ${m.fat}g` : null].filter(Boolean).join(' · ')}
                                   </div>
                                 )}
@@ -1147,7 +1147,7 @@ export function Alimentacion() {
                                     {/* Guardar */}
                                     <button
                                       className="btn btn-brand"
-                                      style={{ height: 36 }}
+                                      style={{ height: 44 }}
                                       disabled={!(parseFloat(editMealDraft.kcalStr) > 0)}
                                       onClick={() => commitEditMeal(m.id)}
                                     >Guardar cambios</button>

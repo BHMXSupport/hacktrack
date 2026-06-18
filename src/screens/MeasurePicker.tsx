@@ -64,6 +64,7 @@ export function MeasurePicker() {
           zIndex: 40,
           background: 'var(--bg)',
           borderBottom: '1px solid transparent',
+          // .scroll ya da el clearance del notch + cubre-notch global lo tapa → padding base, sin env (duplicaría).
           padding: '12px 18px 8px',
         }}
       >
@@ -87,7 +88,7 @@ export function MeasurePicker() {
         variants={staggerParent}
         initial="initial"
         animate="animate"
-        style={{ flex: 1, padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 24 }}
+        style={{ flex: 1, padding: '24px 20px', paddingBottom: 'max(40px, calc(24px + env(safe-area-inset-bottom, 0px)))', display: 'flex', flexDirection: 'column', gap: 24 }}
       >
         {/* Título */}
         <motion.div variants={staggerItem}>

@@ -423,6 +423,23 @@ export function App() {
         <div className="app-root">
           <div className="phone">
             <Root />
+            {/* Cubre-notch: barra opaca (fondo de la app) sobre la zona del status-bar/notch, por
+                ENCIMA del contenido → lo que scrollea hacia arriba desaparece detrás de la barra en vez
+                de "comerse las letras" bajo la status bar translúcida.
+                SOLO en la app principal (s-app) con bg claro: tabs + modales Ajustes/Perfil/Paywall.
+                NO en bottom-sheets (su overlay oscuro ya cubre el notch; una banda clara desentonaría) ni
+                en flows/auth (su logo/header vive arriba y la barra lo taparía). */}
+            {state.screen === 's-app'
+              && (!state.sheet || state.sheet === 'ajustes' || state.sheet === 'perfil' || state.sheet === 'paywall') && (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', top: 0, left: 0, right: 0,
+                  height: 'env(safe-area-inset-top, 0px)',
+                  background: 'var(--bg)', zIndex: 60, pointerEvents: 'none',
+                }}
+              />
+            )}
           </div>
         </div>
       </MotionConfig>
