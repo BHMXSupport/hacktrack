@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, useReducedMotion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
 import { useApp, adherenceMonth, isoKey, computeStreak, injectionZoneRecency } from '../lib/store'
-import { CATEGORY_COLOR, MEASURE_ICON, MEASURE_META, WDS, PEPTIDES } from '../lib/catalog'
+import { CATEGORY_COLOR, MEASURE_ICON, MEASURE_META, WDS, PEPTIDES, MEDIDAS_ONLY_MEASURES } from '../lib/catalog'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { Disclaimer } from '../components/controls'
 import { Sparkline, SparkBar } from '../components/charts'
@@ -218,8 +218,10 @@ export function Home() {
   const todayWdsIdx = [6, 0, 1, 2, 3, 4, 5][today.getDay()]
 
   // KPI cards: máx 4 medidas seleccionadas
-  // Excluye 'Altura' (estática, nunca cambia → KPI plano inútil); vive en el perfil para BMI/TDEE.
-  const kpiMeasures = state.selectedMeasures.filter((m) => m !== 'Altura').slice(0, 4)
+  // Excluye 'Altura' (estática) y % grasa/% músculo (se registran en "Cambio de medidas", no como card suelta).
+  const kpiMeasures = state.selectedMeasures
+    .filter((m) => m !== 'Altura' && !MEDIDAS_ONLY_MEASURES.includes(m))
+    .slice(0, 4)
 
   // Estado para decidir si hay protocolo o no
   const hasProtocol = !!state.protocol

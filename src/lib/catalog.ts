@@ -208,6 +208,12 @@ function scaleKpiFor(name: string): KpiDef {
   }
 }
 
+// Composición corporal que se captura SOLO dentro de "Cambio de medidas" (KPIS[0]) — no debe aparecer
+// como KPI de quick-log suelto (carrusel de Inicio / "+" / chips de MeasurePicker), porque sería un
+// registro duplicado. El dato sigue vivo (measureValues/history/profile.grasa|musculo, escritos por
+// saveMedidas) y sus tendencias se ven en Semana; aquí solo se quita el punto de registro redundante.
+export const MEDIDAS_ONLY_MEASURES = ['% grasa', '% músculo']
+
 // KPIs registrables en el "+" — DERIVADOS de tu objetivo (misma fuente que las cards de Inicio):
 // "Cambio de medidas" + las medidas de escala de tu objetivo + "Efecto secundario".
 // Esto evita KPIs huérfanos (cards de Inicio que no se pueden registrar).
@@ -240,7 +246,8 @@ export function loggableKpisForState(
   const all = [...(s.selectedMeasures ?? []), ...productMeasures]
   const names = all.length ? all : DEFAULT_SCALES
   for (const m of [...names, 'Efecto secundario']) {
-    if (!m || seen.has(m)) continue
+    // % grasa / % músculo se registran en "Cambio de medidas", no como KPI suelto del "+"
+    if (!m || seen.has(m) || MEDIDAS_ONLY_MEASURES.includes(m)) continue
     seen.add(m)
     out.push(scaleKpiFor(m)) // kind='scale' nominal; la sheet 'medida' usa MEASURE_META para el input real
   }

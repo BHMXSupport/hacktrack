@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../lib/store'
-import { MEASURES_BY, CATEGORY_COLOR, CATEGORY_ICON } from '../lib/catalog'
+import { MEASURES_BY, CATEGORY_COLOR, CATEGORY_ICON, MEDIDAS_ONLY_MEASURES } from '../lib/catalog'
 import { IcBack } from '../components/icons'
 import { OnboardingProgress } from '../components/OnboardingProgress'
 import { Chip } from '../components/controls'
@@ -15,7 +15,10 @@ const MAX_CHIPS = 6
 export function MeasurePicker() {
   const { state, dispatch } = useApp()
   const goal = state.curGoal ?? 'Explorar'
-  const measures = (MEASURES_BY[goal] ?? MEASURES_BY['Explorar']).slice(0, MAX_CHIPS)
+  // % grasa/% músculo se capturan en "Cambio de medidas" → no se ofrecen como chip de medida suelta aquí
+  const measures = (MEASURES_BY[goal] ?? MEASURES_BY['Explorar'])
+    .filter((m) => !MEDIDAS_ONLY_MEASURES.includes(m))
+    .slice(0, MAX_CHIPS)
   const defaults = measures.slice(0, 4)
 
   const [selected, setSelected] = useState<Set<string>>(new Set(defaults))
