@@ -102,14 +102,16 @@ function WeekStrip({ days }: { days: boolean[] }) {
 // n=435: items del menú radial
 interface RadialItem {
   label: string
-  sheet: 'registrar' | 'medida' | 'agregar'
+  sheet?: 'registrar' | 'medida' | 'agregar'
+  tab?: 'comida'        // algunos items navegan a una pestaña en vez de abrir una hoja
   angle: number // grados desde arriba (negativo = izquierda)
 }
 
 const RADIAL_ITEMS: RadialItem[] = [
   { label: 'Dosis', sheet: 'registrar', angle: -50 },
   { label: 'Medida', sheet: 'medida', angle: 0 },
-  { label: 'Comida', sheet: 'agregar', angle: 50 },
+  // "Comida" lleva a la pestaña Comida (ahí se registra alimento); antes abría 'agregar' (dosis/medida) → no era comida.
+  { label: 'Comida', tab: 'comida', angle: 50 },
 ]
 
 const RADIUS = 72 // px de separación del FAB
@@ -258,7 +260,8 @@ export function BottomNav() {
                   onClick={(e) => {
                     e.stopPropagation()
                     setRadialOpen(false)
-                    dispatch({ t: 'sheet', sheet: item.sheet })
+                    if (item.tab) dispatch({ t: 'tab', tab: item.tab })
+                    else if (item.sheet) dispatch({ t: 'sheet', sheet: item.sheet })
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
                   aria-label={item.label}

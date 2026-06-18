@@ -235,9 +235,9 @@ const TAB_INTROS: Record<string, { title: string; tips: string[] }> = {
   inicio: {
     title: 'Inicio',
     tips: [
-      'Aquí ves tu adherencia, tu próxima dosis y el mapa de zonas de inyección.',
+      'Tu resumen del día: adherencia, próxima dosis y el mapa de zonas de inyección.',
       "Toca 'Registrar' para anotar la dosis del día.",
-      'El botón + (abajo) registra dosis, comida o una medida rápida.',
+      'El botón + (abajo) abre el registro rápido de una dosis o una medida.',
     ],
   },
   protocolo: {
@@ -245,30 +245,30 @@ const TAB_INTROS: Record<string, { title: string; tips: string[] }> = {
     tips: [
       'Calendario de tus dosis y tu adherencia de la semana.',
       "Agrega productos con '+ Agregar producto' o en 'Gestión de productos'.",
-      "En 'Avances' ves tus tendencias y la fase de cada protocolo.",
+      "Cambia a 'Avances' para ver tus tendencias y la fase de cada protocolo.",
     ],
   },
   vida: {
     title: 'Vida',
     tips: [
-      'Gráficas de tus métricas (energía, sueño, ánimo…) a lo largo del tiempo.',
-      'Superpón varias métricas para ver cómo se relacionan.',
-      'Registra nuevas medidas con el botón +.',
+      'Estima cuánto tiempo sigue activo cada péptido en tu cuerpo, según tus dosis.',
+      'Es una guía educativa de presencia/vida media, no un dato clínico.',
+      'Mientras más registres tus dosis, mejor se ajusta la estimación.',
     ],
   },
   comida: {
     title: 'Comida',
     tips: [
-      'Registra tus comidas, agua y electrolitos del día.',
-      'Compara tus macros contra las metas que tú defines.',
-      'Con el botón + agregas un platillo.',
+      'Registra lo que comes: escribe el alimento, usa el Recetario o crea un platillo.',
+      'Lleva tu agua del día con el botón + del vaso.',
+      'Compara tus macros (proteína, carbos, grasa) contra las metas que tú defines.',
     ],
   },
   semana: {
     title: 'Tu semana',
     tips: [
       'Resumen de tu semana: adherencia, dosis, hidratación y calorías.',
-      "Las 'Señales' destacan tus cambios y logros de la semana.",
+      "Las 'Señales de la semana' destacan tus cambios y logros.",
       "Comparte tu resumen con el botón 'Compartir'.",
     ],
   },
