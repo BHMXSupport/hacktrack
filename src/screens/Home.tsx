@@ -665,7 +665,12 @@ export function Home() {
           </div>
         </motion.section>
 
-        {/* ── 1a. Adherencia (primero) — 30 días + tira semanal ───────────────── */}
+        {/* ── 1b. Checklist "Tus dosis de hoy" (1-tap) — PRIMERO: es la acción del día (antes iba tras el anillo) ── */}
+        <motion.div variants={staggerItem}>
+          <TodayDoses />
+        </motion.div>
+
+        {/* ── 1a. Adherencia — 30 días + tira semanal (analítica, después de la acción) ───────────────── */}
         <motion.section
           variants={staggerItem}
           className="card"
@@ -779,7 +784,7 @@ export function Home() {
                 >
                   <span
                     className="sm"
-                    style={{ fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? catColor : 'var(--ink-400)', letterSpacing: 0.2 }}
+                    style={{ fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? catColor : 'var(--ink-400)', letterSpacing: 0.2 }}
                   >
                     {label}
                   </span>
@@ -823,11 +828,11 @@ export function Home() {
           {/* ── Leyenda rest/missed (solo si hay protocolo con cadencia no-diaria) ── */}
           {hasProtocol && (
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }} aria-hidden="true">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-300)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--ink-300)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ink-100)', border: '1px solid var(--ink-200)', display: 'block' }} />
                 descanso
               </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ink-400)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--ink-400)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'color-mix(in srgb, var(--warning) 35%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 60%, transparent)', display: 'block' }} />
                 incompleto
               </span>
@@ -837,18 +842,18 @@ export function Home() {
           {/* ── Item 157: Sparkbar de adherencia últimas 8 semanas ─────── */}
           {hasWeekAdh8 && (
             <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 10, letterSpacing: 0.3 }}>
+              <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 11, letterSpacing: 0.3 }}>
                 Adherencia · últimas 8 semanas
               </p>
               <SparkBar data={weekAdh8} color={catColor} barW={11} barMaxH={32} gap={4} />
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }} aria-hidden="true">
-                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, display: 'block' }} />≥80%
                 </span>
-                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)', display: 'block' }} />50-79%
                 </span>
-                <span style={{ fontSize: 9, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--ink-300)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--error)', display: 'block' }} />&lt;50%
                 </span>
               </div>
@@ -919,10 +924,7 @@ export function Home() {
           </motion.div>
         )}
 
-        {/* ── 1b. Checklist "Tus dosis de hoy" (1-tap, sin escribir) ──── */}
-        <motion.div variants={staggerItem}>
-          <TodayDoses />
-        </motion.div>
+        {/* "Tus dosis de hoy" se movió ARRIBA del anillo de adherencia (acción primero, analítica después). */}
 
         {/* ── 1b-2. Mapa de zonas de inyección (recencia: rojo<1d, ámbar<2d, verde<3d) ── */}
         {(hasInjectionUse || Object.keys(state.protocols).length > 0) && (
@@ -997,10 +999,10 @@ export function Home() {
 
                   {/* Pie: mg usados / totales + próxima reconstitución */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-                    <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 10 }}>
+                    <p className="sm" style={{ margin: 0, color: 'var(--ink-400)', fontSize: 11 }}>
                       {Math.round((w.vialMg - w.remaining) * 100) / 100} / {w.vialMg} mg usados
                     </p>
-                    <p className="sm" style={{ margin: 0, color: labelColor, fontSize: 10, fontWeight: w.expiryStatus !== 'ok' ? 700 : 400 }}>
+                    <p className="sm" style={{ margin: 0, color: labelColor, fontSize: 11, fontWeight: w.expiryStatus !== 'ok' ? 700 : 400 }}>
                       {nextReconLabel}
                     </p>
                   </div>
@@ -1087,7 +1089,7 @@ export function Home() {
             <button className="btn-link sm" style={{ alignSelf: 'flex-start' }} onClick={() => dispatch({ t: 'tab', tab: 'comida' })}>
               Registrar glucosa en Comida →
             </button>
-            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 10 }}>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 11 }}>
               Registro personal — no es consejo médico.
             </p>
           </motion.div>
@@ -1177,7 +1179,7 @@ export function Home() {
                 )
               })}
             </div>
-            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 10 }}>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 11 }}>
               Guía educativa basada en PK estimada — no es consejo médico.
             </p>
           </motion.div>
@@ -1302,12 +1304,12 @@ export function Home() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {pct > 2 && (
-                      <span className="sm mono" style={{ fontSize: 10, whiteSpace: 'nowrap', color: pct >= 50 ? 'var(--success)' : 'var(--warning)' }}>
+                      <span className="sm mono" style={{ fontSize: 11, whiteSpace: 'nowrap', color: pct >= 50 ? 'var(--success)' : 'var(--warning)' }}>
                         ~{Math.round(pct)}%
                       </span>
                     )}
                     {nextDose && (
-                      <span className="sm" style={{ fontSize: 10, whiteSpace: 'nowrap', color: 'var(--ink-400)' }}>
+                      <span className="sm" style={{ fontSize: 11, whiteSpace: 'nowrap', color: 'var(--ink-400)' }}>
                         próx. {fmtTime(nextDose)}
                       </span>
                     )}
@@ -1315,7 +1317,7 @@ export function Home() {
                 </div>
               ))}
             </div>
-            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 9 }}>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 11 }}>
               Presencia estimada: educativo, no clínico.
             </p>
           </motion.div>
@@ -1632,7 +1634,7 @@ export function Home() {
                           </span>
                           {unit && hasValue && <span style={{ fontSize: 11, color: 'var(--ink-400)' }}>{unit}</span>}
                           {delta && (
-                            <span style={{ fontSize: 10, fontWeight: 600, color: delta.positive ? 'var(--success)' : 'var(--error)', marginLeft: 2 }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: delta.positive ? 'var(--success)' : 'var(--error)', marginLeft: 2 }}>
                               {delta.diff > 0 ? '+' : ''}{delta.diff}
                             </span>
                           )}
@@ -1984,8 +1986,8 @@ export function Home() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 10 }}>Hace 13 semanas</span>
-              <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 10 }}>Hoy</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 11 }}>Hace 13 semanas</span>
+              <span className="sm" style={{ color: 'var(--ink-400)', fontSize: 11 }}>Hoy</span>
             </div>
           </motion.div>
         )}

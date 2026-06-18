@@ -81,7 +81,7 @@ function WeekHeatmap({ s }: { s: ReturnType<typeof useApp>['state'] }) {
           return (
             <div key={ts} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <div style={{ width: '100%', background: color, height: Math.max(4, Math.round(pct * 28)), borderRadius: 3, transition: 'height 0.25s ease' }} title={has ? `${kcal} kcal` : 'Sin registro'} />
-              <span className="sm" style={{ fontSize: 9, color: 'var(--ink-300)', fontWeight: 600 }}>{label}</span>
+              <span className="sm" style={{ fontSize: 11, color: 'var(--ink-300)', fontWeight: 600 }}>{label}</span>
             </div>
           )
         })}
@@ -564,7 +564,7 @@ export function Alimentacion() {
                 aria-label="Guardar glucosa en ayunas"
               >Guardar</button>
             </div>
-            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 10 }}>Registro personal — no es consejo médico.</p>
+            <p className="sm" style={{ margin: 0, color: 'var(--ink-300)', fontSize: 11 }}>Registro personal — no es consejo médico.</p>
           </motion.section>
         )}
 
@@ -598,7 +598,7 @@ export function Alimentacion() {
                   <div style={{ height: 4, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
                     <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.25s ease' }} />
                   </div>
-                  <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 10 }}>{Math.round(pct)}% de {daily} mg</span>
+                  <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 11 }}>{Math.round(pct)}% de {daily} mg</span>
                   <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
                     <button className="iconbtn" style={{ flex: 1, minHeight: 44, height: 44, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => updateElectrolyte(key, -100)} disabled={val === 0}>−</button>
                     <button className="iconbtn" style={{ flex: 1, minHeight: 44, height: 44, fontSize: 13, background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => updateElectrolyte(key, 100)}>+100</button>
@@ -821,7 +821,7 @@ export function Alimentacion() {
                       <span className="mono sm" style={{ color: 'var(--ink-400)', flexShrink: 0, fontWeight: 700 }}>{porLabel(mult)}</span>
                     )}
                     {conf && (
-                      <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 10, flexShrink: 0 }}>
+                      <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 11, flexShrink: 0 }}>
                         {conf === 'habitual' ? 'habitual' : 'frecuente'}
                       </span>
                     )}
@@ -1043,7 +1043,7 @@ export function Alimentacion() {
                                 style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'baseline', gap: 3 }}
                               >
                                 <span className="body mono" style={{ fontWeight: 700, color: isEditing ? 'var(--brand-700)' : 'var(--ink-900)' }}>{m.kcal}</span>
-                                <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 10 }}>kcal</span>
+                                <span className="xs" style={{ color: 'var(--ink-300)', fontSize: 11 }}>kcal</span>
                               </button>
                               <button
                                 aria-label={`Editar comida: ${m.label ?? 'sin nombre'}`}

@@ -1194,8 +1194,16 @@ export function Ajustes() {
                 </span>
                 <span className="row-end">
                   <Toggle
-                    on={settings.emailNotices}
-                    onChange={(v) => dispatch({ t: 'setSetting', key: 'emailNotices', value: v })}
+                    // sin correo no se puede activar: muestra apagado y al intentar activarlo manda a Perfil
+                    on={settings.emailNotices && !!profile.email}
+                    onChange={(v) => {
+                      if (!profile.email) {
+                        dispatch({ t: 'toast', msg: 'Agrega tu correo en Perfil para recibir avisos' })
+                        dispatch({ t: 'sheet', sheet: 'perfil' })
+                        return
+                      }
+                      dispatch({ t: 'setSetting', key: 'emailNotices', value: v })
+                    }}
                     label="Activar avisos por correo"
                   />
                 </span>

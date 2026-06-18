@@ -251,7 +251,7 @@ export function StreakWeekCard() {
           const isToday = idx === todayWdsIdx
           return (
             <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1 }}>
-              <span className="sm" style={{ fontSize: 10, color: isToday ? 'var(--brand-700)' : 'var(--ink-400)', fontWeight: isToday ? 700 : 400 }}>
+              <span className="sm" style={{ fontSize: 11, color: isToday ? 'var(--brand-700)' : 'var(--ink-400)', fontWeight: isToday ? 700 : 400 }}>
                 {label}
               </span>
               <div style={{
@@ -441,7 +441,7 @@ export function ProductCards() {
                   <button key={w.v} onClick={() => setProductWindow((prev) => ({ ...prev, [pr.product]: w.v }))}
                     className="sm"
                     style={{
-                      padding: '2px 8px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 10,
+                      padding: '2px 8px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 11,
                       background: win === w.v ? 'var(--brand-500)' : 'var(--ink-100)',
                       color: win === w.v ? '#fff' : 'var(--ink-400)',
                     }}>
@@ -505,7 +505,7 @@ export function ProductCards() {
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                                   {k.delta != null && <span className="mono sm" style={{ textAlign: 'right', color: col, whiteSpace: 'nowrap' }}>{k.delta > 0 ? '+' : ''}{k.delta}{dUnit}</span>}
                                   {wd != null && (
-                                    <span className="sm" style={{ fontSize: 10, color: wdGood ? 'var(--success)' : 'var(--warning)', whiteSpace: 'nowrap' }}>
+                                    <span className="sm" style={{ fontSize: 11, color: wdGood ? 'var(--success)' : 'var(--warning)', whiteSpace: 'nowrap' }}>
                                       {wd > 0 ? '▲' : '▼'}{Math.abs(wd)}{dUnit} 7d
                                     </span>
                                   )}
@@ -775,7 +775,7 @@ export function TrendsCard() {
                           maxWidth: '100%',
                           background: activeOverlay === m ? 'var(--warning)' : undefined,
                           color: activeOverlay === m ? '#fff' : undefined,
-                          fontSize: 10,
+                          fontSize: 11,
                         }} onClick={() => setOverlayMetric2(m)}>{m}</button>
                       ))}
                     </div>
@@ -788,9 +788,9 @@ export function TrendsCard() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-                          <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 10 }}>● Peso (norm.)</span>
-                          <span className="sm" style={{ color: 'var(--warning-ink)', fontSize: 10 }}>● {activeOverlay} (norm.)</span>
-                          <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 9 }}>0–100% normalizado</span>
+                          <span className="sm" style={{ color: 'var(--brand-700)', fontSize: 11 }}>● Peso (norm.)</span>
+                          <span className="sm" style={{ color: 'var(--warning-ink)', fontSize: 11 }}>● {activeOverlay} (norm.)</span>
+                          <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 11 }}>0–100% normalizado</span>
                         </div>
                       </div>
                     )}
