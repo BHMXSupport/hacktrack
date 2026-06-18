@@ -349,9 +349,14 @@ function freshProtocol(product: string, todayTs: number): UserProtocol | null {
 }
 
 // mantiene sincronizados los cachés (protocol = activo, importedProducts = llaves del mapa)
+// El activo debe ser un protocolo que EXISTE y NO está archivado; si no, salta al primer no-archivado
+// (o null). Antes conservaba como activo un protocolo archivado → "Sin protocolo activo" en Progreso/Semana
+// y Calc/Recetario/Paywall mostrando el archivado.
 export function syncActive(s: AppState): AppState {
-  const protocol = s.activeProduct ? (s.protocols[s.activeProduct] ?? null) : null
-  const activeProduct = protocol ? s.activeProduct : (Object.keys(s.protocols)[0] ?? null)
+  const cur = s.activeProduct ? s.protocols[s.activeProduct] : null
+  const activeValid = !!(cur && !cur.archived)
+  const firstActive = Object.keys(s.protocols).find((k) => !s.protocols[k].archived) ?? null
+  const activeProduct = activeValid ? s.activeProduct : firstActive
   return {
     ...s,
     activeProduct,
@@ -569,8 +574,13 @@ export function reducer(s: AppState, a: Action): AppState {
       if (!s.protocols[a.product]) return s
       const protocols = { ...s.protocols }
       delete protocols[a.product]
-      const activeProduct = s.activeProduct === a.product ? (Object.keys(protocols)[0] ?? null) : s.activeProduct
-      return syncActive({ ...s, protocols, activeProduct })
+      // Limpiar cachés por-producto (si no, al re-agregarlo precarga recon/sitio/dosis viejos y el alias
+      // sigue contando). El activo lo re-elige syncActive (filtra archivados/inexistentes).
+      const productDoses = { ...s.productDoses }; delete productDoses[a.product]
+      const productRecon = { ...s.productRecon }; delete productRecon[a.product]
+      const lastInjectionSite = { ...s.lastInjectionSite }; delete lastInjectionSite[a.product]
+      const productAliases = { ...s.productAliases }; delete productAliases[a.product]
+      return syncActive({ ...s, protocols, productDoses, productRecon, lastInjectionSite, productAliases })
     }
 
     // P0-3: la cadencia editada por el usuario es la fuente de verdad (protocolo activo)

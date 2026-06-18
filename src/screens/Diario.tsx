@@ -7,6 +7,7 @@ import { MON, WD, MEASURE_ICON, CATEGORY_COLOR, PEPTIDES, MEASURE_META } from '.
 import { Glyph } from '../components/glyphs'
 import { EmptyState } from '../components/EmptyState'
 import { tapHaptic } from '../lib/haptics'
+import { litersFromMl, getGlassMl, waterGoalLiters } from '../lib/nutrition'
 import type { LogItem, RangeFilter } from '../lib/types'
 import { productStreak, weekAdherencePctLast8, phaseForDate } from '../lib/calendar'
 import { presenceNow } from '../lib/pharma'
@@ -802,8 +803,10 @@ export function Diario() {
 
   // n°226: hidratación del día
   const todayIsoKey = isoKey(state.todayTs)
-  const waterCount = state.nutrition[todayIsoKey]?.water ?? 0
-  const WATER_GOAL = 8
+  // El agua se almacena en MILILITROS (igual que el resto de la app). Mostrar en litros vs meta en litros.
+  const waterMl = state.nutrition[todayIsoKey]?.water ?? 0
+  const waterL = litersFromMl(waterMl)
+  const waterGoalL = waterGoalLiters(state.profile.peso)
 
   // n°85: estadísticas por medida
   const measureStats = useMemo(() => {
@@ -1347,22 +1350,21 @@ export function Diario() {
           border: '1px solid color-mix(in srgb, var(--brand-500) 16%, transparent)',
         }}>
           <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600, flexShrink: 0 }}>
-            Hoy: {waterCount} vasos
+            Hoy: {waterL.toFixed(1)} / {waterGoalL} L
           </span>
           <div style={{ flex: 1, minWidth: 0, height: 4, borderRadius: 2, background: 'var(--ink-100)', overflow: 'hidden' }}>
             <div style={{
               height: '100%',
-              width: `${Math.min(100, (waterCount / WATER_GOAL) * 100)}%`,
+              width: `${Math.min(100, (waterL / waterGoalL) * 100)}%`,
               background: 'var(--brand-500)',
               borderRadius: 2,
               transition: 'width 0.3s',
             }} />
           </div>
-          <span className="sm" style={{ color: 'var(--ink-300)', flexShrink: 0 }}>/{WATER_GOAL}</span>
           <button
             type="button"
             aria-label="Agregar un vaso de agua"
-            onClick={() => { tapHaptic(); dispatch({ t: 'water', delta: 1 }) }}
+            onClick={() => { tapHaptic(); dispatch({ t: 'water', delta: getGlassMl() }) }}
             style={{
               background: 'var(--brand-500)',
               color: '#fff',

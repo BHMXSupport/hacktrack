@@ -307,7 +307,10 @@ export function weightProjection(s: AppState): WeightProjection | null {
 }
 
 // ── Racha compuesta: días consecutivos (hasta hoy) con ≥1 dosis y ≥1 comida y agua≥meta ──
-export function compositeStreak(s: AppState, waterGoal = 8): number {
+// nut.water está en MILILITROS; la meta es la del perfil en litros → ML. Antes se comparaba contra 8
+// (ml>=8 = un sorbo) → el requisito de agua era trivial.
+export function compositeStreak(s: AppState): number {
+  const goalMl = waterGoalLiters(s.profile.peso) * 1000
   let streak = 0
   const base = new Date(s.todayTs)
   for (let i = 0; i < 90; i++) {
@@ -317,7 +320,7 @@ export function compositeStreak(s: AppState, waterGoal = 8): number {
     const g = s.log.find((x) => x.dateKey === k)
     const dose = !!g?.items.some((it) => it.type === 'dose')
     const meal = !!nut && nut.meals.length > 0
-    const water = !!nut && nut.water >= waterGoal
+    const water = !!nut && nut.water >= goalMl
     if (dose && meal && water) streak++
     else if (i === 0) continue // hoy aún en curso: no rompe la racha
     else break
@@ -333,14 +336,15 @@ export interface StreakDetail {
   prevMilestone: number
   nextMilestone: number | null
 }
-export function streakDetail(s: AppState, waterGoal = 8): StreakDetail {
-  const streak = compositeStreak(s, waterGoal)
+export function streakDetail(s: AppState): StreakDetail {
+  const goalMl = waterGoalLiters(s.profile.peso) * 1000
+  const streak = compositeStreak(s)
   const k = isoKey(s.todayTs)
   const nut = s.nutrition[k]
   const g = s.log.find((x) => x.dateKey === k)
   const today = {
     dose: !!g?.items.some((it) => it.type === 'dose'),
-    water: !!nut && nut.water >= waterGoal,
+    water: !!nut && nut.water >= goalMl,
     meal: !!nut && nut.meals.length > 0,
   }
   const next = MILESTONES.find((m) => m > streak) ?? null
@@ -511,7 +515,7 @@ export function weeklyInsights(s: AppState): string[] {
     }
   }
   const water7 = kcalSeries(s, 7).map((d) => s.nutrition[isoKey(d.ts)]?.water ?? 0)
-  const daysHydrated = water7.filter((w) => w >= 8).length
+  const daysHydrated = water7.filter((w) => w >= waterGoalLiters(s.profile.peso) * 1000).length // ml vs meta en ML
   if (daysHydrated > 0) out.push(`Cumpliste tu meta de hidratación en ${daysHydrated} de 7 días.`)
   const macro = dayMacros((s.nutrition[isoKey(s.todayTs)]?.meals) ?? [])
   if (macro.hasMacros && macro.protein > 0) out.push(`Hoy llevas ${macro.protein} g de proteína registrada.`)

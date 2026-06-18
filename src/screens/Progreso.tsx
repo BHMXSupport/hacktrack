@@ -104,15 +104,27 @@ function WeeklySummary({ onAddProtocol }: { onAddProtocol: () => void }) {
   const adh = adherence(state, 7)
   const hasProtocol = Object.keys(state.protocols).length > 0
 
-  if (!adh || !hasProtocol) {
+  // Caso 1: NO hay protocolo → ofrecer agregar producto.
+  if (!hasProtocol) {
     return (
       <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
         <EmptyState
           glyph="recuperacion"
           title="Sin protocolo activo"
-          subtitle="Registra tu primera dosis para ver el resumen semanal aquí."
+          subtitle="Agrega un producto para ver tu resumen semanal aquí."
           cta={{ label: '+ Agregar producto', onClick: onAddProtocol }}
         />
+      </motion.div>
+    )
+  }
+  // Caso 2: SÍ hay protocolo pero aún no hay adherencia calculable (sin dosis programadas/registradas en la
+  // ventana). NO decir "Sin protocolo activo" ni ofrecer agregar producto — el usuario ya tiene uno.
+  if (!adh) {
+    return (
+      <motion.div variants={staggerItem} className="card" style={{ marginTop: 16 }}>
+        <div className="sm" style={{ color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Esta semana</div>
+        <div className="body" style={{ fontWeight: 600 }}>Aún sin dosis esta semana</div>
+        <p className="sm" style={{ color: 'var(--ink-400)', margin: '4px 0 0' }}>Registra una dosis para ver tu adherencia aquí.</p>
       </motion.div>
     )
   }

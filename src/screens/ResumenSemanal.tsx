@@ -49,6 +49,8 @@ export function ResumenSemanal() {
     if (it.type === 'dose') doses++
   }
   const adh = adherence(state, 7)
+  // hay protocolo (no archivado) aunque adh sea null (sin dosis programadas en la ventana)
+  const hasProtocol = Object.values(state.protocols).some((p) => !p.archived)
 
   // ── Delta semana actual vs semana previa ──
   const adhPrev7 = adherence(state, 14)  // 14d tiene dentro las semanas 1 y 2
@@ -244,7 +246,7 @@ export function ResumenSemanal() {
         <div ref={anchorRef} style={{ height: 0 }} />
 
         {/* ── Stats base (gratis) ── */}
-        <Card title="Adherencia" subtitle={adh ? `${adh.taken} de ${adh.due} dosis programadas` : 'Sin protocolo activo'}>
+        <Card title="Adherencia" subtitle={adh ? `${adh.taken} de ${adh.due} dosis programadas` : hasProtocol ? 'Aún sin dosis esta semana' : 'Sin protocolo activo'}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <div className="mono" style={{ fontSize: 28, fontWeight: 800, color: 'var(--brand-700)', lineHeight: 1 }}>{adh ? `${adh.pct}%` : '—'}</div>
             {/* Delta vs semana previa */}

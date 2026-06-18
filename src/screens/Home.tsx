@@ -2022,9 +2022,8 @@ export function Home() {
                 transition={spring.ui}
                 onClick={() => {
                   if (dayNote.trim()) {
-                    // Guarda como nota diaria en el store (dayNotes[dateKey])
-                    const dateKey = new Date(state.todayTs).toISOString().slice(0, 10)
-                    dispatch({ t: 'setDayNote', dateKey, text: dayNote.trim() })
+                    // Guarda como nota diaria (isoKey = fecha LOCAL, no UTC → no se corre de día)
+                    dispatch({ t: 'setDayNote', dateKey: isoKey(state.todayTs), text: dayNote.trim() })
                   }
                   setDayClosed(true)
                   setDayNote('')

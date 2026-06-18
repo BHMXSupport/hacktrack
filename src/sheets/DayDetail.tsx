@@ -95,6 +95,8 @@ export function DayDetail() {
   const [editWheelHora, setEditWheelHora] = useState<string | null>(null)
   // item 302: estado de edición completa
   const [editFull, setEditFull] = useState<{ id: string; value: string; unit: string; note: string } | null>(null)
+  // Nota del día (editable para CUALQUIER día desde el calendario). key es estable tras el early-return.
+  const [dayNote, setDayNote] = useState<string>(() => state.dayNotes[key] ?? '')
 
   function handleClose() { dispatch({ t: 'sheet', sheet: null }) }
 
@@ -145,6 +147,20 @@ export function DayDetail() {
   return (
     <Sheet title={fmtDate(d, now)} onClose={handleClose}>
       <div style={{ padding: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {/* ── Nota del día — el usuario elige el día tocándolo en el calendario y deja/edita su nota aquí ── */}
+        <section>
+          <p className="label" style={{ marginBottom: 8 }}>Nota del día</p>
+          <textarea
+            value={dayNote}
+            onChange={(e) => setDayNote(e.target.value.slice(0, 200))}
+            onBlur={() => { const t = dayNote.trim(); if (t !== (state.dayNotes[key] ?? '')) dispatch({ t: 'setDayNote', dateKey: key, text: t }) }}
+            placeholder="¿Cómo te sentiste este día? (opcional)"
+            rows={2}
+            aria-label="Nota del día"
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--ink-900)', fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none' }}
+          />
+        </section>
 
         {/* ── item 326: resumen de adherencia de la semana ── */}
         {totalCount > 0 && (
