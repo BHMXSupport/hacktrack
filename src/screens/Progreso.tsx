@@ -366,8 +366,8 @@ function ProductsList({ pickerOpen, setPickerOpen, ProductPicker }: {
                 className="btn btn-brand btn-sm"
                 style={{ width: 'auto', padding: '0 14px' }}
                 onClick={() => {
-                  dispatch({ t: 'setActiveProduct', product: p.product })
-                  dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
+                  // editar ESTE producto sin reasignar el primario de Inicio (arg = foco de edición)
+                  dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: p.product })
                 }}
                 whileTap={{ scale: 0.97 }}
                 transition={spring.ui}

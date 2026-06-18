@@ -78,7 +78,11 @@ function fmtTime12(ts: number): string {
 
 export function ProtocoloEdit() {
   const { state, dispatch } = useApp()
-  const p = state.protocol
+  // Editar el producto indicado por sheetArg (foco de edición explícito) SIN cambiar el "activo" visible de
+  // Inicio. Fallback al activo si no se pasó arg (compat). Antes se despachaba setActiveProduct → abrir el
+  // editor de un producto secundario reasignaba silenciosamente el producto primario de la pantalla Inicio.
+  const editProduct = state.sheetArg && state.protocols[state.sheetArg] ? state.sheetArg : state.activeProduct
+  const p = editProduct ? state.protocols[editProduct] : null
   const [startStr, setStartStr] = useState(toInputDate(p?.startDate ?? state.todayTs))
   const [endStr, setEndStr] = useState(p?.endDate ? toInputDate(p.endDate) : '')
   const [cad, setCad] = useState<UserCadence>(
@@ -142,7 +146,7 @@ export function ProtocoloEdit() {
       dispatch({ t: 'toast', msg: 'La fecha de fin no puede ser antes del inicio' })
       return
     }
-    dispatch({ t: 'updateProtocol', patch: {
+    dispatch({ t: 'updateProtocolFor', product: p!.product, patch: {
       cadence: cad, progOn, progN,
       phaseDoses: progOn ? doses : undefined,
       startDate: sd, endDate: ed,

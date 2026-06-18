@@ -538,8 +538,8 @@ export function RegistrarSheet() {
                 </div>
                 <button className="btn btn-outline btn-sm" style={{ width: 'auto', padding: '0 14px' }}
                   onClick={() => {
-                    dispatch({ t: 'setActiveProduct', product })
-                    dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
+                    // editar ESTE producto sin reasignar el primario de Inicio (arg = foco de edición)
+                    dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: product })
                   }}>
                   Editar
                 </button>

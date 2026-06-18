@@ -3,7 +3,7 @@
 //        304 (borrado de log → undo 5s vía toast), 325 (agrupar registros por producto),
 //        326 (resumen adherencia de semana en header)
 // Compliance: sin jeringas (Glyph 'dose'/IcDrop), sin promesas de resultado, <Disclaimer kind="dose"/> presente.
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sheet } from '../components/Sheet'
 import { Disclaimer } from '../components/controls'
@@ -96,8 +96,10 @@ export function DayDetail() {
   const [editWheelHora, setEditWheelHora] = useState<string | null>(null)
   // item 302: estado de edición completa
   const [editFull, setEditFull] = useState<{ id: string; value: string; unit: string; note: string } | null>(null)
-  // Nota del día (editable para CUALQUIER día desde el calendario). key es estable tras el early-return.
+  // Nota del día (editable para CUALQUIER día desde el calendario).
   const [dayNote, setDayNote] = useState<string>(() => state.dayNotes[key] ?? '')
+  // Si la sheet se reabre en OTRO día sin desmontar, re-cargar la nota de ese día (si no, muestra/guarda la del día anterior)
+  useEffect(() => { setDayNote(state.dayNotes[key] ?? ''); setEditMode(null); setEditFull(null) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleClose() { dispatch({ t: 'sheet', sheet: null }) }
 

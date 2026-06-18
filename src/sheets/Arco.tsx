@@ -62,18 +62,9 @@ export function ArcoSheet() {
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
 
-  // item 338: exportar JSON completo
+  // item 338: exportar JSON completo (MISMO formato que Ajustes → re-importable por replaceState sin perder datos)
   function handleExportJSON() {
-    const payload = {
-      log: state.log,
-      profile: state.profile,
-      settings: state.settings,
-      protocols: state.protocols,
-      history: state.history,
-      nutrition: (state as unknown as { nutrition?: unknown }).nutrition,
-      exportedAt: new Date().toISOString(),
-      version: 1,
-    }
+    const payload = { schemaVersion: 1, exportedAt: new Date().toISOString(), state }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     downloadBlob(blob, `hacktrack-backup-${new Date().toISOString().slice(0, 10)}.json`)
     dispatch({ t: 'toast', msg: 'JSON exportado' })
@@ -97,18 +88,16 @@ export function ArcoSheet() {
     const reader = new FileReader()
     reader.onload = (evt) => {
       try {
-        const raw = JSON.parse(evt.target?.result as string)
+        const parsed = JSON.parse(evt.target?.result as string)
+        // acepta tanto el formato envuelto {schemaVersion,state} como uno plano (compat con Ajustes)
+        const raw = parsed && typeof parsed === 'object' && 'state' in parsed ? (parsed as { state: unknown }).state : parsed
         if (!validateBackupSchema(raw)) {
           setImportError('Archivo no válido — el schema no corresponde a un backup de Hacktrack.')
           setImporting(false)
           return
         }
-        // Contar items importados
-        const logLen = Array.isArray(raw.log) ? (raw.log as Array<{ items?: unknown[] }>).reduce((acc: number, g) => acc + (g.items?.length ?? 0), 0) : 0
-        dispatch({ t: 'toast', msg: `${logLen} registros importados` })
-        // dispatch importBackup si existe, o merge manual
-        ;(dispatch as unknown as (a: { t: string; data: unknown }) => void)({ t: 'importBackup', data: raw })
-        dispatch({ t: 'sheet', sheet: null })
+        // Restaurar el respaldo COMPLETO vía replaceState (migra + resincroniza cachés). El toast lo pone la acción.
+        dispatch({ t: 'replaceState', state: raw as Partial<typeof state> })
       } catch {
         setImportError('Error al leer el archivo — asegúrate de que es un JSON válido.')
       }

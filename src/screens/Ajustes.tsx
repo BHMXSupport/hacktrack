@@ -800,8 +800,8 @@ export function Ajustes() {
                         style={{ background: 'none', border: 'none', flex: 1, textAlign: 'left', cursor: 'pointer' }}
                         aria-label={`Editar protocolo de ${product}`}
                         onClick={() => {
-                          dispatch({ t: 'setActiveProduct', product })
-                          dispatch({ t: 'sheet', sheet: 'protocolo-edit' })
+                          // editar ESTE producto sin reasignar el primario de Inicio (arg = foco de edición)
+                          dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: product })
                         }}
                       >
                         <RowIcon>

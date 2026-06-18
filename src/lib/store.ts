@@ -363,7 +363,8 @@ export function syncActive(s: AppState): AppState {
     ...s,
     activeProduct,
     protocol: activeProduct ? (s.protocols[activeProduct] ?? null) : null,
-    importedProducts: Object.keys(s.protocols),
+    // solo productos NO archivados: Inicio/Progreso/Recetario iteran este caché y no deben mostrar archivados
+    importedProducts: Object.keys(s.protocols).filter((k) => !s.protocols[k].archived),
   }
 }
 
@@ -392,6 +393,15 @@ function rebuildMeasureCaches(
   }
   profile.bmi = profile.peso != null && profile.est != null ? bmiCalc(profile.peso, profile.est) : null
   return { measureValues, profile }
+}
+
+// lastMealTs DERIVADO = ts de la comida más reciente en todo el historial de nutrición (o null si no hay).
+// Mantenerlo derivado evita que el chip de ayuno mienta al borrar la última comida o al registrar/copiar
+// comidas con hora retroactiva.
+function latestMealTs(nut: AppState['nutrition']): number | null {
+  let max: number | null = null
+  for (const v of Object.values(nut)) for (const m of v.meals) if (max == null || m.ts > max) max = m.ts
+  return max
 }
 
 // migra estado legado (un solo `protocol` + `importedProducts`) al mapa multi-protocolo
@@ -534,7 +544,8 @@ export function reducer(s: AppState, a: Action): AppState {
           foodLibrary = [{ id: genId(), label: meal.label, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: 1, hourBucket: { [slot]: 1 }, defaultMultiplier: 1 }, ...foodLibrary]
         }
       }
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary, lastMealTs: meal.ts }
+      const nutAdd = { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }
+      return { ...s, nutrition: nutAdd, foodLibrary, lastMealTs: latestMealTs(nutAdd) }
     }
     case 'addFavMeal': {
       const fav = s.foodLibrary.find((f) => f.id === a.id)
@@ -553,7 +564,8 @@ export function reducer(s: AppState, a: Action): AppState {
       const foodLibrary = s.foodLibrary.map((f) => (f.id === a.id
         ? { ...f, usoCount: f.usoCount + 1, hourBucket: { ...(f.hourBucket ?? {}), [slot]: (f.hourBucket?.[slot] ?? 0) + 1 }, defaultMultiplier: por }
         : f))
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }, foodLibrary, lastMealTs: meal.ts }
+      const nutFav = { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }
+      return { ...s, nutrition: nutFav, foodLibrary, lastMealTs: latestMealTs(nutFav) }
     }
     case 'copyYesterday': {
       const k = isoKey(s.todayTs)
@@ -567,19 +579,22 @@ export function reducer(s: AppState, a: Action): AppState {
         const d = new Date(s.todayTs); d.setHours(o.getHours(), o.getMinutes(), o.getSeconds(), 0)
         return { ...m, id: genId(), ts: d.getTime() }
       })
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals] } }, lastMealTs: Date.now() }
+      const nutCopy = { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals] } }
+      return { ...s, nutrition: nutCopy, lastMealTs: latestMealTs(nutCopy) }
     }
     case 'delMeal': {
       const nutrition: AppState['nutrition'] = {}
       for (const [k, v] of Object.entries(s.nutrition)) nutrition[k] = { ...v, meals: v.meals.filter((m) => m.id !== a.id) }
-      return { ...s, nutrition }
+      // recomputar lastMealTs: si se borró la última comida, el chip de ayuno debe dejar de mentir
+      return { ...s, nutrition, lastMealTs: latestMealTs(nutrition) }
     }
     case 'editMeal': {
       const nutrition: AppState['nutrition'] = {}
       for (const [k, v] of Object.entries(s.nutrition)) {
         nutrition[k] = { ...v, meals: v.meals.map((m) => (m.id === a.id ? { ...m, ...a.patch } : m)) }
       }
-      return { ...s, nutrition }
+      // editar la hora de una comida puede cambiar cuál es la más reciente
+      return { ...s, nutrition, lastMealTs: latestMealTs(nutrition) }
     }
     case 'delFav':
       return { ...s, foodLibrary: s.foodLibrary.filter((f) => f.id !== a.id) }
@@ -657,6 +672,8 @@ export function reducer(s: AppState, a: Action): AppState {
         type: 'dose',
         ts: now.getTime(),
         product: a.product,
+        value: a.value ?? null, // valor/unidad crudos: el editor los pre-llena y editLog reconstruye 'u'
+        unit: a.unit,
         doseMg: a.doseMg, // mg canónicos (para vida media/presencia); undefined si no se pudo convertir
         site: a.site,     // sitio de inyección (loop 140); undefined si el usuario lo omitió
         ...(rawNote ? { note: rawNote } : {}),        // loop 138: nota opcional
@@ -927,6 +944,8 @@ export function reducer(s: AppState, a: Action): AppState {
       // Si es una medida, mover también su muestra en history del ts viejo al nuevo (si no, el punto de la
       // gráfica se queda en la fecha vieja y deleteLog ya no lo reconcilia por ts → muestra huérfana).
       let history = s.history
+      let measureValues = s.measureValues
+      let profile = s.profile
       if (movedItem.type === 'medida' && oldTs != null && oldTs !== a.ts) {
         // acotar a la medida editada (no mover muestras de OTRA medida que comparta ts)
         const singleName = movedItem.n && s.history[movedItem.n] ? movedItem.n : null
@@ -935,8 +954,14 @@ export function reducer(s: AppState, a: Action): AppState {
           if (singleName && k !== singleName) { history[k] = s.history[k]; continue }
           history[k] = s.history[k].map((sm) => (sm.ts === oldTs ? { ...sm, ts: a.ts } : sm)).sort((x, y) => x.ts - y.ts)
         }
+        // mover la muestra puede cambiar cuál es la última-por-ts → recomputar measureValues/profile/bmi
+        if (singleName) {
+          const rebuilt = rebuildMeasureCaches(history, s.measureValues, s.profile, [singleName])
+          measureValues = rebuilt.measureValues
+          profile = rebuilt.profile
+        }
       }
-      return { ...s, log, history }
+      return { ...s, log, history, measureValues, profile }
     }
 
     case 'setSetting':
@@ -987,6 +1012,7 @@ export function reducer(s: AppState, a: Action): AppState {
       // protocol/importedProducts, estampado de dosis legado) y resincroniza cachés. Luego fijamos lo efímero.
       return {
         ...hydrate({ ...initialState, ...a.state } as AppState),
+        todayTs: startOfDay(new Date()).getTime(), // 'hoy' = ahora, no el día en que se exportó el respaldo
         screen: 's-app',
         sheet: null,
         toast: 'Respaldo restaurado correctamente',
@@ -1025,15 +1051,34 @@ export function reducer(s: AppState, a: Action): AppState {
             }
           }
           if (a.patch.note !== undefined) patched.note = a.patch.note ?? undefined
-          // si es dosis y cambió el value, actualiza la dosis recordada por producto (unidad nueva o la actual)
-          if (it.type === 'dose' && it.product && a.patch.value != null) {
-            const unit = a.patch.unit ?? s.productDoses[it.product]?.unit ?? it.unit ?? ''
-            updatedProductDoses = { ...updatedProductDoses, [it.product]: { value: a.patch.value, unit } }
+          // DOSIS: reconstruir 'u' (diario/charts/chip Repetir parsean este string, no value/unit) + recordar dosis
+          if (it.type === 'dose' && (a.patch.value !== undefined || a.patch.unit !== undefined)) {
+            const v = a.patch.value !== undefined ? a.patch.value : (it.value ?? null)
+            const u = (a.patch.unit !== undefined ? a.patch.unit : it.unit) ?? ''
+            patched.u = (it.product ?? '') + (v != null ? ` · ${v} ${u}` : '')
+            if (it.product && v != null) updatedProductDoses = { ...updatedProductDoses, [it.product]: { value: v, unit: u } }
+          }
+          // MEDIDA: reconstruir 'u' + marcar para reconciliar history/measureValues/profile fuera del map
+          if (it.type === 'medida' && a.patch.value != null && it.n) {
+            patched.u = fmtMeasureValue(it.n, a.patch.value) + (patched.note ? ' · ' + patched.note : '')
           }
           return patched
         }),
       }))
-      return { ...s, log, productDoses: updatedProductDoses, protocols: updatedProtocols }
+      // reconciliar la medida editada: mover el valor de la muestra en history + recomputar measureValues/profile.
+      // Buscamos el item por id en el log ORIGINAL (n/ts no cambian al editar) para evitar mutar estado en el closure.
+      let history = s.history
+      let measureValues = s.measureValues
+      let profile = s.profile
+      const editedItem = a.patch.value != null ? s.log.flatMap((g) => g.items).find((it) => it.id === a.id) : undefined
+      if (editedItem && editedItem.type === 'medida' && editedItem.n && a.patch.value != null && s.history[editedItem.n]) {
+        const name = editedItem.n, oldTs = editedItem.ts, newValue = a.patch.value
+        history = { ...s.history, [name]: s.history[name].map((sm) => (sm.ts === oldTs ? { ...sm, value: newValue } : sm)) }
+        const rebuilt = rebuildMeasureCaches(history, s.measureValues, s.profile, [name])
+        measureValues = rebuilt.measureValues
+        profile = rebuilt.profile
+      }
+      return { ...s, log, productDoses: updatedProductDoses, protocols: updatedProtocols, history, measureValues, profile }
     }
 
     case 'setCalcDraft':
