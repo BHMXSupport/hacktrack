@@ -481,11 +481,14 @@ export function TodayDoses() {
                   // loop 140: sitio sugerido para este producto
                   const suggestedSite = nextInjectionSite(state.lastInjectionSite?.[product])
                   const showSiteSelector = pendingSiteProduct === product && !taken && !skipped
-                  // Sitio donde se inyectó la dosis de HOY (de la propia toma registrada, no del estado lastInjectionSite)
-                  const doseSiteToday = taken
+                  // Toma de HOY de este producto (de la propia toma registrada): sitio + HORA REAL.
+                  const takenDoseToday = taken
                     ? state.log.find((g) => g.dateKey === isoKey(state.todayTs))?.items
-                        .find((it) => it.type === 'dose' && it.product === product && it.site)?.site
+                        .find((it) => it.type === 'dose' && it.product === product)
                     : undefined
+                  const doseSiteToday = takenDoseToday?.site
+                  // Hora REAL a la que se registró la toma (no la del recordatorio) — corrige el display de Inicio
+                  const takenAtLabel = takenDoseToday ? fmtTime(new Date(takenDoseToday.ts)) : null
                   // loop 139: mostrar picker de efecto si esta dosis acaba de ser registrada
                   const showEffectPicker = pendingEffectProduct === product && taken
 
@@ -564,9 +567,12 @@ export function TodayDoses() {
                                   ? 'Saltada hoy (intencional)'
                                   : dose ? `${dose.value} ${dose.unit}` : 'Establece tu dosis'}
                               </span>
-                              {/* item 32: hora del recordatorio (solo si no saltada) */}
-                              {!skipped && reminderLabel && (
-                                <span style={{ whiteSpace: 'nowrap' }}>· {reminderLabel}</span>
+                              {/* Hora: si está tomada, la hora REAL de la toma (✓); si no, la del recordatorio.
+                                  Antes mostraba siempre la del recordatorio → parecía que te la inyectaste a las 8am. */}
+                              {!skipped && (taken ? takenAtLabel : reminderLabel) && (
+                                <span style={{ whiteSpace: 'nowrap', color: taken ? 'var(--success)' : undefined }}>
+                                  · {taken ? `✓ ${takenAtLabel}` : reminderLabel}
+                                </span>
                               )}
                               {/* Loop 137: label de ventana */}
                               {!skipped && !taken && win && hasReminder && (

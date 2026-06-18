@@ -14,7 +14,7 @@ import { TimeWheel } from '../components/TimeWheel'
 import { spring, ease } from '../lib/motion'
 import { useApp, SITE_OPTIONS_FULL, siteLabel } from '../lib/store'
 import { PEPTIDES, WDS } from '../lib/catalog'
-import { presetCad, cadenceLabel } from '../lib/cadence'
+import { presetCad, cadenceLabel, fmtTime } from '../lib/cadence'
 import { doseToMg, needsRecon } from '../lib/calc'
 import { tapHaptic } from '../lib/haptics'
 import type { UserCadence, CadMode, InjectionSite } from '../lib/types'
@@ -312,17 +312,19 @@ export function RegistrarSheet() {
 
   // ── Guardar ───────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false)
-  const handleSave = useCallback(() => {
+  // Prompt de reconciliación de hora (1ª dosis registrada "Ahora" con desfase vs recordatorio). null = oculto.
+  const [reconcile, setReconcile] = useState<{ reminderTime: string } | null>(null)
+
+  // Guardado real. tsOverride: hora explícita (p.ej. la del recordatorio). openEditAfter: abrir el editor
+  // de protocolo al terminar (para que el usuario ajuste SU recordatorio — no lo cambiamos nosotros).
+  const commitSave = useCallback((tsOverride?: number, openEditAfter?: boolean) => {
     if (saving) return
     const finalProduct = product.trim()
-    if (!finalProduct) {
-      dispatch({ t: 'toast', msg: 'Elige un producto primero' })
-      setShowPicker(true)
-      return
-    }
+    if (!finalProduct) return
+    setReconcile(null)
     setSaving(true)
     tapHaptic()
-    const ts = parseHora(hora, state.todayTs)
+    const ts = tsOverride !== undefined ? tsOverride : parseHora(hora, state.todayTs)
     window.setTimeout(() => {
       if (state.protocols[finalProduct]) {
         if (state.activeProduct === finalProduct) dispatch({ t: 'setCadence', cadence: localCad })
@@ -341,9 +343,34 @@ export function RegistrarSheet() {
       dispatch({ t: 'logDose', product: finalProduct, value: val || null, unit, ts, doseMg, recon, site: site ?? suggestedSite, note: noteStr })
       // item 429: guardar unidad por producto en localStorage
       try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
-      dispatch({ t: 'sheet', sheet: null })
+      if (openEditAfter) dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: finalProduct })
+      else dispatch({ t: 'sheet', sheet: null })
     }, 640)
-  }, [saving, state.protocols, state.activeProduct, localCad, product, dose, unit, vialStr, aguaStr, hora, state.todayTs, nota, site, dispatch])
+  }, [saving, state.protocols, state.activeProduct, state.todayTs, localCad, product, dose, unit, vialStr, aguaStr, hora, nota, site, suggestedSite, dispatch])
+
+  const handleSave = useCallback(() => {
+    if (saving) return
+    const finalProduct = product.trim()
+    if (!finalProduct) {
+      dispatch({ t: 'toast', msg: 'Elige un producto primero' })
+      setShowPicker(true)
+      return
+    }
+    // 1ª dosis de este producto registrada "Ahora" con desfase ≥1h vs el recordatorio → preguntar qué hacer con la hora.
+    if (hora === 'Ahora') {
+      // recordatorio de ESTE producto (o el default '08:00' que recibirá un protocolo nuevo) — no el del activo
+      const reminderTime = state.protocols[finalProduct]?.reminderTime || '08:00'
+      const isFirstDose = !state.log.some((g) => g.items.some((it) => it.type === 'dose' && it.product === finalProduct))
+      const [rh, rm] = reminderTime.split(':').map(Number)
+      const now = new Date()
+      const diffMin = Math.abs((now.getHours() * 60 + now.getMinutes()) - ((rh || 0) * 60 + (rm || 0)))
+      if (isFirstDose && diffMin > 60) {
+        setReconcile({ reminderTime })
+        return
+      }
+    }
+    commitSave(undefined, false)
+  }, [saving, product, hora, state.protocols, state.protocol, state.log, commitSave, dispatch])
 
   // ── item 310: última dosis del producto ──────────────────────────────────
   const lastDoseData = product ? lastDoseInfo(state.log, product) : null
@@ -357,6 +384,42 @@ export function RegistrarSheet() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Sheet title="Registrar" onClose={() => dispatch({ t: 'sheet', sheet: null })}>
+
+      {/* Reconciliación de hora — 1ª dosis "Ahora" con desfase vs el recordatorio.
+          El usuario decide qué hora cuenta; "ajustar recordatorio" lo manda al editor (no lo cambiamos nosotros). */}
+      {reconcile && (() => {
+        const [rh, rm] = reconcile.reminderTime.split(':').map(Number)
+        const rDate = new Date(state.todayTs); rDate.setHours(rh || 0, rm || 0, 0, 0)
+        const reminderLabel = fmtTime(rDate)
+        const nowLabel = fmtTime(new Date())
+        return (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            onClick={() => setReconcile(null)}
+            style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'color-mix(in srgb, var(--ink-900) 55%, transparent)', display: 'flex', alignItems: 'flex-end' }}
+          >
+            <motion.div
+              initial={{ y: 28 }} animate={{ y: 0 }} transition={spring.ui}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: '100%', background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '22px 20px calc(20px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 10 }}
+            >
+              <h3 className="h3" style={{ margin: 0, color: 'var(--ink-900)' }}>¿A qué hora te la inyectaste?</h3>
+              <p className="sm" style={{ margin: '0 0 4px', color: 'var(--ink-400)' }}>
+                Tu recordatorio está a las <strong>{reminderLabel}</strong>, pero estás registrando ahora (<strong>{nowLabel}</strong>).
+              </p>
+              <button className="btn btn-brand" style={{ height: 48, width: '100%' }} onClick={() => commitSave(undefined, false)}>
+                Me la inyecté ahora ({nowLabel})
+              </button>
+              <button className="btn btn-outline" style={{ height: 48, width: '100%' }} onClick={() => commitSave(rDate.getTime(), false)}>
+                Me la inyecté a las {reminderLabel}
+              </button>
+              <button className="btn btn-ghost" style={{ height: 44, width: '100%' }} onClick={() => commitSave(undefined, true)}>
+                Registrar ahora y ajustar mi recordatorio →
+              </button>
+            </motion.div>
+          </motion.div>
+        )
+      })()}
 
       {/* Confirmación — checkmark draw-on */}
       {saving && (
