@@ -69,46 +69,82 @@ function loadState(): AppState {
 // React.lazy + Suspense: carga diferida de cada pantalla. Prefetch on hover se
 // logra importando dinámicamente al onMouseEnter del nav (ver BottomNav).
 import { Splash } from './screens/Splash'                        // crítica — siempre eager
-const Onboarding   = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })))
-const Goal         = lazy(() => import('./screens/Goal').then((m) => ({ default: m.Goal })))
-const Baseline     = lazy(() => import('./screens/Baseline').then((m) => ({ default: m.Baseline })))
-const MeasurePicker= lazy(() => import('./screens/MeasurePicker').then((m) => ({ default: m.MeasurePicker })))
-const Account      = lazy(() => import('./screens/Account').then((m) => ({ default: m.Account })))
-const Login        = lazy(() => import('./screens/Login').then((m) => ({ default: m.Login })))
-const Forgot       = lazy(() => import('./screens/Forgot').then((m) => ({ default: m.Forgot })))
-const Welcome      = lazy(() => import('./screens/Welcome').then((m) => ({ default: m.Welcome })))
-const Import       = lazy(() => import('./screens/Import').then((m) => ({ default: m.Import })))
+
+// lazyRetry: como React.lazy pero si el chunk FALLA al cargar (típico tras un redeploy: el
+// service worker viejo referencia un hash que ya no existe → 404), recarga la página UNA vez para
+// tomar el bundle nuevo. Sin esto, un fallo de import deja el Suspense colgado = pantalla en blanco.
+// Clave única en sessionStorage: tras la recarga, el primer chunk que SÍ carga la limpia → evita
+// loops y permite reintentar más adelante en la sesión.
+const CHUNK_RETRY_KEY = 'ht:chunkretry'
+function lazyRetry<T extends ComponentType<unknown>>(factory: () => Promise<{ default: T }>) {
+  return lazy(() =>
+    factory()
+      .then((m) => { try { sessionStorage.removeItem(CHUNK_RETRY_KEY) } catch { /* noop */ } return m })
+      .catch((err: unknown) => {
+        let already = false
+        try { already = !!sessionStorage.getItem(CHUNK_RETRY_KEY) } catch { /* noop */ }
+        if (!already) {
+          try { sessionStorage.setItem(CHUNK_RETRY_KEY, '1') } catch { /* noop */ }
+          window.location.reload()
+          return new Promise<{ default: T }>(() => { /* recarga en curso: nunca resuelve */ })
+        }
+        throw err // ya recargamos una vez y sigue fallando → que lo capture el ErrorBoundary
+      }),
+  )
+}
+
+const Onboarding   = lazyRetry(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })))
+const Goal         = lazyRetry(() => import('./screens/Goal').then((m) => ({ default: m.Goal })))
+const Baseline     = lazyRetry(() => import('./screens/Baseline').then((m) => ({ default: m.Baseline })))
+const MeasurePicker= lazyRetry(() => import('./screens/MeasurePicker').then((m) => ({ default: m.MeasurePicker })))
+const Account      = lazyRetry(() => import('./screens/Account').then((m) => ({ default: m.Account })))
+const Login        = lazyRetry(() => import('./screens/Login').then((m) => ({ default: m.Login })))
+const Forgot       = lazyRetry(() => import('./screens/Forgot').then((m) => ({ default: m.Forgot })))
+const Welcome      = lazyRetry(() => import('./screens/Welcome').then((m) => ({ default: m.Welcome })))
+const Import       = lazyRetry(() => import('./screens/Import').then((m) => ({ default: m.Import })))
 // Tabs principales — lazy para reducir bundle inicial
-const Home         = lazy(() => import('./screens/Home').then((m) => ({ default: m.Home })))
-const Diario       = lazy(() => import('./screens/Diario').then((m) => ({ default: m.Diario })))
-const Progreso     = lazy(() => import('./screens/Progreso').then((m) => ({ default: m.Progreso })))
-const Vida         = lazy(() => import('./screens/Vida').then((m) => ({ default: m.Vida })))
-const Alimentacion = lazy(() => import('./screens/Alimentacion').then((m) => ({ default: m.Alimentacion })))
+const Home         = lazyRetry(() => import('./screens/Home').then((m) => ({ default: m.Home })))
+const Diario       = lazyRetry(() => import('./screens/Diario').then((m) => ({ default: m.Diario })))
+const Progreso     = lazyRetry(() => import('./screens/Progreso').then((m) => ({ default: m.Progreso })))
+const Vida         = lazyRetry(() => import('./screens/Vida').then((m) => ({ default: m.Vida })))
+const Alimentacion = lazyRetry(() => import('./screens/Alimentacion').then((m) => ({ default: m.Alimentacion })))
 const ResumenSemanal=lazy(() => import('./screens/ResumenSemanal').then((m) => ({ default: m.ResumenSemanal })))
 // Modales full-screen
-const Ajustes      = lazy(() => import('./screens/Ajustes').then((m) => ({ default: m.Ajustes })))
-const Perfil       = lazy(() => import('./screens/Perfil').then((m) => ({ default: m.Perfil })))
-const Paywall      = lazy(() => import('./screens/Paywall').then((m) => ({ default: m.Paywall })))
+const Ajustes      = lazyRetry(() => import('./screens/Ajustes').then((m) => ({ default: m.Ajustes })))
+const Perfil       = lazyRetry(() => import('./screens/Perfil').then((m) => ({ default: m.Perfil })))
+const Paywall      = lazyRetry(() => import('./screens/Paywall').then((m) => ({ default: m.Paywall })))
 // Sheets
 import { BottomNav } from './components/BottomNav'
 import { ErrorBoundary } from './components/ErrorBoundary'
-const RegistrarSheet  = lazy(() => import('./sheets/Registrar').then((m) => ({ default: m.RegistrarSheet })))
-const CalcSheet       = lazy(() => import('./sheets/Calc').then((m) => ({ default: m.CalcSheet })))
-const MedidaSheet     = lazy(() => import('./sheets/Medida').then((m) => ({ default: m.MedidaSheet })))
-const ArcoSheet       = lazy(() => import('./sheets/Arco').then((m) => ({ default: m.ArcoSheet })))
-const ConfirmDeleteSheet = lazy(() => import('./sheets/ConfirmDelete').then((m) => ({ default: m.ConfirmDeleteSheet })))
-const ProtocoloEdit   = lazy(() => import('./sheets/ProtocoloEdit').then((m) => ({ default: m.ProtocoloEdit })))
-const Agregar         = lazy(() => import('./sheets/Agregar').then((m) => ({ default: m.Agregar })))
-const Medidas         = lazy(() => import('./sheets/Medidas').then((m) => ({ default: m.Medidas })))
-const CrearPlatillo   = lazy(() => import('./sheets/CrearPlatillo').then((m) => ({ default: m.CrearPlatillo })))
-const Recetario       = lazy(() => import('./sheets/Recetario').then((m) => ({ default: m.Recetario })))
-const DoseConfirm     = lazy(() => import('./sheets/DoseConfirm').then((m) => ({ default: m.DoseConfirm })))
-const MedidaDetailSheet= lazy(() => import('./sheets/MedidaDetail').then((m) => ({ default: m.MedidaDetailSheet })))
-const DayDetail       = lazy(() => import('./sheets/DayDetail').then((m) => ({ default: m.DayDetail })))
+const RegistrarSheet  = lazyRetry(() => import('./sheets/Registrar').then((m) => ({ default: m.RegistrarSheet })))
+const CalcSheet       = lazyRetry(() => import('./sheets/Calc').then((m) => ({ default: m.CalcSheet })))
+const MedidaSheet     = lazyRetry(() => import('./sheets/Medida').then((m) => ({ default: m.MedidaSheet })))
+const ArcoSheet       = lazyRetry(() => import('./sheets/Arco').then((m) => ({ default: m.ArcoSheet })))
+const ConfirmDeleteSheet = lazyRetry(() => import('./sheets/ConfirmDelete').then((m) => ({ default: m.ConfirmDeleteSheet })))
+const ProtocoloEdit   = lazyRetry(() => import('./sheets/ProtocoloEdit').then((m) => ({ default: m.ProtocoloEdit })))
+const Agregar         = lazyRetry(() => import('./sheets/Agregar').then((m) => ({ default: m.Agregar })))
+const Medidas         = lazyRetry(() => import('./sheets/Medidas').then((m) => ({ default: m.Medidas })))
+const CrearPlatillo   = lazyRetry(() => import('./sheets/CrearPlatillo').then((m) => ({ default: m.CrearPlatillo })))
+const Recetario       = lazyRetry(() => import('./sheets/Recetario').then((m) => ({ default: m.Recetario })))
+const DoseConfirm     = lazyRetry(() => import('./sheets/DoseConfirm').then((m) => ({ default: m.DoseConfirm })))
+const MedidaDetailSheet= lazyRetry(() => import('./sheets/MedidaDetail').then((m) => ({ default: m.MedidaDetailSheet })))
+const DayDetail       = lazyRetry(() => import('./sheets/DayDetail').then((m) => ({ default: m.DayDetail })))
 
 /** Fallback mínimo durante lazy-load (evita flash blanco) */
+// Fallback de Suspense VISIBLE (antes era un div en blanco = se veía como "pantalla en blanco"
+// mientras cargaba el chunk de una tab). Spinner centrado sobre el fondo de la app.
 function SheetFallback() {
-  return <div style={{ position: 'absolute', inset: 0, background: 'var(--bg)' }} />
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, ease: 'linear', duration: 0.8 }}
+        style={{ width: 30, height: 30, borderRadius: '50%', border: '3px solid var(--ink-100)', borderTopColor: 'var(--brand-700)' }}
+        aria-label="Cargando"
+        role="status"
+      />
+    </div>
+  )
 }
 
 const fade = sharedAxisX
@@ -202,9 +238,15 @@ function AppShell() {
           style={{ position: 'absolute', inset: 0 }}>
           {/* Boundary por pantalla: si una tab crashea al renderizar (p.ej. tras registrar una dosis),
               muestra un fallback recuperable en lugar de pantalla en blanco; la nav de abajo sigue viva.
+              Suspense propio: al cambiar a una tab cuyo chunk lazy aún no cargó, muestra el spinner
+              EN EL ÁREA DE CONTENIDO (la nav queda fuera de este Suspense → no parpadea ni desaparece).
+              Antes el único Suspense envolvía todo el AppShell → al cargar un chunk se borraba la pantalla
+              completa y, con el fallback en blanco, se veía como "pantalla en blanco" al cambiar de tab.
               resetKey=tab → al cambiar de pestaña se limpia el error. */}
           <ErrorBoundary resetKey={state.tab} scope={'tab:' + state.tab}>
-            <Tab />
+            <Suspense fallback={<SheetFallback />}>
+              <Tab />
+            </Suspense>
           </ErrorBoundary>
         </motion.div>
       </AnimatePresence>
