@@ -71,6 +71,14 @@ function DayCell({
 
   const label = date.getDate()
 
+  // Normalizar estado: HOY pendiente nunca es "omitida" (es "Hoy"); el FUTURO nunca es "omitida".
+  const startToday = new Date()
+  startToday.setHours(0, 0, 0, 0)
+  const isFuture = !isToday && date.getTime() > startToday.getTime()
+  let eff: DayStateEx | null = status
+  if (isToday && status !== 'taken') eff = null            // hoy pendiente → trato "Hoy"
+  if (isFuture && eff === 'missed') eff = 'scheduled'       // futuro programado, no omitido
+
   // Color/style logic
   let bg = ''
   let textCls = 'text-muted-foreground'
@@ -81,31 +89,31 @@ function DayCell({
     textCls = 'text-teal font-semibold'
   }
 
-  if (status === 'taken') {
+  if (eff === 'taken') {
     bg = 'bg-teal/20'
     textCls = 'text-teal font-semibold'
     dotColor = 'bg-teal'
-  } else if (status === 'missed') {
+  } else if (eff === 'missed') {
     bg = 'bg-alert/15'
     textCls = 'text-alert font-medium'
     dotColor = 'bg-alert'
-  } else if (status === 'scheduled') {
-    bg = 'bg-warn/10'
-    textCls = 'text-warn font-medium'
+  } else if (eff === 'scheduled') {
+    bg = isToday ? bg : 'bg-warn/10'
+    textCls = isToday ? textCls : 'text-warn font-medium'
     dotColor = 'bg-warn'
-  } else if (status === 'rest') {
+  } else if (eff === 'rest') {
     textCls = 'text-muted-foreground/50'
   }
 
-  // Today overrides dot color to teal if no dose status
-  if (isToday && !dotColor && status !== 'taken' && status !== 'missed') {
+  // Hoy: punto teal si no hay dosis tomada
+  if (isToday && eff !== 'taken') {
     dotColor = 'bg-teal'
   }
 
   return (
     <div
       className={`relative flex h-11 flex-col items-center justify-center rounded-lg ${bg}`}
-      aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${status === 'taken' ? ', dosis tomada' : status === 'missed' ? ', dosis omitida' : status === 'scheduled' ? ', dosis programada' : ''}`}
+      aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : ''}`}
     >
       <span className={`text-[13px] leading-none ${textCls}`}>{label}</span>
       {dotColor && (

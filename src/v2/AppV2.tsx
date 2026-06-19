@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import { Settings } from 'lucide-react'
 import { AppProviderV2 } from './lib/provider'
 import { useApp } from '../lib/store'
@@ -11,23 +11,57 @@ import { Vida } from './screens/Vida'
 import { Comida } from './screens/Comida'
 import { Semana } from './screens/Semana'
 import { RegistrarSheet } from './screens/RegistrarSheet'
+import { Ajustes } from './screens/Ajustes'
+import { Perfil } from './screens/Perfil'
+import { Splash } from './flow/Splash'
+import { Onboarding } from './flow/Onboarding'
+import { Goal } from './flow/Goal'
+import { Account } from './flow/Account'
+
+// Flujo de arranque: splash → onboarding → goal → account → s-app.
+// Pantallas no construidas aún (s-login/s-baseline/etc.) caen al shell (fallback seguro).
+const FLOW: Record<string, ComponentType> = {
+  's-splash': Splash,
+  's-onboarding': Onboarding,
+  's-goal': Goal,
+  's-account': Account,
+}
+
+function Frame({ children }: { children: ReactNode }) {
+  return (
+    <div className="app-frame relative mx-auto h-[100dvh] w-full overflow-hidden bg-precision-grid sm:my-0 md:h-[880px] md:max-w-[412px] md:rounded-[40px]">
+      {children}
+    </div>
+  )
+}
 
 function Shell() {
   const { state, dispatch } = useApp()
-  const tab = state.tab as TabId
   const [showReg, setShowReg] = useState(false)
+  const [showAjustes, setShowAjustes] = useState(false)
+  const [showPerfil, setShowPerfil] = useState(false)
 
+  // Router de arranque
+  const FlowScreen = FLOW[state.screen]
+  if (FlowScreen && state.screen !== 's-app') {
+    return (
+      <Frame>
+        <FlowScreen />
+      </Frame>
+    )
+  }
+
+  const tab = state.tab as TabId
   return (
-    <div className="app-frame relative mx-auto h-[100dvh] w-full overflow-hidden bg-precision-grid sm:my-0 md:h-[880px] md:max-w-[412px] md:rounded-[40px]">
-      {/* gear ajustes */}
+    <Frame>
       <button
         aria-label="Ajustes"
+        onClick={() => setShowAjustes(true)}
         className="absolute right-4 top-[max(14px,env(safe-area-inset-top))] z-40 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-raised/70 text-muted-foreground backdrop-blur"
       >
         <Settings size={18} />
       </button>
 
-      {/* contenido scrolleable */}
       <div className="absolute inset-0 overflow-y-auto overflow-x-clip">
         {tab === 'inicio' && <Inicio onRegistrar={() => setShowReg(true)} />}
         {tab === 'diario' && <Diario />}
@@ -39,9 +73,17 @@ function Shell() {
 
       <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={() => setShowReg(true)} />
 
-      {/* Hoja de captura universal */}
       <RegistrarSheet open={showReg} onClose={() => setShowReg(false)} />
-    </div>
+      <Ajustes
+        open={showAjustes}
+        onClose={() => setShowAjustes(false)}
+        onOpenPerfil={() => {
+          setShowAjustes(false)
+          setShowPerfil(true)
+        }}
+      />
+      <Perfil open={showPerfil} onClose={() => setShowPerfil(false)} />
+    </Frame>
   )
 }
 

@@ -1,0 +1,227 @@
+/**
+ * Goal.tsx — v2 flow
+ *
+ * Selección de objetivo(s) de onboarding (hasta 3 categorías).
+ * NO precarga producto (P0-4).
+ * Avanza a 's-account' vía dispatch setGoals + go.
+ *
+ * ScreenId: 's-goal'
+ * Dispatch: { t: 'setGoals', cats: Category[] }  →  { t: 'go', screen: 's-account' }
+ */
+import { useState } from 'react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { ChevronLeft, Check } from 'lucide-react'
+import { useApp } from '../../lib/store'
+import { GOALS, CATEGORY_COLOR } from '../../lib/catalog'
+import type { Category } from '../../lib/types'
+import { Button } from '../ui/Button'
+import { Glass } from '../ui/Glass'
+
+// Íconos de categoría inline SVG para no depender de glyphs de v1
+const CAT_EMOJI: Record<string, string> = {
+  'Metabolismo':  '🔥',
+  'Recuperación': '💚',
+  'Cognitivo':    '⚡',
+  'Piel':         '✨',
+  'Anti-Aging':   '⏳',
+  'Crecimiento':  '💪',
+  'Reproductivo': '🌸',
+  'Explorar':     '🧭',
+}
+
+const MAX_GOALS = 3
+
+const fade = {
+  hidden: { opacity: 0, y: 12 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.28, ease: [0, 0, 0.2, 1] as [number, number, number, number] },
+  },
+}
+
+export function Goal() {
+  const { dispatch } = useApp()
+  const reduce = useReducedMotion()
+
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  const toggle = (cat: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) {
+        next.delete(cat)
+      } else if (next.size < MAX_GOALS) {
+        next.add(cat)
+      }
+      return next
+    })
+  }
+
+  const handleContinue = () => {
+    if (selected.size === 0) return
+    dispatch({
+      t: 'setGoals',
+      cats: [...selected] as Category[],
+    })
+    dispatch({ t: 'go', screen: 's-account' })
+  }
+
+  return (
+    <div
+      className="flex min-h-dvh flex-col bg-void"
+      style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
+    >
+      {/* App bar */}
+      <header
+        className="flex flex-shrink-0 items-center gap-4 px-4"
+        style={{
+          paddingTop: 'max(14px, env(safe-area-inset-top))',
+          paddingBottom: 12,
+        }}
+      >
+        <button
+          aria-label="Atrás"
+          onClick={() => dispatch({ t: 'go', screen: 's-onboarding' })}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <ChevronLeft size={22} />
+        </button>
+
+        {/* Barra de progreso — paso 1 de 2 */}
+        <div className="flex-1">
+          <div className="h-1 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full w-1/2 rounded-full bg-teal" />
+          </div>
+        </div>
+
+        {/* Spacer balanceador */}
+        <div className="w-11" />
+      </header>
+
+      {/* Encabezado */}
+      <motion.div
+        initial={reduce ? false : 'hidden'}
+        animate="show"
+        variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+        className="px-5 pb-5 pt-3 text-center"
+      >
+        <motion.h1
+          variants={fade}
+          className="text-[26px] font-bold leading-tight tracking-tight text-foreground"
+        >
+          ¿Qué quieres lograr?
+        </motion.h1>
+        <motion.p variants={fade} className="mt-2 text-[14px] text-muted-foreground">
+          Elige tu enfoque principal para personalizar tu experiencia.{' '}
+          <span className="text-muted-foreground/70">(Elige hasta {MAX_GOALS})</span>
+        </motion.p>
+      </motion.div>
+
+      {/* Lista de objetivos */}
+      <motion.div
+        initial={reduce ? false : 'hidden'}
+        animate="show"
+        variants={{ show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } } }}
+        className="flex flex-1 flex-col gap-3 overflow-y-auto px-4"
+      >
+        {GOALS.map((g) => {
+          const color = CATEGORY_COLOR[g.cat] ?? '#5FC9B8'
+          const isActive = selected.has(g.cat)
+          const emoji = CAT_EMOJI[g.cat] ?? '●'
+
+          return (
+            <motion.div key={g.cat} variants={fade}>
+              <button
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => toggle(g.cat)}
+                className="w-full text-left"
+              >
+                <Glass
+                  className={[
+                    'flex items-center gap-4 p-4 transition-[border-color,box-shadow] duration-150',
+                    isActive
+                      ? 'ring-2 ring-inset'
+                      : 'ring-0',
+                  ].join(' ')}
+                  style={
+                    isActive
+                      ? {
+                          borderColor: color,
+                          boxShadow: `0 0 0 1px ${color}33`,
+                          // subtle background tint
+                          background: `color-mix(in srgb, ${color} 6%, var(--glass-bg, rgba(30,41,59,0.72)))`,
+                        }
+                      : {}
+                  }
+                >
+                  {/* Ícono */}
+                  <span
+                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-[22px]"
+                    style={{
+                      background: `color-mix(in srgb, ${color} 14%, transparent)`,
+                    }}
+                    aria-hidden="true"
+                  >
+                    {emoji}
+                  </span>
+
+                  {/* Texto */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground">{g.label}</p>
+                    <p className="text-[13px] text-muted-foreground">{g.sub}</p>
+                  </div>
+
+                  {/* Check animado */}
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.span
+                        key="check"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
+                        style={{ background: color }}
+                      >
+                        <Check size={14} strokeWidth={3} color="#fff" />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Glass>
+              </button>
+            </motion.div>
+          )
+        })}
+      </motion.div>
+
+      {/* CTA */}
+      <div className="mt-6 flex flex-col items-center gap-3 px-4">
+        <Button
+          size="full"
+          onClick={handleContinue}
+          disabled={selected.size === 0}
+          aria-disabled={selected.size === 0}
+        >
+          Continuar
+        </Button>
+
+        <p
+          role="status"
+          aria-live="polite"
+          className="min-h-[20px] text-[13px] text-muted-foreground"
+        >
+          {selected.size > 0
+            ? `${selected.size} objetivo${selected.size > 1 ? 's' : ''} elegido${selected.size > 1 ? 's' : ''}. Podrás ajustar esto más adelante.`
+            : 'Elige al menos una opción para continuar.'}
+        </p>
+
+        {/* Disclaimer de investigación */}
+        <p className="text-center text-[11px] leading-relaxed text-muted-foreground/60">
+          Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
+        </p>
+      </div>
+    </div>
+  )
+}
