@@ -11,6 +11,8 @@ import { Stepper } from '../ui/Stepper'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
 import { DataPlate } from '../ui/DataPlate'
+import { InjectionMap } from '../ui/InjectionMap'
+import type { InjectionSite } from '../../lib/types'
 
 // ── Tipos y constantes ────────────────────────────────────────────────────────
 
@@ -129,6 +131,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
   // ── Dosis — campo controlado; SIEMPRE vacío al abrir ─────────────────────
   const [dose, setDose] = useState('')
+  const [site, setSite] = useState<InjectionSite | null>(null)
   const [unit, setUnit] = useState<DoseUnit>(() => {
     const saved = product ? getStoredUnit(product) : null
     return saved ?? 'mg'
@@ -198,11 +201,12 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       product: finalProduct,
       value: val || null,
       unit,
+      site: site ?? undefined,
     })
     // Persistir unidad recordada (item 429)
     try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
     onClose()
-  }, [saving, product, dose, unit, state.protocols, dispatch, onClose])
+  }, [saving, product, dose, unit, site, state.protocols, dispatch, onClose])
 
   // Reset estado interno al cerrar/abrir
   useEffect(() => {
@@ -212,6 +216,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       setSearchQuery('')
       setPickingCustom(false)
       setCustomProduct('')
+      setSite(null)
     }
   }, [open])
 
@@ -381,6 +386,14 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               </div>
             </div>
           )}
+        </div>
+
+        {/* ── Zona de inyección (mapa interactivo + recencia) ── */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Zona de inyección <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
+          </p>
+          <InjectionMap selected={site} onSelect={setSite} />
         </div>
 
         {/* ── CTA primario ── */}
