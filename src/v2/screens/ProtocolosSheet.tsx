@@ -5,8 +5,8 @@
 // Compliance: sin claims médicos, es-MX, tap targets ≥44px.
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Archive, ArchiveRestore, Settings2, ChevronDown, ChevronUp } from 'lucide-react'
-import { useApp } from '../../lib/store'
+import { Archive, ArchiveRestore, Settings2, ChevronDown, ChevronUp, Pencil, Droplet } from 'lucide-react'
+import { useApp, doseForProduct } from '../../lib/store'
 import { CATEGORY_COLOR, PEPTIDES } from '../../lib/catalog'
 import { cadenceLabel, proximasCadence } from '../../lib/cadence'
 import { Sheet } from '../ui/Sheet'
@@ -93,13 +93,39 @@ function ProtocolCard({
             )}
           </div>
           <span className="text-[12px] text-muted-foreground">{catLabel}</span>
-          {/* Chip de cadencia */}
-          <span
-            className="mt-1 inline-flex items-center gap-1 self-start rounded-full border border-white/10 bg-white/6 px-2.5 py-0.5 text-[11px] font-semibold text-teal"
-            aria-label={`Cadencia: ${cadLabel}`}
+          {/* #9: chip de cadencia TAPPABLE → editar días y cadencia (descubrible, con etiqueta) */}
+          <button
+            type="button"
+            onClick={() => onEdit(product)}
+            aria-label={`Editar días y cadencia de ${product} (actual: ${cadLabel})`}
+            className="mt-1 inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-full border border-teal/30 bg-teal/8 px-3 py-1 text-[11px] font-semibold text-teal transition-colors hover:bg-teal/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             {cadLabel}
-          </span>
+            <Pencil size={11} aria-hidden />
+          </button>
+          {/* #22: resumen de un vistazo — dosis por toma + vial restante */}
+          {(() => {
+            const dose = doseForProduct(state, product)
+            const remaining = p.vialStock && p.vialStock.totalMg > 0
+              ? p.vialStock.totalMg - (p.vialStock.usedMg ?? 0)
+              : null
+            if (!dose && remaining == null) return null
+            return (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-secondary-foreground">
+                {dose && (
+                  <span className="inline-flex items-center gap-1 font-mono">
+                    {dose.value} {dose.unit}<span className="text-muted-foreground">/toma</span>
+                  </span>
+                )}
+                {remaining != null && (
+                  <span className="inline-flex items-center gap-1 font-mono">
+                    <Droplet size={11} className="text-teal" aria-hidden />
+                    {remaining.toFixed(1)} mg<span className="text-muted-foreground"> en vial</span>
+                  </span>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Botones de acción */}

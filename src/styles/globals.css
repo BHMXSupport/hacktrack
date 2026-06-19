@@ -106,6 +106,19 @@
   }
 }
 
+/* #12 — Alto contraste: sube el contraste del texto tenue (AA+) sin tocar tamaños.
+   Solo redefine tokens de color de texto; toda la UI que usa muted/secondary se beneficia. */
+[data-contrast="high"] {
+  --muted-foreground: #AEB9CC;       /* gris tenue → mucho más legible sobre el cockpit */
+  --secondary-foreground: #E3E9F2;
+  --border: rgba(255,255,255,0.20);
+}
+[data-contrast="high"][data-theme="light"] {
+  --muted-foreground: #3A475C;
+  --secondary-foreground: #16202F;
+  --border: rgba(14,23,38,0.22);
+}
+
 /* ============================================================
    Tema CLARO (opcional, R3) — variante coherente del cockpit.
    Dark sigue siendo el default (:root). Light = data-theme="light".

@@ -33,10 +33,11 @@ import { Baseline } from './flow/Baseline'
 import { MeasurePicker } from './flow/MeasurePicker'
 import { Account } from './flow/Account'
 import { Login } from './flow/Login'
+import { Forgot } from './flow/Forgot'
 import { Welcome } from './flow/Welcome'
 
 // Flujo de arranque: splash → onboarding → goal → baseline → measures → account → s-app.
-// Login es alterno (desde Account "ya tengo cuenta"). s-forgot aún no existe → cae a Login.
+// Login es alterno (desde Account "ya tengo cuenta"). s-forgot = pantalla real de recuperación.
 const FLOW: Record<string, ComponentType> = {
   's-splash': Splash,
   's-onboarding': Onboarding,
@@ -45,7 +46,7 @@ const FLOW: Record<string, ComponentType> = {
   's-measures': MeasurePicker,
   's-account': Account,
   's-login': Login,
-  's-forgot': Login,
+  's-forgot': Forgot,
 }
 
 function Frame({ children }: { children: ReactNode }) {
@@ -99,7 +100,7 @@ function Shell() {
         </div>
       </ErrorBoundary>
 
-      <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={openReg} />
+      <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={openReg} simple={!!state.settings.simpleMode} />
       <Toast />
 
       <RegistrarSheet open={sheet === 'registrar' || sheet === 'agregar'} onClose={closeSheet} />

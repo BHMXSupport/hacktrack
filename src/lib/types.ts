@@ -207,6 +207,8 @@ export interface UserSettings {
   trialEndsAt?: number | null // epoch ms en que expira el período de prueba Premium
   pinHash?: string | null     // hash del PIN (SHA-256 hex); null = sin PIN configurado
   secondReminderMin?: number | null // minutos antes de la siguiente toma para el segundo recordatorio; null = desactivado
+  highContrast?: boolean      // accesibilidad: sube el contraste del texto tenue (AA+) sin cambiar tamaños
+  simpleMode?: boolean        // modo simple: oculta Vida/Comida/Semana de la navegación
 }
 
 export type Sexo = 'H' | 'M'

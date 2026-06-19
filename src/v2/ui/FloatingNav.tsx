@@ -13,16 +13,25 @@ const TABS: TabDef[] = [
   { id: 'semana', label: 'Semana', Icon: CalendarDays },
 ]
 
+// #25: modo simple → solo Inicio / Diario / Progreso
+const SIMPLE_IDS: TabId[] = ['inicio', 'diario', 'protocolo']
+
 export function FloatingNav({
   active,
   onTab,
   onFab,
+  simple = false,
 }: {
   active: TabId
   onTab: (t: TabId) => void
   onFab: () => void
+  simple?: boolean
 }) {
   const reduce = useReducedMotion()
+  const visible = simple ? TABS.filter((t) => SIMPLE_IDS.includes(t.id)) : TABS
+  const mid = Math.ceil(visible.length / 2)
+  const left = visible.slice(0, mid)
+  const right = visible.slice(mid)
   return (
     <nav
       className="glass absolute inset-x-2 z-30 flex items-stretch rounded-[22px]"
@@ -32,7 +41,7 @@ export function FloatingNav({
         WebkitBackdropFilter: 'blur(28px) saturate(160%)',
       }}
     >
-      {TABS.slice(0, 3).map((t) => (
+      {left.map((t) => (
         <NavTab key={t.id} t={t} active={active === t.id} reduce={!!reduce} onClick={() => onTab(t.id)} />
       ))}
       <div className="relative w-[58px] shrink-0" aria-hidden>
@@ -45,7 +54,7 @@ export function FloatingNav({
           <Plus size={26} strokeWidth={2.5} />
         </button>
       </div>
-      {TABS.slice(3).map((t) => (
+      {right.map((t) => (
         <NavTab key={t.id} t={t} active={active === t.id} reduce={!!reduce} onClick={() => onTab(t.id)} />
       ))}
     </nav>

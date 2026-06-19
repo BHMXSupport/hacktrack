@@ -268,9 +268,9 @@ export function Account() {
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
               aria-required="true"
-              className="mt-0.5 h-5 w-5 flex-shrink-0 cursor-pointer rounded accent-teal"
+              className="mt-0.5 h-6 w-6 flex-shrink-0 cursor-pointer rounded accent-teal"
             />
-            <label htmlFor="ht-privacy" className="cursor-pointer text-[13px] leading-relaxed text-secondary-foreground">
+            <label htmlFor="ht-privacy" className="min-h-[44px] cursor-pointer text-[13px] leading-relaxed text-secondary-foreground flex items-center">
               He leído el{' '}
               <span className="font-semibold text-teal underline-offset-2 hover:underline">
                 Aviso de Privacidad
@@ -297,12 +297,15 @@ export function Account() {
           <div className="h-px flex-1 bg-white/8" />
         </motion.div>
 
-        {/* CTA sin cuenta — botón prominente */}
-        <motion.div variants={fade}>
+        {/* CTAs alternas — sin cuenta + ya tengo cuenta, ambas con peso de botón (#7) */}
+        <motion.div variants={fade} className="flex flex-col gap-3">
           <Button size="full" variant="outline" onClick={handleSkip}>
             Continuar sin cuenta
           </Button>
-          <p className="mt-2 text-center text-[12px] text-muted-foreground">
+          <Button size="full" variant="ghost" onClick={() => dispatch({ t: 'go', screen: 's-login' })}>
+            Ya tengo cuenta · Iniciar sesión
+          </Button>
+          <p className="text-center text-[12px] text-muted-foreground">
             Tus datos se guardan solo en tu dispositivo.
           </p>
         </motion.div>
@@ -312,14 +315,6 @@ export function Account() {
           variants={fade}
           className="mt-auto flex flex-col items-center gap-4 pt-2"
         >
-          {/* Ya tengo cuenta */}
-          <button
-            type="button"
-            onClick={() => dispatch({ t: 'go', screen: 's-login' })}
-            className="inline-flex h-11 items-center text-[14px] font-medium text-teal underline-offset-2 hover:underline"
-          >
-            Ya tengo cuenta · Entrar
-          </button>
 
           {/* Trust badges */}
           <div className="flex flex-wrap justify-center gap-3">

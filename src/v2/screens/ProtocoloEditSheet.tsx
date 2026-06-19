@@ -556,6 +556,28 @@ export function ProtocoloEditSheet({
             aria-label={`Hora del recordatorio para ${p.product}`}
             className="h-12 w-full rounded-xl border border-white/12 bg-raised px-4 font-mono text-[15px] text-foreground focus:outline focus:outline-2 focus:outline-ring"
           />
+          {/* #20: presets rápidos (incl. tomas nocturnas de primera clase) */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { label: '☀️ Mañana', value: '08:00' },
+              { label: '🌤️ Mediodía', value: '13:00' },
+              { label: '🌙 Noche', value: '21:00' },
+            ] as const).map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                onClick={() => setReminderTime(preset.value)}
+                aria-pressed={reminderTime === preset.value}
+                className={`inline-flex min-h-[36px] items-center rounded-full border px-3 text-[12px] font-semibold transition-colors ${
+                  reminderTime === preset.value
+                    ? 'border-teal bg-teal/15 text-teal'
+                    : 'border-white/12 bg-transparent text-secondary-foreground hover:bg-white/6'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Vigencia (fechas) (item R10) ─────────────────────────────── */}

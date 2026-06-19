@@ -5,7 +5,7 @@ import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
-  Lock, Mail, Tag, LogOut, ListChecks, Download,
+  Lock, Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
@@ -452,6 +452,20 @@ export function Ajustes({
                 </span>
                 <Chevron />
               </button>
+              <div className="mx-4 h-px bg-white/[0.06]" />
+              <button
+                type="button"
+                onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
+                aria-label="Calculadora de reconstitución"
+              >
+                <Calculator size={18} className="shrink-0 text-teal" />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[15px] font-medium text-foreground">Calculadora de reconstitución</span>
+                  <span className="text-[12px] text-muted-foreground">mg de vial + agua → unidades</span>
+                </span>
+                <Chevron />
+              </button>
             </RowCard>
           </section>
 
@@ -479,6 +493,38 @@ export function Ajustes({
                     onChange={(mode) => dispatch({ t: 'setThemeMode', mode })}
                   />
                 </span>
+              </Row>
+            </RowCard>
+          </section>
+
+          {/* ── ACCESIBILIDAD ─────────────────────────────────────────────── */}
+          <section>
+            <SectionLabel>Accesibilidad</SectionLabel>
+            <RowCard>
+              <Row className="px-4 py-3">
+                <Contrast size={18} className={settings.highContrast ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">Alto contraste</span>
+                  <span className="text-[12px] text-muted-foreground">Texto más legible (no cambia el tamaño)</span>
+                </span>
+                <Switch
+                  checked={!!settings.highContrast}
+                  onChange={(v) => dispatch({ t: 'setSetting', key: 'highContrast', value: v })}
+                  label="Activar alto contraste"
+                />
+              </Row>
+              <div className="mx-4 h-px bg-white/[0.06]" />
+              <Row className="px-4 py-3">
+                <LayoutGrid size={18} className={settings.simpleMode ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">Modo simple</span>
+                  <span className="text-[12px] text-muted-foreground">Solo Inicio, Diario y Progreso</span>
+                </span>
+                <Switch
+                  checked={!!settings.simpleMode}
+                  onChange={(v) => dispatch({ t: 'setSetting', key: 'simpleMode', value: v })}
+                  label="Activar modo simple"
+                />
               </Row>
             </RowCard>
           </section>

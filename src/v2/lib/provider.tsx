@@ -56,6 +56,12 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
     }
   }, [state])
 
+  // #12 — alto contraste (sube el contraste del texto tenue sin cambiar tamaños)
+  useEffect(() => {
+    if (state.settings.highContrast) document.documentElement.setAttribute('data-contrast', 'high')
+    else document.documentElement.removeAttribute('data-contrast')
+  }, [state.settings.highContrast])
+
   // R3 — tema reactivo a settings.themeMode (+ re-evaluación en modo auto)
   useEffect(() => {
     applyTheme(state.settings.themeMode)
