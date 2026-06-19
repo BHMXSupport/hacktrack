@@ -65,12 +65,12 @@ export function MeasurePicker() {
 
   function handleContinuar() {
     dispatch({ t: 'setMeasures', measures: [...selected] })
-    dispatch({ t: 'go', screen: 's-account' })
+    dispatch({ t: 'go', screen: 's-protocol' })
   }
 
   function handleSaltar() {
     dispatch({ t: 'setMeasures', measures: defaults })
-    dispatch({ t: 'go', screen: 's-account' })
+    dispatch({ t: 'go', screen: 's-protocol' })
   }
 
   return (
@@ -115,8 +115,12 @@ export function MeasurePicker() {
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
             ¿Qué quieres seguir?
           </h1>
-          <p className="mt-2 text-[14px] text-muted-foreground">
-            Elige las métricas que más te interesan. Puedes cambiarlas después.
+          {/* #18: deja claro que las métricas se adaptan al objetivo elegido */}
+          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-2.5 py-1 text-[12px] font-semibold text-teal">
+            Métricas para: {goal}
+          </span>
+          <p className="mt-2 text-[14px] text-secondary-foreground">
+            Elige las que más te interesan. Puedes cambiarlas después.
           </p>
         </motion.div>
 

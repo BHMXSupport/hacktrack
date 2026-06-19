@@ -31,6 +31,7 @@ import { Onboarding } from './flow/Onboarding'
 import { Goal } from './flow/Goal'
 import { Baseline } from './flow/Baseline'
 import { MeasurePicker } from './flow/MeasurePicker'
+import { ProtocolSetup } from './flow/ProtocolSetup'
 import { Account } from './flow/Account'
 import { Login } from './flow/Login'
 import { Forgot } from './flow/Forgot'
@@ -44,6 +45,7 @@ const FLOW: Record<string, ComponentType> = {
   's-goal': Goal,
   's-baseline': Baseline,
   's-measures': MeasurePicker,
+  's-protocol': ProtocolSetup,
   's-account': Account,
   's-login': Login,
   's-forgot': Forgot,

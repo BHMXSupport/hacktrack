@@ -123,7 +123,7 @@ export function Account() {
       >
         <button
           aria-label="Atrás"
-          onClick={() => dispatch({ t: 'go', screen: 's-goal' })}
+          onClick={() => dispatch({ t: 'go', screen: 's-protocol' })}
           className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
@@ -151,7 +151,7 @@ export function Account() {
             Crea tu cuenta
           </h1>
           <p className="mt-2 text-[14px] text-muted-foreground">
-            Guarda y respalda tu progreso.
+            Tu cuenta guarda tu acceso; tu historial vive en tu dispositivo.
           </p>
         </motion.div>
 
@@ -255,7 +255,7 @@ export function Account() {
             )}
           </Field>
 
-          {/* Checkbox de privacidad */}
+          {/* Checkbox de privacidad — #15: párrafo fluido (no flex) para que el texto no se encime */}
           <Glass className="flex items-start gap-3 p-4">
             <input
               id="ht-privacy"
@@ -265,12 +265,10 @@ export function Account() {
               aria-required="true"
               className="mt-0.5 h-6 w-6 flex-shrink-0 cursor-pointer rounded accent-teal"
             />
-            <label htmlFor="ht-privacy" className="min-h-[44px] cursor-pointer text-[13px] leading-relaxed text-secondary-foreground flex items-center">
-              He leído el{' '}
-              <span className="font-semibold text-teal underline-offset-2 hover:underline">
-                Aviso de Privacidad
-              </span>{' '}
-              y acepto. Mis datos se guardan solo en mi dispositivo.
+            <label htmlFor="ht-privacy" className="block cursor-pointer text-[13px] leading-relaxed text-secondary-foreground">
+              He leído y acepto el{' '}
+              <span className="font-semibold text-teal underline underline-offset-2">Aviso de Privacidad</span>.
+              Tu historial se guarda solo en tu dispositivo.
             </label>
           </Glass>
 
@@ -298,7 +296,7 @@ export function Account() {
             Ya tengo cuenta · Iniciar sesión
           </Button>
           <p className="text-center text-[12px] text-muted-foreground">
-            Tu cuenta protege y respalda tu progreso. Tus datos se guardan en tu dispositivo.
+            Tu cuenta (correo) se guarda en la nube para iniciar sesión donde sea. Tus registros viven solo en este dispositivo.
           </p>
         </motion.div>
 

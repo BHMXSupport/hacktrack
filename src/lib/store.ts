@@ -9,7 +9,7 @@ import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cad
 import { bmiCalc } from './bmi'
 
 export type ScreenId =
-  | 's-splash' | 's-onboarding' | 's-goal' | 's-baseline' | 's-measures' | 's-account' | 's-login' | 's-forgot' | 's-welcome' | 's-import' | 's-app'
+  | 's-splash' | 's-onboarding' | 's-goal' | 's-baseline' | 's-measures' | 's-protocol' | 's-account' | 's-login' | 's-forgot' | 's-welcome' | 's-import' | 's-app'
 export type TabId = 'inicio' | 'diario' | 'protocolo' | 'vida' | 'comida' | 'semana'
 export type ProgresoView = 'cal' | 'avances'
 export type SheetId =
@@ -1348,7 +1348,12 @@ export function adherence(s: AppState, days = 30, now: Date = new Date()): Adher
 export function adherenceMonth(s: AppState, now: Date = new Date()): AdherenceStat | null {
   if (!s.protocol) return null
   const today = startOfDay(new Date(s.todayTs))
-  const from = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
+  // #9: no penalizar desde el día 1 del mes si el protocolo empezó después (evita arrancar en 8%).
+  // Tomamos el inicio MÁS TEMPRANO entre los protocolos activos y lo limitamos al mes en curso.
+  const starts = Object.values(s.protocols).filter((p) => !p.archived).map((p) => p.startDate)
+  const earliest = starts.length ? Math.min(...starts) : monthStart
+  const from = Math.max(monthStart, startOfDay(new Date(earliest)).getTime())
   const to = new Date(today.getFullYear(), today.getMonth() + 1, 0).getTime()
   return toStat(tallyDoses(s, from, to, now))
 }

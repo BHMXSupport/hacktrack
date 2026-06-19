@@ -26,6 +26,8 @@ function IllustrationRitmo() {
   return (
     <Glass className="w-full max-w-[280px] mx-auto flex flex-col gap-3 p-4">
       {/* Encabezado */}
+      {/* #20: etiqueta "Ejemplo" para que no parezca progreso real del usuario */}
+      <span className="self-start rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ejemplo</span>
       <div className="flex items-center gap-2">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal/15">
           <Clock size={16} className="text-teal" />
@@ -229,11 +231,17 @@ export function Onboarding() {
         {`Paso ${slide + 1} de ${SLIDES.length}: ${title}`}
       </div>
 
-      {/* Barra superior: "Saltar" a la derecha */}
+      {/* Barra superior: "Iniciar sesión" (#7, para quien regresa) + "Saltar" */}
       <div
-        className="flex flex-shrink-0 items-center justify-end px-5"
+        className="flex flex-shrink-0 items-center justify-between px-5"
         style={{ paddingTop: 'max(20px, env(safe-area-inset-top))', minHeight: 56 }}
       >
+        <button
+          onClick={() => dispatch({ t: 'go', screen: 's-login' })}
+          className="inline-flex h-11 items-center justify-center rounded-md px-2 text-[13px] font-semibold text-teal hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          Iniciar sesión
+        </button>
         <button
           onClick={toGoal}
           className="inline-flex h-11 min-w-[44px] items-center justify-center rounded-md px-3 text-[14px] text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
@@ -346,7 +354,7 @@ export function Onboarding() {
               <Button
                 size="full"
                 variant="ghost"
-                onClick={() => dispatch({ t: 'go', screen: 's-account' })}
+                onClick={() => dispatch({ t: 'go', screen: 's-login' })}
               >
                 Ya tengo cuenta
               </Button>
