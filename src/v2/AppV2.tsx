@@ -5,10 +5,11 @@ import { useApp } from '../lib/store'
 import type { TabId } from '../lib/store'
 import { FloatingNav } from './ui/FloatingNav'
 import { Inicio } from './screens/Inicio'
+import { Diario } from './screens/Diario'
+import { Progreso } from './screens/Progreso'
+import { RegistrarSheet } from './screens/RegistrarSheet'
 
 const PLACEHOLDER: Record<string, string> = {
-  diario: 'Diario',
-  protocolo: 'Progreso',
   vida: 'Vida',
   comida: 'Comida',
   semana: 'Semana',
@@ -43,25 +44,16 @@ function Shell() {
 
       {/* contenido scrolleable */}
       <div className="absolute inset-0 overflow-y-auto overflow-x-clip">
-        {tab === 'inicio' ? <Inicio onRegistrar={() => setShowReg(true)} /> : <Placeholder name={PLACEHOLDER[tab] ?? 'Inicio'} />}
+        {tab === 'inicio' && <Inicio onRegistrar={() => setShowReg(true)} />}
+        {tab === 'diario' && <Diario />}
+        {tab === 'protocolo' && <Progreso />}
+        {(tab === 'vida' || tab === 'comida' || tab === 'semana') && <Placeholder name={PLACEHOLDER[tab] ?? 'Inicio'} />}
       </div>
 
       <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={() => setShowReg(true)} />
 
-      {/* Registrar — placeholder hasta Stage 4 */}
-      {showReg && (
-        <div className="absolute inset-0 z-50 flex items-end" onClick={() => setShowReg(false)}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[3px]" />
-          <div
-            className="glass relative w-full rounded-t-[24px] p-6 pb-10"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-white/20" />
-            <h2 className="text-[18px] font-bold text-foreground">Registrar dosis</h2>
-            <p className="mt-1 text-[14px] text-muted-foreground">La hoja de captura completa llega en la siguiente etapa.</p>
-          </div>
-        </div>
-      )}
+      {/* Hoja de captura universal */}
+      <RegistrarSheet open={showReg} onClose={() => setShowReg(false)} />
     </div>
   )
 }
