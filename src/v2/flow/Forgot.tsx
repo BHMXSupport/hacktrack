@@ -44,7 +44,7 @@ export function Forgot() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col overflow-y-auto bg-void"
+      className="flex h-full flex-col overflow-y-auto bg-void"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
       <header

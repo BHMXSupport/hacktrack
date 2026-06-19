@@ -75,7 +75,7 @@ export function MeasurePicker() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col bg-void"
+      className="flex h-full flex-col bg-void"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
       {/* App bar */}
@@ -107,8 +107,8 @@ export function MeasurePicker() {
       <motion.div
         initial={reduce ? false : 'hidden'}
         animate="show"
-        variants={{ show: { transition: { staggerChildren: 0.08, delayChildren: 0.04 } } }}
-        className="flex flex-1 flex-col gap-6 px-5 pt-2"
+        variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+        className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pt-2"
       >
         {/* Título */}
         <motion.div variants={fade}>

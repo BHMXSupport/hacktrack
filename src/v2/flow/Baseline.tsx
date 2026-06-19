@@ -115,7 +115,7 @@ export function Baseline() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col bg-void overflow-y-auto"
+      className="flex h-full flex-col bg-void overflow-y-auto"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
       {/* App bar */}

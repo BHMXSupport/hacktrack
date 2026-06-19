@@ -69,7 +69,7 @@ export function Goal() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col bg-void"
+      className="flex h-full flex-col bg-void"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
       {/* App bar */}
@@ -197,7 +197,7 @@ export function Goal() {
       </motion.div>
 
       {/* CTA */}
-      <div className="mt-6 flex flex-col items-center gap-3 px-4">
+      <div className="mt-4 flex flex-shrink-0 flex-col items-center gap-3 px-4 pt-2">
         <Button
           size="full"
           onClick={handleContinue}
