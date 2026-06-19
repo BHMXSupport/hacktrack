@@ -1,9 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { App } from './App'
+import { AppV2 as App } from './v2/AppV2'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initInstallCapture } from './lib/install'
-import './tokens.css'
 import './styles/globals.css'  // rebuild "Precision × Accessible" (Tailwind + tokens)
 
 // Captura el evento beforeinstallprompt ANTES de montar React (se dispara muy temprano).
