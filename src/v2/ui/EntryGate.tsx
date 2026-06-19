@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
+import preloaderSrc from '../../assets/rebuild/preloader.mp4'
 
-// Pantalla de entrada (gate): logo + nombre + una frase aspiracional aleatoria + botón "Entrar".
-// PROPÓSITO TÉCNICO: el tap en "Entrar" es un gesto de usuario → desbloquea el autoplay de
-// media para la sesión, así el video del preloader (que se monta después) SÍ reproduce, incluso
-// en iOS Modo de bajo consumo / "no autoplay". Sin video aquí (es pre-gesto): solo CSS.
+// Pantalla de entrada (gate): logo + nombre + frase aspiracional aleatoria + botón "Entrar".
+// PROPÓSITO TÉCNICO:
+//  1. El tap en "Entrar" es un gesto de usuario → desbloquea el autoplay de la sesión.
+//  2. Al tocar, entra en estado de CARGA (spinner) y bufferea el video del preloader; solo
+//     avanza cuando el video está listo (o tras un tope). Así el gate sigue cubriendo la app
+//     mientras el video carga → sin parpadeo, y el preloader arranca con el video ya cacheado.
+// Sin video visible aquí (es pre-gesto): solo CSS + un <video> oculto que precarga.
 const PHRASES = [
   'La constancia es tu mejor protocolo.',
   'Lo que se mide, mejora.',
@@ -23,6 +28,47 @@ const LOGO = `${import.meta.env.BASE_URL}pwa-512.png`
 export function EntryGate({ onEnter }: { onEnter: () => void }) {
   const reduce = useReducedMotion()
   const [phrase] = useState(() => PHRASES[Math.floor(Math.random() * PHRASES.length)])
+  const [loading, setLoading] = useState(false)
+  const vidRef = useRef<HTMLVideoElement>(null)
+
+  const handleEnter = () => {
+    if (loading) return
+    setLoading(true)
+    // Desbloquear autoplay + empezar a bufferear el video del preloader dentro del gesto.
+    const v = vidRef.current
+    if (v) {
+      v.muted = true
+      v.defaultMuted = true
+      const p = v.play()
+      if (p && typeof p.catch === 'function') p.catch(() => {})
+    }
+  }
+
+  // Mientras carga: avanzar cuando el video esté listo (con un mínimo de motion visible y un tope duro).
+  useEffect(() => {
+    if (!loading) return
+    const v = vidRef.current
+    let done = false
+    const go = () => { if (!done) { done = true; onEnter() } }
+    const onReady = () => go()
+    // Mínimo ~900ms de motion de carga; luego avanza si el video ya bufferó, si no espera el evento.
+    const minTimer = window.setTimeout(() => {
+      if (!v || v.readyState >= 3) go()
+      else {
+        v.addEventListener('canplaythrough', onReady)
+        v.addEventListener('loadeddata', onReady)
+      }
+    }, 900)
+    const hardCap = window.setTimeout(go, 2800) // nunca quedarse colgado
+    return () => {
+      window.clearTimeout(minTimer)
+      window.clearTimeout(hardCap)
+      if (v) {
+        v.removeEventListener('canplaythrough', onReady)
+        v.removeEventListener('loadeddata', onReady)
+      }
+    }
+  }, [loading, onEnter])
 
   return (
     <motion.div
@@ -31,8 +77,20 @@ export function EntryGate({ onEnter }: { onEnter: () => void }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
     >
-      {/* Glow ambiental en deriva (CSS, sin video — esto es pre-gesto) */}
+      {/* Glow ambiental en deriva (CSS, sin video) */}
       {!reduce && <div aria-hidden className="ambient-drift absolute inset-0" />}
+
+      {/* <video> oculto que precarga/buffer del preloader durante la carga */}
+      <video
+        ref={vidRef}
+        src={preloaderSrc}
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden
+        className="pointer-events-none absolute h-px w-px opacity-0"
+      />
 
       <div className="flex-1" />
 
@@ -59,16 +117,18 @@ export function EntryGate({ onEnter }: { onEnter: () => void }) {
 
       <div className="flex-1" />
 
-      {/* Botón Entrar — el tap desbloquea el autoplay del preloader */}
+      {/* Botón Entrar → estado de carga (spinner) mientras bufferea el video */}
       <motion.button
         type="button"
-        onClick={onEnter}
-        className="relative h-14 w-full max-w-[360px] rounded-2xl bg-teal text-[16px] font-semibold text-[#04211c] shadow-[0_8px_24px_rgba(95,201,184,.28)] transition-transform active:scale-[.98]"
+        onClick={handleEnter}
+        disabled={loading}
+        aria-busy={loading}
+        className="relative flex h-14 w-full max-w-[360px] items-center justify-center rounded-2xl bg-teal text-[16px] font-semibold text-[#04211c] shadow-[0_8px_24px_rgba(95,201,184,.28)] transition-transform active:scale-[.98] disabled:active:scale-100"
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
       >
-        Entrar
+        {loading ? <Loader2 size={22} className="animate-spin" aria-label="Cargando" /> : 'Entrar'}
       </motion.button>
     </motion.div>
   )
