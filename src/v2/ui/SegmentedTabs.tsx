@@ -1,7 +1,9 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '../../lib/cn'
 
-// Segmentado de vidrio con pastilla deslizante (layoutId). Accesible (role=tablist).
+// Segmentado de vidrio con pastilla deslizante (layoutId).
+// Semántica: group de botones toggle (aria-pressed), NO tablist —
+// estos controles no tienen paneles asociados; son toggle buttons segmentados.
 export function SegmentedTabs<T extends string>({
   options,
   value,
@@ -15,17 +17,17 @@ export function SegmentedTabs<T extends string>({
 }) {
   const reduce = useReducedMotion()
   return (
-    <div role="tablist" className={cn('flex gap-1 rounded-full bg-white/6 p-1', className)}>
+    <div role="group" className={cn('flex gap-1 rounded-full bg-white/6 p-1', className)}>
       {options.map((o) => {
         const active = o.value === value
         return (
           <button
             key={o.value}
-            role="tab"
-            aria-selected={active}
+            type="button"
+            aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'relative flex h-10 flex-1 items-center justify-center rounded-full text-[14px] font-semibold transition-colors',
+              'relative flex h-10 flex-1 items-center justify-center rounded-full text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
               active ? 'text-foreground' : 'text-muted-foreground',
             )}
           >

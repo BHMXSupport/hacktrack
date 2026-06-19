@@ -10,6 +10,7 @@
 import { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
+import { canAutoplayHeavyMedia } from '../lib/media'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 
 // Wordmark vectorial inline — sin dependencia de activos tipográficos externos.
@@ -115,16 +116,19 @@ export function Splash() {
       aria-label="Cargando Hacktrack"
       className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-void"
     >
-      {/* Video de fondo — decorativo, aria-hidden */}
-      <video
-        src={heroSrc}
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
-      />
+      {/* Video de fondo — decorativo, aria-hidden; gateado por Save-Data/conexión */}
+      {canAutoplayHeavyMedia() && (
+        <video
+          src={heroSrc}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="none"
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
+        />
+      )}
 
       {/* Gradiente sobre el video para asegurar contraste */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0D1117]/70 via-[#0D1117]/40 to-[#0D1117]/80" />

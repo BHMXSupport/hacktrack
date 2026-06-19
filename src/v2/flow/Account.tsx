@@ -236,7 +236,7 @@ export function Account() {
                 type="button"
                 aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
               >
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -315,10 +315,10 @@ export function Account() {
           {/* Ya tengo cuenta */}
           <button
             type="button"
-            onClick={() => dispatch({ t: 'go', screen: 's-login' })}
+            onClick={() => dispatch({ t: 'finishOnboarding' })}
             className="inline-flex h-11 items-center text-[14px] font-medium text-teal underline-offset-2 hover:underline"
           >
-            Ya tengo cuenta · Iniciar sesión
+            Ya tengo cuenta · Entrar
           </button>
 
           {/* Trust badges */}
@@ -339,7 +339,7 @@ export function Account() {
           </div>
 
           {/* Disclaimer */}
-          <p className="text-center text-[11px] leading-relaxed text-muted-foreground/50">
+          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
             Hacktrack es una herramienta de seguimiento personal.
             No reemplaza consejo médico profesional.
           </p>

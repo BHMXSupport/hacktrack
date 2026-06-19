@@ -265,7 +265,7 @@ export function Comida() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 gap-1 text-teal"
+            className="gap-1 text-teal"
             onClick={() => dispatch({ t: 'sheet', sheet: 'recetario' })}
           >
             <Plus size={15} /> Agregar

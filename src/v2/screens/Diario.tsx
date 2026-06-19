@@ -792,7 +792,7 @@ export function Diario() {
                   return (
                     <div key={`gap-${idx}`} className="flex items-center gap-3 my-2 mb-4 px-1">
                       <div className="flex-1 h-px bg-white/6" />
-                      <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                      <span className="text-[10px] text-muted-foreground shrink-0">
                         {entry.days} día{entry.days !== 1 ? 's' : ''} sin registros
                       </span>
                       <div className="flex-1 h-px bg-white/6" />
@@ -815,7 +815,7 @@ export function Diario() {
                         type="button"
                         aria-label={`Agregar dosis al día ${label}`}
                         onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal rounded-full bg-teal/8 border border-teal/18 px-2.5 py-1 min-h-[32px]"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal rounded-full bg-teal/8 border border-teal/18 px-2.5 py-1 min-h-11"
                       >
                         + Dosis
                       </button>
@@ -852,8 +852,8 @@ export function Diario() {
 
       {/* ── microcopy de privacidad ── */}
       <motion.div variants={itemVariants} className="flex items-center justify-center gap-1.5 py-4">
-        <Shield size={12} className="text-muted-foreground/60" />
-        <p className="text-[11px] text-muted-foreground/60 text-center">
+        <Shield size={12} className="text-muted-foreground" />
+        <p className="text-[11px] text-muted-foreground text-center">
           Tu historial se guarda solo en tu dispositivo
         </p>
       </motion.div>

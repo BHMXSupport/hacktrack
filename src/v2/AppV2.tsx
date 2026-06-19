@@ -37,9 +37,12 @@ function Frame({ children }: { children: ReactNode }) {
 
 function Shell() {
   const { state, dispatch } = useApp()
-  const [showReg, setShowReg] = useState(false)
   const [showAjustes, setShowAjustes] = useState(false)
   const [showPerfil, setShowPerfil] = useState(false)
+  // Hoja de captura impulsada por state.sheet → así los CTAs dispatch({t:'sheet',sheet:'registrar'})
+  // de cualquier pantalla la abren (no solo el FAB).
+  const openReg = () => dispatch({ t: 'sheet', sheet: 'registrar' })
+  const showReg = state.sheet === 'registrar' || state.sheet === 'medida' || state.sheet === 'agregar'
 
   // Router de arranque
   const FlowScreen = FLOW[state.screen]
@@ -63,7 +66,7 @@ function Shell() {
       </button>
 
       <div className="absolute inset-0 overflow-y-auto overflow-x-clip">
-        {tab === 'inicio' && <Inicio onRegistrar={() => setShowReg(true)} />}
+        {tab === 'inicio' && <Inicio onRegistrar={openReg} />}
         {tab === 'diario' && <Diario />}
         {tab === 'protocolo' && <Progreso />}
         {tab === 'vida' && <Vida />}
@@ -71,9 +74,9 @@ function Shell() {
         {tab === 'semana' && <Semana />}
       </div>
 
-      <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={() => setShowReg(true)} />
+      <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={openReg} />
 
-      <RegistrarSheet open={showReg} onClose={() => setShowReg(false)} />
+      <RegistrarSheet open={showReg} onClose={() => dispatch({ t: 'sheet', sheet: null })} />
       <Ajustes
         open={showAjustes}
         onClose={() => setShowAjustes(false)}

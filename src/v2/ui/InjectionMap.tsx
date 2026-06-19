@@ -135,8 +135,23 @@ function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedM
   const color = RECENCY_COLOR[recency]
   const hasActivity = recency !== 'none'
 
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect()
+    }
+  }
+
   return (
-    <g role="button" aria-label={`${SITE_LABEL[zone.site]}: ${RECENCY_LABEL[recency]}`} aria-pressed={isSelected}>
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`${SITE_LABEL[zone.site]}: ${RECENCY_LABEL[recency]}`}
+      aria-pressed={isSelected}
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      style={{ outline: 'none', cursor: 'pointer' }}
+    >
       {/* Halo de sugerencia (zona menos usada) */}
       {isSuggested && (
         <ellipse
@@ -163,10 +178,8 @@ function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedM
         strokeWidth={isSelected ? 2 : 1.5}
         style={{
           filter: isSelected ? 'drop-shadow(0 0 6px var(--teal-bright))' : hasActivity ? `drop-shadow(0 0 4px ${color})` : 'none',
-          cursor: 'pointer',
           transition: reducedMotion ? 'none' : 'stroke 0.15s, fill-opacity 0.15s',
         }}
-        onClick={onSelect}
       />
       {/* Punto central de estado (ícono en texto SVG — color + ícono, nunca color solo) */}
       <text
@@ -182,16 +195,16 @@ function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedM
       >
         {RECENCY_ICON[recency]}
       </text>
-      {/* Área de tap aumentada (≥44px → 22 unidades de radio total en SVG de 100×220 renderizado a ~160px) */}
+      {/* Área de tap aumentada (≥44px) + focus ring visible */}
       <ellipse
         cx={zone.cx}
         cy={zone.cy}
         rx={Math.max(zone.rx, 22)}
         ry={Math.max(zone.ry, 22)}
         fill="transparent"
-        style={{ cursor: 'pointer' }}
-        onClick={onSelect}
-        aria-hidden="true"
+        stroke={isSelected ? 'var(--teal-bright)' : 'transparent'}
+        strokeWidth={isSelected ? 2.5 : 0}
+        style={{ outline: 'none' }}
       />
     </g>
   )
@@ -216,8 +229,9 @@ function Figure({ bodyPath, zones, label, recencyMap, selected, suggested, onSel
         viewBox="0 0 100 220"
         width="100%"
         style={{ maxWidth: 130, display: 'block' }}
-        aria-hidden="true"
-        focusable="false"
+        role="group"
+        aria-label={label}
+        focusable="true"
       >
         {/* Cuerpo — relleno slate, tono cockpit */}
         <path
@@ -402,7 +416,7 @@ export function InjectionMap({
       </div>
 
       {/* Microcopy de privacidad (regla DURA del design system) */}
-      <p className="mt-2 text-[10px] text-muted-foreground/60 text-center">
+      <p className="mt-2 text-[10px] text-muted-foreground text-center">
         Tu historial se guarda solo en tu dispositivo
       </p>
     </div>

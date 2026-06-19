@@ -1,8 +1,10 @@
+import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 
 // Bottom-sheet de vidrio. Se monta a nivel del shell (absolute inset-0 dentro de .app-frame).
 // Overlay desenfoca el cockpit detrás; el sheet sube con spring. Respeta reduced-motion.
+// A11y: role=dialog + aria-modal, cierra con Escape, foco inicial al abrir.
 export function Sheet({
   open,
   onClose,
@@ -15,6 +17,22 @@ export function Sheet({
   children: React.ReactNode
 }) {
   const reduce = useReducedMotion()
+  const panelRef = useRef<HTMLDivElement | null>(null)
+
+  // Escape para cerrar + foco inicial en el panel.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    const t = window.setTimeout(() => panelRef.current?.focus(), 50)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      window.clearTimeout(t)
+    }
+  }, [open, onClose])
+
   return (
     <AnimatePresence>
       {open && (
@@ -28,9 +46,12 @@ export function Sheet({
             onClick={onClose}
           />
           <motion.div
+            ref={panelRef}
             role="dialog"
+            aria-modal="true"
             aria-label={title}
-            className="glass relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            tabIndex={-1}
+            className="glass relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0 } : { y: '100%' }}
@@ -42,7 +63,7 @@ export function Sheet({
               <button
                 aria-label="Cerrar"
                 onClick={onClose}
-                className="grid h-9 w-9 place-items-center rounded-full bg-white/8 text-secondary-foreground"
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/8 text-secondary-foreground"
               >
                 <X size={18} />
               </button>

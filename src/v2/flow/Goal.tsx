@@ -114,7 +114,7 @@ export function Goal() {
         </motion.h1>
         <motion.p variants={fade} className="mt-2 text-[14px] text-muted-foreground">
           Elige tu enfoque principal para personalizar tu experiencia.{' '}
-          <span className="text-muted-foreground/70">(Elige hasta {MAX_GOALS})</span>
+          <span className="text-muted-foreground">(Elige hasta {MAX_GOALS})</span>
         </motion.p>
       </motion.div>
 
@@ -218,7 +218,7 @@ export function Goal() {
         </p>
 
         {/* Disclaimer de investigación */}
-        <p className="text-center text-[11px] leading-relaxed text-muted-foreground/60">
+        <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
           Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
         </p>
       </div>

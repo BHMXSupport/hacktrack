@@ -345,7 +345,7 @@ export function Onboarding() {
               <Button
                 size="full"
                 variant="ghost"
-                onClick={() => dispatch({ t: 'go', screen: 's-login' })}
+                onClick={() => dispatch({ t: 'go', screen: 's-account' })}
               >
                 Ya tengo cuenta
               </Button>

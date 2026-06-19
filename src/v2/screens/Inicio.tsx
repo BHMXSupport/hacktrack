@@ -8,6 +8,7 @@ import { Glass } from '../ui/Glass'
 import { DataPlate } from '../ui/DataPlate'
 import { Ring } from '../ui/Ring'
 import { Button } from '../ui/Button'
+import { canAutoplayHeavyMedia } from '../lib/media'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 
 const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -32,6 +33,7 @@ const fade = {
 export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
+  const playHero = !reduce && canAutoplayHeavyMedia()
   const now = new Date()
 
   const next = useMemo(() => upcomingDoses(state, now, 1)[0] ?? null, [state])
@@ -86,13 +88,14 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       {/* HERO — próxima toma con video en movimiento + readout en data-plate */}
       <motion.div variants={fade}>
         <Glass className="relative overflow-hidden p-0">
-          {!reduce && (
+          {playHero && (
             <video
               src={heroSrc}
               autoPlay
               muted
               loop
               playsInline
+              preload="none"
               aria-hidden
               className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-50"
             />
@@ -110,14 +113,14 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                     {countdown(next.date, now)}
                   </span>
                 </DataPlate>
-                <p className="mt-2 text-[12px] text-muted-foreground">
+                <p className="mt-2 text-[12px] text-secondary-foreground">
                   {next.date.toLocaleDateString('es-MX', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </>
             ) : (
               <>
                 <h2 className="mb-2 text-[18px] font-bold text-foreground">Sin tomas programadas</h2>
-                <p className="text-[13px] text-muted-foreground">Crea un protocolo para ver tu cuenta regresiva.</p>
+                <p className="text-[13px] text-secondary-foreground">Crea un protocolo para ver tu cuenta regresiva.</p>
               </>
             )}
             <Button size="full" className="mt-4" onClick={onRegistrar}>

@@ -67,7 +67,7 @@ function DayCell({
   status: DayStateEx | null
   isToday: boolean
 }) {
-  if (!date) return <div className="h-11" aria-hidden />
+  if (!date) return <div role="gridcell" className="h-11" aria-hidden />
 
   const label = date.getDate()
 
@@ -102,7 +102,7 @@ function DayCell({
     textCls = isToday ? textCls : 'text-warn font-medium'
     dotColor = 'bg-warn'
   } else if (eff === 'rest') {
-    textCls = 'text-muted-foreground/50'
+    textCls = 'text-muted-foreground'
   }
 
   // Hoy: punto teal si no hay dosis tomada
@@ -112,6 +112,7 @@ function DayCell({
 
   return (
     <div
+      role="gridcell"
       className={`relative flex h-11 flex-col items-center justify-center rounded-lg ${bg}`}
       aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : ''}`}
     >
@@ -190,9 +191,9 @@ function CalendarioTab() {
         </div>
 
         {/* Cabecera días de semana */}
-        <div className="mb-1 grid grid-cols-7 gap-1">
+        <div role="row" className="mb-1 grid grid-cols-7 gap-1">
           {DIAS_CORTOS.map((d) => (
-            <div key={d} className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div key={d} role="columnheader" aria-label={d} className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               {d}
             </div>
           ))}
@@ -202,6 +203,8 @@ function CalendarioTab() {
         <AnimatePresence mode="wait">
           <motion.div
             key={`${viewYear}-${viewMonth}`}
+            role="grid"
+            aria-label={`${MESES[viewMonth]} ${viewYear}`}
             initial={reduce ? false : { opacity: 0, x: 8 }}
             animate={{ opacity: 1, x: 0 }}
             exit={reduce ? {} : { opacity: 0, x: -8 }}
@@ -209,7 +212,7 @@ function CalendarioTab() {
             className="flex flex-col gap-1"
           >
             {grid.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-1">
+              <div key={wi} role="row" className="grid grid-cols-7 gap-1">
                 {week.map((date, di) => {
                   const isToday = date !== null &&
                     date.getFullYear() === today.getFullYear() &&
@@ -420,7 +423,7 @@ function AvancesTab() {
                         style={{ height: h }}
                       />
                     </div>
-                    <span className="text-[9px] text-muted-foreground/60">
+                    <span className="text-[9px] text-muted-foreground">
                       {pct !== null ? `${pct}%` : '—'}
                     </span>
                   </div>
@@ -511,7 +514,6 @@ export function Progreso() {
         {tab === 'calendario' ? (
           <motion.div
             key="calendario"
-            role="tabpanel"
             aria-label="Calendario"
             initial={reduce ? false : { opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
@@ -523,7 +525,6 @@ export function Progreso() {
         ) : (
           <motion.div
             key="avances"
-            role="tabpanel"
             aria-label="Avances"
             initial={reduce ? false : { opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}

@@ -225,10 +225,22 @@ export function Vida() {
   const [showNotes, setShowNotes] = useState(false)
   const chartRef = useRef<HTMLDivElement>(null)
 
-  // "ahora" en vivo
+  // "ahora" en vivo — pausa el tick cuando la pestaña/app no está visible (batería).
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000)
-    return () => clearInterval(id)
+    let id: number | undefined
+    const start = () => {
+      if (id == null) id = window.setInterval(() => setNow(Date.now()), 60_000)
+    }
+    const stop = () => {
+      if (id != null) { window.clearInterval(id); id = undefined }
+    }
+    const onVis = () => (document.visibilityState === 'visible' ? start() : stop())
+    onVis()
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [])
 
   // ── Datos PK ──────────────────────────────────────────────────────────────
@@ -720,17 +732,20 @@ export function Vida() {
                       return (
                         <button
                           key={i}
+                          type="button"
                           aria-label={`${kpiOverlay}: ${pt.value}`}
                           onClick={() => setKpiTipIdx((prev) => (prev === i ? null : i))}
-                          className="pointer-events-auto absolute"
+                          className="pointer-events-auto absolute flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring rounded"
                           style={{
                             left: `${xPct}%`,
                             top: '10%',
-                            transform: 'translateX(-50%)',
+                            transform: 'translateX(-50%) translateY(-50%)',
                             background: 'none',
                             border: 'none',
                             cursor: 'pointer',
-                            padding: 0,
+                            /* 44×44 invisible touch area */
+                            width: 44,
+                            height: 44,
                             zIndex: kpiTipIdx === i ? 12 : 4,
                           }}
                         >
@@ -740,7 +755,7 @@ export function Vida() {
                             viewBox="0 0 12 10"
                             fill="var(--ok)"
                             opacity={0.7}
-                            style={{ display: 'block' }}
+                            style={{ display: 'block', flexShrink: 0 }}
                           >
                             <polygon points="6,0 12,10 0,10" />
                           </svg>
