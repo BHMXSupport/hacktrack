@@ -11,6 +11,8 @@ import { Sheet } from '../ui/Sheet'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
 import { DataPlate } from '../ui/DataPlate'
+import { IngredientBuilder } from './IngredientBuilder'
+import { RecetasHacktrack } from './RecetasHacktrack'
 
 // ── Sub-componente: tarjeta de platillo favorito ──────────────────────────────
 
@@ -278,8 +280,10 @@ export function RecetarioSheet({
   const reduce = useReducedMotion()
 
   // ── Vista activa ──────────────────────────────────────────────────────────
-  type View = 'list' | 'create' | 'edit'
+  type View = 'list' | 'recetas' | 'create' | 'edit'
   const [view, setView] = useState<View>(initialView === 'create' ? 'create' : 'list')
+  // Sub-modo dentro de "Agregar": fácil (kcal directo) o por ingredientes
+  const [createMode, setCreateMode] = useState<'facil' | 'ingredientes'>('facil')
 
   // R37: platillo en edición
   const [editingFav, setEditingFav] = useState<FoodFav | null>(null)
@@ -395,8 +399,8 @@ export function RecetarioSheet({
   }
 
   // ── Tabs label helper ─────────────────────────────────────────────────────
-  const tabLabel = (v: 'list' | 'create') =>
-    v === 'list' ? 'Mis platillos' : 'Crear nuevo'
+  const tabLabel = (v: 'list' | 'recetas' | 'create') =>
+    v === 'list' ? 'Frecuentes' : v === 'recetas' ? 'Recetas' : 'Agregar'
 
   return (
     <Sheet open={open} onClose={onClose} title="Recetario">
@@ -405,7 +409,7 @@ export function RecetarioSheet({
         {/* ── Tabs: Mis platillos / Crear (ocultos en modo edición) ── */}
         {view !== 'edit' && (
           <div className="flex gap-1 rounded-full bg-white/6 p-1">
-            {(['list', 'create'] as const).map((v) => {
+            {(['list', 'recetas', 'create'] as const).map((v) => {
               const active = view === v
               return (
                 <button
@@ -511,15 +515,61 @@ export function RecetarioSheet({
             </motion.div>
           )}
 
-          {/* Vista: crear nuevo platillo */}
+          {/* Vista: Recetas Hacktrack (freemium) */}
+          {view === 'recetas' && (
+            <motion.div
+              key="recetas"
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <RecetasHacktrack onClose={onClose} />
+            </motion.div>
+          )}
+
+          {/* Vista: agregar platillo — sub-modo Fácil | Por ingredientes */}
           {view === 'create' && (
-            <DishFormView
-              key="create-form"
-              initial={EMPTY_FORM}
-              editingFav={null}
-              onSave={handleCreate}
-              onCancel={handleCancelForm}
-            />
+            <motion.div
+              key="create"
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex flex-col gap-4"
+            >
+              {/* Sub-toggle */}
+              <div className="flex gap-1 rounded-full bg-white/6 p-1">
+                {(['facil', 'ingredientes'] as const).map((m) => {
+                  const active = createMode === m
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setCreateMode(m)}
+                      className={`flex h-9 flex-1 items-center justify-center rounded-full text-[13px] font-semibold transition-colors ${
+                        active ? 'bg-card text-foreground shadow-[0_1px_0_rgba(255,255,255,.06)_inset,0_8px_20px_rgba(0,0,0,.4)]' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {m === 'facil' ? 'Fácil' : 'Por ingredientes'}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {createMode === 'facil' ? (
+                <DishFormView
+                  key="create-form"
+                  initial={EMPTY_FORM}
+                  editingFav={null}
+                  onSave={handleCreate}
+                  onCancel={handleCancelForm}
+                />
+              ) : (
+                <IngredientBuilder onSaved={() => setView('list')} onCancel={handleCancelForm} />
+              )}
+            </motion.div>
           )}
 
           {/* R37: Vista: editar platillo existente */}
