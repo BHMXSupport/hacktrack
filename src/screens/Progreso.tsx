@@ -643,46 +643,27 @@ function KpiCorrelationCard() {
   )
 }
 
-// ── Sección colapsable (disclosure) para bajar densidad del primer nivel ──────
-function Disclosure({ title, open, onToggle, children }: {
+// ── Sección de contenido siempre visible (título plano, sin plegado) ──────────
+function AlwaysOpenSection({ title, children }: {
   title: string
-  open: boolean
-  onToggle: () => void
   children: React.ReactNode
 }) {
   return (
     <motion.div variants={staggerItem} style={{ marginTop: 16 }}>
-      <button
-        onClick={onToggle}
-        aria-expanded={open}
+      <div
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
-          padding: '10px 0', borderBottom: '1px solid var(--ink-100)',
+          textAlign: 'left', padding: '10px 0', borderBottom: '1px solid var(--ink-100)',
         }}
       >
         <span className="sm" style={{ flex: 1, minWidth: 0, fontWeight: 600, color: 'var(--ink-700)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           {title}
         </span>
-        <span className="sm" style={{ color: 'var(--ink-400)', flexShrink: 0 }}>{open ? '▴' : '▾'}</span>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: ease.standard }}
-            style={{ overflow: 'hidden' }}
-          >
-            {/* Re-establece la cascada de variantes: el motion.div anima con objetos explícitos y
-                cortaba el cascade → los hijos staggerItem quedaban en initial (opacity:0, invisibles). */}
-            <motion.div variants={staggerParent} initial="initial" animate="animate">
-              {children}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </div>
+      {/* Re-establece la cascada de variantes para los hijos staggerItem. */}
+      <motion.div variants={staggerParent} initial="initial" animate="animate">
+        {children}
+      </motion.div>
     </motion.div>
   )
 }
@@ -693,9 +674,8 @@ export function Progreso() {
   const view = state.progresoView
   const setView = (v: 'cal' | 'avances') => dispatch({ t: 'setProgresoView', view: v })
   const [pickerOpen, setPickerOpen] = useState(false)
-  // Densidad: primer nivel = calendario + resumen; el resto tras disclosures cerrados por defecto.
-  const [productsOpen, setProductsOpen] = useState(false)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
+  // Densidad: primer nivel = calendario + resumen; gestión de productos y análisis avanzado
+  // se muestran siempre (secciones de contenido no plegables).
 
   // Mostrar "Análisis avanzado" SOLO si hay algo que mostrar: titulación activa, fase OFF de ciclo,
   // o KPIs correlacionables (excluyendo Altura, que es estática). Para protocolos simples salía vacío → se oculta.
@@ -717,9 +697,7 @@ export function Progreso() {
   }
 
   function openAddProduct() {
-    // El picker vive dentro del disclosure "Gestión de productos" (colapsado por defecto) → hay que
-    // EXPANDIRLO también, si no el picker se abre oculto y el botón "no hace nada".
-    setProductsOpen(true)
+    // La sección "Gestión de productos" ahora se muestra siempre, así que basta con abrir el picker.
     setPickerOpen(true)
   }
 
@@ -787,12 +765,8 @@ export function Progreso() {
               {/* Resumen semanal de adherencia */}
               <WeeklySummary onAddProtocol={openAddProduct} />
 
-              {/* Gestión de productos — colapsada por defecto (lista + reconstitución) */}
-              <Disclosure
-                title="Gestión de productos"
-                open={productsOpen}
-                onToggle={() => setProductsOpen(v => !v)}
-              >
+              {/* Gestión de productos — siempre visible (lista + reconstitución) */}
+              <AlwaysOpenSection title="Gestión de productos">
                 {/* Lista de productos — cada uno con su protocolo editable */}
                 <ProductsList
                   pickerOpen={pickerOpen}
@@ -801,15 +775,11 @@ export function Progreso() {
                 />
                 {/* Calculadora de reconstitución */}
                 <ReconstitutionButton />
-              </Disclosure>
+              </AlwaysOpenSection>
 
-              {/* Análisis avanzado — solo si hay contenido (titulación / fase OFF / correlación); si no, se oculta */}
+              {/* Análisis avanzado — siempre visible cuando hay contenido (titulación / fase OFF / correlación); si no, se oculta */}
               {showAdvancedPanel && (
-                <Disclosure
-                  title="Análisis avanzado"
-                  open={advancedOpen}
-                  onToggle={() => setAdvancedOpen(v => !v)}
-                >
+                <AlwaysOpenSection title="Análisis avanzado">
                   {/* Fases de titulación — una por cada producto con titulación activa */}
                   <TitrationPhasesAll />
 
@@ -818,7 +788,7 @@ export function Progreso() {
 
                   {/* n°376: correlación KPI ↔ dosis */}
                   <KpiCorrelationCard />
-                </Disclosure>
+                </AlwaysOpenSection>
               )}
             </motion.div>
           ) : (

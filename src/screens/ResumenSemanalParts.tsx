@@ -37,47 +37,17 @@ export function calcR2(data: number[]): number {
   return ssTot > 0 ? Math.max(0, Math.min(1, 1 - ssRes / ssTot)) : 1
 }
 
-// ── Accordion: agrupa el segundo nivel de Perspectivas Plus ──
-export function Accordion({ title, subtitle, defaultOpen = false, children }: { title: string; subtitle?: string; defaultOpen?: boolean; children: React.ReactNode }) {
-  const [open, setOpen] = useState(defaultOpen)
+// ── Accordion: SIEMPRE abierto (sin plegar) — el contenido se muestra completo. defaultOpen se ignora. ──
+export function Accordion({ title, subtitle, children }: { title: string; subtitle?: string; defaultOpen?: boolean; children: React.ReactNode }) {
   return (
     <motion.div variants={staggerItem}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-          background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
-          padding: '4px 0',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="h2" style={{ color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
-          {subtitle && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>{subtitle}</div>}
-        </div>
-        <span style={{
-          display: 'inline-block', color: 'var(--ink-300)', fontSize: 12, lineHeight: 1, flexShrink: 0,
-          transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease',
-        }}>▼</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: dur.base, ease: ease.decelerate }}
-            style={{ overflow: 'hidden' }}
-          >
-            {/* Re-establece la propagación de variantes: el motion.div de arriba anima height/opacity
-                con objetos explícitos, lo que cortaba el cascade y dejaba las Card hijas (staggerItem)
-                en su estado initial (opacity:0) → invisibles. Este wrapper las vuelve a animar a visible. */}
-            <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-              {children}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div style={{ display: 'flex', flexDirection: 'column', padding: '4px 0' }}>
+        <div className="h2" style={{ color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
+        {subtitle && <div className="sm" style={{ color: 'var(--ink-400)', marginTop: 2 }}>{subtitle}</div>}
+      </div>
+      <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+        {children}
+      </motion.div>
     </motion.div>
   )
 }
@@ -361,7 +331,6 @@ export function productKpisWindowed(
 export function ProductCards() {
   const { state, dispatch } = useApp()
   const protos = protocolList(state)
-  const [expandedProto, setExpandedProto] = useState<string | null>(null)
   // ventana de tiempo por producto (0 = protocolo completo)
   const [productWindow, setProductWindow] = useState<Record<string, number>>({})
 
@@ -406,7 +375,6 @@ export function ProductCards() {
       {protos.map((pr) => {
         const win = productWindow[pr.product] ?? 0 // default: protocolo completo
         const kpis = win === 0 ? productKpis(state, pr.product) : productKpisWindowed(state, pr.product, win)
-        const isExpanded = expandedProto === pr.product
         const primaryKpi = kpis[0]
         const weeklyDeltas = allWeeklyDeltas[pr.product] ?? {}
 
@@ -417,20 +385,11 @@ export function ProductCards() {
           && grasaKpi.delta < -0.3 && musKpi.delta < -0.3
 
         return (
-          <motion.div key={pr.product} variants={staggerItem} className="card"
-            style={{ cursor: 'pointer' }}
-            onClick={() => setExpandedProto(isExpanded ? null : pr.product)}
-          >
-            {/* Renglón 1: nombre + categoría + chevron */}
+          <motion.div key={pr.product} variants={staggerItem} className="card">
+            {/* Renglón 1: nombre + categoría (comparación SIEMPRE expandida) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.product}</span>
               <span className="sm" style={{ background: pr.color + '18', color: pr.color, padding: '2px 9px', borderRadius: 999, fontWeight: 600, flexShrink: 0, maxWidth: '100%' }}>{pr.cat}</span>
-              {/* chevron */}
-              <span style={{
-                display: 'inline-block', color: 'var(--ink-300)', fontSize: 12, lineHeight: 1, flexShrink: 0,
-                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s ease',
-              }}>▼</span>
             </div>
             {/* Renglón 2: "NN d activo" a la izquierda, selector de ventana a la derecha */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
@@ -470,16 +429,8 @@ export function ProductCards() {
                 )}
               </div>
             )}
-            {/* Expanded: todos los KPIs + sparkline */}
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: dur.base, ease: ease.decelerate }}
-                  style={{ overflow: 'hidden' }}
-                >
+            {/* Todos los KPIs + sparkline — SIEMPRE visible (sin plegar) */}
+            <div>
                   <div className="sm" style={{ color: 'var(--ink-400)', margin: '6px 0 10px' }}>
                     {win === 0 ? 'Tus lecturas durante este protocolo' : `Últimos ${win} días`}
                   </div>
@@ -537,9 +488,7 @@ export function ProductCards() {
                       </span>
                     </div>
                   )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            </div>
           </motion.div>
         )
       })}

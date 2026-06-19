@@ -133,13 +133,6 @@ export function Alimentacion() {
   const [undoPending, setUndoPending] = useState<boolean>(false)
   // nuevos estados de UI
   const [macroMode, setMacroMode] = useState<'g' | 'pct'>('g')
-  const [showSlotDist, setShowSlotDist] = useState(false)
-  const [showRecientes, setShowRecientes] = useState(false)
-  const [showHeatmap, setShowHeatmap] = useState(false)
-  const [showElectro, setShowElectro] = useState(false) // electrolitos: secundario, colapsado por defecto
-  const [showProteinDetail, setShowProteinDetail] = useState(false) // detalle de proteína colapsable
-  const [showTimePortion, setShowTimePortion] = useState(false) // hora/porción colapsable
-  const [showAnalisis, setShowAnalisis] = useState(false) // sección "Análisis y tendencias" colapsable
 
   // edición inline de comidas (n°201 + n°221)
   const [editingMealId, setEditingMealId] = useState<string | null>(null)
@@ -232,8 +225,6 @@ export function Alimentacion() {
   // GLP-1 alert: bajo sodio es informativo (no consejo médico)
   const GLP1_NAMES = ['Semaglutida', 'Tirzepatida', 'Retatrutide', 'Ozempic', 'Wegovy']
   const hasGlp1Protocol = Object.keys(state.protocols).some((p) => GLP1_NAMES.some((g) => p.toLowerCase().includes(g.toLowerCase())))
-  // resumen de una línea para el estado colapsado de electrolitos
-  const electroSummary = `Na ${electrolytes.na} · K ${electrolytes.k} · Mg ${electrolytes.mg} mg`
 
   const tdeeVal = useMemo(() => tdee(state), [state])
   const goalKcal = state.kcalGoal ?? tdeeVal
@@ -568,20 +559,11 @@ export function Alimentacion() {
           </motion.section>
         )}
 
-        {/* ── Electrolitos del día (#477) — colapsado por defecto (secundario) ── */}
+        {/* ── Electrolitos del día (#477) — siempre visible ── */}
         <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
-          <button
-            onClick={() => setShowElectro((v) => !v)}
-            aria-expanded={showElectro}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0 }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, width: '100%' }}>
             <span className="sm" style={{ fontWeight: 700, color: 'var(--ink-700)', minWidth: 0 }}><Glyph name="energia" size={13} color="currentColor" style={{ verticalAlign: '-2px', marginRight: 3 }} /> Electrolitos del día</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-              {!showElectro && <span className="xs mono" style={{ color: 'var(--ink-400)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{electroSummary}</span>}
-              <Caret open={showElectro} />
-            </span>
-          </button>
-          {showElectro && (
+          </div>
           <>
           <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
             {([
@@ -615,7 +597,6 @@ export function Alimentacion() {
             </div>
           )}
           </>
-          )}
         </motion.section>
 
         {/* ── Resumen del día ── */}
@@ -693,15 +674,13 @@ export function Alimentacion() {
           {/* Detalle de proteína — colapsado por defecto (regla de ≤1-2 chips a la vista) */}
           {(suggestedProtein != null || (protRem && protRem.remaining > 0) || (pUnbalanced && macros.hasMacros && macros.protein > 20) || pqScore !== 'sin-datos') && (
             <>
-              <button
-                onClick={() => setShowProteinDetail((v) => !v)}
-                aria-expanded={showProteinDetail}
+              <span
                 className="sm"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--brand-700)', fontWeight: 600 }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--ink-700)', fontWeight: 600 }}
               >
-                {showProteinDetail ? 'Ocultar detalle de proteína' : 'Ver detalle de proteína'} <Caret open={showProteinDetail} />
-              </button>
-              {showProteinDetail && (
+                Detalle de proteína
+              </span>
+              {(
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                   {/* §82 — Chip sugerencia de proteína si no hay meta y hay peso */}
                   {suggestedProtein != null && (
@@ -769,17 +748,15 @@ export function Alimentacion() {
         <motion.section variants={staggerItem} className="card">
           {/* Estado + acceso a ajustar hora/porción (colapsado por defecto) */}
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-            <button
-              onClick={() => setShowTimePortion((v) => !v)}
-              aria-expanded={showTimePortion}
+            <span
               className="sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--brand-700)', fontWeight: 600, minWidth: 0 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--ink-700)', fontWeight: 600, minWidth: 0 }}
             >
-              Ajustar hora/porción <span className="mono" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>· {horaLabel} · {porLabel(portion)}</span> <Caret open={showTimePortion} />
-            </button>
+              Ajustar hora/porción <span className="mono" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>· {horaLabel} · {porLabel(portion)}</span>
+            </span>
             <span className="sm" aria-live="polite" style={{ color: 'var(--brand-700)', fontWeight: 600, marginLeft: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Para tu {whenSlot}</span>
           </div>
-          {showTimePortion && (
+          {(
             <>
               {/* Hora del registro (rueda con scroll → backfill; la franja se deriva sola) */}
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -951,27 +928,22 @@ export function Alimentacion() {
         {/* ── Sección 'Recientes' (últimos 7 días, registro 1-toque) ── */}
         {recientes.length > 0 && (
           <motion.section variants={staggerItem} className="card">
-            <button
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0 }}
-              onClick={() => setShowRecientes((v) => !v)}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Recientes (7 días)</span>
-              <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showRecientes ? 'Ocultar' : `${recientes.length} alimentos`} <Caret open={showRecientes} /></span>
-            </button>
-            {showRecientes && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
-                {recientes.map((f) => {
-                  const mult = multOf(f)
-                  return (
-                    <button key={f.id} onClick={() => logReciente(f)} className="card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', border: '1px solid var(--border)' }}>
-                      <Glyph name="editar" size={13} color="var(--ink-400)" />
-                      <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</span>
-                      <span className="mono sm" style={{ marginLeft: 'auto', color: 'var(--ink-400)', flexShrink: 0 }}>{Math.round(f.kcal * mult)} kcal</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+              <span className="sm" style={{ color: 'var(--ink-400)' }}>{recientes.length} alimentos</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+              {recientes.map((f) => {
+                const mult = multOf(f)
+                return (
+                  <button key={f.id} onClick={() => logReciente(f)} className="card" style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', border: '1px solid var(--border)' }}>
+                    <Glyph name="editar" size={13} color="var(--ink-400)" />
+                    <span className="body" style={{ fontWeight: 600, color: 'var(--ink-900)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</span>
+                    <span className="mono sm" style={{ marginLeft: 'auto', color: 'var(--ink-400)', flexShrink: 0 }}>{Math.round(f.kcal * mult)} kcal</span>
+                  </button>
+                )
+              })}
+            </div>
           </motion.section>
         )}
 
@@ -1170,44 +1142,31 @@ export function Alimentacion() {
           </motion.section>
         )}
 
-        {/* ── Análisis y tendencias — agrupado y colapsado por defecto (menos abrumador) ── */}
+        {/* ── Análisis y tendencias — siempre visible ── */}
         <motion.section variants={staggerItem} className="card" style={{ padding: '12px 16px' }}>
-          <button
-            onClick={() => setShowAnalisis((v) => !v)}
-            aria-expanded={showAnalisis}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0 }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, width: '100%' }}>
             <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700, minWidth: 0 }}>Análisis y tendencias</span>
-            <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showAnalisis ? 'Ocultar' : 'Ver'} <Caret open={showAnalisis} /></span>
-          </button>
+          </div>
         </motion.section>
-        {showAnalisis && (<>
+        {(<>
         {/* ── Distribución calórica por franja horaria (chrono-nutrición) ── */}
         {slotDist.length >= 2 && (
           <motion.section variants={staggerItem} className="card">
-            <button
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0, marginBottom: showSlotDist ? 10 : 0 }}
-              onClick={() => setShowSlotDist((v) => !v)}
-            >
-              <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Distribución por franja</span>
-              <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showSlotDist ? 'Ocultar' : 'Ver'} <Caret open={showSlotDist} /></span>
-            </button>
-            {showSlotDist && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {slotDist.map(({ slot, kcal: sk, pct }) => (
-                  <div key={slot}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span className="sm" style={{ color: 'var(--ink-700)', textTransform: 'capitalize' }}>{slot}</span>
-                      <span className="sm mono" style={{ color: 'var(--ink-400)' }}>{sk} kcal · {pct}%</span>
-                    </div>
-                    <div style={{ height: 5, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', background: pct >= 40 ? 'var(--warning)' : 'var(--brand-500)', borderRadius: 999, transition: 'width 0.3s ease' }} />
-                    </div>
+            <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700, display: 'block', marginBottom: 10 }}>Distribución por franja</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {slotDist.map(({ slot, kcal: sk, pct }) => (
+                <div key={slot}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <span className="sm" style={{ color: 'var(--ink-700)', textTransform: 'capitalize' }}>{slot}</span>
+                    <span className="sm mono" style={{ color: 'var(--ink-400)' }}>{sk} kcal · {pct}%</span>
                   </div>
-                ))}
-                <span className="sm" style={{ color: 'var(--ink-300)', marginTop: 2 }}>Distribución calórica del día — referencia observacional, sin prescripción</span>
-              </div>
-            )}
+                  <div style={{ height: 5, background: 'var(--ink-100)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: pct >= 40 ? 'var(--warning)' : 'var(--brand-500)', borderRadius: 999, transition: 'width 0.3s ease' }} />
+                  </div>
+                </div>
+              ))}
+              <span className="sm" style={{ color: 'var(--ink-300)', marginTop: 2 }}>Distribución calórica del día — referencia observacional, sin prescripción</span>
+            </div>
           </motion.section>
         )}
 
@@ -1232,21 +1191,11 @@ export function Alimentacion() {
 
         {/* ── Mini heatmap semanal de kcal ── */}
         <motion.section variants={staggerItem} className="card">
-          <button
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 0, width: '100%', cursor: 'pointer', padding: 0, marginBottom: showHeatmap ? 10 : 0 }}
-            onClick={() => setShowHeatmap((v) => !v)}
-          >
-            <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700 }}>Semana en kcal</span>
-            <span className="sm" style={{ color: 'var(--brand-700)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{showHeatmap ? 'Ocultar' : 'Ver'} <Caret open={showHeatmap} /></span>
-          </button>
-          {showHeatmap && (
-            <>
-              <WeekHeatmap s={state} />
-              <span className="sm" style={{ color: 'var(--ink-300)', marginTop: 6, display: 'block' }}>
-                Últimos 7 días · {goalKcal ? `meta ${goalKcal} kcal` : 'define una meta para ver la línea'}
-              </span>
-            </>
-          )}
+          <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 700, display: 'block', marginBottom: 10 }}>Semana en kcal</span>
+          <WeekHeatmap s={state} />
+          <span className="sm" style={{ color: 'var(--ink-300)', marginTop: 6, display: 'block' }}>
+            Últimos 7 días · {goalKcal ? `meta ${goalKcal} kcal` : 'define una meta para ver la línea'}
+          </span>
         </motion.section>
 
         {/* ── Tu protocolo en números (mini · Plus) ── */}

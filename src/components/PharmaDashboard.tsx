@@ -28,20 +28,13 @@ import { upcomingDoses } from '../lib/calendar'
 import { MultiLineChart } from './MultiLineChart'
 import { Segmented } from './controls'
 import { IntervalHistogram, NextDosePill, PharmaAdvancedPanel } from './PharmaDashboardParts'
-import { staggerParent, staggerItem, dur, ease } from '../lib/motion'
+import { staggerParent, staggerItem } from '../lib/motion'
 
 type Win = '24h' | '72h' | '7d'
 const WIN_MS: Record<Win, number> = { '24h': 24 * 3_600_000, '72h': 72 * 3_600_000, '7d': 7 * 86_400_000 }
 const H_MS = 3_600_000
 
 // Notas educativas movidas a pharma.ts (getProductNote). Ver item 151.
-
-// Chevron SVG (reemplaza el glifo de texto '▶' — la rúbrica exige iconos SVG, no caracteres)
-const Chevron = ({ size = 12, color = 'var(--ink-400)' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }} aria-hidden="true">
-    <path d="M9 6l6 6-6 6" />
-  </svg>
-)
 
 // SVG ojo barrado para estado vacío
 const EyeOffIcon = () => (
@@ -63,10 +56,6 @@ export function PharmaDashboard() {
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [showNextDose, setShowNextDose] = useState(true)
   const [showWeight, setShowWeight] = useState(false)
-  // controles secundarios (próxima dosis / peso / KPI) detrás de un disclosure para bajar densidad
-  const [showMoreControls, setShowMoreControls] = useState(false)
-  // item 287/285/286/288/290/293/283 — panel análisis avanzado colapsable
-  const [showAdvanced, setShowAdvanced] = useState(false)
   // n°418: KPI overlay selector
   const [kpiOverlay, setKpiOverlay] = useState<string | null>(null)
   const [kpiTipIdx, setKpiTipIdx] = useState<number | null>(null)
@@ -243,10 +232,8 @@ export function PharmaDashboard() {
     })
   }, [data.series, now, mode])
 
-  // ── Análisis avanzado (para el panel colapsable) ──
+  // ── Análisis avanzado (panel siempre visible) ──
   const advancedMetrics = useMemo(() => {
-    if (!showAdvanced) return null
-
     // Tss por producto (item 287)
     const tssItems = data.series.map((s) => ({
       product: s.product,
@@ -305,7 +292,7 @@ export function PharmaDashboard() {
     )
 
     return { tssItems, ratios, aucEntries, perProduct, coPres }
-  }, [showAdvanced, data.series, state, hidden, now])
+  }, [data.series, state, hidden, now])
 
   // ── item 279: badge de acumulación en la leyenda ──
   const accumProducts = useMemo(() => {
@@ -389,82 +376,52 @@ export function PharmaDashboard() {
           </div>
         </div>
 
-        {/* Controles secundarios colapsables — bajan la densidad del primer nivel */}
+        {/* Controles secundarios — siempre visibles (disclosure retirado: el contenido queda abierto) */}
         {(nextDose || hasGlp1 || kpiHistoryOptions.length > 0) && (
           <div style={{ marginBottom: 14 }}>
-            <button
-              type="button"
-              onClick={() => setShowMoreControls((v) => !v)}
-              aria-expanded={showMoreControls}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-              }}
-            >
-              <motion.span
-                animate={{ rotate: showMoreControls ? 90 : 0 }}
-                transition={{ duration: dur.fast }}
-                style={{ display: 'inline-flex' }}
-              >
-                <Chevron size={11} />
-              </motion.span>
-              <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>Opciones de gráfica</span>
-            </button>
+            <span className="sm" style={{ color: 'var(--ink-400)', fontWeight: 600 }}>Opciones de gráfica</span>
 
-            <AnimatePresence>
-              {showMoreControls && (
-                <motion.div
-                  key="more-controls"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: dur.base, ease: ease.standard }}
-                  style={{ overflow: 'hidden' }}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 10, alignItems: 'flex-start' }}>
+              {nextDose && (
+                <button
+                  className="chip"
+                  style={{ maxWidth: '100%', background: showNextDose ? 'var(--brand-100)' : undefined, color: showNextDose ? 'var(--brand-700)' : undefined }}
+                  onClick={() => setShowNextDose((v) => !v)}
                 >
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 10, alignItems: 'flex-start' }}>
-                    {nextDose && (
-                      <button
-                        className="chip"
-                        style={{ maxWidth: '100%', background: showNextDose ? 'var(--brand-100)' : undefined, color: showNextDose ? 'var(--brand-700)' : undefined }}
-                        onClick={() => setShowNextDose((v) => !v)}
-                      >
-                        Próxima dosis
-                      </button>
-                    )}
-                    {hasGlp1 && (
-                      <button
-                        className="chip"
-                        style={{ maxWidth: '100%', background: showWeight ? 'var(--brand-100)' : undefined, color: showWeight ? 'var(--brand-700)' : undefined }}
-                        onClick={() => setShowWeight((v) => !v)}
-                      >
-                        Mostrar peso
-                      </button>
-                    )}
-                    {/* n°418: KPI overlay selector — ocupa su propia línea para no competir por ancho */}
-                    {kpiHistoryOptions.length > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexBasis: '100%', minWidth: 0 }}>
-                        <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 11, flexShrink: 0 }}>KPI:</span>
-                        {kpiHistoryOptions.slice(0, 4).map((k) => (
-                          <button
-                            key={k}
-                            className="chip"
-                            style={{
-                              fontSize: 11, maxWidth: '100%', minWidth: 0,
-                              overflow: 'hidden', textOverflow: 'ellipsis',
-                              background: kpiOverlay === k ? 'var(--brand-100)' : undefined,
-                              color: kpiOverlay === k ? 'var(--brand-700)' : undefined,
-                            }}
-                            onClick={() => setKpiOverlay((prev) => prev === k ? null : k)}
-                          >
-                            {k}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+                  Próxima dosis
+                </button>
               )}
-            </AnimatePresence>
+              {hasGlp1 && (
+                <button
+                  className="chip"
+                  style={{ maxWidth: '100%', background: showWeight ? 'var(--brand-100)' : undefined, color: showWeight ? 'var(--brand-700)' : undefined }}
+                  onClick={() => setShowWeight((v) => !v)}
+                >
+                  Mostrar peso
+                </button>
+              )}
+              {/* n°418: KPI overlay selector — ocupa su propia línea para no competir por ancho */}
+              {kpiHistoryOptions.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexBasis: '100%', minWidth: 0 }}>
+                  <span className="sm" style={{ color: 'var(--ink-300)', fontSize: 11, flexShrink: 0 }}>KPI:</span>
+                  {kpiHistoryOptions.slice(0, 4).map((k) => (
+                    <button
+                      key={k}
+                      className="chip"
+                      style={{
+                        fontSize: 11, maxWidth: '100%', minWidth: 0,
+                        overflow: 'hidden', textOverflow: 'ellipsis',
+                        background: kpiOverlay === k ? 'var(--brand-100)' : undefined,
+                        color: kpiOverlay === k ? 'var(--brand-700)' : undefined,
+                      }}
+                      onClick={() => setKpiOverlay((prev) => prev === k ? null : k)}
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -744,41 +701,15 @@ export function PharmaDashboard() {
 
         <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '16px 0' }} />
 
-        {/* ── PANEL COLAPSABLE: Análisis avanzado (educativo) ─── items 287/285/286/288/290/293/283 */}
+        {/* ── PANEL: Análisis avanzado (educativo) — siempre visible (disclosure retirado) — items 287/285/286/288/290/293/283 */}
         <div>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              width: '100%',
-              textAlign: 'left',
-            }}
-            aria-expanded={showAdvanced}
-          >
-            <motion.span
-              animate={{ rotate: showAdvanced ? 90 : 0 }}
-              transition={{ duration: dur.fast }}
-              style={{ display: 'inline-flex' }}
-            >
-              <Chevron size={12} />
-            </motion.span>
-            <span className="sm" style={{ color: 'var(--ink-700)', fontWeight: 600 }}>
-              Análisis avanzado <span style={{ color: 'var(--ink-400)', fontWeight: 400 }}>(educativo)</span>
-            </span>
-          </button>
+          <span className="sm" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink-700)', fontWeight: 600 }}>
+            Análisis avanzado <span style={{ color: 'var(--ink-400)', fontWeight: 400 }}>(educativo)</span>
+          </span>
 
-          <AnimatePresence>
-            {showAdvanced && advancedMetrics && (
-              <PharmaAdvancedPanel advancedMetrics={advancedMetrics} series={data.series} />
-            )}
-          </AnimatePresence>
+          {advancedMetrics && (
+            <PharmaAdvancedPanel advancedMetrics={advancedMetrics} series={data.series} />
+          )}
         </div>
 
         <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '16px 0' }} />

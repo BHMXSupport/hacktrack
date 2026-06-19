@@ -241,8 +241,7 @@ function TimelineItem({
   // n°77: editar hora inline
   const [editingTime, setEditingTime] = useState(false)
 
-  // densidad: detalle PK avanzado (sparkline, fase, presencia) colapsado por defecto
-  const [showMore, setShowMore] = useState(false)
+  // densidad: detalle PK avanzado (sparkline, fase, presencia) SIEMPRE visible
 
   function handleTimeClick() {
     setEditingTime(true)
@@ -490,7 +489,7 @@ function TimelineItem({
                 </button>
               )}
 
-              {/* densidad §22: detalle avanzado (sparkline, fase, presencia) tras 'ver más' */}
+              {/* densidad §22: detalle avanzado (sparkline, fase, presencia) — SIEMPRE visible */}
               {(() => {
                 const hasSparkline = item.type === 'medida' && !!measureHistory && measureHistory.length >= 2
                 const hasFase = item.type === 'dose' && phaseIndex != null
@@ -498,35 +497,8 @@ function TimelineItem({
                 if (!hasSparkline && !hasFase && !hasPresence) return null
                 return (
                   <>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setShowMore((v) => !v) }}
-                      aria-expanded={showMore}
-                      style={{
-                        marginTop: 6,
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: 'var(--ink-400)',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      {showMore ? 'Ver menos' : 'Ver más'}
-                      <Chevron dir={showMore ? 'down' : 'right'} size={13} color="var(--ink-400)" />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {showMore && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          style={{ overflow: 'hidden' }}
-                        >
+                    {/* densidad: detalle avanzado SIEMPRE visible (sin plegar) */}
+                    <div>
                           {/* n°184: sparkline + n°233: tendencia */}
                           {hasSparkline && measureHistory && (() => {
                             const numMatch = item.u.match(/^([\d.]+)/)
@@ -568,9 +540,7 @@ function TimelineItem({
                               </div>
                             </div>
                           )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    </div>
                   </>
                 )
               })()}
@@ -692,9 +662,7 @@ export function Diario() {
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // n°85: panel estadístico colapsable
-  const [statsOpen, setStatsOpen] = useState(false)
-
+  // n°85: panel estadístico — SIEMPRE visible (sin plegar)
 
   // n°238: agrupación por semana
   const [groupBy, setGroupBy] = useState<'dia' | 'semana'>('dia')
@@ -1239,35 +1207,24 @@ export function Diario() {
       {/* n°85: panel estadístico cuando typeFilter='medida' */}
       {typeFilter === 'medida' && measureStats && measureStats.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <button
-            type="button"
-            onClick={() => setStatsOpen((v) => !v)}
+          {/* encabezado de texto plano — contenido SIEMPRE visible (sin plegar) */}
+          <div
             style={{
               width: '100%',
               background: 'color-mix(in srgb, var(--brand-500) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--brand-500) 18%, transparent)',
-              borderRadius: 'var(--r-md)',
+              borderRadius: 'var(--r-md) var(--r-md) 0 0',
               padding: '10px 14px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
               color: 'var(--ink-700)',
               fontWeight: 600,
               fontSize: 14,
             }}
           >
             Resumen del período
-            <Chevron dir={statsOpen ? 'down' : 'right'} size={16} color="var(--ink-400)" />
-          </button>
-          <AnimatePresence>
-            {statsOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                style={{ overflow: 'hidden' }}
-              >
+          </div>
+          <div>
                 <div style={{
                   padding: '10px 14px',
                   border: '1px solid var(--ink-100)',
@@ -1304,9 +1261,7 @@ export function Diario() {
                     </div>
                   ))}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </div>
         </div>
       )}
 
