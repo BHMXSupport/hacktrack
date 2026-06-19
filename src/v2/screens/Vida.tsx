@@ -66,7 +66,7 @@ const fade = {
 
 // ── Sub-componente: estado vacío ──────────────────────────────────────────────
 
-function EmptyState({ onRegistrar }: { onRegistrar: () => void }) {
+function EmptyState() {
   return (
     <motion.div variants={fade} className="mt-6">
       <Glass className="flex flex-col items-center gap-4 py-10 text-center">
@@ -76,10 +76,10 @@ function EmptyState({ onRegistrar }: { onRegistrar: () => void }) {
         <div>
           <p className="font-semibold text-foreground">Sin dosis registradas aún</p>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Registra tu primera dosis y aquí verás cuánto sigue activo en tu cuerpo con el tiempo.
+            Registra tus dosis desde <span className="text-secondary-foreground">Inicio</span> o el botón <span className="text-teal">＋</span>.
+            Aquí verás automáticamente cuánto sigue activo en tu cuerpo.
           </p>
         </div>
-        <Button onClick={onRegistrar}>Registrar dosis</Button>
       </Glass>
     </motion.div>
   )
@@ -512,7 +512,7 @@ export function Vida() {
             subtitle="Presencia estimada de cada péptido"
           />
         </motion.div>
-        <EmptyState onRegistrar={() => dispatch({ t: 'sheet', sheet: 'registrar' })} />
+        <EmptyState />
       </motion.div>
     )
   }

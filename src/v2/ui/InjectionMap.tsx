@@ -39,18 +39,19 @@ const SITE_SHORT: Record<InjectionSite, string> = {
 }
 
 // Posición (% del contenedor, que respeta el aspecto nativo de la figura 1200×896 con
-// object-contain → sin letterbox, coords 1:1 sobre la figura). RECALIBRADAS con overlay visual
-// para la figura andrógina (#15): cada marcador cae sobre la región que nombra.
+// object-contain → sin letterbox, coords 1:1 sobre la figura). RECALIBRADAS midiendo la figura
+// real con overlay de rejilla (cada 5%): la figura de FRENTE está centrada en x≈25% y la de
+// ESPALDA en x≈75% (NO 29/71 — ese error empujaba los marcadores hacia el centro → muslos en la ingle).
 // Lateralidad = perspectiva del USUARIO ("tu izquierda/derecha"):
-//  FRENTE (centro x~29%): der = lado del espectador izquierdo (x menor); izq = espectador derecho.
-//  ESPALDA (centro x~71%): der = espectador derecho (x mayor); izq = espectador izquierdo.
+//  FRENTE (centro x~25%): der = lado del espectador izquierdo (x menor); izq = espectador derecho.
+//  ESPALDA (centro x~75%): der = espectador derecho (x mayor); izq = espectador izquierdo.
 const ZONES: { site: InjectionSite; x: number; y: number }[] = [
-  { site: 'abdomen-der', x: 27, y: 44 },
-  { site: 'abdomen-izq', x: 32, y: 44 },
-  { site: 'muslo-der', x: 26.5, y: 70 },
-  { site: 'muslo-izq', x: 33, y: 70 },
-  { site: 'gluteo-izq', x: 68, y: 53 },
-  { site: 'gluteo-der', x: 73, y: 53 },
+  { site: 'abdomen-der', x: 22, y: 46 },
+  { site: 'abdomen-izq', x: 28, y: 46 },
+  { site: 'muslo-der', x: 18, y: 66 },
+  { site: 'muslo-izq', x: 32, y: 66 },
+  { site: 'gluteo-izq', x: 71, y: 50 },
+  { site: 'gluteo-der', x: 79, y: 50 },
 ]
 
 function relLabel(ts: number | null): string {

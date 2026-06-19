@@ -4,6 +4,7 @@
 // no farmacocinética individual ni consejo médico. (Investigador PK del equipo multiagente.)
 import type { AppState } from './store'
 import { PEPTIDES, CATEGORY_COLOR } from './catalog'
+import { doseToMg } from './calc'
 
 const H = 3_600_000 // ms por hora
 
@@ -103,13 +104,22 @@ export function collectDosesByProduct(s: AppState): Map<string, Dose[]> {
       if (it.doseMg != null) {
         value = it.doseMg // mg canónicos ya convertidos (incluye UI/mL con reconstitución)
       } else {
-        // legado: parsear mg desde `u`. mg/mcg/g convertibles; UI/mL sin doseMg no se pueden graficar.
+        // Sin doseMg: parsear desde `u`. Toda dosis registrada DEBE graficar (no solo las que
+        // tienen reconstitución): mg/mcg/g se convierten; UI/mL se convierten con la reconstitución
+        // guardada del producto y, si no hay, se usa el valor crudo como proxy de magnitud.
         const m = it.u.match(/·\s*([\d.]+)\s*([^\s·]*)/)
-        value = m ? parseFloat(m[1]) : NaN
+        const raw = m ? parseFloat(m[1]) : NaN
         const unit = (m?.[2] ?? '').toLowerCase()
-        if (unit === 'mcg' || unit === 'µg' || unit === 'ug' || unit === 'μg') value = value / 1000
-        else if (unit === 'g') value = value * 1000
-        else if (!(unit === 'mg' || unit === '')) continue
+        if (unit === 'mcg' || unit === 'µg' || unit === 'ug' || unit === 'μg') value = raw / 1000
+        else if (unit === 'g') value = raw * 1000
+        else if (unit === 'ui' || unit === 'clics' || unit === 'ml') {
+          const rec = s.productRecon[it.product]
+          const unitNorm = unit === 'ml' ? 'mL' : unit === 'clics' ? 'clics' : 'UI'
+          const mg = rec ? doseToMg(raw, unitNorm, rec.vialMg, rec.aguaMl) : null
+          value = mg != null && mg > 0 ? mg : raw
+        } else {
+          value = raw // mg o sin unidad
+        }
       }
       if (!isFinite(value) || value <= 0) continue
       const arr = byProduct.get(it.product) ?? []
