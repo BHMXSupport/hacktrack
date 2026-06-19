@@ -44,30 +44,34 @@ export function EntryGate({ onEnter }: { onEnter: () => void }) {
     }
   }
 
-  // Mientras carga: esperar a que el video esté LISTO (canplaythrough / readyState 4) y, en cuanto
-  // lo esté, pasar directo al preloader. Mínimo corto (anti-flicker) + tope duro de seguridad.
+  // Mientras carga: esperar a que el video esté LISTO (canplaythrough / readyState 4) y, cuando lo
+  // esté, mantener el estado de carga +1s más antes de entrar — así el video termina de bufferear y
+  // arranca en movimiento (sin el frame estático al entrar). Tope duro de seguridad.
+  const READY_HOLD = 1000 // +1s tras "listo"
   useEffect(() => {
     if (!loading) return
     const v = vidRef.current
     let done = false
-    const MIN = 350
-    const t0 = Date.now()
-    const advance = () => {
+    const enterAfterHold = () => {
       if (done) return
       done = true
-      const wait = Math.max(0, MIN - (Date.now() - t0))
-      window.setTimeout(onEnter, wait)
+      window.setTimeout(onEnter, READY_HOLD)
     }
-    const onReady = () => advance()
+    const enterNow = () => {
+      if (done) return
+      done = true
+      onEnter()
+    }
+    const onReady = () => enterAfterHold()
     let hardCap = 0
     if (v && v.readyState >= 4) {
-      advance() // ya bufferado (cache)
+      enterAfterHold() // ya bufferado (cache) → igual mantén +1s
     } else if (v) {
       v.addEventListener('canplaythrough', onReady)
       v.addEventListener('error', onReady) // si el video falla, no atrapar al usuario
-      hardCap = window.setTimeout(advance, 12000) // último recurso si nunca queda listo
+      hardCap = window.setTimeout(enterNow, 12000) // último recurso si nunca queda listo
     } else {
-      advance()
+      enterAfterHold()
     }
     return () => {
       if (hardCap) window.clearTimeout(hardCap)

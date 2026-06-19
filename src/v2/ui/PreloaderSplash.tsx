@@ -12,9 +12,21 @@ export function PreloaderSplash({ onDone }: { onDone?: () => void }) {
   const [playing, setPlaying] = useState(false)
   const vidRef = useRef<HTMLVideoElement>(null)
 
+  // Cierra el preloader cuando el video TERMINA de verdad (8s completos), no por un timer fijo
+  // desde el montaje (que cortaba antes porque el video arranca un instante después).
   useEffect(() => {
-    const t = window.setTimeout(() => setShow(false), reduce ? 700 : 8000)
-    return () => window.clearTimeout(t)
+    if (reduce) {
+      const t = window.setTimeout(() => setShow(false), 700)
+      return () => window.clearTimeout(t)
+    }
+    const v = vidRef.current
+    const onEnded = () => setShow(false)
+    if (v) v.addEventListener('ended', onEnded)
+    const fallback = window.setTimeout(() => setShow(false), 10000) // seguridad si 'ended' no dispara
+    return () => {
+      if (v) v.removeEventListener('ended', onEnded)
+      window.clearTimeout(fallback)
+    }
   }, [reduce])
 
   useEffect(() => {
@@ -87,7 +99,7 @@ export function PreloaderSplash({ onDone }: { onDone?: () => void }) {
                   className="h-full rounded-full bg-teal"
                   initial={{ width: '4%' }}
                   animate={{ width: '100%' }}
-                  transition={{ duration: 7.6, ease: 'easeInOut' }}
+                  transition={{ duration: 8, ease: 'easeInOut' }}
                 />
               </div>
             )}
