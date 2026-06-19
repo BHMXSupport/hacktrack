@@ -54,11 +54,15 @@ const FLOW: Record<string, ComponentType> = {
 // → preloader (video Higgsfield, ahora SÍ reproduce) → app.
 function LaunchSequence() {
   const [phase, setPhase] = useState<'gate' | 'loading' | 'done'>('gate')
+  // El preloader (z-100) se monta EN CUANTO se toca Entrar, debajo del gate (z-110) que se
+  // desvanece encima. Sin mode="wait" → nunca queda un hueco donde se vea la app por detrás.
   return (
-    <AnimatePresence mode="wait">
-      {phase === 'gate' && <EntryGate key="gate" onEnter={() => setPhase('loading')} />}
-      {phase === 'loading' && <PreloaderSplash key="loading" onDone={() => setPhase('done')} />}
-    </AnimatePresence>
+    <>
+      <AnimatePresence>
+        {phase === 'gate' && <EntryGate key="gate" onEnter={() => setPhase('loading')} />}
+      </AnimatePresence>
+      {phase === 'loading' && <PreloaderSplash onDone={() => setPhase('done')} />}
+    </>
   )
 }
 
