@@ -115,11 +115,10 @@ export function Splash() {
       aria-label="Cargando Hacktrack"
       className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-void"
     >
-      {/* Póster con zoom Ken Burns — movimiento sin <video> (sin ▶ ni carga del hero de 889 KB).
-          Esta pantalla casi siempre va cubierta por el PreloaderSplash; el póster basta. */}
+      {/* Póster estático de base (esta pantalla casi siempre va cubierta por el gate/preloader). */}
       <div
         aria-hidden
-        className={`pointer-events-none absolute inset-0 bg-cover bg-center ${reduce ? '' : 'preloader-kenburns'}`}
+        className="pointer-events-none absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${posterSrc})`, opacity: 0.3 }}
       />
 

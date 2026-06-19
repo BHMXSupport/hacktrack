@@ -44,28 +44,36 @@ export function EntryGate({ onEnter }: { onEnter: () => void }) {
     }
   }
 
-  // Mientras carga: avanzar cuando el video esté listo (con un mínimo de motion visible y un tope duro).
+  // Mientras carga: esperar a que el video esté LISTO (canplaythrough / readyState 4) y, en cuanto
+  // lo esté, pasar directo al preloader. Mínimo corto (anti-flicker) + tope duro de seguridad.
   useEffect(() => {
     if (!loading) return
     const v = vidRef.current
     let done = false
-    const go = () => { if (!done) { done = true; onEnter() } }
-    const onReady = () => go()
-    // Mínimo ~900ms de motion de carga; luego avanza si el video ya bufferó, si no espera el evento.
-    const minTimer = window.setTimeout(() => {
-      if (!v || v.readyState >= 3) go()
-      else {
-        v.addEventListener('canplaythrough', onReady)
-        v.addEventListener('loadeddata', onReady)
-      }
-    }, 900)
-    const hardCap = window.setTimeout(go, 2800) // nunca quedarse colgado
+    const MIN = 350
+    const t0 = Date.now()
+    const advance = () => {
+      if (done) return
+      done = true
+      const wait = Math.max(0, MIN - (Date.now() - t0))
+      window.setTimeout(onEnter, wait)
+    }
+    const onReady = () => advance()
+    let hardCap = 0
+    if (v && v.readyState >= 4) {
+      advance() // ya bufferado (cache)
+    } else if (v) {
+      v.addEventListener('canplaythrough', onReady)
+      v.addEventListener('error', onReady) // si el video falla, no atrapar al usuario
+      hardCap = window.setTimeout(advance, 12000) // último recurso si nunca queda listo
+    } else {
+      advance()
+    }
     return () => {
-      window.clearTimeout(minTimer)
-      window.clearTimeout(hardCap)
+      if (hardCap) window.clearTimeout(hardCap)
       if (v) {
         v.removeEventListener('canplaythrough', onReady)
-        v.removeEventListener('loadeddata', onReady)
+        v.removeEventListener('error', onReady)
       }
     }
   }, [loading, onEnter])
@@ -85,7 +93,6 @@ export function EntryGate({ onEnter }: { onEnter: () => void }) {
         ref={vidRef}
         src={preloaderSrc}
         muted
-        loop
         playsInline
         preload="auto"
         aria-hidden
