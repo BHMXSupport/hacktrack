@@ -280,16 +280,19 @@ function CalendarioTab() {
         </AnimatePresence>
       </Glass>
 
-      {/* Leyenda */}
-      <Glass className="flex flex-wrap items-center gap-x-5 gap-y-2 py-3">
-        <LegendItem color="bg-teal" icon={<CheckCircle2 size={13} className="text-teal" />} label="Con dosis" />
-        <LegendItem color="bg-alert" icon={<XCircle size={13} className="text-alert" />} label="Omitida" />
-        <LegendItem color="bg-muted-foreground" icon={<Circle size={13} className="text-muted-foreground/50" />} label="Sin dosis" />
-        <LegendItem
-          color="bg-teal/60"
-          icon={<span className="inline-block h-3 w-3 rounded-full ring-1 ring-[var(--teal)]" />}
-          label="Hoy"
-        />
+      {/* Leyenda — color + ÍCONO (forma) para no depender solo del color (#24, accesibilidad) */}
+      <Glass className="flex flex-col gap-2 py-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Leyenda</p>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <LegendItem color="bg-teal" icon={<CheckCircle2 size={15} className="text-teal" />} label="Con dosis" />
+          <LegendItem color="bg-alert" icon={<XCircle size={15} className="text-alert" />} label="Omitida" />
+          <LegendItem color="bg-muted-foreground" icon={<Circle size={15} className="text-muted-foreground/50" />} label="Sin dosis" />
+          <LegendItem
+            color="bg-teal/60"
+            icon={<span className="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-[var(--teal)]" />}
+            label="Hoy"
+          />
+        </div>
       </Glass>
 
       {/* Empty state */}

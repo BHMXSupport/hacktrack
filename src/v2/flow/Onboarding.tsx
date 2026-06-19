@@ -20,7 +20,8 @@ import { Glass } from '../ui/Glass'
 /** Slide 0 — mini dashboard de adherencia (ritmo/recordatorios) */
 function IllustrationRitmo() {
   const weekDots = [true, true, false, true, true, true, false]
-  const dias = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+  // #23: usar las MISMAS abreviaturas que el editor de cadencia (WDS) — evita la confusión 'X' vs 'Mi'
+  const dias = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D']
 
   return (
     <Glass className="w-full max-w-[280px] mx-auto flex flex-col gap-3 p-4">

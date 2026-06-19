@@ -557,6 +557,10 @@ export function Comida() {
   const macros = useMemo(() => dayMacros(day.meals), [day.meals])
   const tdeeVal = useMemo(() => tdee(state), [state])
   const goalKcal = state.kcalGoal ?? tdeeVal
+  // #10: solo los objetivos metabólicos/composición encuadran el conteo como meta/déficit.
+  const metabolic =
+    state.curGoal === 'Metabolismo' || state.curGoal === 'Crecimiento' ||
+    (state.secondaryGoals ?? []).some((g) => g === 'Metabolismo' || g === 'Crecimiento')
   const goalProtein = state.macroGoals?.protein ?? null
   const goalCarbs = state.macroGoals?.carbs ?? null
   const goalFat = state.macroGoals?.fat ?? null
@@ -842,14 +846,14 @@ export function Comida() {
               </p>
               <p className="font-mono text-[32px] font-bold tabular-nums text-foreground leading-none">
                 {kcal}
-                {goalKcal != null && (
+                {goalKcal != null && metabolic && (
                   <span className="text-[18px] font-normal text-muted-foreground"> / {goalKcal}</span>
                 )}
                 <span className="ml-1 text-[14px] font-normal text-muted-foreground">kcal</span>
               </p>
             </div>
             <div className="flex flex-col items-end gap-1.5">
-              {goalKcal != null && kcal > 0 && (
+              {metabolic && goalKcal != null && kcal > 0 && (
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                     kcal > goalKcal * 1.05

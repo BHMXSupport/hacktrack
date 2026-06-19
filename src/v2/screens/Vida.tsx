@@ -669,6 +669,10 @@ export function Vida() {
           {/* Gráfica SVG — sin padding horizontal para usar todo el ancho */}
           {visible.length > 0 ? (
             <div className="relative">
+              {/* #31: rotular la unidad del eje Y (la curva no traía unidad explícita) */}
+              <p className="mb-1 text-[11px] text-muted-foreground">
+                Eje vertical: {mode === 'percent' ? '% del pico estimado' : 'mg estimados en el cuerpo'}
+              </p>
               <div
                 ref={chartRef}
                 role="img"

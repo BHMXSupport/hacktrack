@@ -248,11 +248,11 @@ export function siteLabel(s?: InjectionSite | null): string | null {
 // Recencia de inyección por zona (para el mapa anatómico de Inicio): rojo <1d, amarillo <2d, verde <3d.
 export type ZoneRecency = 'fresh' | 'recent' | 'ok' | 'none' // <1d | <2d | <3d | ≥3d/nunca
 export interface ZoneInfo { recency: ZoneRecency; lastTs: number | null }
-export function injectionZoneRecency(s: AppState, now: number = Date.now()): Record<InjectionSite, ZoneInfo> {
+export function injectionZoneRecency(s: AppState, now: number = Date.now(), product?: string | null): Record<InjectionSite, ZoneInfo> {
   const latest: Partial<Record<InjectionSite, number>> = {}
   for (const g of s.log) for (const it of g.items) {
-    // ignora dosis con timestamp futuro al elegir la más reciente válida por zona
-    if (it.type === 'dose' && it.site && it.ts <= now && (latest[it.site] == null || it.ts > latest[it.site]!)) latest[it.site] = it.ts
+    // ignora dosis con timestamp futuro; #16: si se pasa product, filtra solo ese producto
+    if (it.type === 'dose' && it.site && it.ts <= now && (!product || it.product === product) && (latest[it.site] == null || it.ts > latest[it.site]!)) latest[it.site] = it.ts
   }
   const out = {} as Record<InjectionSite, ZoneInfo>
   for (const site of INJECTION_ROTATION) {

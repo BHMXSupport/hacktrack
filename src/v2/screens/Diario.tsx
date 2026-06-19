@@ -842,9 +842,10 @@ export function Diario() {
                 type="button"
                 aria-label="Exportar diario como CSV"
                 onClick={handleExport}
-                className="h-11 w-11 flex items-center justify-center rounded-md border border-white/10 text-muted-foreground hover:text-foreground transition-colors"
+                className="h-11 flex items-center justify-center gap-1.5 rounded-md border border-white/10 px-3 text-[13px] font-semibold text-secondary-foreground hover:text-foreground transition-colors"
               >
                 <Download size={16} />
+                <span>CSV</span>
               </button>
             )}
             <button

@@ -617,6 +617,10 @@ export function Semana() {
   const adhDelta =
     adh && adhPrevOnly != null ? adh.pct - adhPrevOnly : null
 
+  // #10: el bloque calórico solo aplica a objetivos metabólicos/composición
+  const metabolic =
+    state.curGoal === 'Metabolismo' || state.curGoal === 'Crecimiento' ||
+    (state.secondaryGoals ?? []).some((g) => g === 'Metabolismo' || g === 'Crecimiento')
   // Calorías promedio y TDEE
   const avg7 = avgKcal(state, 7)
   const tdeeVal = useMemo(() => tdee(state), [state.profile])
@@ -833,7 +837,8 @@ export function Semana() {
         </Glass>
       </motion.div>
 
-      {/* Calorías promedio en Glass */}
+      {/* Calorías promedio en Glass — #10: solo objetivos metabólicos/composición */}
+      {metabolic && (
       <motion.div variants={itemVars}>
         <Glass>
           <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-2">
@@ -863,6 +868,7 @@ export function Semana() {
           )}
         </Glass>
       </motion.div>
+      )}
 
       {/* ── Hidratación — SÓLIDA (dato médico-operativo) ── */}
       <motion.div variants={itemVars}>
@@ -1003,15 +1009,17 @@ export function Semana() {
               dispatch={dispatch}
               profile={p}
             >
-              {/* R42: Proyección de meta */}
-              <ProyeccionMetaCard
-                proj={proj}
-                metaPesoKg={p.metaPesoKg}
-                dispatch={dispatch}
-              />
+              {/* R42: Proyección de meta — #10: solo objetivos metabólicos/composición (peso) */}
+              {metabolic && (
+                <ProyeccionMetaCard
+                  proj={proj}
+                  metaPesoKg={p.metaPesoKg}
+                  dispatch={dispatch}
+                />
+              )}
 
-              {/* Margen energético (TDEE) */}
-              {tdeeVal != null && avg7 != null && (
+              {/* Margen energético (TDEE) — #10: solo objetivos metabólicos/composición */}
+              {metabolic && tdeeVal != null && avg7 != null && (
                 <Glass>
                   <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">
                     Margen energético
