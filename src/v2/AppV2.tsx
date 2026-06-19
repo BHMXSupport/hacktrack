@@ -5,6 +5,7 @@ import { useApp } from '../lib/store'
 import type { TabId } from '../lib/store'
 import { FloatingNav } from './ui/FloatingNav'
 import { AmbientBackground } from './ui/AmbientBackground'
+import { PreloaderSplash } from './ui/PreloaderSplash'
 import { Inicio } from './screens/Inicio'
 import { Diario } from './screens/Diario'
 import { Progreso } from './screens/Progreso'
@@ -36,6 +37,7 @@ function Frame({ children }: { children: ReactNode }) {
     <div className="app-frame relative mx-auto h-[100dvh] w-full overflow-hidden bg-precision-grid sm:my-0 md:h-[880px] md:max-w-[412px] md:rounded-[40px]">
       <AmbientBackground />
       {children}
+      <PreloaderSplash />
     </div>
   )
 }
