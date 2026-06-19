@@ -19,11 +19,24 @@ export function Sheet({
   const reduce = useReducedMotion()
   const panelRef = useRef<HTMLDivElement | null>(null)
 
-  // Escape para cerrar + foco inicial en el panel.
+  // Escape para cerrar + foco inicial + focus-trap (Tab cicla dentro del panel).
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') { onClose(); return }
+      if (e.key !== 'Tab' || !panelRef.current) return
+      const f = panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      )
+      if (f.length === 0) { e.preventDefault(); return }
+      const first = f[0]
+      const last = f[f.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey && (active === first || active === panelRef.current)) {
+        e.preventDefault(); last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault(); first.focus()
+      }
     }
     document.addEventListener('keydown', onKey)
     const t = window.setTimeout(() => panelRef.current?.focus(), 50)

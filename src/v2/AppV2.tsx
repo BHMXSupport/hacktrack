@@ -11,6 +11,9 @@ import { Vida } from './screens/Vida'
 import { Comida } from './screens/Comida'
 import { Semana } from './screens/Semana'
 import { RegistrarSheet } from './screens/RegistrarSheet'
+import { MedidaSheet } from './screens/MedidaSheet'
+import { ConfirmDeleteSheet } from './screens/ConfirmDeleteSheet'
+import { RecetarioSheet } from './screens/RecetarioSheet'
 import { Ajustes } from './screens/Ajustes'
 import { Perfil } from './screens/Perfil'
 import { Splash } from './flow/Splash'
@@ -39,10 +42,11 @@ function Shell() {
   const { state, dispatch } = useApp()
   const [showAjustes, setShowAjustes] = useState(false)
   const [showPerfil, setShowPerfil] = useState(false)
-  // Hoja de captura impulsada por state.sheet → así los CTAs dispatch({t:'sheet',sheet:'registrar'})
-  // de cualquier pantalla la abren (no solo el FAB).
+  // Hojas impulsadas por state.sheet → cualquier pantalla las abre con dispatch({t:'sheet',sheet,arg}).
   const openReg = () => dispatch({ t: 'sheet', sheet: 'registrar' })
-  const showReg = state.sheet === 'registrar' || state.sheet === 'medida' || state.sheet === 'agregar'
+  const closeSheet = () => dispatch({ t: 'sheet', sheet: null })
+  const sheet = state.sheet
+  const sheetArg = (state.sheetArg as string | undefined) ?? null
 
   // Router de arranque
   const FlowScreen = FLOW[state.screen]
@@ -76,7 +80,10 @@ function Shell() {
 
       <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={openReg} />
 
-      <RegistrarSheet open={showReg} onClose={() => dispatch({ t: 'sheet', sheet: null })} />
+      <RegistrarSheet open={sheet === 'registrar' || sheet === 'agregar'} onClose={closeSheet} />
+      <MedidaSheet open={sheet === 'medida'} onClose={closeSheet} measure={sheetArg} />
+      <ConfirmDeleteSheet open={sheet === 'confirm-delete'} onClose={closeSheet} id={sheetArg} />
+      <RecetarioSheet open={sheet === 'recetario' || sheet === 'crear-platillo'} onClose={closeSheet} />
       <Ajustes
         open={showAjustes}
         onClose={() => setShowAjustes(false)}

@@ -10,6 +10,7 @@ import { Ring } from '../ui/Ring'
 import { Button } from '../ui/Button'
 import { canAutoplayHeavyMedia } from '../lib/media'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
+import posterSrc from '../../assets/rebuild/hero-poster.webp'
 
 const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
@@ -88,9 +89,17 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       {/* HERO — próxima toma con video en movimiento + readout en data-plate */}
       <motion.div variants={fade}>
         <Glass className="relative overflow-hidden p-0">
+          {/* Poster ligero (36KB): base instantánea + fallback Save-Data/sin-video */}
+          <img
+            src={posterSrc}
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45"
+          />
           {playHero && (
             <video
               src={heroSrc}
+              poster={posterSrc}
               autoPlay
               muted
               loop

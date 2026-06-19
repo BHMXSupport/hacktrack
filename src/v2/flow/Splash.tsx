@@ -12,6 +12,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 import { canAutoplayHeavyMedia } from '../lib/media'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
+import posterSrc from '../../assets/rebuild/hero-poster.webp'
 
 // Wordmark vectorial inline — sin dependencia de activos tipográficos externos.
 // "Hack" blanco, "track" teal.
@@ -116,10 +117,18 @@ export function Splash() {
       aria-label="Cargando Hacktrack"
       className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-void"
     >
+      {/* Poster ligero (36KB) como base instantánea + fallback sin-video */}
+      <img
+        src={posterSrc}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
+      />
       {/* Video de fondo — decorativo, aria-hidden; gateado por Save-Data/conexión */}
       {canAutoplayHeavyMedia() && (
         <video
           src={heroSrc}
+          poster={posterSrc}
           autoPlay
           muted
           loop
