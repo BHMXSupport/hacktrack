@@ -72,7 +72,11 @@ export default defineConfig({
         },
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Incluye mp4/webp: si no se precachean, el JS cacheado apunta a media con hash viejo
+        // que ya no existe tras un redeploy → 404 / "?" en heroes. Versionados con el SW + limpieza.
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,mp4,woff2}'],
+        cleanupOutdatedCaches: true,
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           { urlPattern: /^https:\/\/fonts\.googleapis\.com\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'google-fonts-css' } },
           {
