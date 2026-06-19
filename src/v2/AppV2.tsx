@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Settings, Hammer } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { AppProviderV2 } from './lib/provider'
 import { useApp } from '../lib/store'
 import type { TabId } from '../lib/store'
@@ -7,25 +7,10 @@ import { FloatingNav } from './ui/FloatingNav'
 import { Inicio } from './screens/Inicio'
 import { Diario } from './screens/Diario'
 import { Progreso } from './screens/Progreso'
+import { Vida } from './screens/Vida'
+import { Comida } from './screens/Comida'
+import { Semana } from './screens/Semana'
 import { RegistrarSheet } from './screens/RegistrarSheet'
-
-const PLACEHOLDER: Record<string, string> = {
-  vida: 'Vida',
-  comida: 'Comida',
-  semana: 'Semana',
-}
-
-function Placeholder({ name }: { name: string }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
-      <span className="grid h-14 w-14 place-items-center rounded-2xl bg-teal/10 text-teal">
-        <Hammer size={26} />
-      </span>
-      <h2 className="text-[20px] font-bold text-foreground">{name}</h2>
-      <p className="text-[14px] text-muted-foreground">En construcción — llega en la siguiente etapa del rebuild.</p>
-    </div>
-  )
-}
 
 function Shell() {
   const { state, dispatch } = useApp()
@@ -47,7 +32,9 @@ function Shell() {
         {tab === 'inicio' && <Inicio onRegistrar={() => setShowReg(true)} />}
         {tab === 'diario' && <Diario />}
         {tab === 'protocolo' && <Progreso />}
-        {(tab === 'vida' || tab === 'comida' || tab === 'semana') && <Placeholder name={PLACEHOLDER[tab] ?? 'Inicio'} />}
+        {tab === 'vida' && <Vida />}
+        {tab === 'comida' && <Comida />}
+        {tab === 'semana' && <Semana />}
       </div>
 
       <FloatingNav active={tab} onTab={(t) => dispatch({ t: 'tab', tab: t })} onFab={() => setShowReg(true)} />
