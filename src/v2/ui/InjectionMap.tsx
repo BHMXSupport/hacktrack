@@ -38,17 +38,19 @@ const SITE_SHORT: Record<InjectionSite, string> = {
   'gluteo-der': 'Glúteo der.',
 }
 
-// Posición (% del contenedor, que ahora respeta el aspecto nativo de la imagen 2432×1792
-// → sin letterbox, las coords mapean 1:1 sobre la figura). Calibradas con overlay visual.
-// Figura FRENTE ≈ izquierda (centro x~32.5%), ESPALDA ≈ derecha (centro x~66.5%).
-// En FRENTE: der = lado del espectador izquierdo (x menor). En ESPALDA: der = espectador derecho (x mayor).
+// Posición (% del contenedor, que respeta el aspecto nativo de la imagen 2432×1792 con
+// object-contain → sin letterbox, coords 1:1 sobre la figura). RECALIBRADAS con overlay visual
+// (beta-test): cada marcador cae sobre la región que nombra, ninguno fuera de la silueta.
+// Lateralidad = perspectiva del USUARIO ("tu izquierda/derecha"):
+//  FRENTE (centro x~33%): der = lado del espectador izquierdo (x menor); izq = espectador derecho.
+//  ESPALDA (centro x~64%): der = espectador derecho (x mayor); izq = espectador izquierdo.
 const ZONES: { site: InjectionSite; x: number; y: number }[] = [
-  { site: 'abdomen-der', x: 30.5, y: 38 },
-  { site: 'abdomen-izq', x: 35, y: 38 },
-  { site: 'muslo-der', x: 30.5, y: 61 },
-  { site: 'muslo-izq', x: 35.5, y: 61 },
-  { site: 'gluteo-izq', x: 64, y: 43 },
-  { site: 'gluteo-der', x: 69, y: 43 },
+  { site: 'abdomen-der', x: 31, y: 42 },
+  { site: 'abdomen-izq', x: 36, y: 42 },
+  { site: 'muslo-der', x: 32.5, y: 65 },
+  { site: 'muslo-izq', x: 38, y: 65 },
+  { site: 'gluteo-izq', x: 61.5, y: 50 },
+  { site: 'gluteo-der', x: 66.5, y: 50 },
 ]
 
 function relLabel(ts: number | null): string {
@@ -164,6 +166,7 @@ export function InjectionMap({
           </span>
         )}
       </div>
+      <p className="-mt-2 mb-3 text-[11px] text-muted-foreground">Izq./der. son desde <span className="text-secondary-foreground">tu</span> perspectiva.</p>
 
       {/* Imagen del cuerpo + zonas interactivas encima */}
       <div className="relative mx-auto w-full" style={{ maxWidth: 360 }}>

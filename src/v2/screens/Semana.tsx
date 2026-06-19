@@ -31,6 +31,7 @@ import { HEROES } from '../lib/heroes'
 import { useApp, adherence, isoKey } from '../../lib/store'
 import {
   avgKcal,
+  kcalSeries,
   tdee,
   compositeStreak,
   streakDetail,
@@ -619,7 +620,10 @@ export function Semana() {
   // Calorías promedio y TDEE
   const avg7 = avgKcal(state, 7)
   const tdeeVal = useMemo(() => tdee(state), [state.profile])
-  const caloricDelta = avg7 != null && tdeeVal != null ? avg7 - tdeeVal : null
+  // #14: no mostrar déficit/superávit con datos insuficientes (1-2 días registrados dan un
+  // "promedio" engañoso y un déficit alarmante). Requiere ≥3 días con comidas en la ventana.
+  const kcalLoggedDays = useMemo(() => kcalSeries(state, 7).filter((d) => d.has).length, [state])
+  const caloricDelta = avg7 != null && tdeeVal != null && kcalLoggedDays >= 3 ? avg7 - tdeeVal : null
   const severeDeficit = caloricDelta != null && caloricDelta < -500
   const veryDeficit = caloricDelta != null && caloricDelta < -1000
 

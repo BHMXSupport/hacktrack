@@ -860,10 +860,10 @@ export function Comida() {
                   }`}
                 >
                   {kcal > goalKcal * 1.05
-                    ? `+${kcal - goalKcal} kcal`
+                    ? `+${kcal - goalKcal} kcal sobre meta`
                     : kcal >= goalKcal * 0.95
                     ? 'En meta'
-                    : `−${goalKcal - kcal} kcal`}
+                    : `Restan ${goalKcal - kcal} kcal`}
                 </span>
               )}
               {/* R39: botón editar metas */}

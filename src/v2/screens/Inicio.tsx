@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import {
-  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp,
+  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp, SkipForward,
 } from 'lucide-react'
-import { useApp, nextInjectionSite, doseForProduct } from '../../lib/store'
+import { useApp, nextInjectionSite, doseForProduct, adherenceMonth } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
 import { startOfDay } from '../../lib/cadence'
 import { doseToMg } from '../../lib/calc'
@@ -72,19 +72,9 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   const streak = useMemo(() => protocolStreak(state, now), [state])
   const today = startOfDay(now)
 
-  const adh = useMemo(() => {
-    let due = 0
-    let taken = 0
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today)
-      d.setDate(d.getDate() - i)
-      for (const p of dayProducts(state, d)) {
-        due++
-        if (doseTakenOnProduct(state, d, p)) taken++
-      }
-    }
-    return { due, taken, pct: due ? Math.round((taken / due) * 100) : 0 }
-  }, [state])
+  // #2/#3: una sola fuente de verdad (tallyDoses vía adherenceMonth) — respeta cadencia real
+  // (semanal/cadaN/ciclo/por-uso) y solo cuenta dosis VENCIDAS en el denominador. null = nada que medir.
+  const adh = useMemo(() => adherenceMonth(state, now), [state])
 
   // Dosis de hoy con estado tomada/saltada/pendiente
   const todayDoses = useMemo(
@@ -146,9 +136,10 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
     dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: product })
   }
 
-  // "No hoy" — logSkip con dispatch directo
+  // "No hoy" — saltar el día (no penaliza adherencia) + feedback explícito
   function skipDose(product: string) {
     dispatch({ t: 'logSkip', product })
+    dispatch({ t: 'toast', msg: `${product}: saltada hoy · no afecta tu adherencia` })
   }
 
   // M10: KPI card → abrir MedidaSheet pre-seleccionada con esa medida
@@ -178,14 +169,14 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       variants={{ show: { transition: { staggerChildren: 0.07 } } }}
     >
       {/* Header */}
-      <motion.div variants={fade} className="flex items-start justify-between">
-        <div>
+      <motion.div variants={fade} className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-[13px] text-muted-foreground">{fecha}</p>
-          <h1 className="text-[28px] font-bold leading-tight text-foreground">
+          <h1 className="truncate text-[28px] font-bold leading-tight text-foreground">
             Hola{name ? `, ${name}` : ''}
           </h1>
         </div>
-        <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-[12px] font-medium text-teal">
+        <span className="mt-1 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-[12px] font-medium text-teal">
           <Shield size={13} /> Tus datos son tuyos
         </span>
       </motion.div>
@@ -242,27 +233,41 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
         </Glass>
       </motion.div>
 
-      {/* Adherencia + racha */}
+      {/* Adherencia + racha — #4: si no hay nada que medir aún, bienvenida (no un "0% fracaso") */}
       <motion.div variants={fade}>
-        <Glass className="flex items-center gap-5">
-          <Ring
-            value={adh.pct}
-            goal={100}
-            unit="%"
-            label="adherencia"
-            sub={streak > 0 ? `racha ${streak} d` : undefined}
-            size={132}
-            stroke={11}
-          />
-          <div className="flex-1">
-            <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Este mes</p>
-            <p className="font-mono text-[26px] font-semibold tabular-nums text-foreground">
-              {adh.taken}
-              <span className="text-muted-foreground"> / {adh.due}</span>
-            </p>
-            <p className="text-[13px] text-secondary-foreground">dosis registradas</p>
-          </div>
-        </Glass>
+        {adh && adh.due > 0 ? (
+          <Glass className="flex items-center gap-5">
+            <Ring
+              value={adh.pct}
+              goal={100}
+              unit="%"
+              label="adherencia"
+              sub={streak > 0 ? `racha ${streak} d` : undefined}
+              size={132}
+              stroke={11}
+            />
+            <div className="flex-1">
+              <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Este mes</p>
+              <p className="font-mono text-[26px] font-semibold tabular-nums text-foreground">
+                {adh.taken}
+                <span className="text-muted-foreground"> / {adh.due}</span>
+              </p>
+              <p className="text-[13px] text-secondary-foreground">dosis registradas</p>
+            </div>
+          </Glass>
+        ) : (
+          <Glass className="flex items-center gap-4">
+            <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-teal/12 text-teal">
+              <Check size={22} strokeWidth={2.5} />
+            </span>
+            <div className="flex-1">
+              <p className="text-[15px] font-semibold text-foreground">Todo listo para empezar</p>
+              <p className="mt-0.5 text-[13px] text-secondary-foreground">
+                Marca tu primera dosis y tu adherencia empezará a medirse aquí.
+              </p>
+            </div>
+          </Glass>
+        )}
       </motion.div>
 
       {/* ── Tus dosis de hoy — ACCIONABLE (R24, R27, M9) ── */}
@@ -354,19 +359,20 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                         <Check size={13} strokeWidth={2.5} />
                         <span>Marcar</span>
                       </button>
-                      {/* "No hoy" — logSkip directo */}
+                      {/* "No hoy" — saltar el día (no penaliza adherencia). #13: claramente tocable */}
                       <button
                         type="button"
                         onClick={() => skipDose(product)}
-                        aria-label={`Omitir dosis de ${product} hoy`}
-                        className="flex items-center justify-center rounded-full h-[44px] min-w-[44px] px-3 font-medium text-[12px] transition-colors"
+                        aria-label={`Saltar dosis de ${product} hoy`}
+                        className="flex items-center justify-center gap-1.5 rounded-full h-[44px] min-w-[44px] px-3 font-semibold text-[12px] transition-colors active:opacity-70"
                         style={{
-                          border: '1px solid var(--border)',
-                          background: 'transparent',
-                          color: 'var(--muted-foreground)',
+                          border: '1.5px solid rgba(255,255,255,0.28)',
+                          background: 'rgba(255,255,255,0.06)',
+                          color: 'var(--secondary-foreground)',
                         }}
                       >
-                        No hoy
+                        <SkipForward size={13} strokeWidth={2.5} />
+                        <span>No hoy</span>
                       </button>
                     </div>
                   ) : (
