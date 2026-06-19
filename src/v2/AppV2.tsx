@@ -119,8 +119,12 @@ function Shell() {
       <ImportSheet open={sheet === 'import'} onClose={closeSheet} />
       <PaywallSheet open={sheet === 'paywall'} onClose={closeSheet} />
 
-      {/* Welcome — overlay tras finishOnboarding (justOnboarded), encima de s-app */}
-      {state.justOnboarded && <Welcome />}
+      {/* Welcome — overlay full-screen tras finishOnboarding (justOnboarded), sobre s-app */}
+      {state.justOnboarded && (
+        <div className="absolute inset-0 z-[90] overflow-y-auto bg-void">
+          <Welcome />
+        </div>
+      )}
     </Frame>
   )
 }
