@@ -11,7 +11,7 @@
  *   { t: 'setMeasures', measures: string[] }
  *   { t: 'go', screen: 's-account' }
  */
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Check } from 'lucide-react'
 import { useApp } from '../../lib/store'
@@ -43,16 +43,29 @@ export function MeasurePicker() {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
 
-  const goal = state.curGoal ?? 'Explorar'
-  const accentColor = CATEGORY_COLOR[goal as keyof typeof CATEGORY_COLOR] ?? '#5FC9B8'
+  // Una pantalla de métricas POR cada objetivo elegido (curGoal + secundarios), deduplicado.
+  const goals = useMemo(() => {
+    const g = [state.curGoal, ...(state.secondaryGoals ?? [])].filter(Boolean) as string[]
+    return [...new Set(g)].length ? [...new Set(g)] : ['Explorar']
+  }, [state.curGoal, state.secondaryGoals])
 
-  // Filtramos las medidas solo-medidas y tomamos máximo MAX_CHIPS
-  const measures = (MEASURES_BY[goal] ?? MEASURES_BY['Explorar'])
-    .filter((m) => !MEDIDAS_ONLY_MEASURES.includes(m))
-    .slice(0, MAX_CHIPS)
+  const [goalIndex, setGoalIndex] = useState(0)
+  const currentGoal = goals[Math.min(goalIndex, goals.length - 1)]
+  const isLastGoal = goalIndex >= goals.length - 1
+  const accentColor = CATEGORY_COLOR[currentGoal as keyof typeof CATEGORY_COLOR] ?? '#5FC9B8'
 
-  const defaults = measures.slice(0, 4)
-  const [selected, setSelected] = useState<Set<string>>(new Set(defaults))
+  const measuresFor = (g: string) =>
+    (MEASURES_BY[g] ?? MEASURES_BY['Explorar']).filter((m) => !MEDIDAS_ONLY_MEASURES.includes(m)).slice(0, MAX_CHIPS)
+  const measures = measuresFor(currentGoal)
+
+  // Pre-selección: las primeras 4 métricas de CADA objetivo (acumuladas, deduplicadas)
+  const allDefaults = useMemo(() => {
+    const s = new Set<string>()
+    for (const g of goals) for (const m of measuresFor(g).slice(0, 4)) s.add(m)
+    return s
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goals])
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(allDefaults))
 
   function toggle(m: string) {
     setSelected((prev) => {
@@ -64,13 +77,20 @@ export function MeasurePicker() {
   }
 
   function handleContinuar() {
+    if (!isLastGoal) { setGoalIndex((i) => i + 1); return }
     dispatch({ t: 'setMeasures', measures: [...selected] })
     dispatch({ t: 'go', screen: 's-protocol' })
   }
 
   function handleSaltar() {
-    dispatch({ t: 'setMeasures', measures: defaults })
+    // Saltar el resto: conserva lo seleccionado (incluye los recomendados de todos los objetivos)
+    dispatch({ t: 'setMeasures', measures: [...(selected.size ? selected : allDefaults)] })
     dispatch({ t: 'go', screen: 's-protocol' })
+  }
+
+  function handleBack() {
+    if (goalIndex > 0) { setGoalIndex((i) => i - 1); return }
+    dispatch({ t: 'go', screen: 's-baseline' })
   }
 
   return (
@@ -88,7 +108,7 @@ export function MeasurePicker() {
       >
         <button
           aria-label="Atrás"
-          onClick={() => dispatch({ t: 'go', screen: 's-baseline' })}
+          onClick={handleBack}
           className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
@@ -115,10 +135,13 @@ export function MeasurePicker() {
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
             ¿Qué quieres seguir?
           </h1>
-          {/* #18: deja claro que las métricas se adaptan al objetivo elegido */}
-          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-2.5 py-1 text-[12px] font-semibold text-teal">
-            Métricas para: {goal}
+          {/* Métricas POR objetivo + progreso cuando hay varios */}
+          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold" style={{ borderColor: `color-mix(in srgb, ${accentColor} 40%, transparent)`, background: `color-mix(in srgb, ${accentColor} 12%, transparent)`, color: accentColor }}>
+            Métricas para: {currentGoal}
           </span>
+          {goals.length > 1 && (
+            <span className="ml-2 text-[12px] font-semibold text-muted-foreground">Objetivo {goalIndex + 1} de {goals.length}</span>
+          )}
           <p className="mt-2 text-[14px] text-secondary-foreground">
             Elige las que más te interesan. Puedes cambiarlas después.
           </p>
@@ -222,10 +245,10 @@ export function MeasurePicker() {
         {/* CTAs */}
         <motion.div variants={fade} className="mt-auto flex flex-col gap-2">
           <Button size="full" onClick={handleContinuar} disabled={selected.size === 0} aria-disabled={selected.size === 0}>
-            Continuar
+            {isLastGoal ? 'Continuar' : 'Siguiente objetivo'}
           </Button>
           <Button size="full" variant="ghost" onClick={handleSaltar}>
-            Saltar — usar recomendados
+            {isLastGoal ? 'Saltar — usar recomendados' : 'Saltar el resto'}
           </Button>
         </motion.div>
       </motion.div>

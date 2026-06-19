@@ -81,6 +81,8 @@ export function Welcome() {
 
   const name = state.profile.name
   const goal = state.curGoal
+  // Todos los objetivos elegidos (principal + secundarios), deduplicados
+  const allGoals = [...new Set([state.curGoal, ...(state.secondaryGoals ?? [])].filter(Boolean) as string[])]
   const accentColor = goal
     ? (CATEGORY_COLOR[goal as keyof typeof CATEGORY_COLOR] ?? '#5FC9B8')
     : '#5FC9B8'
@@ -107,8 +109,8 @@ export function Welcome() {
   const stats: StatRowProps[] = [
     {
       icon: <Sparkles size={16} style={{ color: accentColor }} />,
-      label: 'Objetivo',
-      value: goal ?? 'Explorar',
+      label: allGoals.length > 1 ? 'Objetivos' : 'Objetivo',
+      value: allGoals.length ? allGoals.join(' · ') : 'Explorar',
       color: accentColor,
     },
     {

@@ -4,7 +4,7 @@
 //   encima (coords %). Conserva: recencia (injectionZoneRecency), zona sugerida,
 //   detalle, leyenda color+ícono+texto, a11y (button nativo + aria), es-MX, sin jeringas.
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp, SITE_LABEL, injectionZoneRecency } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
@@ -45,10 +45,10 @@ const SITE_SHORT: Record<InjectionSite, string> = {
 //  FRENTE (centro x~29%): der = lado del espectador izquierdo (x menor); izq = espectador derecho.
 //  ESPALDA (centro x~71%): der = espectador derecho (x mayor); izq = espectador izquierdo.
 const ZONES: { site: InjectionSite; x: number; y: number }[] = [
-  { site: 'abdomen-der', x: 26.5, y: 42 },
-  { site: 'abdomen-izq', x: 31.5, y: 42 },
-  { site: 'muslo-der', x: 27, y: 64 },
-  { site: 'muslo-izq', x: 31, y: 64 },
+  { site: 'abdomen-der', x: 27, y: 44 },
+  { site: 'abdomen-izq', x: 32, y: 44 },
+  { site: 'muslo-der', x: 26.5, y: 70 },
+  { site: 'muslo-izq', x: 33, y: 70 },
   { site: 'gluteo-izq', x: 68, y: 53 },
   { site: 'gluteo-der', x: 73, y: 53 },
 ]
@@ -137,16 +137,7 @@ export function InjectionMap({
 }) {
   const { state } = useApp()
   const reduce = !!useReducedMotion()
-  // #16: filtrar la recencia por producto (un stacker sabe qué péptido fue a cada sitio)
-  const products = useMemo(
-    () => Object.keys(state.protocols).filter((k) => !state.protocols[k].archived),
-    [state.protocols],
-  )
-  const [productFilter, setProductFilter] = useState<string | null>(null)
-  const recencyMap = useMemo(
-    () => injectionZoneRecency(state, Date.now(), productFilter),
-    [state, productFilter],
-  )
+  const recencyMap = useMemo(() => injectionZoneRecency(state), [state])
 
   const suggested = useMemo<InjectionSite | null>(() => {
     const ORDER: ZoneRecency[] = ['none', 'ok', 'recent', 'fresh']
@@ -176,30 +167,6 @@ export function InjectionMap({
         )}
       </div>
       <p className="-mt-2 mb-3 text-[11px] text-muted-foreground">Izq./der. son desde <span className="text-secondary-foreground">tu</span> perspectiva.</p>
-
-      {/* #16: filtro por producto — ver la rotación de un péptido específico */}
-      {products.length > 1 && (
-        <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filtrar mapa por producto">
-          {[null, ...products].map((prod) => {
-            const activeChip = productFilter === prod
-            return (
-              <button
-                key={prod ?? '__all__'}
-                type="button"
-                onClick={() => setProductFilter(prod)}
-                aria-pressed={activeChip}
-                className={`min-h-[32px] rounded-full border px-3 text-[11px] font-semibold transition-colors ${
-                  activeChip
-                    ? 'border-teal bg-teal/15 text-teal'
-                    : 'border-white/12 bg-transparent text-secondary-foreground hover:bg-white/6'
-                }`}
-              >
-                {prod ?? 'Todos'}
-              </button>
-            )
-          })}
-        </div>
-      )}
 
       {/* Imagen del cuerpo + zonas interactivas encima */}
       <div className="relative mx-auto w-full" style={{ maxWidth: 360 }}>
