@@ -1,5 +1,4 @@
-import { type ComponentType, type ReactNode, useState } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { type ComponentType, type ReactNode } from 'react'
 import { Settings } from 'lucide-react'
 import { AppProviderV2 } from './lib/provider'
 import { useApp } from '../lib/store'
@@ -7,8 +6,7 @@ import type { TabId } from '../lib/store'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { FloatingNav } from './ui/FloatingNav'
 import { AmbientBackground } from './ui/AmbientBackground'
-import { PreloaderSplash } from './ui/PreloaderSplash'
-import { EntryGate } from './ui/EntryGate'
+import { LaunchSequence } from './ui/LaunchSequence'
 import { Toast } from './ui/Toast'
 import { Inicio } from './screens/Inicio'
 import { Diario } from './screens/Diario'
@@ -48,22 +46,6 @@ const FLOW: Record<string, ComponentType> = {
   's-account': Account,
   's-login': Login,
   's-forgot': Login,
-}
-
-// Secuencia de arranque: gate (logo + frase + Entrar → gesto que desbloquea autoplay)
-// → preloader (video Higgsfield, ahora SÍ reproduce) → app.
-function LaunchSequence() {
-  const [phase, setPhase] = useState<'gate' | 'loading' | 'done'>('gate')
-  // El preloader (z-100) se monta EN CUANTO se toca Entrar, debajo del gate (z-110) que se
-  // desvanece encima. Sin mode="wait" → nunca queda un hueco donde se vea la app por detrás.
-  return (
-    <>
-      <AnimatePresence>
-        {phase === 'gate' && <EntryGate key="gate" onEnter={() => setPhase('loading')} />}
-      </AnimatePresence>
-      {phase === 'loading' && <PreloaderSplash onDone={() => setPhase('done')} />}
-    </>
-  )
 }
 
 function Frame({ children }: { children: ReactNode }) {
