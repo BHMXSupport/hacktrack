@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Hacktrack rebuild — "Precision × Accessible" tokens.
+   Cockpit oscuro premium. Contraste AA+ verificado:
+   foreground 15:1 · secondary 7:1 · muted 5.7:1 · teal 8.1:1.
+   ============================================================ */
+@layer base {
+  :root {
+    --void: #080C0F;          /* fondo más profundo (body) */
+    --background: #0D1117;    /* superficie de pantalla */
+    --raised: #131920;        /* filas / elevado */
+    --card: #171E27;          /* cards */
+    --card-foreground: #E8EDF2;
+    --foreground: #E8EDF2;    /* texto primario — 15:1 */
+    --secondary: #1B2740;
+    --secondary-foreground: #9AA7B8; /* texto secundario — 7:1 */
+    --muted: #1B2740;
+    --muted-foreground: #8A98B5;     /* texto terciario — 5.7:1 (piso AA, no bajar) */
+    --border: rgba(255,255,255,0.08);
+    --input: #1B2740;
+    --ring: #5FC9B8;
+    --primary: #5FC9B8;       /* teal readout — NUNCA #5eead4 (mint de BiohackMX) */
+    --primary-foreground: #06100D;
+    --teal: #5FC9B8;
+    --teal-dim: #3A8F83;
+    --teal-bright: #6FE3CD;   /* solo número hero */
+    --ok: #4AC98E;
+    --warn: #E8A23A;
+    --alert: #E85A4A;
+    /* placa opaca para readouts críticos (data-plate) */
+    --plate: #080C0F;
+  }
+
+  * { border-color: var(--border); }
+
+  html, body, #root { margin: 0; height: 100%; }
+
+  body {
+    background: var(--void);
+    color: var(--foreground);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Foco visible solo por teclado (accesibilidad) */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+/* Grid de precisión sutil (fondo de cockpit) — utilidad reutilizable */
+@layer utilities {
+  .bg-precision-grid {
+    background-color: var(--void);
+    background-image:
+      radial-gradient(120% 75% at 50% -8%, rgba(18,26,43,.85), rgba(7,11,18,0) 62%),
+      linear-gradient(rgba(95,201,184,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(95,201,184,.045) 1px, transparent 1px);
+    background-size: auto, 40px 40px, 40px 40px;
+    background-position: center top, center, center;
+  }
+  /* Apaga blur/motion bajo reduced-motion o low-power */
+  @media (prefers-reduced-motion: reduce) {
+    .glass, .glass-nav { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  }
+}
+
+/* Primitiva de vidrio (cards) — la usan los componentes shadcn-style del rebuild */
+@layer components {
+  .glass {
+    background: rgba(23,30,39,0.72);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-top-color: rgba(255,255,255,0.14);
+    box-shadow: var(--tw-shadow, inset 0 1px 0 rgba(255,255,255,.06), 0 16px 40px rgba(0,0,0,.55), 0 0 0 .5px rgba(95,201,184,.10));
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+  }
+  .data-plate {
+    background: var(--plate);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    color: var(--foreground);
+  }
+}
