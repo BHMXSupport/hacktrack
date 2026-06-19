@@ -10,8 +10,6 @@
 import { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
-import { AutoVideo } from '../ui/AutoVideo'
-import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 import posterSrc from '../../assets/rebuild/hero-poster.webp'
 
 // Wordmark vectorial inline — sin dependencia de activos tipográficos externos.
@@ -117,18 +115,15 @@ export function Splash() {
       aria-label="Cargando Hacktrack"
       className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-void"
     >
-      {/* Poster ligero (36KB) como base instantánea + fallback sin-video */}
-      <img
-        src={posterSrc}
-        alt=""
+      {/* Póster con zoom Ken Burns — movimiento sin <video> (sin ▶ ni carga del hero de 889 KB).
+          Esta pantalla casi siempre va cubierta por el PreloaderSplash; el póster basta. */}
+      <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
+        className={`pointer-events-none absolute inset-0 bg-cover bg-center ${reduce ? '' : 'preloader-kenburns'}`}
+        style={{ backgroundImage: `url(${posterSrc})`, opacity: 0.3 }}
       />
-      {/* Video de fondo — decorativo, aria-hidden (reduced-motion ya retorna antes) */}
-      <AutoVideo src={heroSrc} poster={posterSrc} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30" />
 
-
-      {/* Gradiente sobre el video para asegurar contraste */}
+      {/* Gradiente para asegurar contraste */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0D1117]/70 via-[#0D1117]/40 to-[#0D1117]/80" />
 
       {/* Contenido centrado */}
