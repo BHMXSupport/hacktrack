@@ -11,6 +11,7 @@ import { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 import { canAutoplayHeavyMedia } from '../lib/media'
+import { AutoVideo } from '../ui/AutoVideo'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 import posterSrc from '../../assets/rebuild/hero-poster.webp'
 
@@ -126,17 +127,7 @@ export function Splash() {
       />
       {/* Video de fondo — decorativo, aria-hidden; gateado por Save-Data/conexión */}
       {canAutoplayHeavyMedia() && (
-        <video
-          src={heroSrc}
-          poster={posterSrc}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          aria-hidden
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
-        />
+        <AutoVideo src={heroSrc} poster={posterSrc} className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30" />
       )}
 
       {/* Gradiente sobre el video para asegurar contraste */}

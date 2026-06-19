@@ -1,5 +1,6 @@
 import { useReducedMotion } from 'framer-motion'
 import { canAutoplayHeavyMedia } from '../lib/media'
+import { AutoVideo } from './AutoVideo'
 import bgPoster from '../../assets/rebuild/bg-poster.webp'
 import bgVideo from '../../assets/rebuild/bg-ambient.mp4'
 
@@ -12,16 +13,7 @@ export function AmbientBackground() {
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <img src={bgPoster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.32]" />
       {play && (
-        <video
-          src={bgVideo}
-          poster={bgPoster}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          className="absolute inset-0 h-full w-full object-cover opacity-[0.32]"
-        />
+        <AutoVideo src={bgVideo} poster={bgPoster} className="absolute inset-0 h-full w-full object-cover opacity-[0.32]" />
       )}
     </div>
   )

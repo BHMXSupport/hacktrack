@@ -1,5 +1,6 @@
 import { useReducedMotion } from 'framer-motion'
 import { canAutoplayHeavyMedia } from '../lib/media'
+import { AutoVideo } from './AutoVideo'
 import type { ReactNode } from 'react'
 
 // Banner hero animado para encabezar una sección. Poster ligero como base instantánea +
@@ -22,18 +23,8 @@ export function SectionHero({
   return (
     <div className="relative mb-1 h-32 overflow-hidden rounded-lg">
       <img src={poster} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
-      {play && (
-        <video
-          src={video}
-          poster={poster}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+      {play && video && (
+        <AutoVideo src={video} poster={poster} className="absolute inset-0 h-full w-full object-cover" />
       )}
       {/* Gradiente para garantizar contraste del título (texto crítico nunca sobre media a secas) */}
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />

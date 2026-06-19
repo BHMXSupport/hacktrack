@@ -9,6 +9,7 @@ import { DataPlate } from '../ui/DataPlate'
 import { Ring } from '../ui/Ring'
 import { Button } from '../ui/Button'
 import { canAutoplayHeavyMedia } from '../lib/media'
+import { AutoVideo } from '../ui/AutoVideo'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 import posterSrc from '../../assets/rebuild/hero-poster.webp'
 
@@ -97,15 +98,9 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
             className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45"
           />
           {playHero && (
-            <video
+            <AutoVideo
               src={heroSrc}
               poster={posterSrc}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              aria-hidden
               className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-50"
             />
           )}

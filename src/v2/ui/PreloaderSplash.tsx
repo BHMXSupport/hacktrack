@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { canAutoplayHeavyMedia } from '../lib/media'
+import { AutoVideo } from './AutoVideo'
 import loaderSrc from '../../assets/rebuild/splash-loader.mp4'
 import loaderPoster from '../../assets/rebuild/splash-loader-poster.webp'
 
@@ -27,16 +28,7 @@ export function PreloaderSplash() {
         >
           <img src={loaderPoster} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-70" />
           {play && (
-            <video
-              src={loaderSrc}
-              poster={loaderPoster}
-              autoPlay
-              muted
-              playsInline
-              preload="auto"
-              aria-hidden
-              className="absolute inset-0 h-full w-full object-cover opacity-80"
-            />
+            <AutoVideo src={loaderSrc} poster={loaderPoster} loop={false} className="absolute inset-0 h-full w-full object-cover opacity-80" />
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-void/40 via-transparent to-void/75" />
           <div className="relative flex flex-col items-center gap-5">
