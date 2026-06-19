@@ -29,6 +29,8 @@ import type { LogItem, RangeFilter } from '../../lib/types'
 import { Glass } from '../ui/Glass'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
+import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 
 // ── helpers de fecha ─────────────────────────────────────────────────────────
 
@@ -565,25 +567,31 @@ export function Diario() {
       animate="show"
       variants={containerVariants}
     >
+      {/* ── hero ── */}
+      <motion.div variants={itemVariants}>
+        <SectionHero
+          {...HEROES.diario}
+          title="Tu diario"
+          subtitle={totalRecords > 0 ? `${totalRecords} registro${totalRecords !== 1 ? 's' : ''}` : undefined}
+        />
+      </motion.div>
+
       {/* ── cabecera ── */}
       <motion.div variants={itemVariants}>
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-[13px] text-muted-foreground">{todayLabel(state.todayTs)}</p>
-            <h1 className="text-[26px] font-bold text-foreground leading-tight flex items-baseline gap-2">
-              Tu diario
-              {/* badges de conteo */}
-              {typeFilter === 'todo' && !isEmpty && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold align-middle">
-                  {doseCount > 0 && (
-                    <span className="rounded-full bg-teal/10 border border-teal/20 text-teal px-2 py-0.5">{doseCount} dosis</span>
-                  )}
-                  {medCount > 0 && (
-                    <span className="rounded-full bg-white/8 border border-white/12 text-secondary-foreground px-2 py-0.5">{medCount} medidas</span>
-                  )}
-                </span>
-              )}
-            </h1>
+            {/* badges de conteo */}
+            {typeFilter === 'todo' && !isEmpty && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold">
+                {doseCount > 0 && (
+                  <span className="rounded-full bg-teal/10 border border-teal/20 text-teal px-2 py-0.5">{doseCount} dosis</span>
+                )}
+                {medCount > 0 && (
+                  <span className="rounded-full bg-white/8 border border-white/12 text-secondary-foreground px-2 py-0.5">{medCount} medidas</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* acciones: buscar + exportar */}

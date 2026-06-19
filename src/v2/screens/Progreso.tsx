@@ -15,6 +15,8 @@ import {
 import { Glass } from '../ui/Glass'
 import { Ring } from '../ui/Ring'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
+import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -496,13 +498,10 @@ export function Progreso() {
       animate="show"
       variants={reduce ? {} : { show: { transition: { staggerChildren: 0.06 } } }}
     >
-      {/* Título */}
-      <motion.h1
-        variants={reduce ? {} : fade}
-        className="text-[28px] font-bold leading-tight text-foreground"
-      >
-        Progreso
-      </motion.h1>
+      {/* Hero */}
+      <motion.div variants={reduce ? {} : fade}>
+        <SectionHero {...HEROES.progreso} title="Progreso" />
+      </motion.div>
 
       {/* Pestañas */}
       <motion.div variants={reduce ? {} : fade}>

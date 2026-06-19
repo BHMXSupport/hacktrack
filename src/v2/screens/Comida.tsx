@@ -16,6 +16,8 @@ import type { FoodFav } from '../../lib/types'
 import { Glass } from '../ui/Glass'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
+import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 
 // ── Variante de animación compartida ─────────────────────────────────────────
 const fade = {
@@ -189,11 +191,16 @@ export function Comida() {
       variants={{ show: { transition: { staggerChildren: 0.07 } } }}
     >
       {/* ── Encabezado ──────────────────────────────────────────────────────── */}
-      <motion.div variants={fade} className="flex items-center justify-between">
-        <h1 className="text-[28px] font-bold leading-tight text-foreground">Alimentación</h1>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-[12px] font-medium text-teal">
-          <Activity size={13} /> Hoy
-        </span>
+      <motion.div variants={fade}>
+        <SectionHero
+          {...HEROES.comida}
+          title="Alimentación"
+          action={
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-[12px] font-medium text-teal">
+              <Activity size={13} /> Hoy
+            </span>
+          }
+        />
       </motion.div>
 
       {/* ── A. Resumen del día (kcal + macros) ──────────────────────────────── */}

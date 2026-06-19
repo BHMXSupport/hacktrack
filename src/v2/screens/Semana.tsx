@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   Circle,
 } from 'lucide-react'
+import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 import { useApp, adherence, isoKey } from '../../lib/store'
 import {
   avgKcal,
@@ -309,38 +311,38 @@ export function Semana() {
       animate="animate"
     >
       {/* ── Header ── */}
-      <motion.div variants={itemVars} className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-[26px] font-bold leading-tight text-foreground">Tu semana</h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">Últimos 7 días</p>
-        </div>
-        {/* Wellness ring — analítica, puede ir en vidrio */}
-        <div className="shrink-0">
-          <Ring
-            value={wellnessScore}
-            goal={100}
-            unit=""
-            label="semana"
-            sub={streak > 0 ? `racha ${streak}d` : undefined}
-            size={88}
-            stroke={8}
-          />
-        </div>
+      <motion.div variants={itemVars}>
+        <SectionHero
+          {...HEROES.semana}
+          title="Tu semana"
+          subtitle="Últimos 7 días"
+          action={
+            canShare ? (
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center gap-2 h-11 rounded-full border border-white/10 px-4 text-[13px] font-semibold text-secondary-foreground bg-white/5 hover:bg-white/10 transition-colors"
+                aria-label="Compartir resumen semanal"
+              >
+                <Share2 size={15} />
+                Compartir semana
+              </button>
+            ) : undefined
+          }
+        />
       </motion.div>
 
-      {/* ── Botón compartir ── */}
-      {canShare && (
-        <motion.div variants={itemVars}>
-          <button
-            onClick={handleShare}
-            className="inline-flex items-center gap-2 h-11 rounded-full border border-white/10 px-4 text-[13px] font-semibold text-secondary-foreground bg-white/5 hover:bg-white/10 transition-colors"
-            aria-label="Compartir resumen semanal"
-          >
-            <Share2 size={15} />
-            Compartir semana
-          </button>
-        </motion.div>
-      )}
+      {/* ── Wellness ring ── */}
+      <motion.div variants={itemVars} className="flex justify-end">
+        <Ring
+          value={wellnessScore}
+          goal={100}
+          unit=""
+          label="semana"
+          sub={streak > 0 ? `racha ${streak}d` : undefined}
+          size={88}
+          stroke={8}
+        />
+      </motion.div>
 
       {/* ── KPIs en Glass ── */}
 

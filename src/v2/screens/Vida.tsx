@@ -4,6 +4,8 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Eye, EyeOff, FlaskConical, Info } from 'lucide-react'
 import { useApp } from '../../lib/store'
+import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 import {
   buildPharmaSeries,
   fmtApproxMg,
@@ -504,10 +506,11 @@ export function Vida() {
         variants={{ show: { transition: { staggerChildren: 0.07 } } }}
       >
         <motion.div variants={fade}>
-          <h1 className="text-[28px] font-bold text-foreground">Vida</h1>
-          <p className="text-[13px] text-muted-foreground">
-            Presencia estimada de cada péptido — guía educativa, no un dato clínico
-          </p>
+          <SectionHero
+            {...HEROES.vida}
+            title="Vida"
+            subtitle="Presencia estimada de cada péptido"
+          />
         </motion.div>
         <EmptyState onRegistrar={() => dispatch({ t: 'sheet', sheet: 'registrar' })} />
       </motion.div>
@@ -524,7 +527,11 @@ export function Vida() {
         variants={{ show: { transition: { staggerChildren: 0.07 } } }}
       >
         <motion.div variants={fade}>
-          <h1 className="text-[28px] font-bold text-foreground">Vida</h1>
+          <SectionHero
+            {...HEROES.vida}
+            title="Vida"
+            subtitle="Presencia estimada de cada péptido"
+          />
         </motion.div>
         <motion.div variants={fade}>
           <Glass>
@@ -584,10 +591,11 @@ export function Vida() {
     >
       {/* Cabecera */}
       <motion.div variants={fade}>
-        <h1 className="text-[28px] font-bold leading-tight text-foreground">Vida</h1>
-        <p className="text-[13px] text-muted-foreground">
-          Presencia estimada de cada péptido — guía educativa, no un dato clínico
-        </p>
+        <SectionHero
+          {...HEROES.vida}
+          title="Vida"
+          subtitle="Presencia estimada de cada péptido"
+        />
       </motion.div>
 
       {/* ── CENTRO: Gráfica combinada de presencia PK ── */}
