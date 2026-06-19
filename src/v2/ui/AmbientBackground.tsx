@@ -19,7 +19,7 @@ export function AmbientBackground() {
           muted
           loop
           playsInline
-          preload="none"
+          preload="auto"
           className="absolute inset-0 h-full w-full object-cover opacity-[0.32]"
         />
       )}

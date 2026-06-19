@@ -104,7 +104,7 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
               muted
               loop
               playsInline
-              preload="none"
+              preload="auto"
               aria-hidden
               className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-50"
             />
