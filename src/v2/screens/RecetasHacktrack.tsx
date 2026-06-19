@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Plus, ChevronDown, ChevronUp, Clock, Lock, Sparkles } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { RECIPES_ENRICHED } from '../../lib/catalog'
-import type { Recipe, RecipeMeal } from '../../lib/catalog'
+import type { Recipe, RecipeMeal, RecipeTag } from '../../lib/catalog'
 
 const MEAL_LABEL: Record<RecipeMeal, string> = {
   desayuno: 'Desayuno',
@@ -98,10 +98,21 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useApp()
   const premium = !!state.settings.premium
 
+  // Filtros: categoría (meal) + subcategoría (tag)
+  const [mealFilter, setMealFilter] = useState<RecipeMeal | null>(null)
+  const [tagFilter, setTagFilter] = useState<RecipeTag | null>(null)
+
   const byMeal = useMemo(() => {
     const m: Record<RecipeMeal, Recipe[]> = { desayuno: [], comida: [], cena: [], colacion: [] }
     for (const r of RECIPES_ENRICHED) m[r.meal]?.push(r)
     return m
+  }, [])
+
+  // Subcategorías disponibles (solo las que existen en los datos)
+  const allTags = useMemo(() => {
+    const set = new Set<RecipeTag>()
+    for (const r of RECIPES_ENRICHED) for (const t of r.tags) set.add(t)
+    return [...set]
   }, [])
 
   const addRecipe = (r: Recipe) => {
@@ -123,8 +134,48 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      {MEAL_ORDER.map((meal) => {
-        const all = byMeal[meal]
+      {/* Filtros: categoría + subcategoría */}
+      <div className="flex flex-col gap-2">
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar por categoría">
+          {([null, ...MEAL_ORDER] as (RecipeMeal | null)[]).map((m) => {
+            const on = mealFilter === m
+            return (
+              <button
+                key={m ?? '__all__'}
+                type="button"
+                onClick={() => setMealFilter(m)}
+                aria-pressed={on}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                  on ? 'border-teal bg-teal/15 text-teal' : 'border-white/12 bg-transparent text-secondary-foreground hover:bg-white/6'
+                }`}
+              >
+                {m ? MEAL_LABEL[m] : 'Todas'}
+              </button>
+            )
+          })}
+        </div>
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar por subcategoría">
+          {([null, ...allTags] as (RecipeTag | null)[]).map((t) => {
+            const on = tagFilter === t
+            return (
+              <button
+                key={t ?? '__alltags__'}
+                type="button"
+                onClick={() => setTagFilter(t)}
+                aria-pressed={on}
+                className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+                  on ? 'border-teal bg-teal/15 text-teal' : 'border-white/10 bg-transparent text-muted-foreground hover:bg-white/6'
+                }`}
+              >
+                {t ?? 'Todas las etiquetas'}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {(mealFilter ? [mealFilter] : MEAL_ORDER).map((meal) => {
+        const all = byMeal[meal].filter((r) => !tagFilter || r.tags.includes(tagFilter))
         if (!all.length) return null
         const visible = premium ? all : all.slice(0, FREE_PER_MEAL)
         const locked = all.length - visible.length
@@ -157,6 +208,22 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
           </section>
         )
       })}
+
+      {/* Empty state cuando los filtros no devuelven nada */}
+      {!(mealFilter ? [mealFilter] : MEAL_ORDER).some((m) =>
+        byMeal[m].some((r) => !tagFilter || r.tags.includes(tagFilter)),
+      ) && (
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-[14px] text-muted-foreground">Sin recetas con ese filtro.</p>
+          <button
+            type="button"
+            onClick={() => { setMealFilter(null); setTagFilter(null) }}
+            className="rounded-full border border-teal/40 px-4 py-2 text-[13px] font-semibold text-teal hover:bg-teal/10"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      )}
     </div>
   )
 }

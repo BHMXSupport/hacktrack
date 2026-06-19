@@ -4,7 +4,7 @@
 // Compliance: sin claims médicos, privacidad local, es-MX, tap targets ≥44px.
 import { useState, useCallback, useEffect } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Plus, Shield, UtensilsCrossed, X, Pencil, Check } from 'lucide-react'
+import { Plus, Shield, UtensilsCrossed, X, Pencil, Check, Sparkles } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import type { FoodFav } from '../../lib/types'
 import { Sheet } from '../ui/Sheet'
@@ -423,7 +423,10 @@ export function RecetarioSheet({
                   }}
                   className={[
                     'relative flex h-10 flex-1 items-center justify-center rounded-full text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
-                    active ? 'text-foreground' : 'text-muted-foreground',
+                    // "Recetas" resalta: outline + texto teal siempre (es la sección premium destacada)
+                    v === 'recetas'
+                      ? 'text-teal ring-1 ring-inset ring-teal/50'
+                      : active ? 'text-foreground' : 'text-muted-foreground',
                   ].join(' ')}
                 >
                   {active && (
@@ -434,10 +437,13 @@ export function RecetarioSheet({
                           ? { duration: 0 }
                           : { type: 'spring', stiffness: 320, damping: 30 }
                       }
-                      className="absolute inset-0 rounded-full bg-card shadow-[0_1px_0_rgba(255,255,255,.06)_inset,0_8px_20px_rgba(0,0,0,.4)]"
+                      className={`absolute inset-0 rounded-full shadow-[0_1px_0_rgba(255,255,255,.06)_inset,0_8px_20px_rgba(0,0,0,.4)] ${v === 'recetas' ? 'bg-teal/15' : 'bg-card'}`}
                     />
                   )}
-                  <span className="relative">{tabLabel(v)}</span>
+                  <span className="relative flex items-center gap-1">
+                    {v === 'recetas' && <Sparkles size={13} aria-hidden />}
+                    {tabLabel(v)}
+                  </span>
                 </button>
               )
             })}
