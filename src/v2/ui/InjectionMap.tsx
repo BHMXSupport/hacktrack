@@ -38,15 +38,17 @@ const SITE_SHORT: Record<InjectionSite, string> = {
   'gluteo-der': 'Glúteo der.',
 }
 
-// Posición (% del contenedor 4:3) de cada zona sobre la imagen.
-// Figura FRENTE ≈ izquierda (x~31%), ESPALDA ≈ derecha (x~70%).
+// Posición (% del contenedor, que ahora respeta el aspecto nativo de la imagen 2432×1792
+// → sin letterbox, las coords mapean 1:1 sobre la figura). Calibradas con overlay visual.
+// Figura FRENTE ≈ izquierda (centro x~32.5%), ESPALDA ≈ derecha (centro x~66.5%).
+// En FRENTE: der = lado del espectador izquierdo (x menor). En ESPALDA: der = espectador derecho (x mayor).
 const ZONES: { site: InjectionSite; x: number; y: number }[] = [
-  { site: 'abdomen-der', x: 28.5, y: 39 },
-  { site: 'abdomen-izq', x: 34, y: 39 },
-  { site: 'muslo-der', x: 29, y: 61 },
-  { site: 'muslo-izq', x: 33.5, y: 61 },
-  { site: 'gluteo-der', x: 67.5, y: 51 },
-  { site: 'gluteo-izq', x: 72.5, y: 51 },
+  { site: 'abdomen-der', x: 30.5, y: 38 },
+  { site: 'abdomen-izq', x: 35, y: 38 },
+  { site: 'muslo-der', x: 30.5, y: 61 },
+  { site: 'muslo-izq', x: 35.5, y: 61 },
+  { site: 'gluteo-izq', x: 64, y: 43 },
+  { site: 'gluteo-der', x: 69, y: 43 },
 ]
 
 function relLabel(ts: number | null): string {
@@ -165,7 +167,7 @@ export function InjectionMap({
 
       {/* Imagen del cuerpo + zonas interactivas encima */}
       <div className="relative mx-auto w-full" style={{ maxWidth: 360 }}>
-        <div className="relative w-full" style={{ aspectRatio: '4 / 3' }}>
+        <div className="relative w-full" style={{ aspectRatio: '2432 / 1792' }}>
           <img src={bodySrc} alt="" aria-hidden className="absolute inset-0 h-full w-full object-contain" />
           {ZONES.map((z) => (
             <Zone

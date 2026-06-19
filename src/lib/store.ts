@@ -668,21 +668,24 @@ export function reducer(s: AppState, a: Action): AppState {
         ...(rawNote ? { note: rawNote } : {}),        // loop 138: nota opcional
         ...(a.effect ? { effect: a.effect } : {}),    // loop 139: efecto opcional
       }
-      // Si el protocolo tiene stock de vial, descontar la dosis (inmutable)
+      // Stock del vial:
+      //  - Si llega una reconstitución nueva (vialMg = mg totales del vial) y aún NO hay stock,
+      //    se inicializa desde ahí → el dato de reconstitución alimenta el cálculo de stock.
+      //  - Luego se descuenta la dosis registrada (inmutable).
       const proto = s.protocols[a.product]
-      const updatedProtocols =
-        proto?.vialStock && (a.doseMg ?? 0) > 0
-          ? {
-              ...s.protocols,
-              [a.product]: {
-                ...proto,
-                vialStock: {
-                  ...proto.vialStock,
-                  usedMg: proto.vialStock.usedMg + (a.doseMg ?? 0),
-                },
-              },
-            }
-          : s.protocols
+      let updatedProtocols = s.protocols
+      if (proto) {
+        let vialStock = proto.vialStock
+        if (!vialStock && a.recon && a.recon.vialMg > 0) {
+          vialStock = { totalMg: a.recon.vialMg, usedMg: 0 }
+        }
+        if (vialStock && (a.doseMg ?? 0) > 0) {
+          vialStock = { ...vialStock, usedMg: vialStock.usedMg + (a.doseMg ?? 0) }
+        }
+        if (vialStock && vialStock !== proto.vialStock) {
+          updatedProtocols = { ...s.protocols, [a.product]: { ...proto, vialStock } }
+        }
+      }
       // Primera dosis: activar celebración
       const wasLogged = s.logged
       return syncActive({

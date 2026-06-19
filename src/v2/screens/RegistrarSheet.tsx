@@ -4,7 +4,7 @@
 // R16/R17: reconstitución del vial + doseMg/recon en logDose.
 // R19: nota libre (≤200 chars) + selector de efecto/síntoma.
 // R22: selector de hora (v2 time-input) en vez de Date.now().
-//       Unidades: 'mg' | 'mcg' | 'UI' | 'mL' | 'clics'
+//       Unidades: 'mg' | 'mcg' | 'UI' | 'mL'  (clics == UI → no se registra por separado)
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Shield, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
@@ -22,14 +22,13 @@ import type { InjectionSite } from '../../lib/types'
 
 // ── Tipos y constantes ─────────────────────────────────────────────────────────
 
-type DoseUnit = 'mg' | 'mcg' | 'UI' | 'mL' | 'clics'
+type DoseUnit = 'mg' | 'mcg' | 'UI' | 'mL'
 
 const UNITS: { value: DoseUnit; label: string }[] = [
   { value: 'mg',    label: 'mg' },
   { value: 'mcg',   label: 'mcg' },
   { value: 'UI',    label: 'UI' },
   { value: 'mL',    label: 'mL' },
-  { value: 'clics', label: 'clics' },
 ]
 
 // Step adaptativo por unidad
@@ -38,8 +37,11 @@ const UNIT_STEP: Record<DoseUnit, number> = {
   mg: 0.1,
   UI: 1,
   mL: 0.05,
-  clics: 1,
 }
+
+// 'clics' es lo mismo que UI (pluma/jeringa de insulina) → normaliza datos viejos a 'UI'.
+const normUnit = (u: string | null | undefined): DoseUnit =>
+  u === 'clics' ? 'UI' : ((u as DoseUnit) ?? 'mg')
 
 // ── Time-wheel inline ligero (v2, autocontenido) ──────────────────────────────
 
@@ -297,7 +299,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
   const [dose, setDose] = useState('')
   const [unit, setUnit] = useState<DoseUnit>(() => {
     const saved = product ? getStoredUnit(product) : null
-    return saved ?? 'mg'
+    return saved ? normUnit(saved) : 'mg'
   })
   const [site, setSite] = useState<InjectionSite | null>(null)
 
@@ -306,7 +308,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     if (product && product !== prevProduct.current) {
       prevProduct.current = product
       const pu = getStoredUnit(product)
-      if (pu) setUnit(pu as DoseUnit)
+      if (pu) setUnit(normUnit(pu))
     }
   }, [product])
 
@@ -359,9 +361,9 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product])
 
-  // Abrir automáticamente si la unidad requiere reconstitución
+  // Abrir automáticamente solo cuando la unidad es UI (única que requiere reconstitución visible)
   useEffect(() => {
-    if (needsRecon(unit)) setReconOpen(true)
+    if (unit === 'UI') setReconOpen(true)
   }, [unit])
 
   const vialMg = parseFloat(vialStr)
@@ -623,10 +625,10 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                     active={false}
                     onClick={() => {
                       setDose(String(d.value))
-                      setUnit(d.unit as DoseUnit)
+                      setUnit(normUnit(d.unit))
                     }}
                   >
-                    {d.value} {d.unit}
+                    {d.value} {normUnit(d.unit)}
                   </Chip>
                 ))}
               </div>
@@ -634,7 +636,8 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           )}
         </div>
 
-        {/* ── R16/R17: Reconstitución del vial ── */}
+        {/* ── R16/R17: Reconstitución del vial — solo para UI (al registrar dosis) ── */}
+        {unit === 'UI' && (
         <div
           className="rounded-xl border border-white/10 bg-raised/50 overflow-hidden"
           aria-label="Panel de reconstitución"
@@ -726,6 +729,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             )}
           </AnimatePresence>
         </div>
+        )}
 
         {/* ── Zona de inyección (mapa interactivo) ── */}
         <div className="flex flex-col gap-2">
