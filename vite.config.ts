@@ -13,6 +13,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // PREVIEW: SW autodestructivo — desregistra SWs viejos y limpia caches al cargar.
+      // Evita que un SW cacheado sirva JS viejo que apunta a assets (videos) con hash ya borrado
+      // tras cada redeploy (causa del preloader/fondo que "no se movían" y de los "?"). Reactivar
+      // PWA real (offline/install) al promover a producción.
+      selfDestroying: true,
       includeAssets: ['favicon-64.png', 'apple-touch-icon-180.png'],
       manifest: {
         name: 'Hacktrack',

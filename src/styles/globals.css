@@ -89,3 +89,49 @@
     color: var(--foreground);
   }
 }
+
+/* ============================================================
+   Tema CLARO (opcional, R3) — variante coherente del cockpit.
+   Dark sigue siendo el default (:root). Light = data-theme="light".
+   ============================================================ */
+[data-theme="light"] {
+  --void: #EAEEF4;
+  --background: #F4F7FB;
+  --raised: #FFFFFF;
+  --card: #FFFFFF;
+  --card-foreground: #0E1726;
+  --foreground: #0E1726;            /* texto primario oscuro */
+  --secondary: #E6EAF2;
+  --secondary-foreground: #3C4A63;  /* AA en claro */
+  --muted: #EDF1F7;
+  --muted-foreground: #54637A;      /* AA en claro */
+  --border: rgba(14,23,38,0.10);
+  --input: #EDF1F7;
+  --ring: #0E8A78;
+  --primary: #0E8A78;               /* teal oscuro → AA sobre claro */
+  --primary-foreground: #FFFFFF;
+  --teal: #0E8A78;
+  --teal-dim: #0B6E60;
+  --teal-bright: #0B6E60;
+  --ok: #1F9D6B;
+  --warn: #9A5B0E;
+  --alert: #C2362B;
+  --plate: #0E1726;                 /* readout = panel de instrumento oscuro aún en claro */
+}
+[data-theme="light"] body { background: var(--background); }
+[data-theme="light"] .glass {
+  background: rgba(255,255,255,0.80);
+  border-color: rgba(14,23,38,0.08);
+  border-top-color: rgba(14,23,38,0.05);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 30px rgba(14,23,38,.10), 0 0 0 .5px rgba(14,138,120,.12);
+}
+[data-theme="light"] .glass::before { opacity: 0; }       /* sin ruido sobre vidrio claro */
+[data-theme="light"] .data-plate { color: #E8EDF2; }       /* texto claro sobre la placa oscura */
+[data-theme="light"] .ambient-bg { display: none; }        /* el fondo ambiental (video oscuro) se oculta en claro */
+[data-theme="light"] .bg-precision-grid {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(120% 75% at 50% -8%, rgba(14,138,120,.06), rgba(244,247,251,0) 62%),
+    linear-gradient(rgba(14,23,38,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14,23,38,.045) 1px, transparent 1px);
+}

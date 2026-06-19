@@ -10,7 +10,7 @@ export function AmbientBackground() {
   const reduce = useReducedMotion()
   const play = !reduce && canAutoplayHeavyMedia()
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div aria-hidden className="ambient-bg pointer-events-none absolute inset-0 overflow-hidden">
       <img src={bgPoster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.32]" />
       {play && (
         <AutoVideo src={bgVideo} poster={bgPoster} className="absolute inset-0 h-full w-full object-cover opacity-[0.32]" />
