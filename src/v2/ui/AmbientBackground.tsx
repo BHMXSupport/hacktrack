@@ -10,7 +10,7 @@ export function AmbientBackground() {
   const play = !reduce && canAutoplayHeavyMedia()
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <img src={bgPoster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.14]" />
+      <img src={bgPoster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.32]" />
       {play && (
         <video
           src={bgVideo}
@@ -20,7 +20,7 @@ export function AmbientBackground() {
           loop
           playsInline
           preload="none"
-          className="absolute inset-0 h-full w-full object-cover opacity-[0.14]"
+          className="absolute inset-0 h-full w-full object-cover opacity-[0.32]"
         />
       )}
     </div>

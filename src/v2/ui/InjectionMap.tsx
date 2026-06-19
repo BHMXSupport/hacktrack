@@ -1,45 +1,61 @@
 // InjectionMap v2 — mapa interactivo de rotación de sitios de inyección.
-// Diseño propio: siluetas SVG de cuerpo humano (frente + espalda), cockpit oscuro premium.
-// 6 zonas tappables con recencia por color + ícono + texto (cumple AA, nunca color solo).
-// Recencia calculada desde state.log via useApp().
-import { useMemo, useState } from 'react'
+//
+// ── APARIENCIA VISUAL (redesign premium) ─────────────────────────────────────
+// Siluetas: formas rellenas con gradiente lineal oscuro (slate claro arriba →
+//   slate profundo abajo) + contorno teal #5FC9B8 con glow difuso (feGaussianBlur
+//   + feMerge en <defs>) que da efecto de rim-light en los bordes del cuerpo.
+//   Proporciones más orgánicas: hombros redondeados, cintura definida, caderas
+//   amplias, piernas con volumen. Vista trasera incluye prominencia glútea.
+// Zonas: "parches" elegantes sobre el cuerpo — relleno semitransparente con
+//   gradiente radial interno + borde de recencia. La zona sugerida tiene halo
+//   teal punteado exterior. La seleccionada tiene glow teal-bright.
+// Todo bajo <defs> SVG puras (linearGradient, radialGradient, filter) — sin
+//   imágenes externas. Reduced-motion respetado en transiciones de zona.
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// API: export function InjectionMap({ selected, onSelect }) — sin cambios.
+// Recencia: injectionZoneRecency(state) — sin cambios.
+// A11y: tabIndex/role=button/aria-label/Enter-Space/aria-pressed — sin cambios.
+// Leyenda: color + ícono + texto (nunca color solo) — sin cambios.
+// es-MX, sin jeringas, reduced-motion, tap targets ≥44px — sin cambios.
+
+import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp, SITE_LABEL, injectionZoneRecency } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
 import type { ZoneRecency } from '../../lib/store'
-import { cn } from '../../lib/cn'
 
 // ── Tokens de recencia ────────────────────────────────────────────────────────
 const RECENCY_COLOR: Record<ZoneRecency, string> = {
-  fresh: 'var(--alert)',   // <1 día — rojo
-  recent: 'var(--warn)',   // <2 días — ámbar
-  ok: 'var(--ok)',         // <3 días — verde
-  none: 'var(--muted-foreground)', // neutral
+  fresh:  'var(--alert)',              // <1 día — rojo
+  recent: 'var(--warn)',               // <2 días — ámbar
+  ok:     'var(--ok)',                 // <3 días — verde
+  none:   'var(--muted-foreground)',   // neutral
 }
 
 const RECENCY_LABEL: Record<ZoneRecency, string> = {
-  fresh: '< 1 día',
+  fresh:  '< 1 día',
   recent: '< 2 días',
-  ok: '< 3 días',
-  none: 'Sin uso reciente',
+  ok:     '< 3 días',
+  none:   'Sin uso reciente',
 }
 
 // Ícono de recencia (texto unicode accesible, no color solo — regla DURA)
 const RECENCY_ICON: Record<ZoneRecency, string> = {
-  fresh: '●',   // relleno (recién usado)
-  recent: '◐',  // medio
-  ok: '○',      // vacío-ok
-  none: '·',    // punto tenue
+  fresh:  '●',   // relleno (recién usado)
+  recent: '◐',   // medio
+  ok:     '○',   // vacío-ok
+  none:   '·',   // punto tenue
 }
 
 // Etiquetas cortas para las zonas (es-MX, sentence case)
 const SITE_SHORT: Record<InjectionSite, string> = {
   'abdomen-izq': 'Abd. izq.',
   'abdomen-der': 'Abd. der.',
-  'muslo-izq': 'Muslo izq.',
-  'muslo-der': 'Muslo der.',
-  'gluteo-izq': 'Glúteo izq.',
-  'gluteo-der': 'Glúteo der.',
+  'muslo-izq':   'Muslo izq.',
+  'muslo-der':   'Muslo der.',
+  'gluteo-izq':  'Glúteo izq.',
+  'gluteo-der':  'Glúteo der.',
 }
 
 // ── Helpers de timestamp ──────────────────────────────────────────────────────
@@ -53,14 +69,14 @@ function relLabel(ts: number | null): string {
 
 // ── Geometría del SVG ─────────────────────────────────────────────────────────
 // Cada silueta se dibuja en un viewBox 100×220.
-// Las zonas son <ellipse> tappables (rx≥22, ry≥22 → ≥44px de target en coordenadas 1:1 al tamaño renderizado).
+// Las zonas son <ellipse> tappables (rx≥22, ry≥22 → ≥44px de target).
 
 interface ZoneEllipse {
-  site: InjectionSite
-  cx: number
-  cy: number
-  rx: number
-  ry: number
+  site:  InjectionSite
+  cx:    number
+  cy:    number
+  rx:    number
+  ry:    number
   label: string
 }
 
@@ -68,72 +84,161 @@ interface ZoneEllipse {
 const FRONT_ZONES: ZoneEllipse[] = [
   { site: 'abdomen-der', cx: 34, cy: 108, rx: 20, ry: 16, label: 'Abd. der.' },
   { site: 'abdomen-izq', cx: 66, cy: 108, rx: 20, ry: 16, label: 'Abd. izq.' },
-  { site: 'muslo-der',   cx: 33, cy: 162, rx: 18, ry: 18, label: 'Muslo der.' },
-  { site: 'muslo-izq',   cx: 67, cy: 162, rx: 18, ry: 18, label: 'Muslo izq.' },
+  { site: 'muslo-der',   cx: 33, cy: 163, rx: 18, ry: 18, label: 'Muslo der.' },
+  { site: 'muslo-izq',   cx: 67, cy: 163, rx: 18, ry: 18, label: 'Muslo izq.' },
 ]
 
 // ESPALDA: glúteos (directo: persona-izq → pantalla-izq)
 const BACK_ZONES: ZoneEllipse[] = [
-  { site: 'gluteo-izq', cx: 35, cy: 118, rx: 22, ry: 18, label: 'Glúteo izq.' },
-  { site: 'gluteo-der', cx: 65, cy: 118, rx: 22, ry: 18, label: 'Glúteo der.' },
+  { site: 'gluteo-izq', cx: 35, cy: 122, rx: 22, ry: 19, label: 'Glúteo izq.' },
+  { site: 'gluteo-der', cx: 65, cy: 122, rx: 22, ry: 19, label: 'Glúteo der.' },
 ]
 
 // ── Silueta SVG: frente ───────────────────────────────────────────────────────
-// Figura simplificada tipo "mannequin de instrumento" — líneas limpias, sin detalle anatómico excesivo.
-// Color: relleno slate, trazo teal dim para el aesthetic cockpit.
+// Proporciones más orgánicas: cabeza redonda, hombros anchos redondeados,
+// cintura definida (estrechamiento en y≈88-96), caderas amplias, piernas
+// con volumen lateral. Curvas Bézier en lugar de líneas rectas.
 const BODY_FRONT = `
-  M50,12 C57,12 62,17 62,24 C62,30 58,35 54,37
-  L57,45 C63,45 72,50 74,58
-  L78,80 C78,87 74,92 68,93
-  L67,140 C70,142 72,148 72,155
-  L72,195 C72,200 68,204 64,204
-  L60,204 C58,204 57,202 57,200
-  L57,162 C57,155 54,150 50,150
-  C46,150 43,155 43,162
-  L43,200 C43,202 42,204 40,204
-  L36,204 C32,204 28,200 28,195
-  L28,155 C28,148 30,142 33,140
-  L32,93 C26,92 22,87 22,80
-  L26,58 C28,50 37,45 43,45
-  L46,37 C42,35 38,30 38,24
-  C38,17 43,12 50,12 Z
+  M50,10
+  C58,10 65,16 65,24
+  C65,31 61,36 56,38.5
+  L59,47
+  C67,47 76,53 78,62
+  L82,84
+  C83,91 79,97 72,98.5
+  C73,104 72,110 70,116
+  L69,138
+  C73,141 76,148 76,156
+  L76,196
+  C76,202 71,206 67,206
+  L62,206
+  C59,206 58,204 58,201
+  L58,162
+  C58,154 54,149 50,149
+  C46,149 42,154 42,162
+  L42,201
+  C42,204 41,206 38,206
+  L33,206
+  C29,206 24,202 24,196
+  L24,156
+  C24,148 27,141 31,138
+  L30,116
+  C28,110 27,104 28,98.5
+  C21,97 17,91 18,84
+  L22,62
+  C24,53 33,47 41,47
+  L44,38.5
+  C39,36 35,31 35,24
+  C35,16 42,10 50,10
+  Z
 `
 
 // ── Silueta SVG: espalda ──────────────────────────────────────────────────────
-// Vista posterior, misma proporción/viewBox. Los glúteos tienen prominencia natural.
+// Vista posterior. Glúteos con prominencia natural: curva amplia hacia afuera
+// en la zona y≈112-132, luego vuelve al centro antes de las piernas.
 const BODY_BACK = `
-  M50,12 C57,12 62,17 62,24 C62,30 58,35 54,37
-  L57,45 C63,45 72,50 74,58
-  L78,80 C78,87 74,92 68,93
-  L69,100 C72,108 72,118 68,128
-  L66,140 C68,142 72,148 72,155
-  L72,195 C72,200 68,204 64,204
-  L60,204 C58,204 57,202 57,200
-  L57,162 C57,155 54,150 50,150
-  C46,150 43,155 43,162
-  L43,200 C43,202 42,204 40,204
-  L36,204 C32,204 28,200 28,195
-  L28,155 C28,148 30,142 32,140
-  L30,128 C26,118 28,108 31,100
-  L32,93 C26,92 22,87 22,80
-  L26,58 C28,50 37,45 43,45
-  L46,37 C42,35 38,30 38,24
-  C38,17 43,12 50,12 Z
+  M50,10
+  C58,10 65,16 65,24
+  C65,31 61,36 56,38.5
+  L59,47
+  C67,47 76,53 78,62
+  L82,84
+  C83,91 79,97 72,98.5
+  L73,108
+  C78,116 80,128 74,138
+  L72,142
+  C74,146 76,152 76,156
+  L76,196
+  C76,202 71,206 67,206
+  L62,206
+  C59,206 58,204 58,201
+  L58,162
+  C58,154 54,149 50,149
+  C46,149 42,154 42,162
+  L42,201
+  C42,204 41,206 38,206
+  L33,206
+  C29,206 24,202 24,196
+  L24,156
+  C24,152 26,146 28,142
+  L26,138
+  C20,128 22,116 27,108
+  L28,98.5
+  C21,97 17,91 18,84
+  L22,62
+  C24,53 33,47 41,47
+  L44,38.5
+  C39,36 35,31 35,24
+  C35,16 42,10 50,10
+  Z
 `
 
-// ── SubComponent: zona tappable ───────────────────────────────────────────────
-interface ZoneButtonProps {
-  zone: ZoneEllipse
-  recency: ZoneRecency
-  isSelected: boolean
-  isSuggested: boolean
-  onSelect: () => void
-  reducedMotion: boolean | null
+// ── Unique IDs for SVG defs (avoid collisions between front/back) ─────────────
+function makeDefs(id: string) {
+  return {
+    bodyGradId:    `bodyGrad-${id}`,
+    bodyShineId:   `bodyShine-${id}`,
+    rimFilterId:   `rimFilter-${id}`,
+    zoneGradId:    `zoneGrad-${id}`,
+  }
 }
 
-function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedMotion }: ZoneButtonProps) {
-  const color = RECENCY_COLOR[recency]
+// ── SVG <defs> — gradients + glow filter ─────────────────────────────────────
+function BodyDefs({ id }: { id: string }) {
+  const { bodyGradId, bodyShineId, rimFilterId, zoneGradId } = makeDefs(id)
+
+  return (
+    <defs>
+      {/* Gradiente lineal principal del cuerpo: slate claro arriba → slate profundo abajo */}
+      <linearGradient id={bodyGradId} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stopColor="#2d3a4a" stopOpacity="1" />
+        <stop offset="45%"  stopColor="#1e2a38" stopOpacity="1" />
+        <stop offset="100%" stopColor="#101820" stopOpacity="1" />
+      </linearGradient>
+
+      {/* Gradiente radial de brillo/profundidad en el torso */}
+      <radialGradient id={bodyShineId} cx="50%" cy="30%" r="55%" fx="50%" fy="25%">
+        <stop offset="0%"   stopColor="#3d5060" stopOpacity="0.6" />
+        <stop offset="100%" stopColor="#101820" stopOpacity="0"   />
+      </radialGradient>
+
+      {/* Filtro rim-light teal: blur + merge para halo en contorno */}
+      <filter id={rimFilterId} x="-20%" y="-10%" width="140%" height="120%" colorInterpolationFilters="sRGB">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+        <feFlood floodColor="#5FC9B8" floodOpacity="0.55" result="tealFlood" />
+        <feComposite in="tealFlood" in2="blur" operator="in" result="tealGlow" />
+        <feMerge>
+          <feMergeNode in="tealGlow" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      {/* Gradiente radial interno para los parches de zona */}
+      <radialGradient id={zoneGradId} cx="50%" cy="40%" r="60%">
+        <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.12" />
+        <stop offset="100%" stopColor="#ffffff" stopOpacity="0"    />
+      </radialGradient>
+    </defs>
+  )
+}
+
+// ── SubComponent: zona tappable (parche elegante) ─────────────────────────────
+interface ZoneButtonProps {
+  zone:          ZoneEllipse
+  recency:       ZoneRecency
+  isSelected:    boolean
+  isSuggested:   boolean
+  onSelect:      () => void
+  reducedMotion: boolean | null
+  defsId:        string
+}
+
+function ZoneButton({
+  zone, recency, isSelected, isSuggested, onSelect, reducedMotion, defsId,
+}: ZoneButtonProps) {
+  const color      = RECENCY_COLOR[recency]
   const hasActivity = recency !== 'none'
+  const { zoneGradId } = makeDefs(defsId)
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -141,6 +246,22 @@ function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedM
       onSelect()
     }
   }
+
+  // Colores del parche según estado
+  const patchFill    = hasActivity ? color : 'rgba(255,255,255,0.05)'
+  const patchOpacity = hasActivity ? 0.22  : 1
+  const strokeColor  = isSelected
+    ? 'var(--teal-bright)'
+    : hasActivity
+      ? color
+      : 'rgba(255,255,255,0.18)'
+  const strokeWidth  = isSelected ? 2.5 : 1.5
+
+  const glowFilter = isSelected
+    ? 'drop-shadow(0 0 7px var(--teal-bright)) drop-shadow(0 0 14px var(--teal-bright))'
+    : hasActivity
+      ? `drop-shadow(0 0 5px ${color})`
+      : 'none'
 
   return (
     <g
@@ -152,35 +273,48 @@ function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedM
       onKeyDown={handleKeyDown}
       style={{ outline: 'none', cursor: 'pointer' }}
     >
-      {/* Halo de sugerencia (zona menos usada) */}
+      {/* Halo de sugerencia (zona menos usada) — teal punteado exterior */}
       {isSuggested && (
         <ellipse
           cx={zone.cx}
           cy={zone.cy}
-          rx={zone.rx + 6}
-          ry={zone.ry + 6}
+          rx={zone.rx + 7}
+          ry={zone.ry + 7}
           fill="none"
-          stroke="var(--teal)"
+          stroke="#5FC9B8"
           strokeWidth="1"
-          strokeDasharray="3 2"
-          opacity="0.5"
+          strokeDasharray="3 2.5"
+          opacity="0.55"
         />
       )}
-      {/* Relleno de la zona */}
+
+      {/* Parche principal — relleno semitransparente con color de recencia */}
       <ellipse
         cx={zone.cx}
         cy={zone.cy}
         rx={zone.rx}
         ry={zone.ry}
-        fill={hasActivity ? color : 'rgba(255,255,255,0.04)'}
-        fillOpacity={hasActivity ? 0.18 : 1}
-        stroke={isSelected ? 'var(--teal-bright)' : hasActivity ? color : 'rgba(255,255,255,0.2)'}
-        strokeWidth={isSelected ? 2 : 1.5}
+        fill={patchFill}
+        fillOpacity={patchOpacity}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
         style={{
-          filter: isSelected ? 'drop-shadow(0 0 6px var(--teal-bright))' : hasActivity ? `drop-shadow(0 0 4px ${color})` : 'none',
-          transition: reducedMotion ? 'none' : 'stroke 0.15s, fill-opacity 0.15s',
+          filter: glowFilter,
+          transition: reducedMotion ? 'none' : 'stroke 0.15s, fill-opacity 0.15s, filter 0.15s',
         }}
       />
+
+      {/* Brillo interno del parche (gradiente radial sobre el relleno) */}
+      <ellipse
+        cx={zone.cx}
+        cy={zone.cy}
+        rx={zone.rx}
+        ry={zone.ry}
+        fill={`url(#${zoneGradId})`}
+        style={{ pointerEvents: 'none' }}
+        aria-hidden="true"
+      />
+
       {/* Punto central de estado (ícono en texto SVG — color + ícono, nunca color solo) */}
       <text
         x={zone.cx}
@@ -195,6 +329,7 @@ function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedM
       >
         {RECENCY_ICON[recency]}
       </text>
+
       {/* Área de tap aumentada (≥44px) + focus ring visible */}
       <ellipse
         cx={zone.cx}
@@ -212,37 +347,73 @@ function ZoneButton({ zone, recency, isSelected, isSuggested, onSelect, reducedM
 
 // ── SubComponent: silueta + zonas ─────────────────────────────────────────────
 interface FigureProps {
-  bodyPath: string
-  zones: ZoneEllipse[]
-  label: string
-  recencyMap: Record<InjectionSite, { recency: ZoneRecency; lastTs: number | null }>
-  selected: InjectionSite | null | undefined
-  suggested: InjectionSite | null
-  onSelect: (s: InjectionSite) => void
+  bodyPath:    string
+  zones:       ZoneEllipse[]
+  label:       string
+  figId:       string   // unique prefix for <defs> IDs
+  recencyMap:  Record<InjectionSite, { recency: ZoneRecency; lastTs: number | null }>
+  selected:    InjectionSite | null | undefined
+  suggested:   InjectionSite | null
+  onSelect:    (s: InjectionSite) => void
   reducedMotion: boolean | null
 }
 
-function Figure({ bodyPath, zones, label, recencyMap, selected, suggested, onSelect, reducedMotion }: FigureProps) {
+function Figure({
+  bodyPath, zones, label, figId, recencyMap, selected, suggested, onSelect, reducedMotion,
+}: FigureProps) {
+  const { bodyGradId, bodyShineId, rimFilterId } = makeDefs(figId)
+
   return (
     <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
       <svg
         viewBox="0 0 100 220"
         width="100%"
-        style={{ maxWidth: 130, display: 'block' }}
+        style={{ maxWidth: 130, display: 'block', overflow: 'visible' }}
         role="group"
         aria-label={label}
         focusable="true"
       >
-        {/* Cuerpo — relleno slate, tono cockpit */}
+        <BodyDefs id={figId} />
+
+        {/* Capa de glow rim-light: misma silueta, solo filtro difuso teal */}
         <path
           d={bodyPath}
-          fill="var(--secondary)"
-          stroke="var(--teal-dim)"
-          strokeWidth="0.8"
+          fill="none"
+          stroke="#5FC9B8"
+          strokeWidth="1.5"
           strokeLinejoin="round"
-          opacity="0.8"
+          filter={`url(#${rimFilterId})`}
+          opacity="0.7"
+          aria-hidden="true"
         />
-        {/* Zonas tappables */}
+
+        {/* Cuerpo — relleno con gradiente lineal premium */}
+        <path
+          d={bodyPath}
+          fill={`url(#${bodyGradId})`}
+          strokeLinejoin="round"
+        />
+
+        {/* Brillo de profundidad sobre el torso (gradiente radial) */}
+        <path
+          d={bodyPath}
+          fill={`url(#${bodyShineId})`}
+          aria-hidden="true"
+          style={{ pointerEvents: 'none' }}
+        />
+
+        {/* Contorno nítido teal muy tenue — define la silueta con elegancia */}
+        <path
+          d={bodyPath}
+          fill="none"
+          stroke="#5FC9B8"
+          strokeWidth="0.6"
+          strokeLinejoin="round"
+          opacity="0.45"
+          aria-hidden="true"
+        />
+
+        {/* Zonas tappables (parches sobre el cuerpo) */}
         {zones.map((zone) => (
           <ZoneButton
             key={zone.site}
@@ -252,9 +423,11 @@ function Figure({ bodyPath, zones, label, recencyMap, selected, suggested, onSel
             isSuggested={suggested === zone.site}
             onSelect={() => onSelect(zone.site)}
             reducedMotion={reducedMotion}
+            defsId={figId}
           />
         ))}
       </svg>
+
       <span
         className="text-[10px] font-mono tracking-widest text-muted-foreground uppercase"
         aria-hidden="true"
@@ -281,8 +454,8 @@ export function InjectionMap({
   selected?: InjectionSite | null
   onSelect: (s: InjectionSite) => void
 }) {
-  const { state } = useApp()
-  const reducedMotion = useReducedMotion()
+  const { state }       = useApp()
+  const reducedMotion   = useReducedMotion()
 
   // Mapa de recencia calculado desde state.log (misma lógica que el v1/store)
   const recencyMap = useMemo(() => injectionZoneRecency(state), [state])
@@ -291,8 +464,9 @@ export function InjectionMap({
   const suggested = useMemo<InjectionSite | null>(() => {
     const ORDER: ZoneRecency[] = ['none', 'ok', 'recent', 'fresh']
     for (const level of ORDER) {
-      const site = (['abdomen-izq','abdomen-der','muslo-izq','muslo-der','gluteo-izq','gluteo-der'] as InjectionSite[])
-        .find((s) => recencyMap[s]?.recency === level)
+      const site = (
+        ['abdomen-izq','abdomen-der','muslo-izq','muslo-der','gluteo-izq','gluteo-der'] as InjectionSite[]
+      ).find((s) => recencyMap[s]?.recency === level)
       if (site) return site
     }
     return null
@@ -303,9 +477,9 @@ export function InjectionMap({
     if (!selected) return null
     const info = recencyMap[selected]
     return {
-      label: SITE_LABEL[selected],
+      label:   SITE_LABEL[selected],
       recency: info?.recency ?? 'none',
-      lastTs: info?.lastTs ?? null,
+      lastTs:  info?.lastTs ?? null,
     }
   }, [selected, recencyMap])
 
@@ -338,6 +512,7 @@ export function InjectionMap({
           bodyPath={BODY_FRONT}
           zones={FRONT_ZONES}
           label="Frente"
+          figId="front"
           recencyMap={recencyMap}
           selected={selected}
           suggested={suggested}
@@ -348,6 +523,7 @@ export function InjectionMap({
           bodyPath={BODY_BACK}
           zones={BACK_ZONES}
           label="Espalda"
+          figId="back"
           recencyMap={recencyMap}
           selected={selected}
           suggested={suggested}
