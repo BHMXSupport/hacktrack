@@ -10,7 +10,7 @@ import preloaderPoster from '../../assets/rebuild/preloader-poster.webp'
 //    arranca a reproducirse (desktop / dispositivos que permiten autoplay). Si está bloqueado,
 //    queda invisible y se ve el póster latiendo — sin botón ▶ nunca.
 // Dura 3 s y se desvanece.
-export function PreloaderSplash() {
+export function PreloaderSplash({ onDone }: { onDone?: () => void }) {
   const reduce = useReducedMotion()
   const [show, setShow] = useState(true)
   const [videoPlaying, setVideoPlaying] = useState(false)
@@ -49,7 +49,7 @@ export function PreloaderSplash() {
   }, [reduce])
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onDone}>
       {show && (
         <motion.div
           className="absolute inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-void"

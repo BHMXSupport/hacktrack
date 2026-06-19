@@ -1,4 +1,5 @@
-import { type ComponentType, type ReactNode } from 'react'
+import { type ComponentType, type ReactNode, useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { Settings } from 'lucide-react'
 import { AppProviderV2 } from './lib/provider'
 import { useApp } from '../lib/store'
@@ -7,6 +8,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 import { FloatingNav } from './ui/FloatingNav'
 import { AmbientBackground } from './ui/AmbientBackground'
 import { PreloaderSplash } from './ui/PreloaderSplash'
+import { EntryGate } from './ui/EntryGate'
 import { Toast } from './ui/Toast'
 import { Inicio } from './screens/Inicio'
 import { Diario } from './screens/Diario'
@@ -48,12 +50,24 @@ const FLOW: Record<string, ComponentType> = {
   's-forgot': Login,
 }
 
+// Secuencia de arranque: gate (logo + frase + Entrar → gesto que desbloquea autoplay)
+// → preloader (video Higgsfield, ahora SÍ reproduce) → app.
+function LaunchSequence() {
+  const [phase, setPhase] = useState<'gate' | 'loading' | 'done'>('gate')
+  return (
+    <AnimatePresence mode="wait">
+      {phase === 'gate' && <EntryGate key="gate" onEnter={() => setPhase('loading')} />}
+      {phase === 'loading' && <PreloaderSplash key="loading" onDone={() => setPhase('done')} />}
+    </AnimatePresence>
+  )
+}
+
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="app-frame relative mx-auto h-[100dvh] w-full overflow-hidden bg-precision-grid sm:my-0 md:h-[880px] md:max-w-[412px] md:rounded-[40px]">
       <AmbientBackground />
       {children}
-      <PreloaderSplash />
+      <LaunchSequence />
     </div>
   )
 }
