@@ -751,17 +751,43 @@ export function reducer(s: AppState, a: Action): AppState {
     // P0-1 + P1-5: las medidas también entran al diario y activan el dashboard
     case 'saveMeasure': {
       const now = a.ts ? new Date(a.ts) : new Date()
+      const nowMs = now.getTime()
       const ic = MEASURE_ICON[a.name] ?? { icon: 'medidas', cat: '#5FC9B8' }
-      const item: LogItem = {
-        id: genId(),
-        t: fmtTime(now),
-        n: a.name,
-        u: fmtMeasureValue(a.name, a.value) + (a.nota ? ' · ' + a.nota : ''),
-        cat: ic.cat,
-        ic: ic.icon,
-        type: 'medida',
-        ts: now.getTime(),
+      const uStr = fmtMeasureValue(a.name, a.value) + (a.nota ? ' · ' + a.nota : '')
+      // COALESCE: si ya hay un registro de la MISMA medida en los últimos 60 s, se ACTUALIZA en vez de
+      // crear otro (un stepper de electrolitos no debe ensuciar el diario con un registro por clic).
+      const COALESCE_MS = 60_000
+      const todayKey = isoKey(nowMs)
+      let coalesced = false
+      const log = s.log.map((g) => {
+        if (coalesced || g.dateKey !== todayKey) return g
+        const idx = g.items.findIndex(
+          (it) => it.type === 'medida' && it.n === a.name && nowMs >= it.ts && nowMs - it.ts < COALESCE_MS,
+        )
+        if (idx === -1) return g
+        coalesced = true
+        const items = g.items.slice()
+        items[idx] = { ...items[idx], u: uStr, t: fmtTime(now), ts: nowMs }
+        return { ...g, items }
+      })
+      const finalLog = coalesced
+        ? log
+        : prependToLog(s.log, { id: genId(), t: fmtTime(now), n: a.name, u: uStr, cat: ic.cat, ic: ic.icon, type: 'medida', ts: nowMs })
+
+      // history: reemplaza la última muestra reciente (<60 s) o agrega una nueva
+      let history = s.history
+      if (coalesced) {
+        const series = (s.history[a.name] ?? []).slice()
+        if (series.length && nowMs - series[series.length - 1].ts < COALESCE_MS) {
+          series[series.length - 1] = { ts: nowMs, value: a.value }
+        } else {
+          series.push({ ts: nowMs, value: a.value })
+        }
+        history = { ...s.history, [a.name]: series }
+      } else {
+        history = pushHistory(s.history, [{ name: a.name, value: a.value, ts: nowMs }])
       }
+
       const meta = MEASURE_META[a.name]
       const profile = { ...s.profile }
       if (meta?.prof) {
@@ -770,9 +796,9 @@ export function reducer(s: AppState, a: Action): AppState {
       }
       return {
         ...s,
-        log: prependToLog(s.log, item),
+        log: finalLog,
         measureValues: { ...s.measureValues, [a.name]: a.value },
-        history: pushHistory(s.history, [{ name: a.name, value: a.value, ts: now.getTime() }]),
+        history,
         profile,
         logged: true,
         sheet: null,

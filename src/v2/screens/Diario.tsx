@@ -616,16 +616,20 @@ function MeasureSummary({
         {stats.map((s) => (
           <div key={s.name} className="flex items-center gap-2">
             <span className="flex-1 min-w-0 text-[13px] font-medium text-secondary-foreground truncate">{s.name}</span>
-            <span className="font-mono text-[12px] text-muted-foreground tabular-nums shrink-0">
-              {s.first} → {s.last}
-            </span>
-            <span className={`font-mono text-[12px] font-bold tabular-nums shrink-0 inline-flex items-center gap-0.5 ${s.neutral ? 'text-muted-foreground' : s.positive ? 'text-ok' : 'text-alert'}`}>
-              {s.delta > 0 ? '+' : ''}{s.delta.toFixed(1)}
-              {!s.neutral && (s.positive
-                ? <TrendingUp size={11} />
-                : <TrendingDown size={11} />
-              )}
-            </span>
+            {s.neutral ? (
+              // Sin cambio en el período (o una sola muestra): solo el valor actual, sin flecha ni delta
+              <span className="font-mono text-[12px] text-muted-foreground tabular-nums shrink-0">{s.last}</span>
+            ) : (
+              <>
+                <span className="font-mono text-[12px] text-muted-foreground tabular-nums shrink-0">
+                  {s.first} → {s.last}
+                </span>
+                <span className={`font-mono text-[12px] font-bold tabular-nums shrink-0 inline-flex items-center gap-0.5 ${s.positive ? 'text-ok' : 'text-alert'}`}>
+                  {s.delta > 0 ? '+' : ''}{s.delta.toFixed(1)}
+                  {s.positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                </span>
+              </>
+            )}
           </div>
         ))}
       </div>

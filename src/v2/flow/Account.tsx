@@ -1,8 +1,7 @@
 /**
  * Account.tsx — v2 flow
  *
- * Crea cuenta (nombre + correo opcional) o continúa sin cuenta.
- * "Continuar sin cuenta" → dispatch finishOnboarding (va a 's-app').
+ * Crea cuenta (nombre obligatorio + correo opcional). Cuenta OBLIGATORIA (sin opción "sin cuenta").
  * "Crear cuenta" → dispatch setName + finishOnboarding (va a 's-app').
  * "Ya tengo cuenta" → dispatch go 's-login'.
  *
@@ -97,10 +96,6 @@ export function Account() {
     dispatch({ t: 'finishOnboarding' })
   }
 
-  function handleSkip() {
-    dispatch({ t: 'finishOnboarding' })
-  }
-
   // Fortaleza de contraseña básica (visual, no bloquea)
   const pwScore = password.length === 0 ? 0
     : password.length < 8 ? 1
@@ -156,7 +151,7 @@ export function Account() {
             Crea tu cuenta
           </h1>
           <p className="mt-2 text-[14px] text-muted-foreground">
-            Opcional — puedes continuar sin cuenta.
+            Guarda y respalda tu progreso.
           </p>
         </motion.div>
 
@@ -297,16 +292,13 @@ export function Account() {
           <div className="h-px flex-1 bg-white/8" />
         </motion.div>
 
-        {/* CTAs alternas — sin cuenta + ya tengo cuenta, ambas con peso de botón (#7) */}
+        {/* Cuenta obligatoria: solo "ya tengo cuenta" (se quitó "continuar sin cuenta") */}
         <motion.div variants={fade} className="flex flex-col gap-3">
-          <Button size="full" variant="outline" onClick={handleSkip}>
-            Continuar sin cuenta
-          </Button>
-          <Button size="full" variant="ghost" onClick={() => dispatch({ t: 'go', screen: 's-login' })}>
+          <Button size="full" variant="outline" onClick={() => dispatch({ t: 'go', screen: 's-login' })}>
             Ya tengo cuenta · Iniciar sesión
           </Button>
           <p className="text-center text-[12px] text-muted-foreground">
-            Tus datos se guardan solo en tu dispositivo.
+            Tu cuenta protege y respalda tu progreso. Tus datos se guardan en tu dispositivo.
           </p>
         </motion.div>
 
