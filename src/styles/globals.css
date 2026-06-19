@@ -66,9 +66,25 @@
     background-size: auto, 40px 40px, 40px 40px;
     background-position: center top, center, center;
   }
+  /* Capa de movimiento CSS garantizado del fondo ambiental — visible aunque el
+     navegador bloquee el autoplay del <video> (iOS/Safari/Low-Power). Glows teal
+     que derivan lentamente. */
+  .ambient-drift {
+    background:
+      radial-gradient(42% 34% at 26% 28%, rgba(95,201,184,.12), transparent 70%),
+      radial-gradient(38% 32% at 78% 74%, rgba(56,128,168,.12), transparent 70%);
+    animation: ambient-drift 24s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+  }
+  @keyframes ambient-drift {
+    0%   { transform: translate3d(-3%, -2%, 0) scale(1.06); opacity: .55; }
+    50%  { transform: translate3d(3%, 3%, 0) scale(1.14);   opacity: .95; }
+    100% { transform: translate3d(4%, -3%, 0) scale(1.07);  opacity: .60; }
+  }
   /* Apaga blur/motion bajo reduced-motion o low-power */
   @media (prefers-reduced-motion: reduce) {
     .glass, .glass-nav { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+    .ambient-drift { animation: none !important; }
   }
 }
 

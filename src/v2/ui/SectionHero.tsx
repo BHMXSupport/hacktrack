@@ -1,10 +1,9 @@
 import { useReducedMotion } from 'framer-motion'
-import { canAutoplayHeavyMedia } from '../lib/media'
 import { AutoVideo } from './AutoVideo'
 import type { ReactNode } from 'react'
 
 // Banner hero animado para encabezar una sección. Poster ligero como base instantánea +
-// video loop gateado (Save-Data/conexión/reduced-motion) con preload=none. Título sobre gradiente opaco.
+// video loop (solo se desactiva con reduced-motion). Título sobre gradiente opaco.
 export function SectionHero({
   poster,
   video,
@@ -19,7 +18,7 @@ export function SectionHero({
   action?: ReactNode
 }) {
   const reduce = useReducedMotion()
-  const play = !reduce && !!video && canAutoplayHeavyMedia()
+  const play = !reduce && !!video
   return (
     <div className="relative mb-1 h-32 overflow-hidden rounded-lg">
       <img src={poster} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />

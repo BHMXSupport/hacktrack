@@ -1,9 +1,11 @@
 // Hacktrack v2 — Ajustes. Precision × Accessible.
-// Solo sheet de fondo (Sheet primitive). Lógica wired de src/screens/Ajustes.tsx — CSS re-hecho en v2.
+// R48: PIN de acceso, segundo recordatorio, avisos por correo, alias de productos.
+// R50: cerrar sesión (go 's-login').
 import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
+  Lock, Mail, Tag, LogOut,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
@@ -41,7 +43,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── card contenedor de filas (sólido, no glass — configuración no es analítica) ─
+// ── card contenedor de filas ──────────────────────────────────────────────────
 function RowCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col divide-y divide-white/6 rounded-xl bg-raised">
@@ -155,6 +157,146 @@ function DeleteConfirmDialog({
   )
 }
 
+// ── sub-sheet de confirmación de cierre de sesión (R50) ─────────────────────
+function LogoutConfirmDialog({
+  open,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const reduce = useReducedMotion()
+  return (
+    <AnimatePresence>
+      {open && (
+        <div className="absolute inset-0 z-[60] flex items-end">
+          <motion.div
+            className="absolute inset-0 bg-black/60"
+            style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onCancel}
+          />
+          <motion.div
+            role="alertdialog"
+            aria-label="Confirmar cierre de sesión"
+            className="relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            initial={reduce ? { opacity: 0 } : { y: '100%' }}
+            animate={reduce ? { opacity: 1 } : { y: 0 }}
+            exit={reduce ? { opacity: 0 } : { y: '100%' }}
+            transition={
+              reduce
+                ? { duration: 0.15 }
+                : { type: 'spring', stiffness: 280, damping: 32, mass: 1 }
+            }
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mb-4 flex flex-col items-center gap-2 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/8">
+                <LogOut size={22} className="text-foreground" />
+              </div>
+              <h3 className="text-[18px] font-bold text-foreground">¿Cerrar sesión?</h3>
+              <p className="max-w-[300px] text-[13px] leading-relaxed text-muted-foreground">
+                Tus datos quedan guardados en este dispositivo. Podrás volver a acceder en cualquier
+                momento.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button variant="primary" size="full" onClick={onConfirm}>
+                Cerrar sesión
+              </Button>
+              <Button variant="ghost" size="full" onClick={onCancel}>
+                Cancelar
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+// ── sub-sheet de alias de productos (R48) ────────────────────────────────────
+function AliasSheet({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const { state, dispatch } = useApp()
+  const products = state.importedProducts ?? []
+  const aliases = state.productAliases ?? {}
+  const [drafts, setDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(products.map((p) => [p, aliases[p] ?? '']))
+  )
+
+  function save(product: string) {
+    const alias = (drafts[product] ?? '').trim()
+    dispatch({ t: 'setProductAlias', product, alias: alias || null })
+  }
+
+  function saveAll() {
+    products.forEach(save)
+    onClose()
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Nombres privados">
+      <div className="flex flex-col gap-4 pb-2">
+        <p className="text-[13px] text-muted-foreground">
+          Asigna un alias personalizado a cada producto. Solo tú lo verás en la app.
+        </p>
+
+        {products.length === 0 ? (
+          <p className="italic text-[13px] text-muted-foreground">
+            Sin productos en protocolo.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {products.map((product) => (
+              <div key={product} className="flex flex-col gap-1">
+                <label
+                  htmlFor={`alias-${product}`}
+                  className="text-[12px] font-semibold text-muted-foreground"
+                >
+                  {product}
+                </label>
+                <input
+                  id={`alias-${product}`}
+                  type="text"
+                  value={drafts[product] ?? ''}
+                  placeholder="Alias privado (p.ej. Tratamiento A)"
+                  maxLength={32}
+                  onChange={(e) =>
+                    setDrafts((d) => ({ ...d, [product]: e.target.value }))
+                  }
+                  onBlur={() => save(product)}
+                  className={[
+                    'h-[44px] w-full rounded-xl border border-white/10 bg-raised px-3',
+                    'text-[14px] text-foreground placeholder:text-muted-foreground',
+                    'focus:outline-none focus-visible:ring-1 focus-visible:ring-teal',
+                  ].join(' ')}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {products.length > 0 && (
+          <Button variant="primary" size="full" onClick={saveAll}>
+            Guardar aliases
+          </Button>
+        )}
+      </div>
+    </Sheet>
+  )
+}
+
 // ── componente principal ──────────────────────────────────────────────────────
 export function Ajustes({
   open,
@@ -170,7 +312,9 @@ export function Ajustes({
 
   // ── estado local ──────────────────────────────────────────────────────────
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showAdvancedReminders, setShowAdvancedReminders] = useState(false)
+  const [showAliasSheet, setShowAliasSheet] = useState(false)
   const fileImportRef = useRef<HTMLInputElement>(null)
   const reduce = useReducedMotion()
 
@@ -186,6 +330,11 @@ export function Ajustes({
   // hora de recordatorio
   const reminderTime = protocol?.reminderTime ?? '08:00'
   const hasProtocol = protocol != null
+
+  // segundo recordatorio
+  const cadenceMode = protocol?.cadence?.mode
+  const supportsSecondReminder = cadenceMode === 'cadaN' || cadenceMode === 'ciclo'
+  const secondReminderMin: number | null = (settings.secondReminderMin ?? null) as number | null
 
   // ── handlers ──────────────────────────────────────────────────────────────
   async function handleRemindersToggle(next: boolean) {
@@ -212,6 +361,12 @@ export function Ajustes({
   function handleDeleteAccount() {
     dispatch({ t: 'arcoDelete' })
     setShowDeleteConfirm(false)
+    onClose()
+  }
+
+  function handleLogout() {
+    dispatch({ t: 'go', screen: 's-login' })
+    setShowLogoutConfirm(false)
     onClose()
   }
 
@@ -318,6 +473,36 @@ export function Ajustes({
             </p>
           </section>
 
+          {/* ── SEGURIDAD (R48) ───────────────────────────────────────────── */}
+          <section>
+            <SectionLabel>Seguridad</SectionLabel>
+            <RowCard>
+              {/* PIN de acceso */}
+              <Row className="px-4">
+                <Lock
+                  size={18}
+                  className={settings.pinEnabled ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'}
+                />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">PIN de acceso</span>
+                  <span className="text-[12px] text-muted-foreground">
+                    {settings.pinEnabled
+                      ? 'Protegido — se solicita al abrir la app'
+                      : 'Desactivado'}
+                  </span>
+                </span>
+                <Switch
+                  checked={!!settings.pinEnabled}
+                  onChange={(v) => dispatch({ t: 'setSetting', key: 'pinEnabled', value: v })}
+                  label="Activar PIN de acceso"
+                />
+              </Row>
+            </RowCard>
+            <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
+              El PIN se almacena localmente y protege el acceso a la app.
+            </p>
+          </section>
+
           {/* ── RECORDATORIOS ────────────────────────────────────────────── */}
           <section>
             <SectionLabel>Recordatorios</SectionLabel>
@@ -404,7 +589,7 @@ export function Ajustes({
                 />
               </Row>
 
-              {/* Opciones avanzadas (disclosure) */}
+              {/* Opciones avanzadas: segundo recordatorio + rescate (R48) */}
               {settings.remindersEnabled && (
                 <>
                   <button
@@ -419,7 +604,7 @@ export function Ajustes({
                         Opciones avanzadas
                       </span>
                       <span className="text-[12px] text-muted-foreground">
-                        Aviso de rescate y segundo recordatorio
+                        Segundo recordatorio y aviso de rescate
                       </span>
                     </span>
                     <ChevronRight
@@ -441,6 +626,56 @@ export function Ajustes({
                         transition={reduce ? { duration: 0.1 } : { duration: 0.22 }}
                         className="overflow-hidden"
                       >
+                        {/* Segundo recordatorio (R48) — solo para ciclo/cadaN */}
+                        {supportsSecondReminder && (
+                          <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
+                            <span className="text-[12px] text-muted-foreground">
+                              Segundo recordatorio — para reconstitución o seguimiento del ciclo
+                            </span>
+                            <div
+                              role="group"
+                              aria-label="Segundo recordatorio"
+                              className="flex overflow-hidden rounded-lg border border-white/10"
+                            >
+                              {([
+                                { key: null, label: 'Sin' },
+                                { key: 30, label: '30m' },
+                                { key: 60, label: '1h' },
+                                { key: 120, label: '2h' },
+                              ] as const).map(({ key, label }) => {
+                                const active = secondReminderMin === key
+                                return (
+                                  <button
+                                    key={String(key)}
+                                    type="button"
+                                    aria-pressed={active}
+                                    aria-label={
+                                      key === null
+                                        ? 'Sin segundo recordatorio'
+                                        : `Segundo recordatorio ${label} antes`
+                                    }
+                                    onClick={() =>
+                                      dispatch({
+                                        t: 'setSetting',
+                                        key: 'secondReminderMin',
+                                        value: key as unknown as string,
+                                      })
+                                    }
+                                    className={[
+                                      'flex-1 py-1.5 text-[12px] font-semibold font-mono tabular-nums transition-colors',
+                                      active
+                                        ? 'bg-teal text-primary-foreground'
+                                        : 'bg-transparent text-muted-foreground hover:bg-white/5',
+                                    ].join(' ')}
+                                  >
+                                    {label}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Aviso de rescate */}
                         <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
                           <span className="text-[12px] text-muted-foreground">
@@ -495,6 +730,63 @@ export function Ajustes({
             </RowCard>
           </section>
 
+          {/* ── AVISOS POR CORREO (R48) ───────────────────────────────────── */}
+          <section>
+            <SectionLabel>Comunicaciones</SectionLabel>
+            <RowCard>
+              <Row className="px-4">
+                <Mail
+                  size={18}
+                  className={settings.emailNotices ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'}
+                />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">
+                    Avisos por correo
+                  </span>
+                  <span className="text-[12px] text-muted-foreground">
+                    {settings.emailNotices
+                      ? 'Recibirás resúmenes y alertas al correo registrado'
+                      : 'Desactivado — solo notificaciones en el dispositivo'}
+                  </span>
+                </span>
+                <Switch
+                  checked={!!settings.emailNotices}
+                  onChange={(v) => dispatch({ t: 'setSetting', key: 'emailNotices', value: v })}
+                  label="Activar avisos por correo"
+                />
+              </Row>
+            </RowCard>
+            {settings.emailNotices && !profile.email && (
+              <p className="mt-1.5 px-1 text-[11px] text-alert">
+                Configura un correo en tu perfil para recibir avisos.
+              </p>
+            )}
+          </section>
+
+          {/* ── PRIVACIDAD — alias de productos (R48) ─────────────────────── */}
+          <section>
+            <SectionLabel>Privacidad</SectionLabel>
+            <RowCard>
+              <button
+                type="button"
+                onClick={() => setShowAliasSheet(true)}
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                aria-label="Gestionar nombres privados de productos"
+              >
+                <Tag size={18} className="shrink-0 text-teal" />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">
+                    Nombres privados
+                  </span>
+                  <span className="text-[12px] text-muted-foreground">
+                    Alias personalizados para cada producto
+                  </span>
+                </span>
+                <Chevron />
+              </button>
+            </RowCard>
+          </section>
+
           {/* ── CUENTA ────────────────────────────────────────────────────── */}
           <section>
             <SectionLabel>Cuenta</SectionLabel>
@@ -543,6 +835,23 @@ export function Ajustes({
                 </span>
                 <Chevron />
               </button>
+
+              {/* Cerrar sesión (R50) */}
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                aria-label="Cerrar sesión"
+              >
+                <LogOut size={18} className="shrink-0 text-muted-foreground" />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">Cerrar sesión</span>
+                  <span className="text-[12px] text-muted-foreground">
+                    Tus datos se conservan en este dispositivo
+                  </span>
+                </span>
+                <Chevron />
+              </button>
             </RowCard>
           </section>
 
@@ -573,6 +882,16 @@ export function Ajustes({
         onConfirm={handleDeleteAccount}
         onCancel={() => setShowDeleteConfirm(false)}
       />
+
+      {/* Confirmación de cierre de sesión (R50) */}
+      <LogoutConfirmDialog
+        open={showLogoutConfirm}
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      {/* Sheet de aliases de productos (R48) */}
+      <AliasSheet open={showAliasSheet} onClose={() => setShowAliasSheet(false)} />
     </>
   )
 }

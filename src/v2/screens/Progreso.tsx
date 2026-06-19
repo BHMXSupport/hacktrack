@@ -1,19 +1,32 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Circle, CheckCircle2, XCircle, Calendar, TrendingUp } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  CheckCircle2,
+  XCircle,
+  Calendar,
+  TrendingUp,
+  FileText,
+} from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
 import {
   dayProducts,
   dayStatusEx,
   doseTakenOnProduct,
-  doseSkippedOnProduct,
   protocolStreak,
   weekAdherencePctLast8,
   type DayStateEx,
 } from '../../lib/calendar'
+import { buildIcs, downloadIcs } from '../../lib/calendar'
+import { MEASURE_META } from '../../lib/catalog'
+import type { MeasureSample } from '../../lib/types'
 import { Glass } from '../ui/Glass'
+import { DataPlate } from '../ui/DataPlate'
 import { Ring } from '../ui/Ring'
+import { Button } from '../ui/Button'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { SectionHero } from '../ui/SectionHero'
 import { HEROES } from '../lib/heroes'
@@ -29,18 +42,21 @@ const MESES = [
 /** Genera la cuadrícula del mes: semanas de L→D con nulls para días fuera del mes. */
 function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   const firstDay = new Date(year, month, 1)
-  // getDay(): 0=dom … 6=sáb → queremos L=0 … D=6
   const startOffset = (firstDay.getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const cells: (Date | null)[] = [
     ...Array(startOffset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
   ]
-  // Rellenar al final hasta completar semanas de 7
   while (cells.length % 7 !== 0) cells.push(null)
   const weeks: (Date | null)[][] = []
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
   return weeks
+}
+
+function fmtDate(ts: number, short = false): string {
+  const d = new Date(ts)
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: short ? 'short' : 'long' })
 }
 
 // ── Animaciones ───────────────────────────────────────────────────────────────
@@ -73,15 +89,13 @@ function DayCell({
 
   const label = date.getDate()
 
-  // Normalizar estado: HOY pendiente nunca es "omitida" (es "Hoy"); el FUTURO nunca es "omitida".
   const startToday = new Date()
   startToday.setHours(0, 0, 0, 0)
   const isFuture = !isToday && date.getTime() > startToday.getTime()
   let eff: DayStateEx | null = status
-  if (isToday && status !== 'taken') eff = null            // hoy pendiente → trato "Hoy"
-  if (isFuture && eff === 'missed') eff = 'scheduled'       // futuro programado, no omitido
+  if (isToday && status !== 'taken') eff = null
+  if (isFuture && eff === 'missed') eff = 'scheduled'
 
-  // Color/style logic
   let bg = ''
   let textCls = 'text-muted-foreground'
   let dotColor = ''
@@ -107,7 +121,6 @@ function DayCell({
     textCls = 'text-muted-foreground'
   }
 
-  // Hoy: punto teal si no hay dosis tomada
   if (isToday && eff !== 'taken') {
     dotColor = 'bg-teal'
   }
@@ -136,10 +149,10 @@ function CalendarioTab() {
 
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [exporting, setExporting] = useState(false)
 
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth])
 
-  // Pre-calcular estado de cada día del mes
   const dayStates = useMemo(() => {
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
     const result: Record<string, DayStateEx> = {}
@@ -160,6 +173,19 @@ function CalendarioTab() {
     else setViewMonth(m => m + 1)
   }
 
+  // R29: exportar .ics usando las funciones ya existentes en lib/calendar
+  const handleExportIcs = useCallback(() => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const ics = buildIcs(state, now)
+      downloadIcs(ics)
+    } finally {
+      // breve feedback visual antes de restaurar
+      setTimeout(() => setExporting(false), 1200)
+    }
+  }, [state, now, exporting])
+
   const hasProtocol = Object.keys(state.protocols).length > 0
 
   return (
@@ -170,6 +196,23 @@ function CalendarioTab() {
       animate="show"
       className="flex flex-col gap-4"
     >
+      {/* R29: botón exportar .ics */}
+      {hasProtocol && (
+        <motion.div variants={reduce ? {} : fade}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportIcs}
+            disabled={exporting}
+            aria-label="Exportar calendario de dosis como archivo .ics"
+            className="w-full gap-2"
+          >
+            <Calendar size={15} aria-hidden />
+            {exporting ? 'Generando…' : 'Exportar calendario (.ics)'}
+          </Button>
+        </motion.div>
+      )}
+
       {/* Navegación de mes */}
       <Glass>
         <div className="mb-3 flex items-center justify-between">
@@ -270,7 +313,361 @@ function LegendItem({ color: _color, icon, label }: { color: string; icon: React
   )
 }
 
-// ── Avances tab ───────────────────────────────────────────────────────────────
+// ── R31: Gráfica de línea SVG v2 ─────────────────────────────────────────────
+
+type RangeKey = '7d' | '30d' | 'Todo'
+const RANGE_OPTIONS: { value: RangeKey; label: string }[] = [
+  { value: '7d', label: '7 d' },
+  { value: '30d', label: '30 d' },
+  { value: 'Todo', label: 'Todo' },
+]
+
+function filterByRange(samples: MeasureSample[], range: RangeKey): MeasureSample[] {
+  if (range === 'Todo') return samples
+  const ms = range === '7d' ? 7 * 86400000 : 30 * 86400000
+  const cutoff = Date.now() - ms
+  return samples.filter(s => s.ts >= cutoff)
+}
+
+interface LineGraphProps {
+  samples: MeasureSample[]
+  color?: string
+  /** Whether lower values are better (reverses fill gradient direction) */
+  down?: boolean
+  height?: number
+  /** Show dot markers on each data point */
+  showDots?: boolean
+}
+
+function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height = 100, showDots = true }: LineGraphProps) {
+  if (samples.length < 2) {
+    return (
+      <div className="flex items-center justify-center py-4 text-[12px] text-muted-foreground" style={{ height }}>
+        Mínimo 2 registros para mostrar gráfica
+      </div>
+    )
+  }
+
+  const W = 320
+  const H = height
+  const PAD_X = 8
+  const PAD_Y = 10
+
+  const sorted = [...samples].sort((a, b) => a.ts - b.ts)
+  const minTs = sorted[0].ts
+  const maxTs = sorted[sorted.length - 1].ts
+  const tsRange = maxTs - minTs || 1
+
+  const values = sorted.map(s => s.value)
+  const minV = Math.min(...values)
+  const maxV = Math.max(...values)
+  const vRange = maxV - minV || 1
+
+  function toX(ts: number) {
+    return PAD_X + ((ts - minTs) / tsRange) * (W - PAD_X * 2)
+  }
+  function toY(v: number) {
+    return H - PAD_Y - ((v - minV) / vRange) * (H - PAD_Y * 2)
+  }
+
+  const pts = sorted.map(s => ({ x: toX(s.ts), y: toY(s.value), v: s.value, ts: s.ts }))
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+  const areaD = `${pathD} L ${pts[pts.length - 1].x.toFixed(1)} ${H} L ${pts[0].x.toFixed(1)} ${H} Z`
+
+  // Grid lines (3 horizontal)
+  const gridVals = [minV, minV + vRange / 2, maxV]
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', height: H, display: 'block' }}
+      role="img"
+      aria-label="Gráfica de progreso"
+    >
+      <defs>
+        <linearGradient id="line-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+        </linearGradient>
+      </defs>
+
+      {/* Grid lines */}
+      {gridVals.map((v, i) => {
+        const y = toY(v)
+        return (
+          <g key={i}>
+            <line
+              x1={PAD_X}
+              y1={y}
+              x2={W - PAD_X}
+              y2={y}
+              stroke="rgba(255,255,255,0.06)"
+              strokeWidth={1}
+            />
+            <text
+              x={PAD_X}
+              y={y - 3}
+              fontSize={9}
+              fill="rgba(255,255,255,0.3)"
+              fontFamily="var(--font-mono, monospace)"
+            >
+              {Number.isInteger(v) ? v : v.toFixed(1)}
+            </text>
+          </g>
+        )
+      })}
+
+      {/* Area fill */}
+      <path d={areaD} fill="url(#line-fill)" />
+
+      {/* Line */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+
+      {/* Dots */}
+      {showDots && pts.map((p, i) => (
+        <circle
+          key={i}
+          cx={p.x}
+          cy={p.y}
+          r={pts.length > 20 ? 0 : 3}
+          fill={color}
+          opacity={0.85}
+        />
+      ))}
+
+      {/* Time axis labels */}
+      {sorted.length >= 2 && (
+        <>
+          <text x={PAD_X} y={H - 1} fontSize={9} fill="rgba(255,255,255,0.3)" fontFamily="var(--font-mono, monospace)">
+            {fmtDate(sorted[0].ts, true)}
+          </text>
+          <text
+            x={W - PAD_X}
+            y={H - 1}
+            fontSize={9}
+            fill="rgba(255,255,255,0.3)"
+            textAnchor="end"
+            fontFamily="var(--font-mono, monospace)"
+          >
+            {fmtDate(sorted[sorted.length - 1].ts, true)}
+          </text>
+        </>
+      )}
+    </svg>
+  )
+}
+
+// ── R31: Correlación KPI↔Dosis (chart overlay dual normalizado) ──────────────
+
+interface KpiDoseCorrelationProps {
+  /** KPI samples */
+  kpiSamples: MeasureSample[]
+  /** Dosis tomadas por día (ts de inicio del día → cantidad) */
+  doseSeries: { ts: number; value: number }[]
+  kpiName: string
+  color: string
+}
+
+function KpiDoseCorrelation({ kpiSamples, doseSeries, kpiName, color }: KpiDoseCorrelationProps) {
+  if (kpiSamples.length < 2 || doseSeries.length < 2) return null
+
+  const W = 320
+  const H = 80
+  const PAD = 8
+
+  // Normalizar una serie a [0, H] para overlay
+  function normalizeSeries(arr: { ts: number; value: number }[], allTs: number[], tsRange: number) {
+    const vals = arr.map(s => s.value)
+    const minV = Math.min(...vals)
+    const maxV = Math.max(...vals)
+    const vRange = maxV - minV || 1
+    const minTs = allTs[0]
+    return arr.map(s => ({
+      x: PAD + ((s.ts - minTs) / tsRange) * (W - PAD * 2),
+      y: H - PAD - ((s.value - minV) / vRange) * (H - PAD * 2),
+    }))
+  }
+
+  const allTs = [
+    ...kpiSamples.map(s => s.ts),
+    ...doseSeries.map(s => s.ts),
+  ].sort((a, b) => a - b)
+  const tsRange = allTs[allTs.length - 1] - allTs[0] || 1
+
+  const kpiPts = normalizeSeries(kpiSamples, allTs, tsRange)
+  const dosePts = normalizeSeries(doseSeries, allTs, tsRange)
+
+  function toPath(pts: { x: number; y: number }[]) {
+    if (pts.length < 2) return ''
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+  }
+
+  return (
+    <div className="mt-3">
+      <p className="mb-1.5 text-[11px] text-muted-foreground">
+        Correlación {kpiName} <span className="text-[var(--teal)]">—</span> vs dosis <span className="opacity-60">- -</span>
+      </p>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H, display: 'block' }}>
+        {/* KPI line */}
+        <path d={toPath(kpiPts)} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
+        {/* Dose line (dashed) */}
+        <path d={toPath(dosePts)} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} strokeDasharray="4 2" strokeLinejoin="round" />
+      </svg>
+      <div className="mt-1.5 flex gap-4 text-[10px] text-muted-foreground">
+        <span style={{ color }}><span className="mr-1">—</span>{kpiName}</span>
+        <span><span className="mr-1 opacity-50">- -</span>Dosis/día</span>
+      </div>
+    </div>
+  )
+}
+
+// ── R31: Export CSV (medidas históricas) ──────────────────────────────────────
+
+function exportCsv(history: Record<string, MeasureSample[]>) {
+  const BOM = '﻿'
+  const rows: string[] = ['medida,fecha,valor']
+  const allKeys = Object.keys(history).filter(k => k !== 'Altura' && history[k]?.length > 0)
+  for (const name of [...allKeys].sort()) {
+    const samples = [...history[name]].sort((a, b) => a.ts - b.ts)
+    for (const s of samples) {
+      const fecha = new Date(s.ts).toISOString().slice(0, 10)
+      const medida = `"${name.replace(/"/g, '""')}"`
+      rows.push(`${medida},${fecha},${s.value}`)
+    }
+  }
+  const csv = BOM + rows.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'hacktrack-medidas.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── R31: KpiChart card ───────────────────────────────────────────────────────
+
+interface KpiChartCardProps {
+  name: string
+  samples: MeasureSample[]
+  /** Dosis tomadas acumuladas por día (para correlación) */
+  doseSeries: { ts: number; value: number }[]
+}
+
+function KpiChartCard({ name, samples, doseSeries }: KpiChartCardProps) {
+  const [range, setRange] = useState<RangeKey>('30d')
+  const [showCorr, setShowCorr] = useState(false)
+
+  const meta = MEASURE_META[name]
+  const color = 'var(--teal)'
+
+  const sorted = useMemo(() => [...samples].sort((a, b) => a.ts - b.ts), [samples])
+  const filtered = useMemo(() => filterByRange(sorted, range), [sorted, range])
+  const display = filtered.length >= 2 ? filtered : sorted
+
+  if (sorted.length === 0) return null
+
+  const last = sorted[sorted.length - 1]
+  const prev = sorted.length >= 2 ? sorted[sorted.length - 2] : null
+  const delta = prev != null ? last.value - prev.value : null
+  const unit = meta?.kind === 'num' && meta.unit ? ` ${meta.unit}` : ''
+  const down = meta?.down ?? false
+
+  const deltaColor =
+    delta == null || delta === 0
+      ? 'text-muted-foreground'
+      : (down ? delta < 0 : delta > 0)
+        ? 'text-ok'
+        : 'text-alert'
+  const deltaSign = delta != null && delta > 0 ? '+' : ''
+
+  return (
+    <Glass className="flex flex-col gap-3">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[12px] uppercase tracking-wider text-muted-foreground">{name}</p>
+          <DataPlate className="mt-1 inline-block px-2 py-0.5">
+            <span className="font-mono text-[22px] font-semibold tabular-nums text-foreground">
+              {last.value}{unit}
+            </span>
+            {delta != null && (
+              <span className={`ml-2 text-[12px] font-medium ${deltaColor}`}>
+                {deltaSign}{typeof delta === 'number' ? delta.toFixed(1) : delta}
+              </span>
+            )}
+          </DataPlate>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Último: {fmtDate(last.ts, true)} · {sorted.length} registros
+          </p>
+        </div>
+        {/* Correlación toggle (solo si hay dosis suficientes) */}
+        {doseSeries.length >= 3 && (
+          <button
+            onClick={() => setShowCorr(v => !v)}
+            className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-teal/30 hover:text-teal active:scale-95"
+            aria-pressed={showCorr}
+            aria-label={showCorr ? 'Ocultar correlación con dosis' : 'Mostrar correlación con dosis'}
+          >
+            {showCorr ? 'Ocultar corr.' : 'Ver vs dosis'}
+          </button>
+        )}
+      </div>
+
+      {/* Selector de rango */}
+      {sorted.length >= 2 && (
+        <div className="flex gap-1.5" role="group" aria-label="Rango de tiempo">
+          {RANGE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setRange(opt.value)}
+              aria-pressed={range === opt.value}
+              className={`h-7 rounded-full px-3 text-[12px] font-medium transition-colors ${
+                range === opt.value
+                  ? 'bg-teal/20 text-teal'
+                  : 'bg-white/5 text-muted-foreground hover:bg-white/8'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+          <span className="ml-auto self-center text-[11px] text-muted-foreground">
+            {display.length} pts
+          </span>
+        </div>
+      )}
+
+      {/* Gráfica */}
+      {sorted.length >= 2 && (
+        <LineGraph
+          samples={display}
+          color={color}
+          down={down}
+          height={96}
+        />
+      )}
+
+      {/* Correlación KPI↔Dosis */}
+      {showCorr && (
+        <KpiDoseCorrelation
+          kpiSamples={display}
+          doseSeries={doseSeries}
+          kpiName={name}
+          color={color}
+        />
+      )}
+    </Glass>
+  )
+}
+
+// ── Avances tab (R31) ─────────────────────────────────────────────────────────
 
 function AvancesTab() {
   const { state } = useApp()
@@ -298,20 +695,33 @@ function AvancesTab() {
   // Adherencia semanal (últimas 8 semanas, más reciente primero)
   const weekly8 = useMemo(() => weekAdherencePctLast8(state, today), [state, today])
 
-  // KPIs con historial
-  const kpiEntries = useMemo(() => {
-    const order = state.kpiOrder ?? state.selectedMeasures
-    return order
-      .filter((m) => (state.history[m]?.length ?? 0) > 0)
-      .slice(0, 4)
-      .map((m) => {
-        const samples = state.history[m] ?? []
-        const last = samples[samples.length - 1]
-        const prev = samples.length >= 2 ? samples[samples.length - 2] : null
-        const delta = last && prev ? last.value - prev.value : null
-        return { name: m, value: last?.value ?? null, delta }
-      })
-  }, [state])
+  // R31: Serie de dosis por día (para correlación)
+  // Cuenta cuántas dosis totales se tomaron cada día (últimos 90 días)
+  const doseSeries = useMemo(() => {
+    const result: { ts: number; value: number }[] = []
+    for (let i = 89; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 86400000)
+      let count = 0
+      for (const p of dayProducts(state, d)) {
+        if (doseTakenOnProduct(state, d, p)) count++
+      }
+      if (count > 0) {
+        result.push({ ts: startOfDay(d).getTime(), value: count })
+      }
+    }
+    return result
+  }, [state, today])
+
+  // R31: medidas con historial (excluir Altura que no cambia)
+  const historyKeys = useMemo(() => {
+    return Object.keys(state.history).filter(
+      k => k !== 'Altura' && (state.history[k]?.length ?? 0) > 0,
+    )
+  }, [state.history])
+
+  // Selector de medida activa para la gráfica principal
+  const [activeMeasure, setActiveMeasure] = useState<string | null>(null)
+  const measureForChart = activeMeasure ?? historyKeys[0] ?? null
 
   const hasProtocol = Object.keys(state.protocols).length > 0
 
@@ -440,31 +850,102 @@ function AvancesTab() {
         </motion.div>
       )}
 
-      {/* KPIs */}
-      {kpiEntries.length > 0 && (
-        <motion.div variants={reduce ? {} : fade}>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Tus medidas
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {kpiEntries.map(({ name, value, delta }) => (
-              <Glass key={name} className="p-4">
-                <p className="text-[12px] text-muted-foreground">{name}</p>
-                <p className="mt-1 font-mono text-[22px] font-semibold tabular-nums text-foreground">
-                  {value != null ? value : '—'}
-                </p>
-                {delta !== null && (
-                  <p
-                    className={`mt-0.5 text-[11px] font-medium ${
-                      delta > 0 ? 'text-ok' : delta < 0 ? 'text-alert' : 'text-muted-foreground'
-                    }`}
-                  >
-                    {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} vs anterior
-                  </p>
-                )}
-              </Glass>
-            ))}
+      {/* R31: Dashboard de medidas con gráfica seleccionable */}
+      {historyKeys.length > 0 && (
+        <motion.div variants={reduce ? {} : fade} className="flex flex-col gap-3">
+          {/* Sección header + export CSV */}
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Tus medidas
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => exportCsv(state.history)}
+              aria-label="Exportar medidas como CSV"
+              className="h-8 gap-1.5 px-2 text-[12px]"
+            >
+              <FileText size={13} aria-hidden />
+              Exportar CSV
+            </Button>
           </div>
+
+          {/* Selector de medida activa */}
+          {historyKeys.length > 1 && (
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label="Seleccionar medida para ver gráfica"
+            >
+              {historyKeys.map(k => (
+                <button
+                  key={k}
+                  onClick={() => setActiveMeasure(k)}
+                  aria-pressed={measureForChart === k}
+                  className={`h-8 rounded-full px-3 text-[12px] font-medium transition-colors ${
+                    measureForChart === k
+                      ? 'bg-teal/20 text-teal ring-1 ring-teal/40'
+                      : 'bg-white/5 text-muted-foreground hover:bg-white/8'
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Gráfica principal de la medida seleccionada */}
+          {measureForChart && state.history[measureForChart] && (
+            <KpiChartCard
+              name={measureForChart}
+              samples={state.history[measureForChart]}
+              doseSeries={doseSeries}
+            />
+          )}
+
+          {/* Grilla de resumen de KPIs (últimos valores de las otras medidas) */}
+          {historyKeys.length > 1 && (
+            <div className="grid grid-cols-2 gap-3">
+              {historyKeys
+                .filter(k => k !== measureForChart)
+                .map(k => {
+                  const samples = state.history[k] ?? []
+                  if (samples.length === 0) return null
+                  const sorted = [...samples].sort((a, b) => a.ts - b.ts)
+                  const last = sorted[sorted.length - 1]
+                  const prev = sorted.length >= 2 ? sorted[sorted.length - 2] : null
+                  const delta = prev != null ? last.value - prev.value : null
+                  const meta = MEASURE_META[k]
+                  const unit = meta?.kind === 'num' && meta.unit ? ` ${meta.unit}` : ''
+                  const down = meta?.down ?? false
+                  const deltaColor =
+                    delta == null || delta === 0
+                      ? 'text-muted-foreground'
+                      : (down ? delta < 0 : delta > 0) ? 'text-ok' : 'text-alert'
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => setActiveMeasure(k)}
+                      className="group relative flex flex-col rounded-xl border border-white/8 bg-white/4 p-4 text-left transition-colors hover:border-teal/20 hover:bg-white/6 active:scale-[.98]"
+                      aria-label={`Ver gráfica de ${k}`}
+                    >
+                      <p className="text-[12px] text-muted-foreground">{k}</p>
+                      <p className="mt-1 font-mono text-[20px] font-semibold tabular-nums text-foreground">
+                        {last.value}{unit}
+                      </p>
+                      {delta != null && (
+                        <p className={`mt-0.5 text-[11px] font-medium ${deltaColor}`}>
+                          {delta > 0 ? '+' : ''}{delta.toFixed(1)} vs anterior
+                        </p>
+                      )}
+                      <span className="absolute right-3 top-3 opacity-0 transition-opacity group-hover:opacity-100">
+                        <TrendingUp size={12} className="text-teal" aria-hidden />
+                      </span>
+                    </button>
+                  )
+                })}
+            </div>
+          )}
         </motion.div>
       )}
 

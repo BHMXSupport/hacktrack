@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useDeferredValue } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { useState, useMemo, useEffect, useDeferredValue, useRef, useCallback } from 'react'
+import { motion, AnimatePresence, useReducedMotion, PanInfo } from 'framer-motion'
 import {
   Droplet,
   Activity,
@@ -11,12 +11,13 @@ import {
   X,
   Download,
   Shield,
-  Minus,
   TrendingUp,
   TrendingDown,
   Flame,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
-import { useApp, isoKey, siteLabel } from '../../lib/store'
+import { useApp, isoKey } from '../../lib/store'
 import { startOfDay, dayLabel, cyclePhaseInfo } from '../../lib/cadence'
 import {
   productStreak,
@@ -29,6 +30,7 @@ import type { LogItem, RangeFilter } from '../../lib/types'
 import { Glass } from '../ui/Glass'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
+import { Sheet } from '../ui/Sheet'
 import { SectionHero } from '../ui/SectionHero'
 import { HEROES } from '../lib/heroes'
 
@@ -200,85 +202,309 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0, 0, 0.2, 1] as [number, number, number, number] } },
 }
 
-// ── row de un registro ───────────────────────────────────────────────────────
+// ── sheet de edición inline (R51) ────────────────────────────────────────────
+
+function EditLogSheet({
+  item,
+  open,
+  onClose,
+  dispatch,
+}: {
+  item: LogItem
+  open: boolean
+  onClose: () => void
+  dispatch: ReturnType<typeof useApp>['dispatch']
+}) {
+  // estado local del formulario
+  const [value, setValue] = useState<string>(() => item.value != null ? String(item.value) : '')
+  const [unit, setUnit] = useState<string>(() => item.unit ?? '')
+  const [note, setNote] = useState<string>(item.note ?? '')
+  // hora editable: extraída del timestamp
+  const [timeStr, setTimeStr] = useState<string>(() => {
+    const d = new Date(item.ts)
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  })
+
+  // re-sincronizar si el item cambia (ej. otro dispatch)
+  useEffect(() => {
+    if (!open) return
+    setValue(item.value != null ? String(item.value) : '')
+    setUnit(item.unit ?? '')
+    setNote(item.note ?? '')
+    const d = new Date(item.ts)
+    setTimeStr(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
+  }, [open, item.ts, item.value, item.unit, item.note])
+
+  function handleSave() {
+    const numVal = value.trim() !== '' ? parseFloat(value) : null
+
+    // R51a: editar valor/unidad/nota vía editLog
+    if (item.type === 'dose' || item.type === 'medida') {
+      dispatch({
+        t: 'editLog',
+        id: item.id,
+        patch: {
+          value: numVal,
+          unit: unit.trim() || null,
+          note: note.trim() || null,
+        },
+      })
+    } else if (note.trim() !== (item.note ?? '')) {
+      // skip / otros: solo nota editable
+      dispatch({
+        t: 'editLog',
+        id: item.id,
+        patch: { note: note.trim() || null },
+      })
+    }
+
+    // R51b: editar hora vía editLogTime
+    const parts = timeStr.split(':').map(Number)
+    const hh = parts[0] ?? 0
+    const mm = parts[1] ?? 0
+    const base = new Date(item.ts)
+    base.setHours(hh, mm, 0, 0)
+    if (base.getTime() !== item.ts) {
+      dispatch({ t: 'editLogTime', id: item.id, ts: base.getTime() })
+    }
+
+    onClose()
+  }
+
+  const canEdit = item.type === 'dose' || item.type === 'medida'
+  const measureMeta = item.type === 'medida' ? MEASURE_META[item.n] : undefined
+
+  return (
+    <Sheet open={open} onClose={onClose} title={`Editar — ${item.type === 'skip' ? 'Dosis saltada' : item.n}`}>
+      <div className="flex flex-col gap-5 px-1">
+        {/* hora (siempre editable) */}
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            Hora
+          </label>
+          <input
+            type="time"
+            value={timeStr}
+            onChange={(e) => setTimeStr(e.target.value)}
+            className="h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 focus:outline-none focus:border-teal/40 w-full"
+          />
+        </div>
+
+        {/* valor numérico (dosis/medida) */}
+        {canEdit && (
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              {item.type === 'dose' ? 'Dosis' : 'Valor'}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min={0}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="0"
+                className="flex-1 h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 font-mono tabular-nums focus:outline-none focus:border-teal/40"
+              />
+              {/* unidad — solo dosis muestra campo de unidad */}
+              {item.type === 'dose' && (
+                <input
+                  type="text"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  placeholder="mg"
+                  className="w-20 h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 font-mono focus:outline-none focus:border-teal/40"
+                />
+              )}
+              {/* medida: unidad fija del meta */}
+              {item.type === 'medida' && measureMeta && (
+                <span className="flex items-center px-3 text-[13px] text-muted-foreground font-mono shrink-0">
+                  {measureMeta.unit ?? ''}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* nota (siempre editable) */}
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            Nota <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={120}
+            rows={2}
+            placeholder="Observación personal…"
+            className="w-full rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 py-2.5 focus:outline-none focus:border-teal/40 resize-none leading-snug placeholder:text-muted-foreground"
+          />
+          <p className="text-[10px] text-muted-foreground text-right mt-1">{note.length}/120</p>
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <Button variant="ghost" size="sm" onClick={onClose} className="flex-1">
+            Cancelar
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} className="flex-1">
+            Guardar
+          </Button>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground text-center pb-1">
+          Tu historial se guarda solo en tu dispositivo
+        </p>
+      </div>
+    </Sheet>
+  )
+}
+
+// ── row de un registro con swipe-to-delete + tap-to-edit (R51 + R52) ─────────
+
+const SWIPE_THRESHOLD = -64
 
 function TimelineRow({
   item,
   presencePct,
   phaseIndex,
   onDelete,
+  dispatch,
 }: {
   item: LogItem
   presencePct?: number
   phaseIndex?: number | null
   onDelete: (id: string) => void
+  dispatch: ReturnType<typeof useApp>['dispatch']
 }) {
   const isSkip = item.type === 'skip'
+  const reduce = useReducedMotion()
+
+  // R52: swipe state
+  const [dragX, setDragX] = useState(0)
+  const revealDelete = dragX < -32
+
+  // R51: edit sheet state
+  const [editOpen, setEditOpen] = useState(false)
+
+  const canEdit = item.type === 'dose' || item.type === 'medida' || item.type === 'skip'
+
+  function handleDragEnd(_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
+    if (info.offset.x < SWIPE_THRESHOLD) {
+      onDelete(item.id)
+    }
+    setDragX(0)
+  }
 
   return (
-    <motion.div
-      variants={itemVariants}
-      className={`flex items-start gap-3 rounded-lg px-3 py-3 min-h-[44px] transition-opacity ${isSkip ? 'opacity-60' : ''}`}
-    >
-      <ItemIcon item={item} />
-
-      <div className="flex-1 min-w-0">
-        {/* nombre */}
-        <p className={`text-[14px] font-semibold leading-snug ${isSkip ? 'text-muted-foreground' : 'text-foreground'}`}>
-          {isSkip ? 'Dosis saltada (intencional)' : item.n}
-        </p>
-
-        {/* valor — sin vía de administración */}
-        <p className="text-[12px] text-muted-foreground font-mono tabular-nums mt-0.5">
-          {item.u}
-        </p>
-
-        {/* nota */}
-        {item.note && (
-          <p className="text-[11px] text-muted-foreground italic mt-1 leading-snug">"{item.note}"</p>
-        )}
-
-        {/* efecto observado (dose) */}
-        {item.type === 'dose' && item.effect && (
-          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-teal/8 border border-teal/18 px-2 py-0.5 text-[10px] font-medium text-teal">
-            {item.effect}
-          </span>
-        )}
-
-        {/* barra de presencia farmacológica */}
-        {item.type === 'dose' && typeof presencePct === 'number' && presencePct > 0 && (
-          <div className="mt-1.5">
-            <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-wide">Presencia estimada</p>
-            <div className="h-1 bg-white/10 rounded-full overflow-hidden w-24">
-              <div className="h-full rounded-full bg-teal" style={{ width: `${presencePct}%` }} />
-            </div>
-          </div>
-        )}
-
-        {/* fase de titulación */}
-        {item.type === 'dose' && phaseIndex != null && (
-          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-teal/8 border border-teal/18 px-2 py-0.5 text-[10px] font-medium text-teal">
-            Fase {phaseIndex + 1}
-          </span>
-        )}
-      </div>
-
-      {/* hora + estado — columna derecha */}
-      <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{item.t}</span>
-        <StatusBadge item={item} />
-      </div>
-
-      {/* botón eliminar (accesible, mínimo 44px con padding) */}
-      <button
-        type="button"
-        aria-label={`Eliminar ${item.type === 'skip' ? 'dosis saltada de ' + item.u : item.n}`}
-        onClick={() => onDelete(item.id)}
-        className="shrink-0 h-11 w-11 -mr-2 flex items-center justify-center rounded-md text-muted-foreground hover:text-alert transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    <>
+      <motion.div
+        variants={itemVariants}
+        className="relative overflow-hidden"
+        style={{ borderRadius: 8 }}
       >
-        <X size={14} />
-      </button>
-    </motion.div>
+        {/* panel rojo reveal (R52) */}
+        <div
+          aria-hidden="true"
+          className="absolute right-0 top-0 bottom-0 w-[72px] flex items-center justify-center rounded-r-lg bg-alert transition-opacity"
+          style={{ opacity: revealDelete ? 1 : 0 }}
+        >
+          <Trash2 size={18} className="text-white" />
+        </div>
+
+        {/* card deslizable */}
+        <motion.div
+          drag={reduce ? false : 'x'}
+          dragConstraints={{ left: -80, right: 0 }}
+          dragElastic={0.08}
+          onDrag={(_e, info) => setDragX(info.offset.x)}
+          onDragEnd={handleDragEnd}
+          className={`flex items-start gap-3 px-3 py-3 min-h-[44px] bg-background transition-opacity ${isSkip ? 'opacity-60' : ''}`}
+          style={{ position: 'relative', zIndex: 1, touchAction: 'pan-y' }}
+        >
+          <ItemIcon item={item} />
+
+          <div className="flex-1 min-w-0">
+            {/* nombre */}
+            <p className={`text-[14px] font-semibold leading-snug ${isSkip ? 'text-muted-foreground' : 'text-foreground'}`}>
+              {isSkip ? 'Dosis saltada (intencional)' : item.n}
+            </p>
+
+            {/* valor */}
+            <p className="text-[12px] text-muted-foreground font-mono tabular-nums mt-0.5">
+              {item.u}
+            </p>
+
+            {/* nota */}
+            {item.note && (
+              <p className="text-[11px] text-muted-foreground italic mt-1 leading-snug">"{item.note}"</p>
+            )}
+
+            {/* efecto observado (dose) */}
+            {item.type === 'dose' && item.effect && (
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-teal/8 border border-teal/18 px-2 py-0.5 text-[10px] font-medium text-teal">
+                {item.effect}
+              </span>
+            )}
+
+            {/* barra de presencia farmacológica */}
+            {item.type === 'dose' && typeof presencePct === 'number' && presencePct > 0 && (
+              <div className="mt-1.5">
+                <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-wide">Presencia estimada</p>
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden w-24">
+                  <div className="h-full rounded-full bg-teal" style={{ width: `${presencePct}%` }} />
+                </div>
+              </div>
+            )}
+
+            {/* fase de titulación */}
+            {item.type === 'dose' && phaseIndex != null && (
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-teal/8 border border-teal/18 px-2 py-0.5 text-[10px] font-medium text-teal">
+                Fase {phaseIndex + 1}
+              </span>
+            )}
+          </div>
+
+          {/* hora + estado — columna derecha */}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{item.t}</span>
+            <StatusBadge item={item} />
+          </div>
+
+          {/* acciones: editar + eliminar (R51 + R52) */}
+          <div className="flex items-center shrink-0 -mr-1.5">
+            {/* botón editar (R51) */}
+            {canEdit && (
+              <button
+                type="button"
+                aria-label={`Editar ${isSkip ? 'dosis saltada' : item.n}`}
+                onClick={() => setEditOpen(true)}
+                className="h-11 w-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-teal transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
+            {/* botón eliminar (R52) */}
+            <button
+              type="button"
+              aria-label={`Eliminar ${isSkip ? 'dosis saltada de ' + item.u : item.n}`}
+              onClick={() => onDelete(item.id)}
+              className="h-11 w-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-alert transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* R51: sheet de edición (montado fuera del swipeable para no heredar transform) */}
+      <EditLogSheet
+        item={item}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        dispatch={dispatch}
+      />
+    </>
   )
 }
 
@@ -542,9 +768,24 @@ export function Diario() {
     return weeks
   }, [groupBy, deferredFiltered])
 
-  function handleDelete(id: string) {
-    dispatch({ t: 'sheet', sheet: 'confirm-delete', arg: id })
-  }
+  // R52: borrar directamente (sin confirm-delete sheet del shell viejo).
+  // deleteLog → setea toast "Registro borrado" + toastUndoId="__undo_delete__<id>" en store.
+  // Toast global (AppV2) muestra el botón "Deshacer" durante 5s y llama undoDeleteLog.
+  // Al expirar el timer (5s) limpiamos el buffer para liberar memoria.
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleDelete = useCallback((id: string) => {
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+    dispatch({ t: 'deleteLog', id })
+    // clearDeletedLogBuffer después de 5s (coincide con el auto-dismiss del Toast)
+    deleteTimerRef.current = setTimeout(() => {
+      dispatch({ t: 'clearDeletedLogBuffer' })
+      deleteTimerRef.current = null
+    }, 5200)
+  }, [dispatch])
+
+  // Limpiar timer al desmontar
+  useEffect(() => () => { if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current) }, [])
 
   function handleExport() {
     const allItems = deferredFiltered.flatMap((g) => g.items)
@@ -788,6 +1029,7 @@ export function Diario() {
                           key={it.id}
                           item={it}
                           onDelete={handleDelete}
+                          dispatch={dispatch}
                         />
                       ))}
                     </div>
@@ -845,6 +1087,7 @@ export function Diario() {
                               onDelete={handleDelete}
                               phaseIndex={phaseIdx}
                               presencePct={pct > 0 ? pct : undefined}
+                              dispatch={dispatch}
                             />
                           )
                         })}

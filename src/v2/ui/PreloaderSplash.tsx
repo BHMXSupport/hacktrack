@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { canAutoplayHeavyMedia } from '../lib/media'
 import { AutoVideo } from './AutoVideo'
 import loaderSrc from '../../assets/rebuild/splash-loader.mp4'
 import loaderPoster from '../../assets/rebuild/splash-loader-poster.webp'
@@ -13,7 +12,7 @@ export function PreloaderSplash() {
     const t = window.setTimeout(() => setShow(false), reduce ? 500 : 1800)
     return () => window.clearTimeout(t)
   }, [reduce])
-  const play = !reduce && canAutoplayHeavyMedia()
+  const play = !reduce
 
   return (
     <AnimatePresence>

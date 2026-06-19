@@ -1,21 +1,25 @@
-import { useMemo } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
-import { Shield, Droplet, ChevronRight, Check, Clock } from 'lucide-react'
-import { useApp } from '../../lib/store'
+import { useMemo, useState } from 'react'
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
+import {
+  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp,
+} from 'lucide-react'
+import { useApp, nextInjectionSite } from '../../lib/store'
+import type { InjectionSite } from '../../lib/types'
 import { startOfDay } from '../../lib/cadence'
-import { upcomingDoses, protocolStreak, dayProducts, doseTakenOnProduct } from '../../lib/calendar'
+import { upcomingDoses, protocolStreak, dayProducts, doseTakenOnProduct, doseSkippedOnProduct } from '../../lib/calendar'
 import { Glass } from '../ui/Glass'
 import { DataPlate } from '../ui/DataPlate'
 import { Ring } from '../ui/Ring'
 import { Button } from '../ui/Button'
-import { canAutoplayHeavyMedia } from '../lib/media'
+import { InjectionMap } from '../ui/InjectionMap'
 import { AutoVideo } from '../ui/AutoVideo'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 import posterSrc from '../../assets/rebuild/hero-poster.webp'
 
 const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
-const keyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const keyOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 function countdown(at: Date, now: Date): string {
   const mins = Math.max(0, Math.round((at.getTime() - now.getTime()) / 60000))
@@ -27,16 +31,40 @@ function countdown(at: Date, now: Date): string {
   return h % 24 === 0 ? `en ${d} d` : `en ${d} d ${h % 24}h`
 }
 
+// Semáforo de ventana de toma (verde ±0 ≤30 min, ámbar 31–120 min, rojo >120 min)
+function windowStatus(tsScheduled: number, nowTs: number): 'ok' | 'near' | 'late' {
+  const diffMin = Math.abs(nowTs - tsScheduled) / 60000
+  if (diffMin <= 30) return 'ok'
+  if (diffMin <= 120) return 'near'
+  return 'late'
+}
+
+const WIN_COLOR: Record<'ok' | 'near' | 'late', string> = {
+  ok: 'var(--ok)',
+  near: 'var(--warn)',
+  late: 'var(--alert)',
+}
+const WIN_LABEL: Record<'ok' | 'near' | 'late', string> = {
+  ok: 'En ventana',
+  near: 'Próxima',
+  late: 'Tarde',
+}
+
 const fade = {
   hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0, 0, 0, 1] as [number, number, number, number] } },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, ease: [0, 0, 0, 1] as [number, number, number, number] },
+  },
 }
 
 export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
-  const playHero = !reduce && canAutoplayHeavyMedia()
+  const playHero = !reduce
   const now = new Date()
+  const nowTs = now.getTime()
 
   const next = useMemo(() => upcomingDoses(state, now, 1)[0] ?? null, [state])
   const streak = useMemo(() => protocolStreak(state, now), [state])
@@ -56,16 +84,65 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
     return { due, taken, pct: due ? Math.round((taken / due) * 100) : 0 }
   }, [state])
 
+  // Dosis de hoy con estado tomada/saltada/pendiente
   const todayDoses = useMemo(
-    () => dayProducts(state, today).map((p) => ({ product: p, done: doseTakenOnProduct(state, today, p) })),
+    () =>
+      dayProducts(state, today).map((p) => ({
+        product: p,
+        done: doseTakenOnProduct(state, today, p),
+        skipped: doseSkippedOnProduct(state, today, p),
+      })),
     [state],
   )
 
-  const measures = state.selectedMeasures.slice(0, 2).map((m) => ({ m, v: state.measureValues[m] }))
+  // ts de toma programada por producto (reminderTime)
+  function tsFor(product: string): number {
+    const rt = state.protocols[product]?.reminderTime || state.protocol?.reminderTime || '08:00'
+    const [hh, mm] = rt.split(':').map(Number)
+    const at = new Date(today)
+    at.setHours(hh || 0, mm || 0, 0, 0)
+    return at.getTime()
+  }
+
+  const measures = state.selectedMeasures.slice(0, 4).map((m) => ({ m, v: state.measureValues[m] }))
   const water = state.nutrition[keyOf(today)]?.water ?? 0
   const waterGoal = 2000
   const name = state.profile.name?.split(' ')[0] ?? ''
   const fecha = `${DIAS[now.getDay()]}, ${now.getDate()} ${MES[now.getMonth()]}`
+
+  // R27: estado colapsable del mapa de inyección
+  const [mapOpen, setMapOpen] = useState(false)
+  const [selectedSite, setSelectedSite] = useState<InjectionSite | null>(null)
+
+  // M9: abrir Registrar pre-poblado con el producto
+  function openRegistrarForProduct(product: string) {
+    dispatch({ t: 'setActiveProduct', product })
+    dispatch({ t: 'sheet', sheet: 'registrar', arg: product })
+  }
+
+  // "No hoy" — logSkip con dispatch directo
+  function skipDose(product: string) {
+    dispatch({ t: 'logSkip', product })
+  }
+
+  // M10: KPI card → abrir MedidaSheet pre-seleccionada con esa medida
+  function openMedida(measureName: string) {
+    dispatch({ t: 'sheet', sheet: 'medida', arg: measureName })
+  }
+
+  // R27: onSelect del mapa → navegar a Registrar con sitio pre-seleccionado
+  // (RegistrarSheet toma el sheetArg como producto; el sitio lo elige el usuario ahí)
+  function handleMapSelect(site: InjectionSite) {
+    setSelectedSite(site)
+    // Navegar a registrar pre-poblado con el primer producto pendiente del día (si hay alguno)
+    const pending = todayDoses.find((d) => !d.done && !d.skipped)
+    if (pending) {
+      dispatch({ t: 'setActiveProduct', product: pending.product })
+      dispatch({ t: 'sheet', sheet: 'registrar', arg: pending.product })
+    } else {
+      dispatch({ t: 'sheet', sheet: 'registrar' })
+    }
+  }
 
   return (
     <motion.div
@@ -90,7 +167,6 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       {/* HERO — próxima toma con video en movimiento + readout en data-plate */}
       <motion.div variants={fade}>
         <Glass className="relative overflow-hidden p-0">
-          {/* Poster ligero (36KB): base instantánea + fallback Save-Data/sin-video */}
           <img
             src={posterSrc}
             alt=""
@@ -118,13 +194,19 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                   </span>
                 </DataPlate>
                 <p className="mt-2 text-[12px] text-secondary-foreground">
-                  {next.date.toLocaleDateString('es-MX', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
+                  {next.date.toLocaleDateString('es-MX', {
+                    weekday: 'long',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </p>
               </>
             ) : (
               <>
                 <h2 className="mb-2 text-[18px] font-bold text-foreground">Sin tomas programadas</h2>
-                <p className="text-[13px] text-secondary-foreground">Crea un protocolo para ver tu cuenta regresiva.</p>
+                <p className="text-[13px] text-secondary-foreground">
+                  Crea un protocolo para ver tu cuenta regresiva.
+                </p>
               </>
             )}
             <Button size="full" className="mt-4" onClick={onRegistrar}>
@@ -137,57 +219,165 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       {/* Adherencia + racha */}
       <motion.div variants={fade}>
         <Glass className="flex items-center gap-5">
-          <Ring value={adh.pct} goal={100} unit="%" label="adherencia" sub={streak > 0 ? `racha ${streak} d` : undefined} size={132} stroke={11} />
+          <Ring
+            value={adh.pct}
+            goal={100}
+            unit="%"
+            label="adherencia"
+            sub={streak > 0 ? `racha ${streak} d` : undefined}
+            size={132}
+            stroke={11}
+          />
           <div className="flex-1">
             <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Este mes</p>
             <p className="font-mono text-[26px] font-semibold tabular-nums text-foreground">
-              {adh.taken}<span className="text-muted-foreground"> / {adh.due}</span>
+              {adh.taken}
+              <span className="text-muted-foreground"> / {adh.due}</span>
             </p>
             <p className="text-[13px] text-secondary-foreground">dosis registradas</p>
           </div>
         </Glass>
       </motion.div>
 
-      {/* Tus dosis de hoy */}
+      {/* ── Tus dosis de hoy — ACCIONABLE (R24, R27, M9) ── */}
       {todayDoses.length > 0 && (
         <motion.div variants={fade}>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Tus dosis de hoy</p>
-          <Glass className="flex flex-col gap-1 p-2">
-            {todayDoses.map(({ product, done }) => (
-              <div key={product} className="flex items-center gap-3 rounded-md px-3 py-3">
-                <span
-                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${done ? 'border-teal bg-teal text-primary-foreground' : 'border-white/20 text-transparent'}`}
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Tus dosis de hoy
+          </p>
+          <Glass className="flex flex-col gap-0 p-0 overflow-hidden">
+            {todayDoses.map(({ product, done, skipped }, idx) => {
+              const ts = tsFor(product)
+              const win = !done && !skipped ? windowStatus(ts, nowTs) : null
+              const isLast = idx === todayDoses.length - 1
+
+              return (
+                <div
+                  key={product}
+                  className={`flex items-center gap-3 px-3 py-3 min-h-[56px]${!isLast ? ' border-b border-white/[0.07]' : ''}`}
+                  style={{
+                    // Borde izquierdo semáforo solo en pendientes
+                    borderLeft: win ? `3px solid ${WIN_COLOR[win]}` : '3px solid transparent',
+                    opacity: skipped ? 0.55 : 1,
+                  }}
                 >
-                  <Check size={14} strokeWidth={3} />
-                </span>
-                <span className="flex-1 font-medium text-foreground">{product}</span>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${done ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn'}`}
-                >
-                  {done ? <Check size={11} /> : <Clock size={11} />}
-                  {done ? 'Hecha' : 'Pendiente'}
-                </span>
-              </div>
-            ))}
+                  {/* Indicador estado */}
+                  <span
+                    aria-hidden
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
+                      done
+                        ? 'border-teal bg-teal text-primary-foreground'
+                        : skipped
+                          ? 'border-white/20 text-white/30'
+                          : 'border-white/20 text-transparent'
+                    }`}
+                  >
+                    {done ? <Check size={14} strokeWidth={3} /> : skipped ? <X size={12} /> : null}
+                  </span>
+
+                  {/* Nombre + ventana */}
+                  <div className="flex flex-1 flex-col min-w-0">
+                    <span
+                      className="font-medium text-foreground text-[14px] leading-snug truncate"
+                      style={{ textDecoration: done || skipped ? 'line-through' : 'none', opacity: done || skipped ? 0.6 : 1 }}
+                    >
+                      {product}
+                    </span>
+                    {win && !done && !skipped && (
+                      <span
+                        className="text-[11px] font-semibold mt-0.5"
+                        style={{ color: WIN_COLOR[win] }}
+                      >
+                        {WIN_LABEL[win]}
+                      </span>
+                    )}
+                    {done && (
+                      <span className="text-[11px] text-ok mt-0.5 font-medium">Hecha</span>
+                    )}
+                    {skipped && (
+                      <span className="text-[11px] text-muted-foreground mt-0.5">Saltada hoy</span>
+                    )}
+                  </div>
+
+                  {/* Botones de acción */}
+                  {!done && !skipped ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* M9: 1-tap abre Registrar pre-poblado con este producto */}
+                      <button
+                        type="button"
+                        onClick={() => openRegistrarForProduct(product)}
+                        aria-label={`Registrar dosis de ${product}`}
+                        className="flex items-center justify-center gap-1.5 rounded-full px-3 h-[44px] min-w-[44px] font-semibold text-[12px] transition-colors"
+                        style={{
+                          background: 'color-mix(in srgb, var(--teal) 15%, transparent)',
+                          border: '1.5px solid var(--teal)',
+                          color: 'var(--teal-bright)',
+                        }}
+                      >
+                        <Check size={13} strokeWidth={2.5} />
+                        <span>Marcar</span>
+                      </button>
+                      {/* "No hoy" — logSkip directo */}
+                      <button
+                        type="button"
+                        onClick={() => skipDose(product)}
+                        aria-label={`Omitir dosis de ${product} hoy`}
+                        className="flex items-center justify-center rounded-full h-[44px] min-w-[44px] px-3 font-medium text-[12px] transition-colors"
+                        style={{
+                          border: '1px solid var(--border)',
+                          background: 'transparent',
+                          color: 'var(--muted-foreground)',
+                        }}
+                      >
+                        No hoy
+                      </button>
+                    </div>
+                  ) : (
+                    // Badge solo informativo cuando ya está resuelta
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2.5 h-[32px] text-[11px] font-semibold shrink-0"
+                      style={{
+                        background: done
+                          ? 'color-mix(in srgb, var(--ok) 15%, transparent)'
+                          : 'color-mix(in srgb, var(--muted-foreground) 10%, transparent)',
+                        color: done ? 'var(--ok)' : 'var(--muted-foreground)',
+                      }}
+                    >
+                      {done ? <Check size={11} /> : <X size={11} />}
+                      {done ? 'Hecha' : 'Saltada'}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </Glass>
         </motion.div>
       )}
 
-      {/* KPIs */}
+      {/* ── KPIs de medidas (M10: tap abre MedidaSheet) ── */}
       {measures.length > 0 && (
         <motion.div variants={fade} className="grid grid-cols-2 gap-3">
           {measures.map(({ m, v }) => (
-            <Glass key={m} className="p-4">
-              <p className="text-[12px] text-muted-foreground">{m}</p>
-              <p className="mt-1 font-mono text-[24px] font-semibold tabular-nums text-foreground">
-                {v != null ? v : '—'}
-              </p>
-            </Glass>
+            <button
+              key={m}
+              type="button"
+              onClick={() => openMedida(m)}
+              aria-label={`Registrar medida: ${m}`}
+              className="text-left rounded-xl"
+            >
+              <Glass className="p-4 h-full transition-opacity active:opacity-70">
+                <p className="text-[12px] text-muted-foreground">{m}</p>
+                <p className="mt-1 font-mono text-[24px] font-semibold tabular-nums text-foreground">
+                  {v != null ? v : '—'}
+                </p>
+                <p className="mt-1 text-[10px] text-teal font-medium">Toca para registrar</p>
+              </Glass>
+            </button>
           ))}
         </motion.div>
       )}
 
-      {/* Hidratación (médica/operativa → superficie sólida, no vidrio) */}
+      {/* Hidratación */}
       <motion.div variants={fade}>
         <div className="rounded-lg border border-white/8 bg-raised p-4">
           <div className="mb-2 flex items-center justify-between">
@@ -195,11 +385,15 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
               <Droplet size={16} className="text-teal" /> Hidratación hoy
             </span>
             <span className="font-mono tabular-nums text-foreground">
-              {(water / 1000).toFixed(1)}<span className="text-muted-foreground"> / {(waterGoal / 1000).toFixed(0)} L</span>
+              {(water / 1000).toFixed(1)}
+              <span className="text-muted-foreground"> / {(waterGoal / 1000).toFixed(0)} L</span>
             </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-teal" style={{ width: `${Math.min(100, (water / waterGoal) * 100)}%` }} />
+            <div
+              className="h-full rounded-full bg-teal"
+              style={{ width: `${Math.min(100, (water / waterGoal) * 100)}%` }}
+            />
           </div>
           <button
             onClick={() => dispatch({ t: 'tab', tab: 'comida' })}
@@ -208,6 +402,54 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
             Registrar agua en Comida <ChevronRight size={14} />
           </button>
         </div>
+      </motion.div>
+
+      {/* ── R27: Mapa de inyección colapsable ── */}
+      <motion.div variants={fade}>
+        <button
+          type="button"
+          onClick={() => setMapOpen((o) => !o)}
+          aria-expanded={mapOpen}
+          aria-controls="injection-map-section"
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-raised px-4 py-3 text-left"
+        >
+          <span className="flex items-center gap-2 font-semibold text-[14px] text-foreground">
+            <span
+              aria-hidden
+              className="grid h-5 w-5 place-items-center rounded-full font-mono text-[10px]"
+              style={{ background: 'color-mix(in srgb, var(--teal) 15%, transparent)', color: 'var(--teal)' }}
+            >
+              ◎
+            </span>
+            Rotación de sitios
+          </span>
+          {mapOpen ? (
+            <ChevronUp size={16} className="text-muted-foreground" />
+          ) : (
+            <ChevronDown size={16} className="text-muted-foreground" />
+          )}
+        </button>
+
+        <AnimatePresence initial={false}>
+          {mapOpen && (
+            <motion.div
+              id="injection-map-section"
+              key="map"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={reduce ? { duration: 0 } : { duration: 0.28, ease: [0.25, 0, 0, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div className="mt-2">
+                <InjectionMap
+                  selected={selectedSite}
+                  onSelect={handleMapSelect}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   )

@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 
-// Video que autoreproduce de forma CONFIABLE (incl. iOS/Safari).
-// Fix clave: React no refleja bien el atributo `muted` a la propiedad del DOM →
-// el navegador lo trata como con audio y bloquea autoplay (muestra botón ▶).
-// Aquí seteamos muted por ref + llamamos play() programáticamente.
+// Video que autoreproduce de forma BULLETPROOF (incl. iOS/Safari y políticas estrictas):
+// - muted/defaultMuted por ref (React no lo refleja bien → bloquearía autoplay y mostraría ▶).
+// - play() inmediato + reintentos en canplay/loadeddata.
+// - DESBLOQUEO en la primera interacción del usuario (pointerdown/touchstart) y al volver a foco/visible,
+//   por si el navegador bloqueó el autoplay inicial.
 export function AutoVideo({
   src,
   poster,
@@ -27,11 +28,20 @@ export function AutoVideo({
       if (p && typeof p.catch === 'function') p.catch(() => {})
     }
     tryPlay()
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tryPlay()
+    }
     v.addEventListener('canplay', tryPlay)
     v.addEventListener('loadeddata', tryPlay)
+    document.addEventListener('pointerdown', tryPlay, { passive: true })
+    document.addEventListener('touchstart', tryPlay, { passive: true })
+    document.addEventListener('visibilitychange', onVis)
     return () => {
       v.removeEventListener('canplay', tryPlay)
       v.removeEventListener('loadeddata', tryPlay)
+      document.removeEventListener('pointerdown', tryPlay)
+      document.removeEventListener('touchstart', tryPlay)
+      document.removeEventListener('visibilitychange', onVis)
     }
   }, [src])
 
