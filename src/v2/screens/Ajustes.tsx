@@ -5,7 +5,7 @@ import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
-  Lock, Mail, Tag, LogOut,
+  Lock, Mail, Tag, LogOut, ListChecks, Download,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
@@ -415,6 +415,40 @@ export function Ajustes({
                   <span className="text-[12px] text-muted-foreground">
                     Perfil y privacidad
                   </span>
+                </span>
+                <Chevron />
+              </button>
+            </RowCard>
+          </section>
+
+          {/* ── PROTOCOLOS ────────────────────────────────────────────────── */}
+          <section>
+            <SectionLabel>Protocolos</SectionLabel>
+            <RowCard>
+              <button
+                type="button"
+                onClick={() => dispatch({ t: 'sheet', sheet: 'protocolos' })}
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
+                aria-label="Mis protocolos"
+              >
+                <ListChecks size={18} className="shrink-0 text-teal" />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[15px] font-medium text-foreground">Mis protocolos</span>
+                  <span className="text-[12px] text-muted-foreground">Cadencia, días y dosis por producto</span>
+                </span>
+                <Chevron />
+              </button>
+              <div className="mx-4 h-px bg-white/[0.06]" />
+              <button
+                type="button"
+                onClick={() => dispatch({ t: 'sheet', sheet: 'import' })}
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
+                aria-label="Importar protocolos"
+              >
+                <Download size={18} className="shrink-0 text-teal" />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[15px] font-medium text-foreground">Importar protocolos</span>
+                  <span className="text-[12px] text-muted-foreground">Agrega productos a tu seguimiento</span>
                 </span>
                 <Chevron />
               </button>

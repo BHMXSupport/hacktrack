@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '../../lib/cn'
 
@@ -16,6 +17,7 @@ export function SegmentedTabs<T extends string>({
   className?: string
 }) {
   const reduce = useReducedMotion()
+  const pillId = useId()
   return (
     <div role="group" className={cn('flex gap-1 rounded-full bg-white/6 p-1', className)}>
       {options.map((o) => {
@@ -33,7 +35,7 @@ export function SegmentedTabs<T extends string>({
           >
             {active && (
               <motion.span
-                layoutId="seg-pill"
+                layoutId={`${pillId}-seg-pill`}
                 transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }}
                 className="absolute inset-0 rounded-full bg-card shadow-[0_1px_0_rgba(255,255,255,.06)_inset,0_8px_20px_rgba(0,0,0,.4)]"
               />

@@ -16,6 +16,8 @@ export type SheetId =
   | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail' | 'crear-platillo' | 'recetario'
   | 'arco' | 'confirm-delete' | 'perfil' | 'paywall' | 'protocolo-edit' | 'ajustes' | 'dose-confirm'
   | 'medida-detail'  // item 146: detalle de KPI con historial + botón Registrar
+  | 'protocolos'     // rebuild v2: listado/gestión de protocolos (ProtocolosSheet)
+  | 'import'         // rebuild v2: asistente de importación de productos (ImportSheet)
 
 export interface AppState {
   todayTs: number

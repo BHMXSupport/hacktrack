@@ -64,7 +64,7 @@ export function Goal() {
       t: 'setGoals',
       cats: [...selected] as Category[],
     })
-    dispatch({ t: 'go', screen: 's-account' })
+    dispatch({ t: 'go', screen: 's-baseline' })
   }
 
   return (

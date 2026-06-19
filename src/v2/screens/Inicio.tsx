@@ -3,9 +3,11 @@ import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import {
   Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp,
 } from 'lucide-react'
-import { useApp, nextInjectionSite } from '../../lib/store'
+import { useApp, nextInjectionSite, doseForProduct } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
 import { startOfDay } from '../../lib/cadence'
+import { doseToMg } from '../../lib/calc'
+import { CadenciaChip } from './ProtocoloEditSheet'
 import { upcomingDoses, protocolStreak, dayProducts, doseTakenOnProduct, doseSkippedOnProduct } from '../../lib/calendar'
 import { Glass } from '../ui/Glass'
 import { DataPlate } from '../ui/DataPlate'
@@ -118,6 +120,30 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   function openRegistrarForProduct(product: string) {
     dispatch({ t: 'setActiveProduct', product })
     dispatch({ t: 'sheet', sheet: 'registrar', arg: product })
+  }
+
+  // "Marcar" — confirmación rápida (hora + efecto) con dosis/sitio pre-cargados.
+  // Si no hay dosis recordada, cae al Registrar completo. (idea del flujo previo, diseño v2)
+  function markDose(product: string) {
+    const dose = doseForProduct(state, product)
+    if (!dose) {
+      openRegistrarForProduct(product)
+      return
+    }
+    const rec = state.productRecon[product]
+    const doseMg = doseToMg(dose.value, dose.unit, rec?.vialMg, rec?.aguaMl) ?? undefined
+    const scheduledTs = tsFor(product)
+    const suggestedSite = nextInjectionSite(state.lastInjectionSite?.[product])
+    dispatch({
+      t: 'sheet',
+      sheet: 'dose-confirm',
+      arg: JSON.stringify({ product, value: dose.value, unit: dose.unit, doseMg, scheduledTs, nowTs: Date.now(), suggestedSite }),
+    })
+  }
+
+  // M2: editar cadencia/protocolo de un producto
+  function editProtocol(product: string) {
+    dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: product })
   }
 
   // "No hoy" — logSkip con dispatch directo
@@ -297,16 +323,27 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                     {skipped && (
                       <span className="text-[11px] text-muted-foreground mt-0.5">Saltada hoy</span>
                     )}
+                    {/* M2: cadencia del protocolo — toca para editar días/cadencia */}
+                    {state.protocols[product]?.cadence && (
+                      <button
+                        type="button"
+                        onClick={() => editProtocol(product)}
+                        aria-label={`Editar protocolo de ${product}`}
+                        className="mt-1 self-start rounded-full transition-opacity active:opacity-60"
+                      >
+                        <CadenciaChip cad={state.protocols[product]?.cadence} />
+                      </button>
+                    )}
                   </div>
 
                   {/* Botones de acción */}
                   {!done && !skipped ? (
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* M9: 1-tap abre Registrar pre-poblado con este producto */}
+                      {/* Confirmación rápida (dose-confirm): hora + efecto, dosis/sitio pre-cargados */}
                       <button
                         type="button"
-                        onClick={() => openRegistrarForProduct(product)}
-                        aria-label={`Registrar dosis de ${product}`}
+                        onClick={() => markDose(product)}
+                        aria-label={`Marcar dosis de ${product}`}
                         className="flex items-center justify-center gap-1.5 rounded-full px-3 h-[44px] min-w-[44px] font-semibold text-[12px] transition-colors"
                         style={{
                           background: 'color-mix(in srgb, var(--teal) 15%, transparent)',

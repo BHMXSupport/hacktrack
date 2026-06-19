@@ -315,7 +315,7 @@ export function Account() {
           {/* Ya tengo cuenta */}
           <button
             type="button"
-            onClick={() => dispatch({ t: 'finishOnboarding' })}
+            onClick={() => dispatch({ t: 'go', screen: 's-login' })}
             className="inline-flex h-11 items-center text-[14px] font-medium text-teal underline-offset-2 hover:underline"
           >
             Ya tengo cuenta · Entrar

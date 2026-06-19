@@ -20,18 +20,32 @@ import { ConfirmDeleteSheet } from './screens/ConfirmDeleteSheet'
 import { RecetarioSheet } from './screens/RecetarioSheet'
 import { Ajustes } from './screens/Ajustes'
 import { Perfil } from './screens/Perfil'
+import { ProtocolosSheet } from './screens/ProtocolosSheet'
+import { ProtocoloEditSheet } from './screens/ProtocoloEditSheet'
+import { CalcSheet } from './screens/CalcSheet'
+import { DoseConfirmSheet } from './screens/DoseConfirmSheet'
+import { ImportSheet } from './screens/ImportSheet'
+import { PaywallSheet } from './screens/PaywallSheet'
 import { Splash } from './flow/Splash'
 import { Onboarding } from './flow/Onboarding'
 import { Goal } from './flow/Goal'
+import { Baseline } from './flow/Baseline'
+import { MeasurePicker } from './flow/MeasurePicker'
 import { Account } from './flow/Account'
+import { Login } from './flow/Login'
+import { Welcome } from './flow/Welcome'
 
-// Flujo de arranque: splash → onboarding → goal → account → s-app.
-// Pantallas no construidas aún (s-login/s-baseline/etc.) caen al shell (fallback seguro).
+// Flujo de arranque: splash → onboarding → goal → baseline → measures → account → s-app.
+// Login es alterno (desde Account "ya tengo cuenta"). s-forgot aún no existe → cae a Login.
 const FLOW: Record<string, ComponentType> = {
   's-splash': Splash,
   's-onboarding': Onboarding,
   's-goal': Goal,
+  's-baseline': Baseline,
+  's-measures': MeasurePicker,
   's-account': Account,
+  's-login': Login,
+  's-forgot': Login,
 }
 
 function Frame({ children }: { children: ReactNode }) {
@@ -91,9 +105,22 @@ function Shell() {
       <RegistrarSheet open={sheet === 'registrar' || sheet === 'agregar'} onClose={closeSheet} />
       <MedidaSheet open={sheet === 'medida'} onClose={closeSheet} measure={sheetArg} />
       <ConfirmDeleteSheet open={sheet === 'confirm-delete'} onClose={closeSheet} id={sheetArg} />
-      <RecetarioSheet open={sheet === 'recetario' || sheet === 'crear-platillo'} onClose={closeSheet} />
+      <RecetarioSheet
+        open={sheet === 'recetario' || sheet === 'crear-platillo'}
+        onClose={closeSheet}
+        initialView={sheet === 'crear-platillo' ? 'create' : 'list'}
+      />
       <Ajustes open={sheet === 'ajustes'} onClose={closeSheet} onOpenPerfil={() => dispatch({ t: 'sheet', sheet: 'perfil' })} />
       <Perfil open={sheet === 'perfil'} onClose={closeSheet} />
+      <ProtocolosSheet open={sheet === 'protocolos'} onClose={closeSheet} />
+      <ProtocoloEditSheet open={sheet === 'protocolo-edit'} onClose={closeSheet} product={sheetArg} />
+      <CalcSheet open={sheet === 'calc'} onClose={closeSheet} />
+      <DoseConfirmSheet open={sheet === 'dose-confirm'} onClose={closeSheet} arg={sheetArg} />
+      <ImportSheet open={sheet === 'import'} onClose={closeSheet} />
+      <PaywallSheet open={sheet === 'paywall'} onClose={closeSheet} />
+
+      {/* Welcome — overlay tras finishOnboarding (justOnboarded), encima de s-app */}
+      {state.justOnboarded && <Welcome />}
     </Frame>
   )
 }
