@@ -7,7 +7,7 @@ type TabDef = { id: TabId; label: string; Icon: typeof Home }
 const TABS: TabDef[] = [
   { id: 'inicio', label: 'Inicio', Icon: Home },
   { id: 'diario', label: 'Diario', Icon: BookOpen },
-  { id: 'protocolo', label: 'Progreso', Icon: BarChart3 },
+  { id: 'protocolo', label: 'Protocolo', Icon: BarChart3 },
   { id: 'vida', label: 'Vida', Icon: Activity },
   { id: 'comida', label: 'Comida', Icon: Utensils },
   { id: 'semana', label: 'Semana', Icon: CalendarDays },
@@ -44,7 +44,7 @@ export function FloatingNav({
       {left.map((t) => (
         <NavTab key={t.id} t={t} active={active === t.id} reduce={!!reduce} onClick={() => onTab(t.id)} />
       ))}
-      <div className="relative w-[58px] shrink-0" aria-hidden>
+      <div className="relative w-[58px] shrink-0">
         <button
           onClick={onFab}
           aria-label="Agregar registro"
@@ -68,8 +68,8 @@ function NavTab({ t, active, onClick, reduce }: { t: TabDef; active: boolean; on
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold',
-        active ? 'text-teal' : 'text-muted-foreground',
+        'relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold',
+        active ? 'text-teal' : 'text-secondary-foreground',
       )}
     >
       {active && (

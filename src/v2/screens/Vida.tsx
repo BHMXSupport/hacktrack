@@ -252,7 +252,7 @@ export function Vida() {
     [state, now, win, mode],
   )
 
-  const byProduct = useMemo(() => collectDosesByProduct(state), [state.log])
+  const byProduct = useMemo(() => collectDosesByProduct(state), [state.log, state.productRecon])
 
   const nextDose = useMemo(() => {
     const upcoming = upcomingDoses(state, new Date(now), 3, 30)
@@ -307,19 +307,32 @@ export function Vida() {
 
   // Notas educativas por producto
   const noteProducts = useMemo(() => {
+    // #10: productos registrados pero sin presencia en la ventana → mostrarlos con su última dosis
+    // (en vez de desaparecerlos y dejar al usuario con "Sin datos" tras volver de un descanso).
+    const fmtAgo = (ts: number) => {
+      const days = Math.floor((now - ts) / 86_400_000)
+      if (days <= 0) return 'hoy'
+      if (days === 1) return 'ayer'
+      return `hace ${days} días`
+    }
+    const lastByProduct = new Map(data.outOfWindow.map((o) => [o.product, o.lastTs] as const))
     const set = new Set<string>()
     data.series.forEach((s) => set.add(s.product))
     data.skipped.forEach((p) => set.add(p))
+    data.outOfWindow.forEach((o) => set.add(o.product))
     Object.keys(state.protocols).forEach((p) => set.add(p))
-    return [...set].map((p) => ({
-      product: p,
-      color:
-        data.series.find((s) => s.product === p)?.color ??
-        CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'] ??
-        'var(--teal)',
-      text: getProductNote(p),
-    }))
-  }, [data.series, data.skipped, state.protocols])
+    return [...set].map((p) => {
+      const oowTs = lastByProduct.get(p)
+      return {
+        product: p,
+        color:
+          data.series.find((s) => s.product === p)?.color ??
+          CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'] ??
+          'var(--teal)',
+        text: oowTs != null ? `sin presencia en esta ventana — última dosis ${fmtAgo(oowTs)}` : getProductNote(p),
+      }
+    })
+  }, [data.series, data.skipped, data.outOfWindow, state.protocols, now])
 
   // ── Ejes ──────────────────────────────────────────────────────────────────
 
@@ -537,8 +550,8 @@ export function Vida() {
           <Glass>
             <p className="font-semibold text-foreground">Vida del péptido en el cuerpo</p>
             <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
-              {data.skipped.length > 0
-                ? 'Estos productos no grafican una curva de decaimiento, pero aquí tienes su contexto:'
+              {(data.skipped.length > 0 || data.outOfWindow.length > 0)
+                ? 'Estos productos están registrados pero sin presencia en esta ventana. Aquí tienes su contexto — amplía el rango para ver dosis más antiguas:'
                 : 'Ningún producto tiene presencia relevante en esta ventana. Amplía el rango o registra una dosis reciente.'}
             </p>
             {noteProducts.length > 0 && (

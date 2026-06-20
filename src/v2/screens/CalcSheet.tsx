@@ -33,7 +33,7 @@ const DEFAULT_CLIC_MG = 0.25
 
 // Rangos razonables de volumen por producto (orientativo, no médico)
 const REASONABLE_VOL_ML: Record<string, [number, number]> = {
-  'BPC 157':    [0.05, 0.5],
+  'BPC-157':    [0.05, 0.5],
   'TB-500':     [0.05, 1.0],
   'Semaglutida':[0.05, 0.5],
   'Retatrutide':[0.05, 0.5],
@@ -120,6 +120,15 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
   // ── Acciones ─────────────────────────────────────────────────────────────────
 
   function handleCopy() {
+    // #11: modo pluma — calcRecon (r) es null, pero plumaResult (mg) sí existe; copiarlo como mg.
+    if (plumaMode) {
+      if (plumaResult == null) return
+      dispatch({ t: 'setCalcDraft', draft: null })
+      dispatch({ t: 'setDraftDose', draft: { value: Math.round(plumaResult * 1000) / 1000, unit: 'mg' } })
+      dispatch({ t: 'toast', msg: 'Dosis copiada a tu registro' })
+      dispatch({ t: 'sheet', sheet: 'registrar' })
+      return
+    }
     if (!r) return
     dispatch({ t: 'setCalcDraft', draft: null })
     dispatch({
@@ -409,7 +418,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
         <Button
           variant="primary"
           size="full"
-          disabled={!r}
+          disabled={plumaMode ? plumaResult == null : !r}
           onClick={handleCopy}
         >
           Copiar a mi registro

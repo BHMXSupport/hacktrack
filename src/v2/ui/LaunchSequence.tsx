@@ -30,10 +30,13 @@ export function LaunchSequence() {
   const [phrase] = useState(() => PHRASES[Math.floor(Math.random() * PHRASES.length)])
   const [phase, setPhase] = useState<Phase>('gate')
   const [videoVisible, setVideoVisible] = useState(false)
+  const [slowHint, setSlowHint] = useState(false)
   const vidRef = useRef<HTMLVideoElement>(null)
+  const enteredRef = useRef(false) // #64: guard síncrono contra doble-tap (el estado es async)
 
   const handleEnter = () => {
-    if (phase !== 'gate') return
+    if (enteredRef.current || phase !== 'gate') return
+    enteredRef.current = true
     setPhase('loading')
     const v = vidRef.current
     if (v) {
@@ -68,7 +71,9 @@ export function LaunchSequence() {
     else if (v) {
       v.addEventListener('canplaythrough', onReady)
       v.addEventListener('error', onReady)
-      cap = window.setTimeout(reveal, 12000) // último recurso
+      // #6: rescate a 5s (antes 12s). En iOS Bajo Consumo el video se congela en silencio;
+      // no dejamos al usuario ante un spinner mudo más de unos segundos.
+      cap = window.setTimeout(reveal, 5000)
     } else {
       reveal()
     }
@@ -102,6 +107,13 @@ export function LaunchSequence() {
     const t = window.setTimeout(() => setPhase('done'), 700)
     return () => window.clearTimeout(t)
   }, [reduce, phase])
+
+  // #6: si tarda en bufferear, mostrar "Preparando…" bajo el spinner para que no parezca colgado.
+  useEffect(() => {
+    if (phase !== 'loading') { setSlowHint(false); return }
+    const t = window.setTimeout(() => setSlowHint(true), 2200)
+    return () => window.clearTimeout(t)
+  }, [phase])
 
   if (phase === 'done') return null
 
@@ -190,7 +202,14 @@ export function LaunchSequence() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
             >
-              {phase === 'loading' ? <Loader2 size={22} className="animate-spin" aria-label="Cargando" /> : 'Entrar'}
+              {phase === 'loading' ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 size={22} className="animate-spin" aria-label="Cargando" />
+                  {slowHint && <span className="text-[15px]">Preparando…</span>}
+                </span>
+              ) : (
+                'Entrar'
+              )}
             </motion.button>
           </motion.div>
         )}

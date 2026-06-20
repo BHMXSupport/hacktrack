@@ -4,7 +4,7 @@
 // R39: editores de meta kcal/macros + selector de tamaño de vaso.
 // Superficies: Glass para contenido/analítica, bg-raised para médicas/operativas.
 // Motion: fade+y stagger solo en opacity/transform; respeta useReducedMotion().
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Droplet, Utensils, Star, Activity, ChevronRight, Plus, Minus,
@@ -1228,11 +1228,12 @@ function FastActiveBanner({
 }) {
   const [now, setNow] = useState(Date.now())
 
-  // Actualizar contador cada minuto
-  useState(() => {
+  // Actualizar contador cada minuto (#12: useEffect, no useState — el cleanup de useState nunca
+  // se invoca, dejaba el intervalo vivo tras desmontar disparando setState en componente muerto).
+  useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000)
     return () => clearInterval(id)
-  })
+  }, [])
 
   const mins = fastingMinutes(fastStartTs, now) ?? 0
   const label = fastingLabel(mins)

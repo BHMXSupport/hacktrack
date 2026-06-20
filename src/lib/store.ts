@@ -57,7 +57,7 @@ export interface AppState {
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
   scale: SyringeScale          // escala de jeringa de la calculadora (P0-6)
-  draftDose: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null  // "copiar a mi registro" desde la calc (con reconstitución)
+  draftDose: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite } | null  // precarga de RegistrarSheet: "copiar a mi registro" desde la calc (value/unit/recon) o sitio elegido en el mapa (site)
   toast: string | null
   toastUndoId: string | null   // id del log a deshacer desde el toast (ej. dosis recién registrada)
   // buffer para deshacer borrado: el item + las muestras de history removidas (para restaurarlas en undo)
@@ -178,7 +178,7 @@ export type Action =
   | { t: 'setReminderTime'; time: string }
   | { t: 'setRescueWindow'; minutes: 0 | 15 | 30 | 60 }  // item 168: ventana de rescate de notificación
   | { t: 'setScale'; scale: SyringeScale }
-  | { t: 'setDraftDose'; draft: { value: number; unit: string; recon?: { vialMg: number; aguaMl: number } } | null }
+  | { t: 'setDraftDose'; draft: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite } | null }
   | { t: 'arcoDelete' }                                               // P0-5
   | { t: 'reset' }                                                    // P1-7
   | { t: 'replaceState'; state: Partial<AppState> }                  // restaurar respaldo completo

@@ -116,8 +116,11 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
   }, [])
 
   const addRecipe = (r: Recipe) => {
-    dispatch({ t: 'addMeal', kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, label: r.name, ts: Date.now() })
-    dispatch({ t: 'toast', msg: `${r.name} agregada a hoy` })
+    // #13: los macros del catálogo son del LOTE completo; registrar 1 porción (kcal/servings).
+    const per = r.servings > 1 ? r.servings : 1
+    const r1 = (n: number) => Math.round((n / per) * 10) / 10
+    dispatch({ t: 'addMeal', kcal: Math.round(r.kcal / per), protein: r1(r.protein), carbs: r1(r.carbs), fat: r1(r.fat), label: per > 1 ? `${r.name} (1 porción)` : r.name, ts: Date.now() })
+    dispatch({ t: 'toast', msg: per > 1 ? `${r.name} — 1 porción agregada a hoy` : `${r.name} agregada a hoy` })
     onClose()
   }
   const openPaywall = () => dispatch({ t: 'sheet', sheet: 'paywall' })

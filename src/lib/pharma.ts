@@ -84,6 +84,7 @@ export interface PharmaSeries {
 export interface PharmaData {
   series: PharmaSeries[]
   skipped: string[]   // productos consumidos sin vida media (p.ej. NAD+)
+  outOfWindow: { product: string; lastTs: number }[]  // #10: registrados pero sin presencia en la ventana actual
   domainX: [number, number]
   domainY: [number, number]
   nowTs: number
@@ -91,7 +92,7 @@ export interface PharmaData {
   hasAnyDose: boolean
 }
 
-interface Dose { product: string; value: number; ts: number }
+interface Dose { product: string; value: number; ts: number; approx?: boolean }
 
 // recolecta dosis por producto. El valor numérico (mg) vive en `u` ("Producto · 2 mg").
 // Convierte mcg/µg→mg, g→mg; omite unidades no convertibles (UI, mL) o sin número.
@@ -101,6 +102,7 @@ export function collectDosesByProduct(s: AppState): Map<string, Dose[]> {
     for (const it of g.items) {
       if (it.type !== 'dose' || it.product == null) continue
       let value: number
+      let approx = false // #9: true si el mg es un proxy no confiable (UI/mL/clics sin reconstitución)
       if (it.doseMg != null) {
         value = it.doseMg // mg canónicos ya convertidos (incluye UI/mL con reconstitución)
       } else {
@@ -116,14 +118,15 @@ export function collectDosesByProduct(s: AppState): Map<string, Dose[]> {
           const rec = s.productRecon[it.product]
           const unitNorm = unit === 'ml' ? 'mL' : unit === 'clics' ? 'clics' : 'UI'
           const mg = rec ? doseToMg(raw, unitNorm, rec.vialMg, rec.aguaMl) : null
-          value = mg != null && mg > 0 ? mg : raw
+          if (mg != null && mg > 0) value = mg
+          else { value = raw; approx = true } // #9: sin reconstitución → magnitud cruda, marcada como aprox.
         } else {
           value = raw // mg o sin unidad
         }
       }
       if (!isFinite(value) || value <= 0) continue
       const arr = byProduct.get(it.product) ?? []
-      arr.push({ product: it.product, value, ts: it.ts })
+      arr.push({ product: it.product, value, ts: it.ts, approx })
       byProduct.set(it.product, arr)
     }
   }
@@ -203,6 +206,7 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
   const hasAnyDose = byProduct.size > 0
   const domainX: [number, number] = [now - windowMs, now + windowMs * 0.08]
   const skipped: string[] = []
+  const outOfWindow: { product: string; lastTs: number }[] = [] // #10: registrados, sin presencia en esta ventana
   const rawSeries: { product: string; doses: Dose[]; halfMs: number; halfLifeH: number }[] = []
 
   for (const [product, doses] of byProduct) {
@@ -245,7 +249,13 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
     // FILTRO DE VENTANA: muestra el producto SOLO si tiene una inyección en la ventana
     // o presencia no-despreciable en ella. Evita que un producto ya decaído (p.ej. SLU-PP, t½ 2h,
     // inyectado hace días) quede como serie/chip fantasma cuando su presencia es ~0.
-    if (dosesInWindow.length === 0 && maxRawWin <= peakMg * 0.005) continue
+    if (dosesInWindow.length === 0 && maxRawWin <= peakMg * 0.005) {
+      // #10: no desaparecerlo — registrarlo como "sin presencia en esta ventana" (t½ corta tras un
+      // descanso). Vida lo lista con su última dosis en vez de mostrar empty-state "Sin datos".
+      const lastTs = r.doses.reduce((m, d) => Math.max(m, d.ts), 0)
+      outOfWindow.push({ product: r.product, lastTs })
+      continue
+    }
     maxMg = Math.max(maxMg, peakMg)
 
     const color = CATEGORY_COLOR[PEPTIDES[r.product]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
@@ -269,7 +279,8 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
       currentMg: amountAt(r.doses, r.product, r.halfMs, now),
       peakMg,
       aucMgH: auc / 3_600_000,
-      isEstimatedOnly: NO_HUMAN_PK_DATA.has(r.product),
+      // #9: punteada + "~" también cuando algún registro carece de reconstitución (mg aproximado).
+      isEstimatedOnly: NO_HUMAN_PK_DATA.has(r.product) || r.doses.some((d) => d.approx),
     })
   }
 
@@ -277,7 +288,7 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
   series.sort((a, b) => b.currentMg - a.currentMg)
 
   const domainY: [number, number] = mode === 'percent' ? [0, 110] : [0, (maxMg || 1) * 1.1]
-  return { series, skipped, domainX, domainY, nowTs: now, mode, hasAnyDose }
+  return { series, skipped, outOfWindow, domainX, domainY, nowTs: now, mode, hasAnyDose }
 }
 
 export interface Presence { product: string; color: string; currentMg: number; pct: number }

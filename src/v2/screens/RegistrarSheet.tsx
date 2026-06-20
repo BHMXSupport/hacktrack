@@ -361,9 +361,10 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product])
 
-  // Abrir automáticamente solo cuando la unidad es UI (única que requiere reconstitución visible)
+  // #8: abrir automáticamente para TODA unidad que requiere reconstitución (UI, clics y mL),
+  // no solo UI — antes las dosis en mL guardaban sin doseMg y no graficaban ni descontaban stock.
   useEffect(() => {
-    if (unit === 'UI') setReconOpen(true)
+    if (needsRecon(unit)) setReconOpen(true)
   }, [unit])
 
   const vialMg = parseFloat(vialStr)
@@ -401,9 +402,14 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       setShowPicker(true)
       return
     }
+    // #7: no permitir registrar sin cantidad — evita registros fantasma con value:null
+    const val = parseFloat(dose)
+    if (!(val > 0)) {
+      dispatch({ t: 'toast', msg: 'Ingresa una cantidad mayor a 0' })
+      return
+    }
     setSaving(true)
 
-    const val = parseFloat(dose)
     if (!state.protocols[finalProduct] && finalProduct in PEPTIDES) {
       dispatch({ t: 'setProtocol', product: finalProduct })
       dispatch({ t: 'setCadence', cadence: presetCad(PEPTIDES[finalProduct]) })
@@ -445,7 +451,11 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
   // Reset al cerrar/abrir
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setSaving(false) // #30: garantizar el botón habilitado en cada apertura (no solo al cerrar)
+      return
+    }
+    {
       setSaving(false)
       setDose('')
       setSearchQuery('')
@@ -462,6 +472,24 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       setShowTimePicker(false)
     }
   }, [open])
+
+  // #11/#18: precargar desde draftDose — "copiar a mi registro" de la calc (value/unit/recon)
+  // o el sitio elegido en el mapa de inyección (site). Antes draftDose se escribía pero NADIE
+  // lo consumía, así que ambas acciones no hacían nada. Se limpia tras aplicar.
+  const draftDose = state.draftDose
+  useEffect(() => {
+    if (!open || !draftDose) return
+    if (draftDose.value != null && draftDose.value > 0) setDose(String(draftDose.value))
+    if (draftDose.unit) setUnit(normUnit(draftDose.unit))
+    if (draftDose.recon) {
+      setVialStr(String(draftDose.recon.vialMg))
+      setAguaStr(String(draftDose.recon.aguaMl))
+      setReconOpen(true)
+    }
+    if (draftDose.site) setSite(draftDose.site)
+    dispatch({ t: 'setDraftDose', draft: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, draftDose])
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -636,8 +664,8 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           )}
         </div>
 
-        {/* ── R16/R17: Reconstitución del vial — solo para UI (al registrar dosis) ── */}
-        {unit === 'UI' && (
+        {/* ── R16/R17: Reconstitución del vial — para toda unidad que lo requiere (UI, clics, mL) ── */}
+        {needsRecon(unit) && (
         <div
           className="rounded-xl border border-white/10 bg-raised/50 overflow-hidden"
           aria-label="Panel de reconstitución"
@@ -901,11 +929,20 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           </AnimatePresence>
         </div>
 
+        {/* ── #14: Advertencia permanente de embarazo/lactancia (no colapsable, siempre visible) ── */}
+        <div className="flex items-start gap-2 rounded-lg border border-warn/25 bg-warn/[0.07] px-3 py-2.5">
+          <Shield size={14} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+          <p className="text-[12px] leading-relaxed text-secondary-foreground">
+            Muchos péptidos de investigación no han sido evaluados en embarazo ni lactancia.
+            Consulta a tu médico antes de usarlos.
+          </p>
+        </div>
+
         {/* ── CTA primario ── */}
         <Button
           variant="primary"
           size="full"
-          disabled={saving}
+          disabled={saving || !(parseFloat(dose) > 0)}
           onClick={handleSave}
         >
           Registrar

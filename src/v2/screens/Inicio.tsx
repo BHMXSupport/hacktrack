@@ -147,11 +147,12 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
     dispatch({ t: 'sheet', sheet: 'medida', arg: measureName })
   }
 
-  // R27: onSelect del mapa → navegar a Registrar con sitio pre-seleccionado
-  // (RegistrarSheet toma el sheetArg como producto; el sitio lo elige el usuario ahí)
+  // R27/#18: onSelect del mapa → abrir Registrar con el sitio YA pre-seleccionado.
+  // Se pasa por draftDose.site (RegistrarSheet lo consume) — antes la selección del mapa
+  // era decorativa y no llegaba al registro.
   function handleMapSelect(site: InjectionSite) {
     setSelectedSite(site)
-    // Navegar a registrar pre-poblado con el primer producto pendiente del día (si hay alguno)
+    dispatch({ t: 'setDraftDose', draft: { site } })
     const pending = todayDoses.find((d) => !d.done && !d.skipped)
     if (pending) {
       dispatch({ t: 'setActiveProduct', product: pending.product })

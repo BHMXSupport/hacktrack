@@ -2,6 +2,8 @@ import { useReducer, useEffect, type ReactNode } from 'react'
 import { AppContext, reducer, initialState, hydrate } from '../../lib/store'
 import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
+import { upcomingDoses, doseTakenOnProduct } from '../../lib/calendar'
+import { registerSW, scheduleSwReminder, scheduleMeasureReminder, notifPermission } from '../../lib/notifications'
 
 // Provider del rebuild: reusa el reducer/estado del app original (lib/store).
 const KEY = 'hacktrack:v2'
@@ -85,6 +87,39 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', onFocus)
     }
   }, [])
+
+  // #3 — registrar el Service Worker para entregar recordatorios con la pantalla apagada (Android/Edge).
+  // Sin esto, todos los recordatorios eran decorativos (el rebuild nunca registraba el SW ni programaba avisos).
+  useEffect(() => {
+    void registerSW()
+  }, [])
+
+  // #3 — recordatorio de la próxima toma pendiente (entre TODOS los productos activos), vía SW.
+  useEffect(() => {
+    if (!state.settings.remindersEnabled || notifPermission() !== 'granted') return
+    const now = new Date()
+    const next = upcomingDoses(state, now, 16).find((u) => !doseTakenOnProduct(state, u.date, u.product))
+    if (!next) return
+    const delay = next.date.getTime() - now.getTime()
+    if (delay <= 0 || delay > 24 * 86_400_000) return
+    void scheduleSwReminder(next.product, delay)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.settings.remindersEnabled, state.protocols, state.log, state.todayTs])
+
+  // #3 — recordatorios de medidas periódicas configuradas.
+  useEffect(() => {
+    if (!state.settings.remindersEnabled || notifPermission() !== 'granted') return
+    const reminders = state.measureReminders ?? {}
+    const cancels: Array<() => void> = []
+    for (const [name, intervalDays] of Object.entries(reminders)) {
+      if (!intervalDays || intervalDays <= 0) continue
+      const samples = state.history[name] ?? []
+      const lastTs = samples.length ? samples[samples.length - 1].ts : null
+      cancels.push(scheduleMeasureReminder(name, intervalDays, lastTs))
+    }
+    return () => cancels.forEach((c) => c())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.settings.remindersEnabled, state.measureReminders, state.history])
 
   return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>
 }
