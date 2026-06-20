@@ -20,6 +20,8 @@ import {
   dayStatusEx,
   doseTakenOnProduct,
   doseSkippedOnProduct,
+  loggedDoseTs,
+  loggedItemsForDay,
   dueTime,
   protocolStreak,
   weekAdherencePctLast8,
@@ -86,12 +88,14 @@ function DayCell({
   status,
   isToday,
   isSelected,
+  standalone,
   onSelect,
 }: {
   date: Date | null
   status: DayStateEx | null
   isToday: boolean
   isSelected?: boolean
+  standalone?: boolean
   onSelect?: (d: Date) => void
 }) {
   if (!date) return <div role="gridcell" className="h-11" aria-hidden />
@@ -135,6 +139,12 @@ function DayCell({
   }
 
   if (isToday && eff !== 'taken') {
+    dotColor = 'bg-teal'
+  }
+
+  // Dosis standalone (uso único, sin protocolo): si el día no tiene estado de protocolo, márcalo con punto teal.
+  if (standalone && !dotColor) {
+    if (!isToday) bg = bg || 'bg-teal/10'
     dotColor = 'bg-teal'
   }
 
@@ -183,6 +193,18 @@ function CalendarioTab() {
     }
     return result
   }, [state, viewYear, viewMonth, now])
+
+  // Días con una dosis STANDALONE (producto sin protocolo) — para marcarlos en el calendario (uso único).
+  const standaloneDays = useMemo(() => {
+    const set = new Set<string>()
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(viewYear, viewMonth, d)
+      const has = loggedItemsForDay(state, date).some((it) => it.type === 'dose' && it.product && !state.protocols[it.product])
+      if (has) set.add(`${viewYear}-${viewMonth}-${d}`)
+    }
+    return set
+  }, [state, viewYear, viewMonth])
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
@@ -296,6 +318,7 @@ function CalendarioTab() {
                       status={status}
                       isToday={isToday}
                       isSelected={isSelected}
+                      standalone={stateKey ? standaloneDays.has(stateKey) : false}
                       onSelect={setSelectedDay}
                     />
                   )
@@ -308,7 +331,14 @@ function CalendarioTab() {
 
       {/* Detalle del día tocado: qué toca inyectar ese día y a qué hora (por producto) */}
       {selectedDay && (() => {
-        const products = dayProducts(state, selectedDay)
+        const protoProducts = dayProducts(state, selectedDay)
+        // Dosis STANDALONE: registradas ese día para un producto SIN protocolo (uso único). También aparecen aquí.
+        const standalone = [...new Set(
+          loggedItemsForDay(state, selectedDay)
+            .filter((it) => it.type === 'dose' && it.product)
+            .map((it) => it.product as string),
+        )].filter((p) => !state.protocols[p] && !protoProducts.includes(p))
+        const products = [...protoProducts, ...standalone]
         const nowMs = Date.now()
         const fecha = selectedDay.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
         return (
@@ -331,10 +361,17 @@ function CalendarioTab() {
                 <div className="flex flex-col gap-2">
                   {products.map((p) => {
                     const dueT = dueTime(state, selectedDay, p)
-                    const hora = dueT.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
                     const taken = doseTakenOnProduct(state, selectedDay, p)
                     const skipped = doseSkippedOnProduct(state, selectedDay, p)
-                    const st = taken
+                    // Para una dosis TOMADA, mostrar la hora REAL a la que se registró (ts del log),
+                    // no la hora programada del protocolo. Solo las pendientes muestran "Inyectar a las {programada}".
+                    const realTs = taken ? loggedDoseTs(state, selectedDay, p) : null
+                    const hora = (realTs != null ? new Date(realTs) : dueT)
+                      .toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
+                    const isStandalone = !state.protocols[p] // dosis de uso único (sin protocolo)
+                    const st = isStandalone
+                      ? { label: 'Registro único', cls: 'text-secondary-foreground bg-white/8', dot: 'bg-teal' }
+                      : taken
                       ? { label: 'Tomada', cls: 'text-teal bg-teal/12', dot: 'bg-teal' }
                       : skipped
                         ? { label: 'Saltada', cls: 'text-purple-300 bg-purple-500/12', dot: 'bg-purple-400' }
@@ -346,7 +383,7 @@ function CalendarioTab() {
                         <span className={`h-2 w-2 shrink-0 rounded-full ${st.dot}`} aria-hidden />
                         <div className="flex min-w-0 flex-1 flex-col">
                           <span className="truncate text-[13px] font-medium text-foreground">{p}</span>
-                          <span className="font-mono text-[11px] text-muted-foreground">Inyectar a las {hora}</span>
+                          <span className="font-mono text-[11px] text-muted-foreground">{realTs != null ? `Registrada a las ${hora}` : `Inyectar a las ${hora}`}</span>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
                       </div>

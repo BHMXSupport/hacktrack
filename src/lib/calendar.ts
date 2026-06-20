@@ -28,6 +28,14 @@ export function doseSkippedOnProduct(s: AppState, d: Date, product: string): boo
   return !!g?.items.some((it) => it.type === 'skip' && it.product === product)
 }
 
+// Hora REAL a la que se registró la dosis de ese producto ese día (ts del log), o null si no hay.
+// El calendario debe mostrar ESTA hora para las tomadas — no la hora programada del protocolo.
+export function loggedDoseTs(s: AppState, d: Date, product: string): number | null {
+  const g = s.log.find((x) => x.dateKey === isoKey(d.getTime()))
+  const it = g?.items.find((x) => x.type === 'dose' && x.product === product)
+  return it ? it.ts : null
+}
+
 // hora de la toma ese día según el reminderTime DE ESE producto (cada uno puede tener el suyo)
 export function dueTime(s: AppState, d: Date, product?: string): Date {
   const rt = (product && s.protocols[product]?.reminderTime) || s.protocol?.reminderTime || '08:00'

@@ -6,11 +6,11 @@
 // R22: selector de hora (v2 time-input) en vez de Date.now().
 //       Unidades: 'mg' | 'mcg' | 'UI' | 'mL'  (clics == UI → no se registra por separado)
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Shield, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { Shield, Clock, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 import { PEPTIDES, EFFECT_OPTIONS } from '../../lib/catalog'
-import { presetCad } from '../../lib/cadence'
+import { dueTime } from '../../lib/calendar'
 import { doseToMg, needsRecon } from '../../lib/calc'
 import { Sheet } from '../ui/Sheet'
 import { Stepper } from '../ui/Stepper'
@@ -388,8 +388,6 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
   const [wheelTs, setWheelTs] = useState<number | null>(null)
   const [showTimePicker, setShowTimePicker] = useState(false)
 
-  const finalTs = useNow ? undefined : (wheelTs ?? undefined)
-
   // ── R19: Nota libre ──────────────────────────────────────────────────────────
   const [nota, setNota] = useState('')
   const [showNota, setShowNota] = useState(false)
@@ -402,6 +400,41 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false)
+
+  // Diálogo STOP cuando el registro está a >1h de la hora programada del protocolo (bug del calendario).
+  const [timeMismatch, setTimeMismatch] = useState<{ logTs: number; scheduledTs: number; product: string } | null>(null)
+  // Producto NUEVO sin protocolo: tras registrar la dosis preguntamos si quiere empezar un protocolo.
+  // NUNCA auto-creamos el protocolo: o lo inicia él (lo ruteamos a la sección) o queda como dosis standalone.
+  const [newProductPrompt, setNewProductPrompt] = useState<{ product: string } | null>(null)
+
+  // SOLO escribe la dosis al diario con el ts dado. No crea protocolos ni navega (eso lo deciden los callers).
+  const doLog = (tsMs: number) => {
+    const finalProduct = product.trim()
+    const val = parseFloat(dose)
+    const doseMg = (vialMg > 0 && aguaMl > 0)
+      ? (doseToMg(val, unit, vialMg, aguaMl) ?? undefined)
+      : (unit === 'mg' ? (val > 0 ? val : undefined) : unit === 'mcg' ? (val > 0 ? val / 1000 : undefined) : undefined)
+    const recon = needsRecon(unit) && vialMg > 0 && aguaMl > 0 ? { vialMg, aguaMl } : undefined
+    const noteStr = nota.trim().slice(0, 200) || undefined
+    const effectStr = showCustomEffect && customEffect.trim() ? customEffect.trim() : (effect ?? undefined)
+    dispatch({
+      t: 'logDose',
+      product: finalProduct,
+      value: val || null,
+      unit,
+      ts: tsMs,
+      doseMg,
+      recon,
+      site: site ?? undefined,
+      note: noteStr,
+      effect: effectStr,
+      effectIntensity: effectStr && effectStr !== 'Sin efectos' ? effectIntensity : undefined,
+      // keepSheet: logDose por defecto pone sheet:null (cierra). Lo mantenemos abierto para que el caller
+      // decida (mostrar el prompt de producto nuevo, el diálogo de hora, rutear o cerrar con onClose).
+      keepSheet: true,
+    })
+    try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
+  }
 
   const handleSave = useCallback(() => {
     if (saving) return
@@ -417,44 +450,32 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       dispatch({ t: 'toast', msg: 'Ingresa una cantidad mayor a 0' })
       return
     }
-    setSaving(true)
+    const logTs = useNow ? Date.now() : (wheelTs ?? Date.now())
+    const hasProto = !!state.protocols[finalProduct]
 
-    if (!state.protocols[finalProduct] && finalProduct in PEPTIDES) {
-      dispatch({ t: 'setProtocol', product: finalProduct })
-      dispatch({ t: 'setCadence', cadence: presetCad(PEPTIDES[finalProduct]) })
+    // Producto NUEVO del catálogo (sin protocolo): registra la dosis YA (standalone) y luego pregunta si
+    // quiere empezar un protocolo. NO se crea protocolo automáticamente.
+    if (!hasProto && finalProduct in PEPTIDES) {
+      doLog(logTs)
+      setNewProductPrompt({ product: finalProduct })
+      return // el prompt decide: empezar protocolo (rutea) o dejarlo como dosis única (cierra)
     }
 
-    const doseMg = (vialMg > 0 && aguaMl > 0)
-      ? (doseToMg(val, unit, vialMg, aguaMl) ?? undefined)
-      : (unit === 'mg' ? (val > 0 ? val : undefined) : unit === 'mcg' ? (val > 0 ? val / 1000 : undefined) : undefined)
+    // Producto con protocolo: si el registro está a >1h de la hora programada → STOP con 3 opciones.
+    if (hasProto) {
+      const scheduledTs = dueTime(state, new Date(logTs), finalProduct).getTime()
+      if (Math.abs(logTs - scheduledTs) > 3_600_000) {
+        setTimeMismatch({ logTs, scheduledTs, product: finalProduct })
+        return // espera la elección del usuario (no bloquear botones del diálogo con saving)
+      }
+    }
 
-    const recon = needsRecon(unit) && vialMg > 0 && aguaMl > 0
-      ? { vialMg, aguaMl }
-      : undefined
-
-    const noteStr = nota.trim().slice(0, 200) || undefined
-    const effectStr = showCustomEffect && customEffect.trim()
-      ? customEffect.trim()
-      : (effect ?? undefined)
-
-    dispatch({
-      t: 'logDose',
-      product: finalProduct,
-      value: val || null,
-      unit,
-      ts: finalTs,
-      doseMg,
-      recon,
-      site: site ?? undefined,
-      note: noteStr,
-      effect: effectStr,
-      effectIntensity: effectStr && effectStr !== 'Sin efectos' ? effectIntensity : undefined,
-    })
-
-    try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
+    setSaving(true)
+    doLog(logTs)
     onClose()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    saving, product, dose, unit, site, finalTs,
+    saving, product, dose, unit, site, useNow, wheelTs,
     vialMg, aguaMl, nota, effect, customEffect, showCustomEffect, effectIntensity,
     state.protocols, dispatch, onClose,
   ])
@@ -481,6 +502,8 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       setUseNow(true)
       setWheelTs(null)
       setShowTimePicker(false)
+      setTimeMismatch(null)
+      setNewProductPrompt(null)
     }
   }, [open])
 
@@ -506,6 +529,93 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Sheet open={open} onClose={onClose} title="Registrar dosis">
+      {timeMismatch ? (() => {
+        const schedHora = new Date(timeMismatch.scheduledTs).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
+        const logHora = new Date(timeMismatch.logTs).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
+        const m = timeMismatch
+        return (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3 rounded-xl border border-warn/25 bg-warn/[0.07] p-3.5">
+              <Clock size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+              <p className="text-[13px] leading-relaxed text-secondary-foreground">
+                Tu protocolo de <span className="font-semibold text-foreground">{m.product}</span> está programado a las{' '}
+                <span className="font-mono font-semibold text-foreground">{schedHora}</span>, pero estás registrando a las{' '}
+                <span className="font-mono font-semibold text-foreground">{logHora}</span>. ¿Qué pasó?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {/* Opción C — se inyectó a la hora programada, solo lo registra tarde → guarda a la hora del protocolo */}
+              <button
+                type="button"
+                onClick={() => { setSaving(true); doLog(m.scheduledTs); onClose() }}
+                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+              >
+                <span className="text-[14px] font-semibold text-foreground">Me inyecté a las {schedHora}</span>
+                <span className="text-[12px] text-muted-foreground">A la hora programada; solo lo registro hasta ahora. Se guarda a las {schedHora}.</span>
+              </button>
+              {/* Opción B — hoy fue a otra hora, deja el protocolo igual → guarda a la hora real del registro */}
+              <button
+                type="button"
+                onClick={() => { setSaving(true); doLog(m.logTs); onClose() }}
+                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+              >
+                <span className="text-[14px] font-semibold text-foreground">Me inyecté a las {logHora} solo hoy</span>
+                <span className="text-[12px] text-muted-foreground">Mi protocolo sigue igual; hoy fue a otra hora. Se guarda a las {logHora}.</span>
+              </button>
+              {/* Opción A — cambiar el recordatorio → guarda a la hora real y RUTEA a la pantalla (no lo cambia solo) */}
+              <button
+                type="button"
+                onClick={() => { setSaving(true); doLog(m.logTs); dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: m.product }) }}
+                className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
+              >
+                <span className="text-[14px] font-semibold text-teal">Cambiar mi recordatorio a las {logHora}</span>
+                <span className="text-[12px] text-muted-foreground">Ahora me inyecto a esta hora. Se guarda a las {logHora} y te llevo a ajustar tu protocolo.</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTimeMismatch(null)}
+              className="mx-auto mt-1 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+            >
+              Volver
+            </button>
+          </div>
+        )
+      })() : newProductPrompt ? (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 rounded-xl border border-teal/25 bg-teal/[0.07] p-3.5">
+            <Sparkles size={18} className="mt-0.5 shrink-0 text-teal" aria-hidden />
+            <p className="text-[13px] leading-relaxed text-secondary-foreground">
+              Ya registré tu dosis de <span className="font-semibold text-foreground">{newProductPrompt.product}</span>.
+              No lo habías usado antes — ¿quieres empezar un protocolo para darle seguimiento?
+            </p>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {/* SÍ → crea el protocolo y rutea a la sección de registro de protocolo (el usuario lo estructura ahí) */}
+            <button
+              type="button"
+              onClick={() => {
+                const prod = newProductPrompt.product
+                dispatch({ t: 'setProtocol', product: prod })
+                dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: prod })
+              }}
+              className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
+            >
+              <span className="text-[14px] font-semibold text-teal">Sí, empezar un protocolo</span>
+              <span className="text-[12px] text-muted-foreground">Le doy seguimiento: cadencia, recordatorios y adherencia. Te llevo a configurarlo.</span>
+            </button>
+            {/* NO → la dosis queda como registro único; no se crea protocolo en ningún lado */}
+            <button
+              type="button"
+              onClick={() => onClose()}
+              className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+            >
+              <span className="text-[14px] font-semibold text-foreground">No, fue un solo uso</span>
+              <span className="text-[12px] text-muted-foreground">Se queda solo como esta dosis (la verás en tu diario y en el calendario de ese día), sin protocolo.</span>
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-col gap-5">
 
         {/* ── Selector de producto ── */}
@@ -991,6 +1101,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         </p>
 
       </div>
+      )}
     </Sheet>
   )
 }
