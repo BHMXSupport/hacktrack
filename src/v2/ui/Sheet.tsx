@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 
@@ -18,6 +18,12 @@ export function Sheet({
 }) {
   const reduce = useReducedMotion()
   const panelRef = useRef<HTMLDivElement | null>(null)
+  // Offset de ocultamiento en PX FIJOS (no '100%' de la propia altura). Con porcentaje, si el contenido
+  // del sheet cambia de alto a media animación —p.ej. la imagen del mapa corporal (injection-body.webp)
+  // decodifica tarde en el primer abrir— el valor de '100%' se reasienta y el panel "se pasa" de su
+  // reposo (= sube raro, deja hueco abajo y baja). Un px ≥ alto de pantalla es referencia estable →
+  // sin reasentamiento ni sobrepaso, independiente del dispositivo. Se lee una vez al montar.
+  const [hideY] = useState(() => (typeof window !== 'undefined' ? Math.ceil(Math.max(window.innerHeight, 920) * 1.12) : 1100))
 
   // Escape para cerrar + foco inicial + focus-trap (Tab cicla dentro del panel).
   useEffect(() => {
@@ -78,9 +84,9 @@ export function Sheet({
             aria-label={title}
             tabIndex={-1}
             className="glass pointer-events-auto relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform"
-            initial={reduce ? { opacity: 0 } : { y: '100%' }}
+            initial={reduce ? { opacity: 0 } : { y: hideY }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: '100%', transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
+            exit={reduce ? { opacity: 0 } : { y: hideY, transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
             transition={reduce ? { duration: 0.15 } : { type: 'tween', duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
