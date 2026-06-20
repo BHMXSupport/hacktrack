@@ -161,6 +161,7 @@ export function ProtocoloEditSheet({
   const [purchaseMgStr, setPurchaseMgStr] = useState('')
   const [purchaseCostStr, setPurchaseCostStr] = useState('')
   const [showHistory, setShowHistory] = useState(false)
+  const [phaseDoseErrors, setPhaseDoseErrors] = useState<boolean[]>([])
 
   // Re-sincronizar estado cuando el producto o el sheet cambia
   useEffect(() => {
@@ -259,6 +260,19 @@ export function ProtocoloEditSheet({
       dispatch({ t: 'toast', msg: 'La fecha de fin no puede ser antes del inicio' })
       return
     }
+    if (progOn) {
+      const errors = Array.from({ length: progN }, (_, i) => {
+        const n = parseFloat(phaseDoses[i] ?? '')
+        return isNaN(n) || n <= 0
+      })
+      setPhaseDoseErrors(errors)
+      if (errors.some(Boolean)) {
+        dispatch({ t: 'toast', msg: 'Ingresa una dosis mayor a 0 en cada fase' })
+        return
+      }
+    }
+    setPhaseDoseErrors([])
+
     const doses: (number | null)[] = Array.from({ length: progN }, (_, i) => {
       const n = parseFloat(phaseDoses[i] ?? '')
       return isNaN(n) ? null : n
@@ -576,6 +590,7 @@ export function ProtocoloEditSheet({
             value={reminderTime}
             onChange={(e) => setReminderTime(e.target.value)}
             aria-label={`Hora del recordatorio para ${p.product}`}
+            style={{ colorScheme: 'dark' }}
             className="h-12 w-full rounded-xl border border-white/12 bg-raised px-4 font-mono text-[15px] text-foreground focus:outline focus:outline-2 focus:outline-ring"
           />
           {/* #20: presets rápidos (incl. tomas nocturnas de primera clase) */}
@@ -613,6 +628,7 @@ export function ProtocoloEditSheet({
                 value={startStr}
                 onChange={(e) => setStartStr(e.target.value)}
                 aria-label="Fecha de inicio del protocolo"
+                style={{ colorScheme: 'dark' }}
                 className="h-12 w-full rounded-xl border border-white/12 bg-raised px-3 text-[14px] text-foreground focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>
@@ -627,6 +643,7 @@ export function ProtocoloEditSheet({
                 min={startStr}
                 onChange={(e) => setEndStr(e.target.value)}
                 aria-label="Fecha de fin del protocolo (opcional)"
+                style={{ colorScheme: 'dark' }}
                 className="h-12 w-full rounded-xl border border-white/12 bg-raised px-3 text-[14px] text-foreground focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>
@@ -715,13 +732,22 @@ export function ProtocoloEditSheet({
                           min={0}
                           placeholder="—"
                           aria-label={`Dosis de la fase ${i + 1}`}
+                          aria-invalid={phaseDoseErrors[i] ?? false}
                           value={phaseDoses[i] ?? ''}
-                          onChange={(e) => setPhaseDose(i, e.target.value)}
-                          className="h-11 flex-1 rounded-xl border border-white/12 bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
+                          onChange={(e) => {
+                            setPhaseDose(i, e.target.value)
+                            if (phaseDoseErrors[i]) setPhaseDoseErrors((err) => { const next = err.slice(); next[i] = false; return next })
+                          }}
+                          className={`h-11 flex-1 rounded-xl border bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring ${phaseDoseErrors[i] ? 'border-red-500/60' : 'border-white/12'}`}
                         />
                         {/* #38: unidad dinámica derivada de las dosis del log */}
                         <span className="shrink-0 text-[12px] text-muted-foreground">{doseUnit}</span>
                       </div>
+                      {phaseDoseErrors[i] && (
+                        <p className="ml-[68px] text-[11px] text-red-400" role="alert">
+                          Ingresa un valor mayor a 0
+                        </p>
+                      )}
                       {/* item R14: promedio real vs planeado */}
                       {avg != null && (
                         <div className="ml-[68px] flex items-center gap-2">
@@ -751,6 +777,9 @@ export function ProtocoloEditSheet({
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Tú defines la dosis de cada fase. Hacktrack no la prescribe.
+              </p>
+              <p className="text-[11px] text-muted-foreground/70">
+                Usa la misma unidad que en tus registros ({doseUnit}).
               </p>
             </div>
           )}

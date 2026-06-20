@@ -12,7 +12,7 @@
  */
 import { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Sparkles, BarChart2, Leaf, ChevronRight } from 'lucide-react'
+import { Sparkles, BarChart2, Leaf } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { CATEGORY_COLOR } from '../../lib/catalog'
 import { Button } from '../ui/Button'
@@ -68,9 +68,21 @@ function StatRow({ icon, label, value, color }: StatRowProps) {
         </p>
         <p className="text-[14px] font-semibold text-foreground truncate">{value}</p>
       </div>
-      <ChevronRight size={14} className="flex-shrink-0 text-muted-foreground" aria-hidden="true" />
     </Glass>
   )
+}
+
+// ── Mapa de etiquetas es-MX para categorías de objetivos ─────────────────────
+
+const GOAL_LABEL: Record<string, string> = {
+  Metabolismo: 'Metabolismo',
+  Recuperación: 'Recuperación',
+  Crecimiento: 'Crecimiento',
+  Cognitivo: 'Cognitivo',
+  Piel: 'Piel',
+  'Anti-Aging': 'Anti-Aging',
+  Reproductivo: 'Salud reproductiva',
+  Explorar: 'Explorando',
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
@@ -99,18 +111,18 @@ export function Welcome() {
   }, [])
 
   function handleVerPlan() {
-    dispatch({ t: 'seenWelcome' })
     if (!hasProducts) {
       dispatch({ t: 'tab', tab: 'protocolo' })
       dispatch({ t: 'sheet', sheet: 'registrar' })
     }
+    dispatch({ t: 'seenWelcome' })
   }
 
   const stats: StatRowProps[] = [
     {
       icon: <Sparkles size={16} style={{ color: accentColor }} />,
       label: allGoals.length > 1 ? 'Objetivos' : 'Objetivo',
-      value: allGoals.length ? allGoals.join(' · ') : 'Explorar',
+      value: allGoals.length ? allGoals.map((g) => GOAL_LABEL[g] ?? g).join(' · ') : 'Explorando',
       color: accentColor,
     },
     {

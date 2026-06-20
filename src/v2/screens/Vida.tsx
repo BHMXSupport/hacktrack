@@ -151,23 +151,24 @@ function LegendChip({ product, color, currentMg, halfLifeH, isEstimatedOnly, isA
 // ── Sub-componente: pill de próxima dosis ─────────────────────────────────────
 
 function NextDosePill({ nextTs, now }: { nextTs: number; now: number }) {
+  // #51: si la dosis ya pasó, NO desaparecer — mostrar "atrasada · hace ~X" en color warn.
   const diffMs = nextTs - now
-  if (diffMs < 0) return null
-  const diffH = diffMs / H_MS
+  const overdue = diffMs < 0
+  const absH = Math.abs(diffMs) / H_MS
   let label: string
-  if (diffH < 1) label = `~${Math.round(diffH * 60)} min`
-  else if (diffH < 48) label = `~${diffH < 1.5 ? '1' : Math.round(diffH)} h`
-  else label = `~${Math.round(diffH / 24)} d`
+  if (absH < 1) label = `~${Math.round(absH * 60)} min`
+  else if (absH < 48) label = `~${absH < 1.5 ? '1' : Math.round(absH)} h`
+  else label = `~${Math.round(absH / 24)} d`
   return (
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
       transition={{ duration: 0.15 }}
-      className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-teal/30 bg-teal/10 px-3 py-1"
+      className={`mb-3 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 ${overdue ? 'border-warn/40 bg-warn/10' : 'border-teal/30 bg-teal/10'}`}
     >
-      <span className="font-mono text-[11px] font-semibold text-teal">
-        Próxima dosis en {label}
+      <span className={`font-mono text-[11px] font-semibold ${overdue ? 'text-warn' : 'text-teal'}`}>
+        {overdue ? `Dosis atrasada · hace ${label}` : `Próxima dosis en ${label}`}
       </span>
     </motion.div>
   )
@@ -659,6 +660,12 @@ export function Vida() {
                     Mostrar peso
                   </Chip>
                 )}
+                {/* #85: feedback cuando se activa "peso" pero no hay suficientes pesajes para la overlay */}
+                {hasGlp1 && showWeight && !weightOverlay && (
+                  <span className="self-center text-[11px] text-muted-foreground">
+                    Registra al menos 2 pesajes en este período
+                  </span>
+                )}
                 {kpiHistoryOptions.slice(0, 4).map((k) => (
                   <Chip
                     key={k}
@@ -890,9 +897,13 @@ export function Vida() {
       {advancedMetrics.tssItems.length > 0 && (
         <motion.div variants={fade}>
           <Glass>
-            <p className="mb-3 text-[13px] font-semibold text-foreground">
+            <p className="mb-1 text-[13px] font-semibold text-foreground">
               Análisis avanzado{' '}
               <span className="font-normal text-muted-foreground">(educativo)</span>
+            </p>
+            {/* #84: disclaimer inline como primer elemento — los KPIs clínicos no deben quedar sin aviso */}
+            <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
+              Estimación educativa basada en vidas medias publicadas. No es un diagnóstico ni un nivel en sangre real.
             </p>
             <div className="flex flex-col gap-4">
               {/* Tss */}

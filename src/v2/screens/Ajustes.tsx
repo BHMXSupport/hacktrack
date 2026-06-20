@@ -1,7 +1,7 @@
 // Hacktrack v2 — Ajustes. Precision × Accessible.
 // R48: PIN de acceso, segundo recordatorio, avisos por correo, alias de productos.
 // R50: cerrar sesión (go 's-login').
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
@@ -16,6 +16,11 @@ import type { ThemeMode, UnitSystem } from '../../lib/types'
 
 // ── constante de versión de consentimiento (misma que la v1 original) ──────────
 export const CURRENT_CONSENT_VERSION = 'v1.0'
+
+// ── detección simple de iOS ────────────────────────────────────────────────────
+const isIOS = /iPad|iPhone|iPod/.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : '',
+)
 
 // ── helper: etiqueta legible del permiso de notificaciones ────────────────────
 function permLabel(p: ReturnType<typeof notifPermission>): string {
@@ -234,6 +239,15 @@ function AliasSheet({
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(products.map((p) => [p, aliases[p] ?? '']))
   )
+
+  // Re-sincronizar drafts con productos/aliases al abrir (#100)
+  useEffect(() => {
+    if (open) {
+      const currentProducts = state.importedProducts ?? []
+      const currentAliases = state.productAliases ?? {}
+      setDrafts(Object.fromEntries(currentProducts.map((p) => [p, currentAliases[p] ?? ''])))
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function save(product: string) {
     const alias = (drafts[product] ?? '').trim()
@@ -537,7 +551,12 @@ export function Ajustes({
                 </span>
                 <Switch
                   checked={!!settings.simpleMode}
-                  onChange={(v) => dispatch({ t: 'setSetting', key: 'simpleMode', value: v })}
+                  onChange={(v) => {
+                    dispatch({ t: 'setSetting', key: 'simpleMode', value: v })
+                    if (v && !['inicio', 'diario', 'protocolo'].includes(state.tab ?? '')) {
+                      dispatch({ t: 'tab', tab: 'inicio' })
+                    }
+                  }}
                   label="Activar modo simple"
                 />
               </Row>
@@ -634,6 +653,13 @@ export function Ajustes({
                 />
               </Row>
 
+              {/* Nota iOS: recordatorios solo con app abierta (#86) */}
+              {isIOS && (
+                <p className="mx-4 mt-0.5 mb-1 text-[11px] leading-relaxed text-muted-foreground">
+                  En iPhone los recordatorios solo aparecen con la app abierta. Instala la app a tu pantalla de inicio para más fiabilidad.
+                </p>
+              )}
+
               {/* Selector de hora */}
               <Row className="px-4">
                 <Clock
@@ -674,18 +700,26 @@ export function Ajustes({
                 <span className="flex flex-1 flex-col">
                   <span className="text-[14px] font-medium text-foreground">Resumen semanal</span>
                   <span className="text-[12px] text-muted-foreground">
-                    Notificación de adherencia los lunes
+                    {perm !== 'granted'
+                      ? 'Activa primero los recordatorios'
+                      : 'Notificación de adherencia los lunes'}
                   </span>
                 </span>
                 <Switch
                   checked={settings.weeklySummary}
-                  onChange={(v) => dispatch({ t: 'setSetting', key: 'weeklySummary', value: v })}
+                  onChange={(v) => {
+                    if (perm !== 'granted') {
+                      dispatch({ t: 'toast', msg: 'Concede permiso de notificaciones primero' })
+                      return
+                    }
+                    dispatch({ t: 'setSetting', key: 'weeklySummary', value: v })
+                  }}
                   label="Activar resumen semanal"
                 />
               </Row>
 
               {/* Opciones avanzadas: segundo recordatorio + rescate (R48) */}
-              {settings.remindersEnabled && (
+              {settings.remindersEnabled && perm === 'granted' && (
                 <>
                   <button
                     type="button"

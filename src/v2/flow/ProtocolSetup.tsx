@@ -63,7 +63,13 @@ export function ProtocolSetup() {
     if (names.length) dispatch({ t: 'importProducts', names })
     setSelected(new Set()); setQuery(''); setPicker(false)
   }
-  const goAccount = () => dispatch({ t: 'go', screen: 's-account' })
+  const goAccount = () => {
+    if (tracked.length === 0) {
+      const ok = window.confirm('¿Continuar sin configurar un protocolo? Podrás hacerlo después.')
+      if (!ok) return
+    }
+    dispatch({ t: 'go', screen: 's-account' })
+  }
 
   return (
     <div

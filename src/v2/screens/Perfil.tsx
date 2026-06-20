@@ -901,7 +901,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                     Gestionar mis datos (ARCO)
                   </span>
                   <span className="text-[12px] text-muted-foreground">
-                    Rectificación, oposición, exportar para médico
+                    Rectificación, oposición, exportar historial
                   </span>
                 </span>
                 <ChevronRight
@@ -923,11 +923,11 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                     transition={reduce ? { duration: 0.1 } : { duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    {/* Acceso — CSV para médico */}
+                    {/* Acceso — CSV historial */}
                     <Row
                       icon={<Download size={18} />}
-                      label="Exportar para médico (CSV)"
-                      sub="Dosis y medidas · últimos 90 días"
+                      label="Exportar historial (CSV)"
+                      sub="Tus registros de los últimos 90 días"
                       onClick={exportCSV}
                     />
 

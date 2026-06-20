@@ -5,8 +5,8 @@ import { startOfDay, dayDiff } from './cadence'
 import { PEPTIDES } from './catalog'
 
 export type DayState = 'taken' | 'missed' | 'scheduled' | 'none'
-/** DayState extendido: 'rest' = no tocaba dosis (día libre por cadencia); 'missed' = tocaba y no se tomó. */
-export type DayStateEx = 'taken' | 'missed' | 'rest' | 'scheduled' | 'none'
+/** DayState extendido: 'rest' = no tocaba dosis (día libre por cadencia); 'missed' = tocaba y no se tomó; 'skipped' = tocaba pero todas las dosis fueron saltadas intencionalmente. */
+export type DayStateEx = 'taken' | 'missed' | 'rest' | 'scheduled' | 'none' | 'skipped'
 
 const nextLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
 
@@ -66,7 +66,7 @@ export function dayStatusEx(s: AppState, d: Date, now: Date): DayStateEx {
   const prods = dayProducts(s, d)
   if (prods.length === 0) return hasAnyProtocol ? 'rest' : 'none'
   const effective = prods.filter((p) => doseTakenOnProduct(s, d, p) || !doseSkippedOnProduct(s, d, p))
-  if (effective.length === 0) return 'rest'
+  if (effective.length === 0) return 'skipped'
   const unfulfilled = effective.filter((p) => !doseTakenOnProduct(s, d, p))
   if (unfulfilled.length === 0) return 'taken'
   const allPast = unfulfilled.every((p) => now.getTime() > dueTime(s, d, p).getTime())

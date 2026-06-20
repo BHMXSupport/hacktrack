@@ -3,6 +3,7 @@
 // "Copiar a mi registro" → dispatch setDraftDose y abre 'registrar'.
 // Compliance: la calculadora SOLO convierte la dosis que el usuario teclea; no la decide.
 import { useState, useEffect, useRef } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { calcRecon, copyToRegisterToast } from '../../lib/calc'
 import { Sheet } from '../ui/Sheet'
@@ -33,14 +34,29 @@ const DEFAULT_CLIC_MG = 0.25
 
 // Rangos razonables de volumen por producto (orientativo, no médico)
 const REASONABLE_VOL_ML: Record<string, [number, number]> = {
-  'BPC-157':    [0.05, 0.5],
-  'TB-500':     [0.05, 1.0],
-  'Semaglutida':[0.05, 0.5],
-  'Retatrutide':[0.05, 0.5],
-  'Tirzepatida':[0.05, 0.5],
-  'GHK-Cu':     [0.02, 0.3],
-  'Ipamorelin': [0.05, 0.5],
-  'CJC-1295':   [0.05, 0.5],
+  'BPC-157':      [0.05, 0.5],
+  'TB-500':       [0.05, 1.0],
+  'Semaglutida':  [0.05, 0.5],
+  'Retatrutide':  [0.05, 0.5],
+  'Tirzepatida':  [0.05, 0.5],
+  'GHK-Cu':       [0.02, 0.3],
+  'Ipamorelin':   [0.05, 0.5],
+  'CJC-1295':     [0.05, 0.5],
+  'Tesamorelin':  [0.1,  1.0],
+  'MOTS-c':       [0.05, 1.0],
+  '5-Amino-1MQ':  [0.05, 1.0],
+  'SLU-PP-332':   [0.05, 1.0],
+  'ARA 290':      [0.05, 1.0],
+  'GLOW 70':      [0.05, 1.0],
+  'KLOW 80':      [0.05, 1.0],
+  'SS-31':        [0.05, 1.0],
+  'L-Glutathione':[0.05, 1.0],
+  'Semax':        [0.05, 1.0],
+  'Selank':       [0.05, 1.0],
+  'DSIP':         [0.05, 1.0],
+  'Oxytocin':     [0.05, 1.0],
+  'Kisspeptin-10':[0.05, 1.0],
+  'PT-141':       [0.05, 1.0],
 }
 const DEFAULT_RANGE: [number, number] = [0.01, 2.0]
 
@@ -59,8 +75,8 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
   )
 
   // Modo pluma
-  const [plumaMode, setPlumaMode] = useState(false)
-  const [clicMgStr, setClicMgStr] = useState(String(DEFAULT_CLIC_MG))
+  const [plumaMode, setPlumaMode] = useState(draft?.plumaMode ?? false)
+  const [clicMgStr, setClicMgStr] = useState(draft?.clicMgStr ?? String(DEFAULT_CLIC_MG))
 
   // Mis viales guardados
   const [showSaved, setShowSaved] = useState(false)
@@ -86,10 +102,10 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
   useEffect(() => {
     if (debRef.current) clearTimeout(debRef.current)
     debRef.current = setTimeout(() => {
-      dispatch({ t: 'setCalcDraft', draft: { vialStr, aguaStr, dosisStr, unit } })
+      dispatch({ t: 'setCalcDraft', draft: { vialStr, aguaStr, dosisStr, unit, plumaMode, clicMgStr } })
     }, 300)
     return () => { if (debRef.current) clearTimeout(debRef.current) }
-  }, [vialStr, aguaStr, dosisStr, unit, dispatch])
+  }, [vialStr, aguaStr, dosisStr, unit, plumaMode, clicMgStr, dispatch])
 
   // Reset al cerrar
   useEffect(() => {
@@ -280,14 +296,14 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
         {/* ── Campo: Tu dosis + unidad ── */}
         <div className="flex flex-col gap-2">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="calc-dosis">
-            Tu dosis
+            {plumaMode ? 'Número de clics' : 'Tu dosis'}
           </label>
           <input
             id="calc-dosis"
             type="number"
             inputMode="decimal"
             min="0"
-            placeholder="ej. 0.5"
+            placeholder={plumaMode ? 'ej. 4 clics' : 'ej. 0.5'}
             value={dosisStr}
             onChange={(e) => setDosisStr(e.target.value)}
             className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
@@ -384,12 +400,14 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
             </span>
 
             {r.overCapacity && (
-              <p className="text-[13px] font-semibold text-red-400 mt-1">
+              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-red-400 mt-1">
+                <AlertTriangle size={14} aria-hidden className="shrink-0" />
                 No cabe en una {r.scale} U — prueba con un barril mayor.
               </p>
             )}
             {!r.overCapacity && r.lowPrecision && (
-              <p className="text-[13px] text-yellow-400 mt-1">
+              <p className="flex items-center gap-1.5 text-[13px] text-yellow-400 mt-1">
+                <AlertTriangle size={14} aria-hidden className="shrink-0" />
                 Menos de 5 UI: difícil de medir con precisión.
               </p>
             )}
@@ -397,7 +415,8 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
             {/* Advertencia de rango (item 409) */}
             {rangeWarning && (
               <div className="mt-2 w-full rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-left">
-                <p className="text-[12px] font-semibold text-yellow-400">
+                <p className="flex items-center gap-1.5 text-[12px] font-semibold text-yellow-400">
+                  <AlertTriangle size={13} aria-hidden className="shrink-0" />
                   Volumen fuera del rango habitual ({rangeMin}–{rangeMax} mL)
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">

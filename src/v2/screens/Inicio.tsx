@@ -8,7 +8,16 @@ import type { InjectionSite } from '../../lib/types'
 import { startOfDay } from '../../lib/cadence'
 import { doseToMg } from '../../lib/calc'
 import { CadenciaChip } from './ProtocoloEditSheet'
-import { upcomingDoses, protocolStreak, dayProducts, doseTakenOnProduct, doseSkippedOnProduct } from '../../lib/calendar'
+import { upcomingDoses, protocolStreak, dayProducts, doseTakenOnProduct, doseSkippedOnProduct, pendingDoses } from '../../lib/calendar'
+import { MEASURE_META } from '../../lib/catalog'
+
+// #107: sufijo de unidad para las KPI de medidas (scale → "/100", num → "kg"/"cm"/"%")
+function measureSuffix(name: string): string {
+  const meta = MEASURE_META[name]
+  if (!meta) return ''
+  if (meta.kind === 'scale') return `/${meta.max ?? 100}`
+  return meta.unit ?? ''
+}
 import { Glass } from '../ui/Glass'
 import { DataPlate } from '../ui/DataPlate'
 import { Ring } from '../ui/Ring'
@@ -106,6 +115,18 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
     }
     return out
   }, [state.protocols])
+
+  // #52: dosis VENCIDAS de días anteriores (el viajero que vuelve atrasado) — pendingDoses ya las
+  // detecta hasta 30 días atrás; excluimos las de hoy (ya salen en "Tus dosis de hoy").
+  const pending = useMemo(() => {
+    const todayMs = today.getTime()
+    return pendingDoses(state, now).filter((p) => startOfDay(p.date).getTime() < todayMs)
+  }, [state, now, today])
+  const [pendingOpen, setPendingOpen] = useState(false)
+  const daysAgo = (d: Date) => {
+    const n = Math.floor((today.getTime() - startOfDay(d).getTime()) / 86_400_000)
+    return n === 1 ? 'ayer' : `hace ${n} días`
+  }
 
   // ts de toma programada por producto (reminderTime)
   function tsFor(product: string): number {
@@ -273,7 +294,7 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                 {adh.taken}
                 <span className="text-muted-foreground"> / {adh.due}</span>
               </p>
-              <p className="text-[13px] text-secondary-foreground">dosis registradas</p>
+              <p className="text-[13px] text-secondary-foreground">dosis tomadas de las programadas</p>
             </div>
           </Glass>
         ) : (
@@ -302,6 +323,47 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
               {' '}Considera preparar un vial nuevo.
             </p>
           </div>
+        </motion.div>
+      )}
+
+      {/* ── #52: Dosis pendientes de días anteriores (colapsable) ── */}
+      {pending.length > 0 && (
+        <motion.div variants={fade}>
+          <button
+            type="button"
+            onClick={() => setPendingOpen((o) => !o)}
+            aria-expanded={pendingOpen}
+            className="flex w-full items-center gap-2.5 rounded-xl border border-warn/30 bg-warn/[0.08] px-3 py-2.5 text-left"
+          >
+            <AlertTriangle size={15} className="shrink-0 text-warn" aria-hidden />
+            <span className="flex-1 text-[13px] font-semibold text-foreground">
+              {pending.length} {pending.length === 1 ? 'dosis pendiente' : 'dosis pendientes'} de días anteriores
+            </span>
+            {pendingOpen ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+          </button>
+          {pendingOpen && (
+            <div className="mt-2 flex flex-col gap-2">
+              {pending.map((p, i) => (
+                <div key={`${p.product}-${i}`} className="flex items-center gap-3 rounded-lg border border-white/[0.07] bg-raised/40 px-3 py-2.5">
+                  <div className="flex flex-1 flex-col min-w-0">
+                    <span className="truncate text-[13px] font-medium text-foreground">{p.product}</span>
+                    <span className="text-[11px] text-muted-foreground">{daysAgo(p.date)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch({ t: 'setDraftDose', draft: { ts: p.date.getTime() } })
+                      dispatch({ t: 'setActiveProduct', product: p.product })
+                      dispatch({ t: 'sheet', sheet: 'registrar', arg: p.product })
+                    }}
+                    className="shrink-0 rounded-full bg-teal/12 border border-teal/25 px-3 py-1.5 text-[12px] font-semibold text-teal"
+                  >
+                    Registrar tarde
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -451,6 +513,9 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                 <p className="text-[12px] text-muted-foreground">{m}</p>
                 <p className="mt-1 font-mono text-[24px] font-semibold tabular-nums text-foreground">
                   {v != null ? v : '—'}
+                  {v != null && measureSuffix(m) && (
+                    <span className="text-[13px] font-normal text-muted-foreground"> {measureSuffix(m)}</span>
+                  )}
                 </p>
                 <p className="mt-1 text-[10px] text-teal font-medium">Toca para registrar</p>
               </Glass>

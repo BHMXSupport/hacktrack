@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Plus, ChevronDown, ChevronUp, Clock, Lock, Sparkles } from 'lucide-react'
 import { useApp } from '../../lib/store'
-import { RECIPES_ENRICHED } from '../../lib/catalog'
+import { RECIPES_ENRICHED, PEPTIDE_NUTRITION_HINT } from '../../lib/catalog'
 import type { Recipe, RecipeMeal, RecipeTag } from '../../lib/catalog'
 
 const MEAL_LABEL: Record<RecipeMeal, string> = {
@@ -27,9 +27,9 @@ function RecipeCard({ r, onAdd }: { r: Recipe; onAdd: (r: Recipe) => void }) {
           <p className="mt-0.5 font-mono text-[13px] tabular-nums text-[var(--teal-bright)]">
             {r.kcal} kcal
             <span className="ml-2 text-[11px] text-muted-foreground">
-              <span style={{ color: 'var(--teal-bright)' }}>P {r.protein}</span>{' · '}
-              <span style={{ color: '#D97706' }}>C {r.carbs}</span>{' · '}
-              <span style={{ color: '#6B7BE8' }}>G {r.fat}</span>
+              <span style={{ color: 'var(--teal-bright)' }}>P {Math.round(r.protein)}g</span>{' · '}
+              <span style={{ color: '#D97706' }}>C {Math.round(r.carbs)}g</span>{' · '}
+              <span style={{ color: '#6B7BE8' }}>G {Math.round(r.fat)}g</span>
             </span>
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -97,6 +97,7 @@ function RecipeCard({ r, onAdd }: { r: Recipe; onAdd: (r: Recipe) => void }) {
 export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useApp()
   const premium = !!state.settings.premium
+  const peptideHint = state.activeProduct ? PEPTIDE_NUTRITION_HINT[state.activeProduct] : null
 
   // Filtros: categoría (meal) + subcategoría (tag)
   const [mealFilter, setMealFilter] = useState<RecipeMeal | null>(null)
@@ -121,12 +122,23 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
     const r1 = (n: number) => Math.round((n / per) * 10) / 10
     dispatch({ t: 'addMeal', kcal: Math.round(r.kcal / per), protein: r1(r.protein), carbs: r1(r.carbs), fat: r1(r.fat), label: per > 1 ? `${r.name} (1 porción)` : r.name, ts: Date.now() })
     dispatch({ t: 'toast', msg: per > 1 ? `${r.name} — 1 porción agregada a hoy` : `${r.name} agregada a hoy` })
-    onClose()
+    // #92: no cerrar el sheet; el usuario puede seguir agregando recetas.
   }
   const openPaywall = () => dispatch({ t: 'sheet', sheet: 'paywall' })
 
   return (
     <div className="flex flex-col gap-5">
+      {/* #110: banner péptido activo */}
+      {peptideHint && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-teal/20 bg-teal/6 px-3 py-2.5">
+          <p className="text-[12px] leading-relaxed text-secondary-foreground">
+            <span className="font-semibold text-foreground">{state.activeProduct}:</span>{' '}
+            {peptideHint}{' '}
+            <span className="text-muted-foreground">Observacional. No es consejo médico.</span>
+          </p>
+        </div>
+      )}
+
       {!premium && (
         <div className="flex items-start gap-2.5 rounded-xl border border-teal/25 bg-teal/8 px-3 py-2.5">
           <Sparkles size={15} className="mt-0.5 shrink-0 text-teal" aria-hidden />

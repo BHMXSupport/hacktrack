@@ -57,14 +57,14 @@ export interface AppState {
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
   scale: SyringeScale          // escala de jeringa de la calculadora (P0-6)
-  draftDose: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite } | null  // precarga de RegistrarSheet: "copiar a mi registro" desde la calc (value/unit/recon) o sitio elegido en el mapa (site)
+  draftDose: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; ts?: number } | null  // precarga de RegistrarSheet: calc (value/unit/recon), sitio del mapa (site) o fecha de backfill desde Diario (ts)
   toast: string | null
   toastUndoId: string | null   // id del log a deshacer desde el toast (ej. dosis recién registrada)
   // buffer para deshacer borrado: el item + las muestras de history removidas (para restaurarlas en undo)
   deletedLogBuffer: { item: LogItem; samples: { name: string; sample: MeasureSample }[] } | null
 
   // ── Nuevos campos (aditivos, retrocompatibles) ──────────────────────────────
-  calcDraft: { vialStr: string; aguaStr: string; dosisStr: string; unit: string } | null  // estado efímero de la calculadora
+  calcDraft: { vialStr: string; aguaStr: string; dosisStr: string; unit: string; plumaMode?: boolean; clicMgStr?: string } | null  // estado efímero de la calculadora (#73: incluye modo pluma)
   savedRecons: SavedRecon[]                       // reconstituciones guardadas por el usuario
   measureGoals: Record<string, number>            // meta por medida (p.ej. { 'Peso': 75 })
   measureReminders: Record<string, number>        // recordatorio de medida: intervalDays por nombre
@@ -178,7 +178,7 @@ export type Action =
   | { t: 'setReminderTime'; time: string }
   | { t: 'setRescueWindow'; minutes: 0 | 15 | 30 | 60 }  // item 168: ventana de rescate de notificación
   | { t: 'setScale'; scale: SyringeScale }
-  | { t: 'setDraftDose'; draft: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite } | null }
+  | { t: 'setDraftDose'; draft: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; ts?: number } | null }
   | { t: 'arcoDelete' }                                               // P0-5
   | { t: 'reset' }                                                    // P1-7
   | { t: 'replaceState'; state: Partial<AppState> }                  // restaurar respaldo completo
@@ -430,7 +430,9 @@ export function hydrate(s: AppState): AppState {
     nutrition[k] = (v.water > 0 && v.water < 50) ? { ...v, water: Math.round(v.water * gMl) } : v
   }
 
-  return syncActive({ ...s, protocols, log, activeProduct, nutrition })
+  // #104: normalizar secondaryGoals (estados antiguos pueden no tenerlo → crash al hacer spread/iterar)
+  const secondaryGoals = Array.isArray(s.secondaryGoals) ? s.secondaryGoals : []
+  return syncActive({ ...s, protocols, log, activeProduct, nutrition, secondaryGoals })
 }
 
 // ── reducer ──────────────────────────────────────────────────────────────────
@@ -1238,7 +1240,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ts: now.getTime(),
         severity: a.severity,
         ...(a.product ? { product: a.product } : {}),
-        note: a.description,
+        // #103: la descripción ya vive en `u`; no duplicarla en `note` (el Diario la mostraba dos veces)
       }
       return {
         ...s,

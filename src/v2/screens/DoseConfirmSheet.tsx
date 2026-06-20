@@ -276,6 +276,9 @@ export function DoseConfirmSheet({
     onClose()
   }
 
+  // ── Puntualidad — true si |ahora - programada| ≤ 30 min ─────────────────────
+  const isPunctual = Math.abs(nowTs - scheduledTs) <= 30 * 60 * 1000
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   const slideProps = {
@@ -291,7 +294,7 @@ export function DoseConfirmSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={step === 'time' ? '¿A qué hora?' : '¿Cómo te sientes?'}
+      title={step === 'time' ? (isPunctual ? 'Confirmar dosis' : '¿A qué hora?') : '¿Cómo te sientes?'}
     >
       <AnimatePresence mode="wait" initial={false}>
         {step === 'time' ? (
@@ -301,7 +304,9 @@ export function DoseConfirmSheet({
             <p className="text-[14px] text-foreground">
               <strong>{product}</strong>
               {value != null ? ` · ${value} ${unit}` : ''}
-              . Tu hora programada no coincide con la actual — ¿cuándo te la aplicaste?
+              {isPunctual
+                ? ''
+                : '. Tu hora programada no coincide con la actual — ¿cuándo te la aplicaste?'}
             </p>
 
             {/* Nota opcional */}
@@ -355,20 +360,22 @@ export function DoseConfirmSheet({
                 >
                   <button
                     type="button"
-                    className={`${btnRow} bg-primary text-primary-foreground shadow-glow`}
-                    onClick={() => logWithTime(scheduledTs)}
-                  >
-                    <span className="text-[16px]">A mi hora programada</span>
-                    <span className="font-mono text-[12px] opacity-80">{fmtTime(new Date(scheduledTs))}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`${btnRow} border border-teal/50 text-teal`}
+                    className={`${btnRow} ${isPunctual ? 'bg-primary text-primary-foreground shadow-glow' : 'border border-teal/50 text-teal'}`}
                     onClick={() => logWithTime(nowTs)}
                   >
                     <span className="text-[16px]">Ahora mismo</span>
-                    <span className="font-mono text-[12px] opacity-70">{fmtTime(new Date(nowTs))}</span>
+                    <span className="font-mono text-[12px] opacity-80">{fmtTime(new Date(nowTs))}</span>
                   </button>
+                  {!isPunctual && (
+                    <button
+                      type="button"
+                      className={`${btnRow} bg-primary text-primary-foreground shadow-glow`}
+                      onClick={() => logWithTime(scheduledTs)}
+                    >
+                      <span className="text-[16px]">A mi hora programada</span>
+                      <span className="font-mono text-[12px] opacity-80">{fmtTime(new Date(scheduledTs))}</span>
+                    </button>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div

@@ -487,6 +487,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       setReconOpen(true)
     }
     if (draftDose.site) setSite(draftDose.site)
+    if (draftDose.ts != null) { setUseNow(false); setWheelTs(draftDose.ts) } // #72: backfill de fecha desde Diario
     dispatch({ t: 'setDraftDose', draft: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draftDose])

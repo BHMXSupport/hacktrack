@@ -1029,9 +1029,12 @@ export function Diario() {
       )}
 
       {/* ── resumen de medidas ── */}
-      {typeFilter === 'medida' && !isEmpty && (
+      {(typeFilter === 'medida' || typeFilter === 'todo') && !isEmpty && (
         <motion.div variants={itemVariants}>
-          <MeasureSummary filtered={deferredFiltered} />
+          <MeasureSummary filtered={state.log.filter((g) => {
+            const ts = new Date(g.dateKey + 'T00:00:00').getTime()
+            return ts >= cutoff
+          })} />
         </motion.div>
       )}
 
@@ -1112,7 +1115,12 @@ export function Diario() {
                       <button
                         type="button"
                         aria-label={`Agregar dosis al día ${label}`}
-                        onClick={() => dispatch({ t: 'sheet', sheet: 'registrar' })}
+                        onClick={() => {
+                          // #72: precargar la FECHA del día histórico (mediodía) vía draftDose.ts,
+                          // sin contaminar el producto (sheetArg se usa como producto en RegistrarSheet).
+                          dispatch({ t: 'setDraftDose', draft: { ts: new Date(group.dateKey + 'T12:00:00').getTime() } })
+                          dispatch({ t: 'sheet', sheet: 'registrar' })
+                        }}
                         className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal rounded-full bg-teal/8 border border-teal/18 px-2.5 py-1 min-h-11"
                       >
                         + Dosis

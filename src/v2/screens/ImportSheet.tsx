@@ -249,7 +249,8 @@ function PhaseOrders({
   onSkip: () => void
 }) {
   const total = purchases?.length ?? 0
-  const allSelected = total > 0 && purchases !== null && selected.size === total
+  const uniqueTotal = purchases != null ? new Set(purchases.map((p) => p.product)).size : 0
+  const allSelected = uniqueTotal > 0 && selected.size === uniqueTotal
 
   return (
     <div className="flex flex-col gap-5">
@@ -261,13 +262,13 @@ function PhaseOrders({
       </div>
 
       {/* Chip «seleccionar todo» */}
-      {!loading && !errored && total > 0 && (
+      {!loading && !errored && uniqueTotal > 0 && (
         <div className="flex items-center gap-3">
           <Chip active={allSelected} onClick={onToggleAll} className="h-9">
             {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
           </Chip>
           <span className="text-[12px] text-muted-foreground" aria-live="polite">
-            {selected.size} de {total}
+            {selected.size} de {uniqueTotal}
           </span>
         </div>
       )}
@@ -450,8 +451,9 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
 
   const toggleAll = useCallback(() => {
     if (!purchases) return
+    const uniqueProducts = [...new Set(purchases.map((p) => p.product))]
     setSel((s) =>
-      s.size === purchases.length ? new Set() : new Set(purchases.map((p) => p.product)),
+      s.size === uniqueProducts.length ? new Set() : new Set(uniqueProducts),
     )
   }, [purchases])
 

@@ -451,7 +451,7 @@ export function macroPercents(protein: number, carbs: number, fat: number): Macr
 // ── Índice calidad proteica del día (animal vs vegetal) — semáforo observacional ──
 // Se infiere del label: items con carne/pollo/huevo/pescado/lácteo → animal; legumbres/soya/tofu → vegetal.
 // Sin datos → 'sin-datos'
-const ANIMAL_KEYS = ['pollo', 'res', 'cerdo', 'atún', 'salmón', 'huevo', 'leche', 'yogur', 'queso', 'pavo', 'camarón', 'pescado', 'proteína']
+const ANIMAL_KEYS = ['pollo', 'res', 'cerdo', 'atún', 'salmón', 'huevo', 'leche', 'yogur', 'queso', 'pavo', 'camarón', 'pescado', 'whey', 'caseína', 'suero']
 const VEGETAL_KEYS = ['frijol', 'lenteja', 'garbanzo', 'soya', 'tofu', 'edamame', 'chícharo', 'quinoa', 'chayote']
 export type ProteinQuality = 'alta' | 'media' | 'baja' | 'sin-datos'
 export function proteinQualityScore(meals: { label?: string | null; protein?: number | null }[]): ProteinQuality {

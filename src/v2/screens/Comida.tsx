@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Droplet, Utensils, Star, Activity, ChevronRight, Plus, Minus,
-  Pencil, Trash2, Check, X, Timer, Flame, ChevronDown, ChevronUp,
+  Pencil, Trash2, Check, X, Timer, Flame, ChevronDown, ChevronUp, Download,
 } from 'lucide-react'
 import { useApp, isoKey } from '../../lib/store'
 import {
@@ -19,6 +19,7 @@ import {
   recentFoods,
   fastingMinutes,
   fastingLabel,
+  exportNutritionCsv,
 } from '../../lib/nutrition'
 import type { FoodFav, Meal } from '../../lib/types'
 import { Glass } from '../ui/Glass'
@@ -603,6 +604,7 @@ export function Comida() {
 
   // ── Glucosa en ayunas ──────────────────────────────────────────────────────
   const [glucosaInput, setGlucosaInput] = useState('')
+  const [glucosaError, setGlucosaError] = useState('')
   const glucosaHoy = useMemo(() => {
     const series = state.history['Glucosa ayunas']
     if (!series || series.length === 0) return null
@@ -615,6 +617,11 @@ export function Comida() {
   const saveGlucosa = () => {
     const v = parseFloat(glucosaInput)
     if (!isNaN(v) && v > 0) {
+      if (v < 40 || v > 400) {
+        setGlucosaError('Verifica el valor (rango típico 40-400 mg/dL)')
+        return
+      }
+      setGlucosaError('')
       dispatch({ t: 'saveMeasure', name: 'Glucosa ayunas', value: v })
       setGlucosaInput('')
     }
@@ -629,10 +636,11 @@ export function Comida() {
   )
 
   const logFav = (f: FoodFav) => {
+    const tapTs = Date.now()
     if (f.id.startsWith('_raw_')) {
-      dispatch({ t: 'addMeal', kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, label: f.label, fav: true, ts: now })
+      dispatch({ t: 'addMeal', kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, label: f.label, fav: true, ts: tapTs })
     } else {
-      dispatch({ t: 'addFavMeal', id: f.id, ts: now })
+      dispatch({ t: 'addFavMeal', id: f.id, ts: tapTs })
     }
   }
 
@@ -676,10 +684,7 @@ export function Comida() {
       // Limpiar timer previo
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
 
-      // Mostrar toast con undo 5 s
-      dispatch({ t: 'toast', msg: `"${meal.label ?? 'Comida'}" eliminada` })
-
-      // Toast store no tiene undo para meals — manejamos con buffer local.
+      // Solo mostramos el overlay local con el botón Deshacer (sin toast del store).
       // Auto-limpiamos el buffer después de 5 s.
       undoTimerRef.current = setTimeout(() => {
         setDeletedMealBuffer(null)
@@ -865,14 +870,14 @@ export function Comida() {
               </p>
               <p className="font-mono text-[32px] font-bold tabular-nums text-foreground leading-none">
                 {kcal}
-                {goalKcal != null && metabolic && (
+                {goalKcal != null && (
                   <span className="text-[18px] font-normal text-muted-foreground"> / {goalKcal}</span>
                 )}
                 <span className="ml-1 text-[14px] font-normal text-muted-foreground">kcal</span>
               </p>
             </div>
             <div className="flex flex-col items-end gap-1.5">
-              {metabolic && goalKcal != null && kcal > 0 && (
+              {goalKcal != null && kcal > 0 && (
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                     kcal > goalKcal * 1.05
@@ -945,6 +950,29 @@ export function Comida() {
               <MacroRow label="Proteína" value={macros.protein} goal={goalProtein} color="bg-teal" />
               <MacroRow label="Carbohidratos" value={macros.carbs} goal={goalCarbs} color="bg-warn" />
               <MacroRow label="Grasa" value={macros.fat} goal={goalFat} color="bg-secondary-foreground/40" />
+            </div>
+          )}
+
+          {/* #115: Exportar CSV de los últimos 30 días */}
+          {!showGoalsEditor && (
+            <div className="flex justify-end border-t border-white/8 pt-3">
+              <button
+                type="button"
+                aria-label="Exportar historial nutricional como CSV"
+                onClick={() => {
+                  const csv = exportNutritionCsv(state, 30)
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = 'hacktrack-nutricion-30d.csv'
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Download size={13} /> Exportar 30 días CSV
+              </button>
             </div>
           )}
         </Glass>
@@ -1212,7 +1240,7 @@ export function Comida() {
               inputMode="decimal"
               placeholder={glucosaHoy != null ? String(glucosaHoy) : 'mg/dL'}
               value={glucosaInput}
-              onChange={(e) => setGlucosaInput(e.target.value)}
+              onChange={(e) => { setGlucosaInput(e.target.value); setGlucosaError('') }}
               onKeyDown={(e) => { if (e.key === 'Enter') saveGlucosa() }}
               aria-label="Glucosa en ayunas en mg/dL"
               className="h-11 flex-1 min-w-0 rounded-md border border-white/15 bg-void px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-teal/50"
@@ -1227,6 +1255,10 @@ export function Comida() {
               Guardar
             </Button>
           </div>
+
+          {glucosaError && (
+            <p className="mt-1 text-[12px] text-alert" role="alert">{glucosaError}</p>
+          )}
 
           <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
             Solo referencial, no diagnóstico médico. Tu historial se guarda solo en tu dispositivo.

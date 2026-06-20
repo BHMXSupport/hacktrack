@@ -6,6 +6,8 @@ import {
   Circle,
   CheckCircle2,
   XCircle,
+  MinusCircle,
+  Ban,
   Calendar,
   TrendingUp,
   FileText,
@@ -119,6 +121,10 @@ function DayCell({
     dotColor = 'bg-warn'
   } else if (eff === 'rest') {
     textCls = 'text-muted-foreground'
+  } else if (eff === 'skipped') {
+    bg = 'bg-purple-500/10'
+    textCls = 'text-purple-300 font-medium'
+    dotColor = 'bg-purple-400'
   }
 
   if (isToday && eff !== 'taken') {
@@ -129,7 +135,7 @@ function DayCell({
     <div
       role="gridcell"
       className={`relative flex h-11 flex-col items-center justify-center rounded-lg ${bg}`}
-      aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : ''}`}
+      aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : eff === 'skipped' ? ', dosis saltada' : ''}`}
     >
       <span className={`text-[13px] leading-none ${textCls}`}>{label}</span>
       {dotColor && (
@@ -286,7 +292,9 @@ function CalendarioTab() {
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <LegendItem color="bg-teal" icon={<CheckCircle2 size={15} className="text-teal" />} label="Con dosis" />
           <LegendItem color="bg-alert" icon={<XCircle size={15} className="text-alert" />} label="Omitida" />
-          <LegendItem color="bg-muted-foreground" icon={<Circle size={15} className="text-muted-foreground/50" />} label="Sin dosis" />
+          <LegendItem color="bg-purple-400" icon={<Ban size={15} className="text-purple-300" />} label="Saltada" />
+          <LegendItem color="bg-muted-foreground" icon={<MinusCircle size={15} className="text-muted-foreground/50" />} label="Día libre" />
+          <LegendItem color="bg-muted-foreground" icon={<Circle size={15} className="text-muted-foreground/50" />} label="Sin protocolo" />
           <LegendItem
             color="bg-teal/60"
             icon={<span className="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-[var(--teal)]" />}
@@ -776,7 +784,7 @@ function AvancesTab() {
               goal={Math.max(streak, 7)}
               unit=""
               label="Racha"
-              sub={streak === 1 ? '1 día' : `${streak} días`}
+              sub={streak < 7 ? `Meta: 7 días` : `${streak} días`}
               size={120}
               stroke={10}
             />
@@ -788,7 +796,7 @@ function AvancesTab() {
       <motion.div variants={reduce ? {} : fade}>
         <Glass className="flex items-center justify-between">
           <div>
-            <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Dosis este mes</p>
+            <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Dosis (30 días)</p>
             <p className="mt-0.5 font-mono text-[26px] font-semibold tabular-nums text-foreground">
               {adh30.taken}
               <span className="text-[16px] text-muted-foreground"> / {adh30.due}</span>
@@ -825,7 +833,7 @@ function AvancesTab() {
                   <div
                     key={i}
                     className="flex flex-1 flex-col items-center gap-1"
-                    aria-label={pct !== null ? `Semana ${i + 1}: ${pct}%` : `Semana ${i + 1}: sin datos`}
+                    aria-label={pct !== null ? `Semana ${weekly8.length - i}${isCurrentWeek ? ' (actual)' : ''}: ${pct}%` : `Semana ${weekly8.length - i}${isCurrentWeek ? ' (actual)' : ''}: sin datos`}
                   >
                     <div className="flex w-full flex-col items-center justify-end" style={{ height: 72 }}>
                       <div

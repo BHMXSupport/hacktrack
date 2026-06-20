@@ -8,7 +8,7 @@ import { Button } from '../ui/Button'
 import { DataPlate } from '../ui/DataPlate'
 
 const ING_MAP = new Map(INGREDIENTS.map((i) => [i.name, i]))
-const QUICK = ['Pechuga de pollo', 'Arroz blanco cocido', 'Huevo entero', 'Brócoli', 'Avena en hojuelas cruda', 'Aguacate']
+const QUICK = ['Tofu firme', 'Arroz blanco cocido', 'Lentejas cocidas', 'Brócoli', 'Avena en hojuelas cruda', 'Aguacate']
   .filter((n) => ING_MAP.has(n))
 
 const r0 = (n: number) => Math.round(n)
@@ -57,7 +57,7 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
     setQuery('')
   }
   const setGrams = (n: string, g: number) =>
-    setRows((rs) => rs.map((r) => (r.name === n ? { ...r, grams: Math.max(0, g) } : r)))
+    setRows((rs) => rs.map((r) => (r.name === n ? { ...r, grams: Math.max(1, g) } : r)))
   const removeRow = (n: string) => setRows((rs) => rs.filter((r) => r.name !== n))
 
   function save() {
@@ -145,7 +145,7 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
                 </div>
                 {/* Stepper de gramos */}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button type="button" aria-label="−5g" onClick={() => setGrams(row.name, row.grams - 5)} className="grid h-9 w-9 place-items-center rounded-full border border-white/12 text-secondary-foreground active:scale-95">
+                  <button type="button" aria-label="−5g" disabled={row.grams <= 5} onClick={() => setGrams(row.name, row.grams - 5)} className="grid h-9 w-9 place-items-center rounded-full border border-white/12 text-secondary-foreground active:scale-95 disabled:opacity-40">
                     <Minus size={14} />
                   </button>
                   <input

@@ -34,6 +34,7 @@ export function FloatingNav({
   const right = visible.slice(mid)
   return (
     <nav
+      aria-label="Navegación principal"
       className="glass absolute inset-x-2 z-30 flex items-stretch rounded-[22px]"
       style={{
         bottom: 'max(8px, env(safe-area-inset-bottom))',

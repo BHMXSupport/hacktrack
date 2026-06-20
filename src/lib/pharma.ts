@@ -415,6 +415,7 @@ export function thresholdCrossTs(
   product: string,
   halfMs: number,
   pct: number,
+  now: number = Date.now(), // #89: aceptar el 'now' del componente (antes usaba Date.now() interno)
 ): number | null {
   if (doses.length === 0 || halfMs <= 0 || pct <= 0 || pct > 1) return null
   const peak = peakOf(doses, product, halfMs)
@@ -422,7 +423,6 @@ export function thresholdCrossTs(
   const target = pct * peak
   const lastDoseTs = Math.max(...doses.map((d) => d.ts))
   const end = lastDoseTs + washoutMs(halfMs) * 2
-  const now = Date.now()
   // La curva baja; buscamos el punto donde cruza el umbral (de arriba a abajo)
   const fNow = amountAt(doses, product, halfMs, now) - target
   if (fNow <= 0) return now // ya cruzó
@@ -551,7 +551,7 @@ export function aucStabilityHint(
     return (
       `Variabilidad de intervalo alta (CV ≈ ${cv.toFixed(0)} %). ` +
       `Con t½ ≈ ${formatHalfLife(halfLifeH)}, intervalos irregulares pueden producir ` +
-      `fluctuaciones de exposición relevantes. Estimación educativa — consulta a tu médico.`
+      `fluctuaciones de exposición relevantes. Dato observacional — la regularidad de los intervalos afecta la estimación de steady-state.`
     )
   }
   return (

@@ -599,16 +599,17 @@ export function Semana() {
   const adhPrevOnly = useMemo(() => {
     let taken = 0, due = 0
     const now = new Date(state.todayTs)
+    const activeProtocols = Object.values(state.protocols).filter((p) => !p.archived)
     for (let i = 7; i < 14; i++) {
       const d = new Date(now)
       d.setDate(now.getDate() - i)
       const k = isoKey(d.getTime())
       const g = state.log.find((x) => x.dateKey === k)
-      const hasDose = !!g?.items.some((it) => it.type === 'dose')
-      const proto = Object.values(state.protocols)[0]
-      if (proto && d.getTime() >= proto.startDate) {
-        due++
-        if (hasDose) taken++
+      for (const proto of activeProtocols) {
+        if (d.getTime() >= proto.startDate) {
+          due++
+          if (g?.items.some((it) => it.type === 'dose' && it.product === proto.product)) taken++
+        }
       }
     }
     return due > 0 ? Math.round((taken / due) * 100) : null
