@@ -137,9 +137,8 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
     return at.getTime()
   }
 
-  const measures = state.selectedMeasures.slice(0, 4).map((m) => ({ m, v: state.measureValues[m] }))
-  // las métricas restantes (más allá de las 4 destacadas) — registrables desde una fila compacta
-  const moreMeasures = state.selectedMeasures.slice(4)
+  // TODAS las métricas seleccionadas con la MISMA importancia (mismo tamaño de card)
+  const measures = state.selectedMeasures.map((m) => ({ m, v: state.measureValues[m] }))
   const water = state.nutrition[keyOf(today)]?.water ?? 0
   const waterGoal = 2000
   const name = state.profile.name?.split(' ')[0] ?? ''
@@ -500,11 +499,13 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
         </motion.div>
       )}
 
-      {/* ── Registro de métricas (M10: tap abre MedidaSheet) ── */}
+      {/* ── Registro de métricas — TODAS con la misma importancia (mismo tamaño) (M10) ── */}
       {measures.length > 0 && (
         <motion.div variants={fade} className="flex flex-col gap-2.5">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Registrar métricas</p>
-          <div className="grid grid-cols-2 gap-3">
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Registrar métricas <span className="font-normal normal-case text-muted-foreground/70">· toca para registrar</span>
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
             {measures.map(({ m, v }) => (
               <button
                 key={m}
@@ -513,41 +514,18 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                 aria-label={`Registrar medida: ${m}`}
                 className="text-left rounded-xl"
               >
-                <Glass className="p-4 h-full transition-opacity active:opacity-70">
-                  <p className="text-[12px] text-muted-foreground">{m}</p>
-                  <p className="mt-1 font-mono text-[24px] font-semibold tabular-nums text-foreground">
+                <Glass className="flex h-full flex-col gap-0.5 p-3 transition-opacity active:opacity-70">
+                  <p className="truncate text-[12px] text-muted-foreground">{m}</p>
+                  <p className="font-mono text-[20px] font-semibold tabular-nums text-foreground">
                     {v != null ? v : '—'}
                     {v != null && measureSuffix(m) && (
-                      <span className="text-[13px] font-normal text-muted-foreground"> {measureSuffix(m)}</span>
+                      <span className="text-[12px] font-normal text-muted-foreground"> {measureSuffix(m)}</span>
                     )}
                   </p>
-                  <p className="mt-1 text-[10px] text-teal font-medium">Toca para registrar</p>
                 </Glass>
               </button>
             ))}
           </div>
-          {/* Métricas restantes en fila compacta con scroll horizontal (registrar todas sin alargar Inicio) */}
-          {moreMeasures.length > 0 && (
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Registrar otras métricas">
-              {moreMeasures.map((m) => {
-                const v = state.measureValues[m]
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => openMedida(m)}
-                    aria-label={`Registrar medida: ${m}`}
-                    className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-raised px-3 py-2 text-left transition-opacity active:opacity-70"
-                  >
-                    <span className="text-[13px] font-medium text-foreground">{m}</span>
-                    <span className="font-mono text-[12px] tabular-nums text-teal">
-                      {v != null ? `${v} ${measureSuffix(m)}`.trim() : '+'}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
         </motion.div>
       )}
 
