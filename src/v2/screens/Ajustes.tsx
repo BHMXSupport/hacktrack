@@ -2,6 +2,7 @@
 // R48: PIN de acceso, segundo recordatorio, avisos por correo, alias de productos.
 // R50: cerrar sesión (go 's-login').
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
@@ -110,10 +111,11 @@ function DeleteConfirmDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
-  return (
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none fixed inset-0 z-[10000] flex items-end">
           <motion.div
             className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
@@ -158,7 +160,8 @@ function DeleteConfirmDialog({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 
@@ -173,10 +176,11 @@ function LogoutConfirmDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
-  return (
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none fixed inset-0 z-[10000] flex items-end">
           <motion.div
             className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
@@ -221,7 +225,8 @@ function LogoutConfirmDialog({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 

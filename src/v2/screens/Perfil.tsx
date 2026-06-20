@@ -1,6 +1,7 @@
 // Hacktrack v2 — Perfil y privacidad. Precision × Accessible.
 // R46: nombre editable inline. R50: cerrar sesión, aviso privacidad real, oposición/revocación real.
 import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   ShieldCheck, Download, Pencil, Trash2, ShieldOff, FileText, User, ChevronRight,
@@ -150,10 +151,11 @@ function DeleteAccountDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
-  return (
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none fixed inset-0 z-[10000] flex items-end">
           <motion.div
             className="pointer-events-auto absolute inset-0 bg-black/65"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
@@ -206,7 +208,8 @@ function DeleteAccountDialog({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 
@@ -221,10 +224,11 @@ function LogoutDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
-  return (
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none fixed inset-0 z-[10000] flex items-end">
           <motion.div
             className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
@@ -269,7 +273,8 @@ function LogoutDialog({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 
@@ -369,10 +374,11 @@ function RevocacionDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
-  return (
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none fixed inset-0 z-[10000] flex items-end">
           <motion.div
             className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
@@ -448,7 +454,8 @@ function RevocacionDialog({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 

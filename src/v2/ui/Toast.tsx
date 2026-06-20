@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 
@@ -15,11 +16,12 @@ export function Toast() {
     return () => window.clearTimeout(t)
   }, [state.toast, hasUndo, dispatch])
 
-  return (
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <AnimatePresence>
       {state.toast && (
         <motion.div
-          className="pointer-events-none absolute inset-x-0 z-[60] flex justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 z-[10001] flex justify-center px-4"
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -47,6 +49,7 @@ export function Toast() {
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

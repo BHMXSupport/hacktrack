@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 
-// Bottom-sheet de vidrio. Se monta a nivel del shell (absolute inset-0 dentro de .app-frame).
-// Overlay desenfoca el cockpit detrás; el sheet sube con spring. Respeta reduced-motion.
-// A11y: role=dialog + aria-modal, cierra con Escape, foco inicial al abrir.
+// Bottom-sheet de vidrio. RENDERIZADO EN PORTAL a document.body con position:FIXED.
+// Por qué portal+fixed (no `absolute inset-0` dentro de .app-frame): en iOS standalone, .app-frame usa
+// overflow:hidden + 100vh, y un overlay absolute adentro NO cubre bien el viewport real (deja franja negra
+// abajo / zona del home-indicator) y deja capas táctiles en estados raros (dead-click). Un portal fixed a
+// body cubre el viewport visual de verdad y evita el clipping del frame.
+//
+// Anti-jank: el panel se mueve con backdrop-filter NUNCA durante el slide → durante el movimiento usa
+// .sheet-solid (sin blur) y el backdrop no desenfoca; al asentarse (settled) vuelve a .glass.
+// Anti dead-click: el contenedor es pointer-events-none; backdrop y panel solo reciben clics cuando
+// `settled` (abierto y quieto); y el prop `exit` fija pointerEvents:'none' → aunque AnimatePresence dejara
+// un nodo huérfano, queda con pointer-events:none y NO traga clics de la página.
+// A11y: role=dialog + aria-modal, cierra con Escape, foco inicial al abrir, focus-trap (Tab cicla dentro).
 export function Sheet({
   open,
   onClose,
@@ -18,21 +28,13 @@ export function Sheet({
 }) {
   const reduce = useReducedMotion()
   const panelRef = useRef<HTMLDivElement | null>(null)
-  // Offset de ocultamiento en PX FIJOS (no '100%' de la propia altura). Con porcentaje, si el contenido
-  // del sheet cambia de alto a media animación —p.ej. la imagen del mapa corporal (injection-body.webp)
-  // decodifica tarde en el primer abrir— el valor de '100%' se reasienta y el panel "se pasa" de su
-  // reposo (= sube raro, deja hueco abajo y baja). Un px ≥ alto de pantalla es referencia estable →
-  // sin reasentamiento ni sobrepaso, independiente del dispositivo. Se lee una vez al montar.
-  // = alto de pantalla + un pequeño margen. Suficiente para esconder el panel por debajo (su reposo deja
-  // un gap arriba) PERO sin inflar: así casi todo el recorrido es VISIBLE (no se queda fuera de pantalla).
+  // Offset de ocultamiento en PX FIJOS (no '100%' de la propia altura, que se reasienta si el contenido
+  // cambia de alto a media animación → "sube raro"). ≥ alto de pantalla → siempre fuera de vista, estable.
   const [hideY] = useState(() => (typeof window !== 'undefined' ? Math.ceil(Math.max(window.innerHeight, 920)) + 24 : 1000))
 
-  // `settled` = el sheet llegó a reposo (abierto y quieto). `moving = !settled` = entrando, saliendo o aún sin asentar.
-  // Durante `moving`: el panel usa .sheet-solid SIN blur (evita el jank de animar backdrop-filter sobre el video)
-  // Y tanto el panel como el backdrop son pointer-events-none. CLAVE anti dead-click: en la SALIDA `settled`
-  // NUNCA vuelve a true (onAnimationComplete solo asienta si sigue abierto), así que si AnimatePresence dejara
-  // un nodo huérfano, queda pointer-events-none → NO puede tragar clics de la página. Solo al asentar (abierto)
-  // el backdrop recupera pointer-events-auto (para cerrar tocando afuera) y el panel vuelve a .glass.
+  // settled = abierto y quieto. moving = entrando/saliendo/sin asentar. En `moving`: panel .sheet-solid sin
+  // blur + pointer-events-none. En la SALIDA, settled nunca vuelve a true (onAnimationComplete solo asienta
+  // si sigue abierto) y el exit fija pointerEvents:none → un huérfano no bloquea.
   const [settled, setSettled] = useState(false)
   const moving = !settled
   const openRef = useRef(open)
@@ -66,51 +68,48 @@ export function Sheet({
     }
   }, [open, onClose])
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  const node = (
     <AnimatePresence>
       {open && (
-        // Contenedor full-screen como hijo motion DIRECTO de AnimatePresence → desmontaje fiable
-        // (un <div> plano no lo rastrea bien y quedaba huérfano interceptando clics). pointer-events-none
-        // es el cinturón de seguridad: aunque quedara montado a media salida, NO traga clics de la página;
-        // solo el backdrop y el panel re-habilitan pointer-events-auto.
+        // Contenedor full-screen FIXED a viewport (portal). motion.div hijo directo de AnimatePresence →
+        // desmontaje fiable. pointer-events-none → si quedara huérfano, no traga clics.
         <motion.div
-          className="pointer-events-none absolute inset-0 z-50 flex items-end"
+          className="pointer-events-none fixed inset-0 z-[9999] flex items-end justify-center"
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 1 }}
         >
           <motion.div
-            // pointer-events solo cuando está asentado (abierto+quieto): en movimiento/salida = none → un
-            // overlay huérfano no bloquea clics. Sin blur durante el movimiento; menos oscuro para no "tile negro".
-            className={`${moving ? 'pointer-events-none' : 'pointer-events-auto'} absolute inset-0`}
+            // Backdrop: clics solo cuando settled (para cerrar tocando afuera). Sin blur en movimiento; menos
+            // oscuro (0.34) para no verse como "tile negro" durante el slide. exit pointerEvents:none = anti-huérfano.
+            className={`${settled ? 'pointer-events-auto' : 'pointer-events-none'} absolute inset-0`}
             style={{
               backgroundColor: moving ? 'rgba(0,0,0,0.34)' : 'rgba(0,0,0,0.55)',
               ...(moving ? {} : { backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }),
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            // pointerEvents:'none' en EXIT: framer lo fija en el nodo saliente; aunque AnimatePresence
-            // dejara un huérfano, queda con pointer-events:none (inline gana a la clase) → no traga clics.
             exit={{ opacity: 0, pointerEvents: 'none' }}
+            transition={{ duration: 0.2 }}
             onClick={onClose}
           />
-          {/* Panel: SÓLIDO (.sheet-solid, sin backdrop-filter) mientras se mueve; .glass al asentarse.
-              will-change-transform lo promueve a su propia capa. Entrada spring bounce:0 (sin sobrepaso);
-              salida conserva el spring físico. onAnimationStart/Complete alternan `moving`. */}
           <motion.div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label={title}
             tabIndex={-1}
-            className={`${moving ? 'sheet-solid pointer-events-none' : 'glass pointer-events-auto'} relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform`}
+            // pointer-events-auto SIEMPRE (también en entrada) → taps rápidos al botón cerrar funcionan;
+            // el exit fija pointerEvents:'none' (anti-huérfano) y el panel no es full-screen, así que aunque
+            // quedara vivo no bloquea toda la pantalla (el backdrop sí es full-screen y ese sí va a none).
+            className={`${moving ? 'sheet-solid' : 'glass'} pointer-events-auto relative z-10 max-h-[92vh] max-h-[92dvh] w-full max-w-[412px] overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform`}
             initial={reduce ? { opacity: 0 } : { y: hideY }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            // pointerEvents:'none' en EXIT → el panel saliente (aunque quede huérfano) no bloquea clics.
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: hideY, pointerEvents: 'none', transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
             transition={reduce ? { duration: 0.15 } : { type: 'spring', bounce: 0, duration: 0.45 }}
             onAnimationStart={() => setSettled(false)}
-            // Solo asienta si SIGUE abierto: en la salida NO re-activa pointer-events (anti dead-click).
             onAnimationComplete={() => { if (openRef.current) setSettled(true) }}
           >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
@@ -130,4 +129,6 @@ export function Sheet({
       )}
     </AnimatePresence>
   )
+
+  return createPortal(node, document.body)
 }
