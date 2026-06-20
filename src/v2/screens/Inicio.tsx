@@ -19,6 +19,8 @@ function measureSuffix(name: string): string {
   return meta.unit ?? ''
 }
 import { Glass } from '../ui/Glass'
+import { Sheet } from '../ui/Sheet'
+import { Switch } from '../ui/Switch'
 import { DataPlate } from '../ui/DataPlate'
 import { Ring } from '../ui/Ring'
 import { Button } from '../ui/Button'
@@ -26,6 +28,41 @@ import { InjectionMap } from '../ui/InjectionMap'
 import { AutoVideo } from '../ui/AutoVideo'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 import posterSrc from '../../assets/rebuild/hero-poster.webp'
+
+// Editor de "mis medidas": agregar/quitar las métricas que sigues (post-onboarding). Antes solo se
+// elegían en el onboarding; aquí se ajustan cuando sea. Toggle por medida → setMeasures.
+function ManageMeasuresSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { state, dispatch } = useApp()
+  const selected = new Set(state.selectedMeasures)
+  const all = Object.keys(MEASURE_META).filter((m) => m !== 'IMC') // IMC es derivado (peso/altura), no se registra directo
+  function toggle(m: string) {
+    const next = new Set(selected)
+    if (next.has(m)) next.delete(m)
+    else next.add(m)
+    dispatch({ t: 'setMeasures', measures: [...next] })
+  }
+  return (
+    <Sheet open={open} onClose={onClose} title="Mis medidas">
+      <div className="flex flex-col gap-1">
+        <p className="mb-2 text-[13px] leading-relaxed text-muted-foreground">
+          Elige qué medidas quieres seguir. Aparecen en Inicio para registrarlas; cada una puede tener su propio recordatorio.
+        </p>
+        {all.map((m) => {
+          const meta = MEASURE_META[m]
+          const sub = meta.kind === 'scale' ? `1–${meta.max ?? 100}` : (meta.unit ?? '')
+          return (
+            <div key={m} className="flex items-center justify-between gap-3 rounded-lg px-1 py-2.5">
+              <span className="text-[14px] text-foreground">
+                {m}{sub ? <span className="text-muted-foreground"> · {sub}</span> : null}
+              </span>
+              <Switch checked={selected.has(m)} onChange={() => toggle(m)} label={`Seguir ${m}`} />
+            </div>
+          )
+        })}
+      </div>
+    </Sheet>
+  )
+}
 
 const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
@@ -139,6 +176,7 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
 
   // TODAS las métricas seleccionadas con la MISMA importancia (mismo tamaño de card)
   const measures = state.selectedMeasures.map((m) => ({ m, v: state.measureValues[m] }))
+  const [manageOpen, setManageOpen] = useState(false) // editor de "mis medidas"
   const water = state.nutrition[keyOf(today)]?.water ?? 0
   const waterGoal = 2000
   const name = state.profile.name?.split(' ')[0] ?? ''
@@ -518,11 +556,22 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       )}
 
       {/* ── Registro de métricas — TODAS con la misma importancia (mismo tamaño) (M10) ── */}
-      {measures.length > 0 && (
-        <motion.div variants={fade} className="flex flex-col gap-2.5">
+      {/* Encabezado + "Gestionar" SIEMPRE visibles (también con 0 medidas, para poder agregar). */}
+      <motion.div variants={fade} className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
           <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Registrar métricas <span className="font-normal normal-case text-muted-foreground/70">· toca para registrar</span>
+            Registrar métricas{measures.length > 0 && <span className="font-normal normal-case text-muted-foreground/70"> · toca para registrar</span>}
           </p>
+          <button
+            type="button"
+            onClick={() => setManageOpen(true)}
+            aria-label="Gestionar mis medidas"
+            className="shrink-0 text-[12px] font-semibold text-teal active:opacity-70"
+          >
+            Gestionar
+          </button>
+        </div>
+        {measures.length > 0 ? (
           <div className="grid grid-cols-2 gap-2.5">
             {measures.map(({ m, v }) => (
               <button
@@ -544,8 +593,10 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
               </button>
             ))}
           </div>
-        </motion.div>
-      )}
+        ) : (
+          <p className="text-[13px] text-muted-foreground">Aún no sigues métricas. Toca <span className="font-semibold text-teal">Gestionar</span> para elegir las que quieres seguir.</p>
+        )}
+      </motion.div>
 
       {/* Hidratación */}
       <motion.div variants={fade}>
@@ -621,6 +672,9 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Editor de "mis medidas" (agregar/quitar las que sigues) */}
+      <ManageMeasuresSheet open={manageOpen} onClose={() => setManageOpen(false)} />
     </motion.div>
   )
 }
