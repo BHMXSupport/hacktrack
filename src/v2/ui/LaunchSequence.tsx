@@ -155,7 +155,7 @@ export function LaunchSequence() {
                 className="h-full rounded-full bg-teal"
                 initial={{ width: '6%' }}
                 animate={{ width: '100%' }}
-                transition={{ duration: 4.5, ease: 'easeInOut' }}
+                transition={{ duration: 7.5, ease: 'easeInOut' }}
               />
             </div>
           )}
