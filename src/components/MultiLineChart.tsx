@@ -27,7 +27,7 @@ interface Props {
   formatY?: (v: number) => string
   xTicks?: { t: number; label: string }[]
   refLines?: { y: number; label: string; tooltip?: string }[] // tooltip educativo al tap (item 380)
-  mode?: 'percent' | 'absolute'
+  mode?: 'percent' | 'absolute' | 'log'
   verticalRefs?: { t: number; label: string; color?: string; tooltip?: string; dot?: boolean }[]
   secondarySeries?: { points: [number, number][]; color?: string; label?: string }
   showSecondaryAxis?: boolean
@@ -93,6 +93,21 @@ export function MultiLineChart({
   const spanY = y1 - y0 || 1
   const sx = (t: number) => PAD.l + ((t - x0) / spanX) * plotW
   const sy = (v: number) => PAD.t + plotH - ((v - y0) / spanY) * plotH
+
+  // escala logarítmica (modo 'log'): mapea log10(v) en [logMin, logMax] → coordenada Y.
+  // Piso: LOG_EPS = 0.001 para evitar log(0) = -∞.
+  const LOG_EPS = 0.001
+  const isLog = mode === 'log'
+  const logMin = Math.log10(Math.max(y0 > 0 ? y0 : LOG_EPS, LOG_EPS))
+  const logMax = Math.log10(Math.max(y1, LOG_EPS * 10))
+  const spanLog = logMax - logMin || 1
+  const syLog = (v: number) => {
+    const safeV = Math.max(v, LOG_EPS)
+    return PAD.t + plotH - ((Math.log10(safeV) - logMin) / spanLog) * plotH
+  }
+  // toY: selector unificado de mapeo Y (lineal o log según modo)
+  const toY = (v: number) => (isLog ? syLog(v) : sy(v))
+
   const nowX = sx(nowTs)
 
   // secondary axis (Y2) — narrower plot width to avoid overlap
@@ -180,7 +195,7 @@ export function MultiLineChart({
     >
       {/* gridlines + etiquetas Y */}
       {yTicks.map((v) => {
-        const y = sy(v)
+        const y = toY(v)
         return (
           <g key={`y${v}`}>
             <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--border)" strokeWidth={1} strokeDasharray="4 4" opacity={0.6} />
@@ -235,7 +250,7 @@ export function MultiLineChart({
 
       {/* líneas de referencia (p.ej. 25%) — item 380: táctiles con tooltip educativo */}
       {refLines.map((r, ri) => {
-        const y = sy(r.y)
+        const y = toY(r.y)
         const isActive = activeRefLine === ri
         const hasTooltip = !!r.tooltip
         const ttX = Math.min(W - PAD.r - refLineTooltipW - 4, PAD.l + 4)
@@ -387,7 +402,7 @@ export function MultiLineChart({
 
       {/* series */}
       {series.map((s, si) => {
-        const px = s.points.map((p) => [sx(p[0]), sy(p[1])] as [number, number])
+        const px = s.points.map((p) => [sx(p[0]), toY(p[1])] as [number, number])
         const nowY = valueAt(s.points, nowTs)
         const showNowDot = nowY != null && nowTs >= x0 && nowTs <= x1
         const baseY = PAD.t + plotH
@@ -431,9 +446,9 @@ export function MultiLineChart({
             {s.markers.map((m, i) => (
               <motion.circle
                 key={i}
-                cx={sx(m[0])} cy={sy(m[1])} r={3.5}
+                cx={sx(m[0])} cy={toY(m[1])} r={3.5}
                 fill={s.color} stroke="var(--card)" strokeWidth={1.5}
-                style={{ transformOrigin: `${sx(m[0])}px ${sy(m[1])}px` }}
+                style={{ transformOrigin: `${sx(m[0])}px ${toY(m[1])}px` }}
                 initial={reduce ? false : { scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={reduce ? { duration: 0 } : {
@@ -449,13 +464,13 @@ export function MultiLineChart({
               <g>
                 {!reduce && (
                   <motion.circle
-                    cx={sx(nowTs)} cy={sy(nowY!)} fill={s.color}
+                    cx={sx(nowTs)} cy={toY(nowY!)} fill={s.color}
                     initial={{ r: 4, opacity: manySeries ? 0.2 : 0.35 }}
                     animate={manySeries ? { r: [4, 6], opacity: [0.2, 0] } : { r: [4, 9], opacity: [0.35, 0] }}
                     transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: haloDelay }}
                   />
                 )}
-                <circle cx={sx(nowTs)} cy={sy(nowY!)} r={4} fill={s.color} stroke="var(--card)" strokeWidth={1.5} />
+                <circle cx={sx(nowTs)} cy={toY(nowY!)} r={4} fill={s.color} stroke="var(--card)" strokeWidth={1.5} />
               </g>
             )}
           </g>
@@ -511,7 +526,7 @@ export function MultiLineChart({
           >
             <line x1={sx(hover.t)} y1={PAD.t} x2={sx(hover.t)} y2={PAD.t + plotH} stroke="var(--ink-400)" strokeWidth={1} />
             {hover.rows.map((r) => (
-              <circle key={r.product} cx={sx(hover.t)} cy={sy(r.v!)} r={3} fill={r.color} stroke="var(--card)" strokeWidth={1.5} />
+              <circle key={r.product} cx={sx(hover.t)} cy={toY(r.v!)} r={3} fill={r.color} stroke="var(--card)" strokeWidth={1.5} />
             ))}
             <rect x={boxX} y={PAD.t} width={boxW} height={boxH} rx={6} fill="var(--card)" stroke="var(--border)" strokeWidth={1} opacity={0.97} />
             {hover.rows.map((r, i) => {

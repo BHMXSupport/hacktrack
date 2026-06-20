@@ -11,7 +11,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 import { PEPTIDES, EFFECT_OPTIONS } from '../../lib/catalog'
 import { dueTime } from '../../lib/calendar'
-import { doseToMg, needsRecon } from '../../lib/calc'
+import { doseToMg, needsRecon, historicalMeanDose } from '../../lib/calc'
 import { Sheet } from '../ui/Sheet'
 import { Stepper } from '../ui/Stepper'
 import { Chip } from '../ui/Chip'
@@ -760,6 +760,19 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               Ingresa al menos 0.1 {unit}
             </p>
           )}
+
+          {/* Warning suave — dosis atípica vs. historial (#A5) */}
+          {(() => {
+            if (!product || !(parseFloat(dose) > 0)) return null
+            const mean = historicalMeanDose(state.log, product, unit)
+            if (mean === null) return null
+            if (parseFloat(dose) <= mean * 5) return null
+            return (
+              <p className="text-warn text-[12px]" role="status" aria-live="polite">
+                Eso es bastante mas alto de lo habitual (~{mean % 1 === 0 ? mean : parseFloat(mean.toFixed(2))} {unit}). Seguro?
+              </p>
+            )
+          })()}
 
           {/* Chips de unidad */}
           <div className="flex flex-wrap gap-2">

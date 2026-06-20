@@ -51,6 +51,7 @@ const WIN_OPTS: { value: Win; label: string }[] = [
 const MODE_OPTS: { value: Mode; label: string }[] = [
   { value: 'percent', label: '% pico' },
   { value: 'absolute', label: 'mg' },
+  { value: 'log', label: 'Log' },
 ]
 
 // ── Motion ────────────────────────────────────────────────────────────────────
@@ -352,12 +353,37 @@ export function Vida() {
 
   // ── Ejes ──────────────────────────────────────────────────────────────────
 
-  const yTicks =
-    mode === 'percent' ? [0, 50, 100] : [0, data.domainY[1] / 2, data.domainY[1]]
-  const formatY =
-    mode === 'percent'
-      ? (v: number) => `${Math.round(v)}%`
-      : (v: number) => (v >= 1 ? String(Math.round(v)) : v.toFixed(1))
+  const LOG_EPS = 0.001 // piso para log: valores ≤ 0 se fijan aquí
+  const yTicks = useMemo(() => {
+    if (mode === 'percent') return [0, 50, 100]
+    if (mode === 'absolute') return [0, data.domainY[1] / 2, data.domainY[1]]
+    // modo 'log': ticks en potencias de 10 entre LOG_EPS y domainY[1]
+    const maxVal = Math.max(data.domainY[1], LOG_EPS * 10)
+    const ticks: number[] = []
+    const expMin = Math.floor(Math.log10(LOG_EPS))
+    const expMax = Math.ceil(Math.log10(maxVal))
+    for (let e = expMin; e <= expMax; e++) {
+      const v = Math.pow(10, e)
+      if (v >= LOG_EPS * 0.9 && v <= maxVal * 1.1) ticks.push(v)
+    }
+    return ticks.length >= 2 ? ticks : [LOG_EPS, maxVal]
+  }, [mode, data.domainY])
+
+  const formatY = useMemo(() => {
+    if (mode === 'percent') return (v: number) => `${Math.round(v)}%`
+    if (mode === 'log') {
+      return (v: number) => {
+        if (v <= 0) return ''
+        if (v < 0.001) return v.toExponential(0)
+        if (v < 0.01) return v.toFixed(3)
+        if (v < 0.1) return v.toFixed(2)
+        if (v < 1) return v.toFixed(1)
+        if (v >= 1000) return `${(v / 1000).toFixed(0)}k`
+        return v >= 10 ? String(Math.round(v)) : v.toFixed(1)
+      }
+    }
+    return (v: number) => (v >= 1 ? String(Math.round(v)) : v.toFixed(1))
+  }, [mode])
 
   const xTicks = useMemo(() => {
     const [a, b] = data.domainX
@@ -620,9 +646,9 @@ export function Vida() {
                   Estimado de cuánto sigue activo tras cada dosis
                 </p>
               </div>
-              {mode === 'absolute' && (
+              {(mode === 'absolute' || mode === 'log') && (
                 <span className="shrink-0 rounded-md bg-white/6 px-2 py-1 font-mono text-[10px] text-muted-foreground">
-                  mg residual
+                  {mode === 'log' ? 'mg · log' : 'mg residual'}
                 </span>
               )}
             </div>
@@ -665,7 +691,12 @@ export function Vida() {
             <div className="relative">
               {/* #31: rotular la unidad del eje Y (la curva no traía unidad explícita) */}
               <p className="mb-1 text-[11px] text-muted-foreground">
-                Eje vertical: {mode === 'percent' ? '% del pico estimado' : 'mg estimados en el cuerpo'}
+                Eje vertical:{' '}
+                {mode === 'percent'
+                  ? '% del pico estimado'
+                  : mode === 'log'
+                  ? 'mg estimados — escala logarítmica (log₁₀)'
+                  : 'mg estimados en el cuerpo'}
               </p>
               <div
                 ref={chartRef}

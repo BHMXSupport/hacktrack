@@ -1,7 +1,7 @@
 import { type ButtonHTMLAttributes } from 'react'
 import { cn } from '../../lib/cn'
 
-// Pill seleccionable (unidades, filtros). Tap target cómodo (h-9 = 36px mínimo visual; usar en filas).
+// Pill seleccionable (unidades, filtros). Tap target estándar h-11 = 44px (--control-h, accesible).
 export function Chip({
   active,
   className,

@@ -14,6 +14,7 @@ import {
   presetCad,
   startOfDay,
 } from '../../lib/cadence'
+import { doseTakenOnProduct, doseSkippedOnProduct } from '../../lib/calendar'
 import type { UserCadence } from '../../lib/types'
 import { Sheet } from '../ui/Sheet'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
@@ -141,10 +142,10 @@ export function ProtocoloEditSheet({
 
   // Estado derivado de p — se reinicializa cuando cambia el producto o se abre el sheet
   const defaultCad = p?.cadence ?? (entry ? presetCad(entry) : presetCad())
-  // #35: cadencia fresca si el protocolo no tiene cadencia guardada previamente o aún no se ha confirmado en esta sesión
-  // Usamos (p as any).cadenceConfirmed para persistencia sin tocar tipos globales
+  // #35: cadencia fresca si el protocolo no tiene cadencia guardada previamente o aún no se ha confirmado.
+  // #F17: cadenceConfirmed ya está tipado en UserProtocol → sin casts.
   const [isFreshCadence, setIsFreshCadence] = useState(
-    !(p as { cadenceConfirmed?: boolean } | null)?.cadenceConfirmed,
+    !p?.cadenceConfirmed,
   )
 
   const [startStr, setStartStr] = useState(toInputDate(p?.startDate ?? state.todayTs))
@@ -179,7 +180,7 @@ export function ProtocoloEditSheet({
     setPurchaseCostStr('')
     setShowHistory(false)
     // #35: re-sincronizar estado fresco al cambiar de producto
-    setIsFreshCadence(!(p as { cadenceConfirmed?: boolean })?.cadenceConfirmed)
+    setIsFreshCadence(!p?.cadenceConfirmed)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editProduct])
 
@@ -235,7 +236,10 @@ export function ProtocoloEditSheet({
 
   // Preview próximas 5 tomas (item R11)
   const startDate = startStr ? new Date(fromInputDate(startStr)) : new Date(p.startDate)
-  const proximas = mode !== 'uso' ? proximasCadence(cad, startDate, new Date(), 5) : []
+  // #F13: el preview de próximas tomas excluye días que el usuario ya registró o saltó (p.ej. hoy)
+  // — antes la cadencia pura mostraba como "próxima" una dosis ya hecha/saltada.
+  const proximas = (mode !== 'uso' ? proximasCadence(cad, startDate, new Date(), 5) : [])
+    .filter((d) => !doseTakenOnProduct(state, d, p.product) && !doseSkippedOnProduct(state, d, p.product))
 
   // Historial reciente
   const historial = lastDoses(state.log, p.product)
@@ -281,8 +285,7 @@ export function ProtocoloEditSheet({
     dispatch({
       t: 'updateProtocolFor',
       product: p.product,
-      // #35: cadenceConfirmed persiste en el objeto del protocolo (campo extra tolerado por JS en runtime)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // #35/#F17: cadenceConfirmed persiste en el protocolo (ya tipado en UserProtocol).
       patch: {
         cadence: cad,
         cadenceConfirmed: true,

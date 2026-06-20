@@ -29,7 +29,7 @@ export function SegmentedTabs<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'relative flex h-10 flex-1 items-center justify-center rounded-full text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
+              'relative flex h-11 flex-1 items-center justify-center rounded-full text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
               active ? 'text-foreground' : 'text-muted-foreground',
             )}
           >

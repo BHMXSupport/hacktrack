@@ -33,6 +33,20 @@
     --alert: #E85A4A;
     /* placa opaca para readouts críticos (data-plate) */
     --plate: #080C0F;
+
+    /* ── Escala de radios y alturas de control ──────────────────
+       Tokens para uso futuro: no aplican globalmente todavía.
+       --radius-sm  → radio compacto (badges, chips pequeños)
+       --radius-md  → radio estándar (cards, inputs)
+       --radius-lg  → radio grande (sheets, modales)
+       --control-h  → tap target primario (44 px — Apple/WCAG mínimo accesible)
+       --control-h-sm → tap target secundario compacto (40 px)
+       ──────────────────────────────────────────────────────── */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --control-h: 44px;
+    --control-h-sm: 40px;
   }
 
   * { border-color: var(--border); }

@@ -106,6 +106,35 @@ export function vialDosesRemaining(remainingMg: number, doseMg: number): number 
   return Math.floor(remainingMg / doseMg)
 }
 
+// ── Media histórica de dosis (hallazgo #A5 — warning de dosis atípica) ────────
+
+/** Devuelve el promedio de los `value` registrados como type='dose' para el
+ *  producto e unidad dados, considerando solo registros con value > 0.
+ *  Requiere al menos 2 registros para devolver un número (de lo contrario null).
+ *  Acepta el log completo de la app (array de LogGroup-compatible). */
+export function historicalMeanDose(
+  log: Array<{ items: Array<{ type: string; product?: string; value?: number | null; unit?: string | null }> }>,
+  product: string,
+  unit: string,
+): number | null {
+  const values: number[] = []
+  for (const group of log) {
+    for (const it of group.items) {
+      if (
+        it.type === 'dose' &&
+        it.product === product &&
+        it.unit === unit &&
+        it.value != null &&
+        it.value > 0
+      ) {
+        values.push(it.value)
+      }
+    }
+  }
+  if (values.length < 2) return null
+  return values.reduce((sum, v) => sum + v, 0) / values.length
+}
+
 // ¿la unidad necesita la reconstitución del vial para convertirse a mg?
 export function needsRecon(unit: string): boolean {
   return unit === 'UI' || unit === 'clics' || unit === 'mL'

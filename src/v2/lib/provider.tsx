@@ -2,7 +2,7 @@ import { useReducer, useEffect, type ReactNode } from 'react'
 import { AppContext, reducer, initialState, hydrate } from '../../lib/store'
 import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
-import { upcomingDoses, doseTakenOnProduct } from '../../lib/calendar'
+import { upcomingDoses, doseTakenOnProduct, phaseForDate } from '../../lib/calendar'
 import { registerSW, scheduleSwReminder, scheduleMeasureReminder, notifPermission } from '../../lib/notifications'
 
 // Provider del rebuild: reusa el reducer/estado del app original (lib/store).
@@ -103,8 +103,31 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
     const delay = next.date.getTime() - now.getTime()
     if (delay <= 0 || delay > 24 * 86_400_000) return
     void scheduleSwReminder(next.product, delay)
+    // #F8 — segundo recordatorio: aviso ADICIONAL `secondReminderMin` minutos ANTES de la toma
+    // (la UI lo ofrece como "30m/1h/2h antes" para reconstitución/seguimiento del ciclo). Antes el
+    // setting se guardaba pero nadie lo consumía. Reusa el mismo scheduler del SW.
+    const pre = state.settings.secondReminderMin
+    if (pre && pre > 0) {
+      const preDelay = delay - pre * 60_000
+      if (preDelay > 0) void scheduleSwReminder(next.product, preDelay)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.settings.remindersEnabled, state.protocols, state.log, state.todayTs])
+  }, [state.settings.remindersEnabled, state.settings.secondReminderMin, state.protocols, state.log, state.todayTs])
+
+  // #F5 — auto-avance de la fase de titulación: deriva la fase por fecha (phaseForDate desde startDate +
+  // phaseWeeks del catálogo) y avanza curPhase HACIA ADELANTE (nunca atrás → respeta un avance manual).
+  // Sin esto, quien no tocaba el botón manual se quedaba en fase 0 y veía la dosis sugerida equivocada
+  // para su semana real. Re-evalúa al cambiar de día (todayTs) o al editar protocolos.
+  useEffect(() => {
+    for (const [name, p] of Object.entries(state.protocols)) {
+      if (p.archived || !p.progOn) continue
+      const phase = phaseForDate(state, new Date(), name)
+      if (phase != null && phase > p.curPhase) {
+        dispatch({ t: 'updateProtocolFor', product: name, patch: { curPhase: phase } })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.todayTs, state.protocols])
 
   // #3 — recordatorios de medidas periódicas configuradas.
   useEffect(() => {
