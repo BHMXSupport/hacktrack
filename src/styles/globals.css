@@ -42,8 +42,11 @@
   /* Móvil: bloquear el scroll/rebote del documento — solo los contenedores internos scrollean.
      Evita que al hacer overscroll se vea el fondo negro detrás del frame (rubber-band de iOS/Android).
      En escritorio se deja scrollear para no recortar el preview enmarcado (md:880px). */
+    /* height: 100% (de la regla base) cubre TODA la pantalla con viewport-fit=cover, incluida el
+       área segura inferior; usar 100dvh dejaba una franja negra abajo en algunos iPhone. Solo
+       bloqueamos el scroll del documento. */
   @media (max-width: 767px) {
-    html, body { overflow: hidden; height: 100dvh; width: 100%; }
+    html, body { overflow: hidden; }
   }
 
   /* Los contenedores con scroll no encadenan su overscroll al padre (no arrastran ni rebotan la página). */
