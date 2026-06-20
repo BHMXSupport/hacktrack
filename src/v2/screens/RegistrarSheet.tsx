@@ -302,6 +302,14 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     return saved ? normUnit(saved) : 'mg'
   })
   const [site, setSite] = useState<InjectionSite | null>(null)
+  // Diferir el InjectionMap pesado (SVG + injection-body.webp) hasta DESPUÉS de la animación de entrada:
+  // montarlo de inmediato bloquea el hilo principal en los mismos frames del slide → contribuye al "sube raro".
+  const [showHeavyMap, setShowHeavyMap] = useState(false)
+  useEffect(() => {
+    if (!open) { setShowHeavyMap(false); return }
+    const t = window.setTimeout(() => setShowHeavyMap(true), 480)
+    return () => window.clearTimeout(t)
+  }, [open])
 
   const prevProduct = useRef(product)
   useEffect(() => {
@@ -768,7 +776,14 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Zona de inyección <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
           </p>
-          <InjectionMap selected={site} onSelect={setSite} />
+          {showHeavyMap ? (
+            <InjectionMap selected={site} onSelect={setSite} />
+          ) : (
+            // Placeholder del MISMO tamaño (sin layout shift) mientras se difiere el mapa pesado.
+            <div className="relative mx-auto w-full" style={{ maxWidth: 360 }}>
+              <div className="relative w-full rounded-lg border border-white/10 bg-raised" style={{ aspectRatio: '1200 / 896' }} />
+            </div>
+          )}
         </div>
 
         {/* ── Calculadora de reconstitución ── */}
