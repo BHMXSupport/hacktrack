@@ -20,7 +20,8 @@
 //
 // ── Recordatorios de medida periódica (item 404) ─────────────────────────────
 // scheduleMeasureReminder(name, intervalDays, lastTs): programa un recordatorio
-// "Hora de medir <name>" calculando cuándo vence el intervalo desde el último registro.
+// GENÉRICO (sin nombrar la medida — privacidad) calculando cuándo vence el intervalo desde el último
+// registro. Si nunca se registró o ya venció, agenda el intervalo completo desde ahora (nunca al instante).
 
 export function notifSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window
@@ -157,13 +158,24 @@ export function scheduleMeasureReminder(
 ): () => void {
   if (intervalDays <= 0) return () => { /* noop */ }
   const now = Date.now()
-  const nextTs = lastTs != null ? lastTs + intervalDays * 86_400_000 : now
-  const delay = Math.max(0, nextTs - now)
+  const intervalMs = intervalDays * 86_400_000
+  // Ancla en el último registro de ESTA medida + intervalo. Si nunca se registró (lastTs == null) o ese
+  // momento YA pasó (vencido / recién configuraste la frecuencia), agenda el intervalo COMPLETO desde ahora.
+  // Antes, esos casos daban delay 0 → la notificación disparaba al instante al cambiar la frecuencia.
+  let nextTs = lastTs != null ? lastTs + intervalMs : now + intervalMs
+  if (nextTs <= now) nextTs = now + intervalMs
+  const delay = nextTs - now
+  // setTimeout desborda más allá de ~24.8 días (límite int32) → dispararía al instante. Para esos plazos
+  // largos (p.ej. 30 días) no agendamos en cliente: requiere push del servidor (handoff backend).
+  const MAX_TIMEOUT = 2_147_483_647
+  if (delay <= 0 || delay > MAX_TIMEOUT) return () => { /* fuera de rango fiable de setTimeout */ }
 
+  const dias = `${intervalDays} ${intervalDays === 1 ? 'día' : 'días'}`
   const timer = window.setTimeout(() => {
     void showReminder(
-      `Hora de medir tu ${name}`,
-      'Un toque para registrarlo y ver tu evolución.',
+      'Es hora de tu registro',
+      // Privacidad: NO nombramos la medida (puede ser sensible, p.ej. función sexual). Solo la cadencia que pidió.
+      `Me pediste recordarte registrar una medida cada ${dias}. ¡Hoy toca! Ábrela y anótala para ver tu evolución.`,
       { tag: `hacktrack-measure-${name}` },
     )
   }, delay)

@@ -29,12 +29,26 @@ import { AutoVideo } from '../ui/AutoVideo'
 import heroSrc from '../../assets/rebuild/hero-precision.mp4'
 import posterSrc from '../../assets/rebuild/hero-poster.webp'
 
+// Grupos del editor "Mis medidas" — cada medida vive en UN grupo, por dominio. Las sensibles
+// (Libido, Función / excitación…) quedan juntas bajo "Íntimo". IMC se omite (derivado de peso/altura).
+const MEASURE_GROUPS: Array<{ title: string; items: string[] }> = [
+  { title: 'Cuerpo',        items: ['Peso', 'Altura', 'Cintura', '% grasa', '% músculo', 'Glucosa ayunas'] },
+  { title: 'Bienestar',     items: ['Energía', 'Estado de ánimo', 'Sueño', 'Foco'] },
+  { title: 'Metabolismo',   items: ['Apetito', 'Saciedad', 'Náusea'] },
+  { title: 'Recuperación',  items: ['Dolor', 'Recuperación muscular', 'Movilidad', 'Inflamación', 'Resistencia'] },
+  { title: 'Piel',          items: ['Hidratación', 'Elasticidad piel', 'Textura piel', 'Firmeza', 'Manchas / tono', 'Cicatrices'] },
+  { title: 'Mente',         items: ['Memoria', 'Niebla mental', 'Ansiedad'] },
+  { title: 'Crecimiento',   items: ['Fuerza percibida', 'Retención hídrica'] },
+  { title: 'Íntimo',        items: ['Libido', 'Función / excitación', 'Frecuencia sexual', 'Rubor post-dosis'] },
+  { title: 'Otras',         items: ['Efecto secundario'] },
+]
+
 // Editor de "mis medidas": agregar/quitar las métricas que sigues (post-onboarding). Antes solo se
-// elegían en el onboarding; aquí se ajustan cuando sea. Toggle por medida → setMeasures.
+// elegían en el onboarding; aquí se ajustan cuando sea. Toggle por medida → setMeasures. Agrupado por
+// dominio para que no sea una lista plana de 34 y para reunir las medidas sensibles bajo "Íntimo".
 function ManageMeasuresSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state, dispatch } = useApp()
   const selected = new Set(state.selectedMeasures)
-  const all = Object.keys(MEASURE_META).filter((m) => m !== 'IMC') // IMC es derivado (peso/altura), no se registra directo
   function toggle(m: string) {
     const next = new Set(selected)
     if (next.has(m)) next.delete(m)
@@ -43,20 +57,36 @@ function ManageMeasuresSheet({ open, onClose }: { open: boolean; onClose: () => 
   }
   return (
     <Sheet open={open} onClose={onClose} title="Mis medidas">
-      <div className="flex flex-col gap-1">
-        <p className="mb-2 text-[13px] leading-relaxed text-muted-foreground">
-          Elige qué medidas quieres seguir. Aparecen en Inicio para registrarlas; cada una puede tener su propio recordatorio.
-        </p>
-        {all.map((m) => {
-          const meta = MEASURE_META[m]
-          const sub = meta.kind === 'scale' ? `1–${meta.max ?? 100}` : (meta.unit ?? '')
+      <p className="-mt-1 mb-4 text-[13px] leading-relaxed text-muted-foreground">
+        Elige qué medidas quieres seguir. Aparecen en Inicio para registrarlas; cada una puede tener su propio recordatorio.
+      </p>
+      <div className="flex flex-col gap-4">
+        {MEASURE_GROUPS.map((g) => {
+          const items = g.items.filter((m) => MEASURE_META[m]) // defensivo ante cambios del catálogo
+          if (!items.length) return null
+          const activeInGroup = items.filter((m) => selected.has(m)).length
           return (
-            <div key={m} className="flex items-center justify-between gap-3 rounded-lg px-1 py-2.5">
-              <span className="text-[14px] text-foreground">
-                {m}{sub ? <span className="text-muted-foreground"> · {sub}</span> : null}
-              </span>
-              <Switch checked={selected.has(m)} onChange={() => toggle(m)} label={`Seguir ${m}`} />
-            </div>
+            <section key={g.title}>
+              <div className="mb-1.5 flex items-center justify-between px-1">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{g.title}</h3>
+                {activeInGroup > 0 ? <span className="text-[11px] font-semibold text-teal">{activeInGroup} activa{activeInGroup === 1 ? '' : 's'}</span> : null}
+              </div>
+              <div className="overflow-hidden rounded-xl border border-white/5 bg-white/[0.02]">
+                {items.map((m, i) => {
+                  const meta = MEASURE_META[m]
+                  const sub = meta.kind === 'scale' ? `1–${meta.max ?? 100}` : (meta.unit ?? '')
+                  const on = selected.has(m)
+                  return (
+                    <div key={m} className={`flex items-center justify-between gap-3 px-3 py-2.5 ${i > 0 ? 'border-t border-white/5' : ''}`}>
+                      <span className={`text-[14px] ${on ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {m}{sub ? <span className="text-muted-foreground/60"> · {sub}</span> : null}
+                      </span>
+                      <Switch checked={on} onChange={() => toggle(m)} label={`Seguir ${m}`} />
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
           )
         })}
       </div>
