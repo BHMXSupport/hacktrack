@@ -1,9 +1,9 @@
-import { useReducer, useEffect, type ReactNode } from 'react'
+import { useReducer, useEffect, useRef, type ReactNode } from 'react'
 import { AppContext, reducer, initialState, hydrate } from '../../lib/store'
 import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
 import { upcomingDoses, doseTakenOnProduct, phaseForDate } from '../../lib/calendar'
-import { registerSW, scheduleSwReminder, scheduleDailySummary, scheduleMeasureReminder, notifPermission } from '../../lib/notifications'
+import { registerSW, scheduleSwReminder, scheduleDailySummary, scheduleRescue, scheduleMeasureReminder, notifPermission } from '../../lib/notifications'
 
 // Provider del rebuild: reusa el reducer/estado del app original (lib/store).
 const KEY = 'hacktrack:v2'
@@ -46,6 +46,9 @@ function applyTheme(mode: string | undefined) {
 
 export function AppProviderV2({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState)
+  // Ref al estado VIVO — para callbacks diferidos (p.ej. el rescate evalúa "¿ya registró?" al vencer).
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   // R1 — persistencia en localStorage (excluye estado efímero)
   useEffect(() => {
@@ -106,12 +109,20 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
     const todayPending = upcomingDoses(state, now, 30)
       .filter((u) => u.date.getTime() <= endOfToday.getTime() && !doseTakenOnProduct(state, u.date, u.product))
     const pre = state.settings.secondReminderMin
+    const rescueMin = state.settings.rescueWindowMin ?? 0
+    const cancels: Array<() => void> = []
     for (const u of todayPending) {
       const delay = u.date.getTime() - now.getTime()
       if (delay <= 0) continue
       void scheduleSwReminder(u.product, delay)              // recordatorio a la hora de ESA dosis
       if (pre && pre > 0 && delay - pre * 60_000 > 0) {       // #F8: aviso adicional N min antes
         void scheduleSwReminder(u.product, delay - pre * 60_000)
+      }
+      // Aviso de RESCATE: rescueMin minutos DESPUÉS de la hora de la dosis, SOLO si aún no se registró.
+      if (rescueMin > 0) {
+        const at = u.date.getTime() // capturado para el closure
+        cancels.push(scheduleRescue(u.product, delay + rescueMin * 60_000, () =>
+          doseTakenOnProduct(stateRef.current, new Date(at), u.product)))
       }
     }
     // Resumen diario: una notificación a summaryTime listando los protocolos programados hoy.
@@ -128,8 +139,10 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
         void scheduleDailySummary(`Hoy tienes programado: ${list}`, sdelay)
       }
     }
+    // Cancela los rescates pendientes al re-agendar (p.ej. tras registrar) o al desmontar.
+    return () => cancels.forEach((c) => c())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.settings.remindersEnabled, state.settings.secondReminderMin, state.settings.dailySummary, state.settings.summaryTime, state.protocols, state.log, state.todayTs])
+  }, [state.settings.remindersEnabled, state.settings.secondReminderMin, state.settings.rescueWindowMin, state.settings.dailySummary, state.settings.summaryTime, state.protocols, state.log, state.todayTs])
 
   // #F5 — auto-avance de la fase de titulación: deriva la fase por fecha (phaseForDate desde startDate +
   // phaseWeeks del catálogo) y avanza curPhase HACIA ADELANTE (nunca atrás → respeta un avance manual).

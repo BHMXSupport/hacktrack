@@ -114,6 +114,24 @@ export async function scheduleDailySummary(body: string, delayMs: number): Promi
 }
 
 /**
+ * Aviso de RESCATE: se dispara `delayMs` después (= hora de la dosis + ventana) SOLO si al vencer el
+ * usuario AÚN no registró (hasRegistered() === false). Condicional → solo hilo principal (app abierta).
+ * @returns función de cancelación (limpiar al re-agendar / desmontar).
+ */
+export function scheduleRescue(product: string, delayMs: number, hasRegistered: () => boolean): () => void {
+  if (delayMs <= 0 || delayMs > 24 * 60 * 60_000) return () => { /* fuera de rango */ }
+  const timer = window.setTimeout(() => {
+    if (hasRegistered()) return // ya lo registró → no molestar
+    void showReminder(
+      'Hacktrack · recordatorio de seguimiento',
+      `Aún no registras tu ${product} de hoy. Abre la app para actualizarlo.`,
+      { tag: `hacktrack-rescue-${product}` },
+    )
+  }, delayMs)
+  return () => window.clearTimeout(timer)
+}
+
+/**
  * Programar un recordatorio de medida periódica (item 404).
  *
  * @param name         Nombre de la medida (p.ej. 'Peso', 'Cintura').
