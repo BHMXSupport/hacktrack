@@ -10,6 +10,7 @@ import { LaunchSequence } from './ui/LaunchSequence'
 import { InstallGate } from './ui/InstallGate'
 import { shouldShowInstallGate } from '../lib/install'
 import { Toast } from './ui/Toast'
+import { NotifPermissionPrompt } from './ui/NotifPermissionPrompt'
 import { Inicio } from './screens/Inicio'
 import { Diario } from './screens/Diario'
 import { Progreso } from './screens/Progreso'
@@ -123,6 +124,9 @@ function Shell() {
       <DoseConfirmSheet open={sheet === 'dose-confirm'} onClose={closeSheet} arg={sheetArg} />
       <ImportSheet open={sheet === 'import'} onClose={closeSheet} />
       <PaywallSheet open={sheet === 'paywall'} onClose={closeSheet} />
+
+      {/* Pide permiso de notificaciones al entrar si no está concedido (repite mientras esté en "no"). */}
+      <NotifPermissionPrompt />
 
       {/* Welcome — overlay full-screen tras finishOnboarding (justOnboarded), sobre s-app */}
       {state.justOnboarded && (

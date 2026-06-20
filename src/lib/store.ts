@@ -107,7 +107,10 @@ export const initialState: AppState = {
   settings: {
     pinEnabled: false,
     darkMode: false,
-    remindersEnabled: false,
+    // Recordatorios ACTIVADOS por default (per-dosis + resumen diario + semanal). El permiso del SO se
+    // pide al entrar (NotifPermissionPrompt). El usuario puede ajustarlos/apagarlos en Ajustes.
+    remindersEnabled: true,
+    dailySummary: true,
     weeklySummary: true,
     emailNotices: false,
     consentVersion: 'v1.0',
