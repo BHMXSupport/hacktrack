@@ -2,8 +2,8 @@ import { useReducer, useEffect, useRef, type ReactNode } from 'react'
 import { AppContext, reducer, initialState, hydrate } from '../../lib/store'
 import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
-import { upcomingDoses, doseTakenOnProduct, phaseForDate } from '../../lib/calendar'
-import { registerSW, scheduleSwReminder, scheduleDailySummary, scheduleRescue, scheduleMeasureReminder, notifPermission } from '../../lib/notifications'
+import { upcomingDoses, doseTakenOnProduct, phaseForDate, weekAdherencePctLast8, protocolStreak } from '../../lib/calendar'
+import { registerSW, scheduleSwReminder, schedulePreReminder, scheduleDailySummary, scheduleWeeklySummary, scheduleRescue, scheduleMeasureReminder, notifPermission } from '../../lib/notifications'
 
 // Provider del rebuild: reusa el reducer/estado del app original (lib/store).
 const KEY = 'hacktrack:v2'
@@ -115,8 +115,8 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
       const delay = u.date.getTime() - now.getTime()
       if (delay <= 0) continue
       void scheduleSwReminder(u.product, delay)              // recordatorio a la hora de ESA dosis
-      if (pre && pre > 0 && delay - pre * 60_000 > 0) {       // #F8: aviso adicional N min antes
-        void scheduleSwReminder(u.product, delay - pre * 60_000)
+      if (pre && pre > 0 && delay - pre * 60_000 > 0) {       // #F8: pre-aviso "se acerca" N min antes
+        void schedulePreReminder(u.product, pre, delay - pre * 60_000)
       }
       // Aviso de RESCATE: rescueMin minutos DESPUÉS de la hora de la dosis, SOLO si aún no se registró.
       if (rescueMin > 0) {
@@ -136,13 +136,28 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
         const list = todayAll
           .map((u) => `${u.product} ${u.date.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })}`)
           .join(' · ')
-        void scheduleDailySummary(`Hoy tienes programado: ${list}`, sdelay)
+        void scheduleDailySummary(`Hoy: ${list} — ábrelo para no perder el ritmo.`, sdelay)
+      }
+    }
+    // Resumen SEMANAL (lunes): adherencia + racha de la semana, a la hora de summaryTime.
+    if (state.settings.weeklySummary && now.getDay() === 1) { // 1 = lunes
+      const [wh, wm] = (state.settings.summaryTime ?? '08:00').split(':').map(Number)
+      const weeklyAt = new Date(now); weeklyAt.setHours(wh || 8, wm || 0, 0, 0)
+      const wdelay = weeklyAt.getTime() - now.getTime()
+      if (wdelay > 0) {
+        const weeks = weekAdherencePctLast8(state, startOfDay(now))
+        const pct = weeks.length ? weeks[weeks.length - 1] : null
+        const streak = protocolStreak(state, startOfDay(now), now)
+        const body = pct != null
+          ? `Cumpliste ${pct}% de tus tomas y llevas ${streak} día${streak === 1 ? '' : 's'} de racha. Mira tu progreso.`
+          : 'Empieza la semana con tu seguimiento. Ábrela y revisa tu progreso.'
+        void scheduleWeeklySummary(body, wdelay)
       }
     }
     // Cancela los rescates pendientes al re-agendar (p.ej. tras registrar) o al desmontar.
     return () => cancels.forEach((c) => c())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.settings.remindersEnabled, state.settings.secondReminderMin, state.settings.rescueWindowMin, state.settings.dailySummary, state.settings.summaryTime, state.protocols, state.log, state.todayTs])
+  }, [state.settings.remindersEnabled, state.settings.secondReminderMin, state.settings.rescueWindowMin, state.settings.dailySummary, state.settings.weeklySummary, state.settings.summaryTime, state.protocols, state.log, state.todayTs])
 
   // #F5 — auto-avance de la fase de titulación: deriva la fase por fecha (phaseForDate desde startDate +
   // phaseWeeks del catálogo) y avanza curPhase HACIA ADELANTE (nunca atrás → respeta un avance manual).

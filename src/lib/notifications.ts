@@ -105,12 +105,23 @@ export async function scheduleNotif(title: string, body: string, delayMs: number
  * @param delayMs   Milisegundos hasta mostrar la notificación.
  */
 export async function scheduleSwReminder(product: string, delayMs: number): Promise<void> {
-  await scheduleNotif('Hacktrack · recordatorio', `Es hora de tu registro de ${product}.`, delayMs, `hacktrack-dose-${product}`)
+  // Título SIN "Hacktrack" (iOS ya muestra "de Hacktrack" debajo). Copy que invita a abrir + engancha con la racha.
+  await scheduleNotif(`Hora de tu ${product}`, 'Márcalo en un toque y conserva tu racha.', delayMs, `hacktrack-dose-${product}`)
+}
+
+/** Pre-aviso "se acerca" N minutos antes de la dosis (distinto del recordatorio a la hora exacta). */
+export async function schedulePreReminder(product: string, minutes: number, delayMs: number): Promise<void> {
+  await scheduleNotif(`${product} se acerca`, `Tu toma es en ${minutes} min. Déjalo listo para registrarlo a tiempo.`, delayMs, `hacktrack-pre-${product}`)
 }
 
 /** Resumen diario: una notificación con TODOS los protocolos programados para hoy. */
 export async function scheduleDailySummary(body: string, delayMs: number): Promise<void> {
-  await scheduleNotif('Hacktrack · hoy', body, delayMs, 'hacktrack-daily-summary')
+  await scheduleNotif('Tu plan de hoy', body, delayMs, 'hacktrack-daily-summary')
+}
+
+/** Resumen semanal (lunes): adherencia + racha de la semana. */
+export async function scheduleWeeklySummary(body: string, delayMs: number): Promise<void> {
+  await scheduleNotif('Tu semana', body, delayMs, 'hacktrack-weekly-summary')
 }
 
 /**
@@ -123,8 +134,8 @@ export function scheduleRescue(product: string, delayMs: number, hasRegistered: 
   const timer = window.setTimeout(() => {
     if (hasRegistered()) return // ya lo registró → no molestar
     void showReminder(
-      'Hacktrack · recordatorio de seguimiento',
-      `Aún no registras tu ${product} de hoy. Abre la app para actualizarlo.`,
+      `¿Registraste tu ${product}?`,
+      'Aún no lo veo hoy. Ábrelo y márcalo para no romper tu racha.',
       { tag: `hacktrack-rescue-${product}` },
     )
   }, delayMs)
@@ -151,8 +162,8 @@ export function scheduleMeasureReminder(
 
   const timer = window.setTimeout(() => {
     void showReminder(
-      'Hacktrack · medida pendiente',
-      `Hora de registrar tu ${name}. Mantén tu seguimiento al día.`,
+      `Hora de medir tu ${name}`,
+      'Un toque para registrarlo y ver tu evolución.',
       { tag: `hacktrack-measure-${name}` },
     )
   }, delay)
