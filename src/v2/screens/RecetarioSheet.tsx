@@ -404,7 +404,8 @@ export function RecetarioSheet({
 
   return (
     <Sheet open={open} onClose={onClose} title="Recetario">
-      <div className="flex flex-col gap-4">
+      {/* Alto FIJO para el sheet: no cambia de tamaño entre tabs (antes hacía fit-to-content). */}
+      <div className="flex h-[68dvh] flex-col gap-4">
 
         {/* ── Tabs: Mis platillos / Crear (ocultos en modo edición) ── */}
         {view !== 'edit' && (
@@ -450,7 +451,8 @@ export function RecetarioSheet({
           </div>
         )}
 
-        {/* ── Vistas ── */}
+        {/* ── Vistas: área scrollable de alto fijo (los tabs quedan pinneados arriba) ── */}
+        <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1">
         <AnimatePresence mode="wait">
 
           {/* Vista: lista de favoritos */}
@@ -596,6 +598,7 @@ export function RecetarioSheet({
           <Shield size={12} className="shrink-0" />
           Tu historial se guarda solo en tu dispositivo
         </p>
+        </div>
 
       </div>
     </Sheet>
