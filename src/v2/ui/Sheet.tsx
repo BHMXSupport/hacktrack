@@ -67,17 +67,21 @@ export function Sheet({
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
+          {/* will-change-transform → el panel vive en su propia capa de compositor: el slide no se frena
+              por el primer pintado del contenido. ENTRADA = tween easeOut (tolera frames perdidos durante
+              el montaje y aterriza a tiempo, sin el "salto" de un spring que se pone al día). SALIDA =
+              spring (ya se sentía suave; el contenido ya está pintado). */}
           <motion.div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label={title}
             tabIndex={-1}
-            className="glass pointer-events-auto relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none"
+            className="glass pointer-events-auto relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: '100%' }}
-            transition={reduce ? { duration: 0.15 } : { type: 'spring', stiffness: 280, damping: 32, mass: 1 }}
+            exit={reduce ? { opacity: 0 } : { y: '100%', transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
+            transition={reduce ? { duration: 0.15 } : { type: 'tween', duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
             <div className="mb-4 flex items-center justify-between">
