@@ -189,19 +189,11 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
     dispatch({ t: 'sheet', sheet: 'medida', arg: measureName })
   }
 
-  // R27/#18: onSelect del mapa → abrir Registrar con el sitio YA pre-seleccionado.
-  // Se pasa por draftDose.site (RegistrarSheet lo consume) — antes la selección del mapa
-  // era decorativa y no llegaba al registro.
+  // En Inicio el mapa es SOLO un visor interactivo: tocar una zona la selecciona para ver su
+  // detalle (recencia/última vez), NO navega a Registrar. (El registro del sitio se hace dentro
+  // de Registrar dosis, donde el mapa sí elige el sitio de la dosis.)
   function handleMapSelect(site: InjectionSite) {
-    setSelectedSite(site)
-    dispatch({ t: 'setDraftDose', draft: { site } })
-    const pending = todayDoses.find((d) => !d.done && !d.skipped)
-    if (pending) {
-      dispatch({ t: 'setActiveProduct', product: pending.product })
-      dispatch({ t: 'sheet', sheet: 'registrar', arg: pending.product })
-    } else {
-      dispatch({ t: 'sheet', sheet: 'registrar' })
-    }
+    setSelectedSite((prev) => (prev === site ? null : site))
   }
 
   return (
