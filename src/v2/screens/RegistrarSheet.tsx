@@ -390,6 +390,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
   const [effect, setEffect] = useState<string | undefined>(undefined)
   const [customEffect, setCustomEffect] = useState('')
   const [showCustomEffect, setShowCustomEffect] = useState(false)
+  const [effectIntensity, setEffectIntensity] = useState(60) // intensidad 0–100 del efecto (solo se guarda si hay efecto)
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false)
@@ -439,13 +440,14 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       site: site ?? undefined,
       note: noteStr,
       effect: effectStr,
+      effectIntensity: effectStr ? effectIntensity : undefined,
     })
 
     try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
     onClose()
   }, [
     saving, product, dose, unit, site, finalTs,
-    vialMg, aguaMl, nota, effect, customEffect, showCustomEffect,
+    vialMg, aguaMl, nota, effect, customEffect, showCustomEffect, effectIntensity,
     state.protocols, dispatch, onClose,
   ])
 
@@ -467,6 +469,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       setEffect(undefined)
       setCustomEffect('')
       setShowCustomEffect(false)
+      setEffectIntensity(60)
       setUseNow(true)
       setWheelTs(null)
       setShowTimePicker(false)
@@ -928,6 +931,23 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               </motion.div>
             )}
           </AnimatePresence>
+          {/* Slider de intensidad 0–100 — compacto, solo cuando ya elegiste un efecto */}
+          {(effect || (showCustomEffect && customEffect.trim())) && (
+            <div className="flex items-center gap-3 pt-0.5">
+              <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={effectIntensity}
+                onChange={(e) => setEffectIntensity(Number(e.target.value))}
+                aria-label="Intensidad del efecto, de 0 a 100"
+                className="h-1.5 flex-1 cursor-pointer accent-teal"
+              />
+              <span className="w-7 text-right font-mono text-[12px] font-semibold tabular-nums text-teal">{effectIntensity}</span>
+            </div>
+          )}
         </div>
 
         {/* ── #14: Advertencia permanente de embarazo/lactancia (no colapsable, siempre visible) ── */}

@@ -127,6 +127,7 @@ export interface LogItem {
   site?: InjectionSite // sitio de inyección elegido por el usuario (loop 140)
   note?: string    // nota libre del usuario (≤120 chars) — dato observacional, no consejo médico (loop 138)
   effect?: string  // efecto/síntoma auto-observado post-dosis (dato personal del usuario, no claim de eficacia) (loop 139)
+  effectIntensity?: number  // intensidad 0–100 del efecto auto-observado (opcional; se muestra en Diario / última toma)
   value?: number | null        // valor numérico asociado (p.ej. duración de ayuno en horas, score adverso)
   unit?: string | null         // unidad del value (p.ej. 'h', 'mg')
   severity?: AdverseSeverity   // severidad de efecto adverso (solo type='efecto-adverso')

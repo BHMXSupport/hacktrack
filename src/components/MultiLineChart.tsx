@@ -28,7 +28,7 @@ interface Props {
   xTicks?: { t: number; label: string }[]
   refLines?: { y: number; label: string; tooltip?: string }[] // tooltip educativo al tap (item 380)
   mode?: 'percent' | 'absolute'
-  verticalRefs?: { t: number; label: string; color?: string; tooltip?: string }[]
+  verticalRefs?: { t: number; label: string; color?: string; tooltip?: string; dot?: boolean }[]
   secondarySeries?: { points: [number, number][]; color?: string; label?: string }
   showSecondaryAxis?: boolean
   domainY2?: [number, number]
@@ -281,17 +281,38 @@ export function MultiLineChart({
         if (vx < PAD.l || vx > W - PAD.r) return null
         const col = r.color ?? 'var(--brand-500)'
         // truncar etiqueta para que no se salga por la derecha; anclar a la izquierda si
-        // la línea cae en la mitad derecha del plot. Bajar la y para no chocar con "ahora".
-        const labelTxt = r.label.length > 14 ? r.label.slice(0, 13) + '…' : r.label
+        // la línea cae en la mitad derecha del plot.
+        const max = r.dot ? 22 : 14
+        const labelTxt = r.label.length > max ? r.label.slice(0, max - 1) + '…' : r.label
         const anchorEnd = vx > PAD.l + plotW / 2
+        // Las líneas de "próxima dosis" (dot) se ven más bonitas: trazo un poco más marcado, un
+        // punto en la cima (color del péptido) y la etiqueta con fondo sutil para legibilidad.
+        const labelW = labelTxt.length * 4.9 + 8
         return (
-          <g key={`vref-${r.t}`}>
-            <line x1={vx} y1={PAD.t} x2={vx} y2={PAD.t + plotH} stroke={col} strokeWidth={1} strokeDasharray="3 4" opacity={0.8} />
+          <g key={`vref-${r.t}-${r.label}`}>
+            <line
+              x1={vx} y1={PAD.t} x2={vx} y2={PAD.t + plotH}
+              stroke={col} strokeWidth={r.dot ? 1.4 : 1}
+              strokeDasharray={r.dot ? '1 4' : '3 4'} strokeLinecap="round"
+              opacity={r.dot ? 0.9 : 0.8}
+            />
+            {r.dot && (
+              <circle cx={vx} cy={PAD.t + 3.5} r={3} fill={col} stroke="var(--card)" strokeWidth={1.2} />
+            )}
+            {r.dot && (
+              <rect
+                x={anchorEnd ? vx - 4 - labelW : vx + 4}
+                y={PAD.t + 8}
+                width={labelW} height={12} rx={6}
+                fill="var(--card)" opacity={0.82}
+              />
+            )}
             <text
-              x={anchorEnd ? vx - 3 : vx + 3}
-              y={PAD.t + 20}
+              x={anchorEnd ? vx - (r.dot ? 8 : 3) : vx + (r.dot ? 8 : 3)}
+              y={r.dot ? PAD.t + 17 : PAD.t + 20}
               textAnchor={anchorEnd ? 'end' : 'start'}
-              fontSize={8} fontFamily="JetBrains Mono, monospace" fill={col}
+              fontSize={r.dot ? 8.5 : 8} fontWeight={r.dot ? 600 : 400}
+              fontFamily="JetBrains Mono, monospace" fill={col}
             >
               {labelTxt}
             </text>

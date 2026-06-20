@@ -165,8 +165,8 @@ export type Action =
   | { t: 'setKcalGoal'; value: number | null }                        // meta calórica diaria
   | { t: 'deleteProduct'; product: string }                           // quitar producto (conserva registros pasados)
   | { t: 'importProducts'; names: string[] }
-  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; note?: string; effect?: string; keepSheet?: boolean } // P0-1 + loop 140 + loop 138/139
-  | { t: 'setLogEffect'; id: string; effect: string } // loop 139: guarda efecto post-dosis en un item ya registrado
+  | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; note?: string; effect?: string; effectIntensity?: number; keepSheet?: boolean } // P0-1 + loop 140 + loop 138/139
+  | { t: 'setLogEffect'; id: string; effect: string; effectIntensity?: number } // loop 139: guarda efecto post-dosis en un item ya registrado
   | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'logSkip'; product: string; ts?: number }                    // dosis intencional saltada (no penaliza adherencia)
@@ -688,6 +688,7 @@ export function reducer(s: AppState, a: Action): AppState {
         site: a.site,     // sitio de inyección (loop 140); undefined si el usuario lo omitió
         ...(rawNote ? { note: rawNote } : {}),        // loop 138: nota opcional
         ...(a.effect ? { effect: a.effect } : {}),    // loop 139: efecto opcional
+        ...(a.effect && a.effectIntensity != null ? { effectIntensity: a.effectIntensity } : {}), // intensidad 0–100
       }
       // Stock del vial:
       //  - Si llega una reconstitución nueva (vialMg = mg totales del vial) y aún NO hay stock,
@@ -741,7 +742,7 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'setLogEffect': {
       const log = s.log.map((g) => ({
         ...g,
-        items: g.items.map((it) => (it.id === a.id ? { ...it, effect: a.effect } : it)),
+        items: g.items.map((it) => (it.id === a.id ? { ...it, effect: a.effect, ...(a.effectIntensity != null ? { effectIntensity: a.effectIntensity } : {}) } : it)),
       }))
       return { ...s, log }
     }

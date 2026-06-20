@@ -218,13 +218,10 @@ export function Vida() {
   const reduce = useReducedMotion()
 
   const [now, setNow] = useState(() => Date.now())
-  const [win, setWin] = useState<Win>('7d')
+  const [win, setWin] = useState<Win>('24h') // default: 24h (−12h/+12h centrado en ahora), no 7d
   const [mode, setMode] = useState<Mode>('percent')
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [showNextDose, setShowNextDose] = useState(true)
-  const [showWeight, setShowWeight] = useState(false)
-  const [kpiOverlay, setKpiOverlay] = useState<string | null>(null)
-  const [kpiTipIdx, setKpiTipIdx] = useState<number | null>(null)
   const [showNotes, setShowNotes] = useState(false)
   const chartRef = useRef<HTMLDivElement>(null)
 
@@ -260,29 +257,39 @@ export function Vida() {
     return upcoming[0] ?? null
   }, [state, now])
 
-  const hasGlp1 = useMemo(
-    () =>
-      data.series.some(
-        (s) => PEPTIDES[s.product]?.cat === 'Metabolismo' && (HALF_LIFE_H[s.product] ?? 0) >= 24,
-      ),
-    [data.series],
-  )
-
-  const weightOverlay = useMemo(() => {
-    if (!hasGlp1 || !showWeight) return null
-    const pts = (state.history['Peso'] ?? [])
-      .filter((p) => p.ts >= data.domainX[0] && p.ts <= data.domainX[1])
-      .sort((a, b) => a.ts - b.ts)
-      .map((p) => [p.ts, p.value] as [number, number])
-    if (pts.length < 2) return null
-    const vals = pts.map((p) => p[1])
-    return {
-      points: pts,
-      domainY2: [Math.min(...vals) - 0.5, Math.max(...vals) + 0.5] as [number, number],
-      color: 'var(--muted-foreground)',
-      label: 'kg',
+  // Líneas verticales de "próxima dosis" POR PÉPTIDO (color por categoría). Si ≥2 péptidos caen en
+  // la MISMA hora, se colapsan en una sola línea "stack (N péptidos) · hora". Solo dentro de la ventana.
+  const nextDoseRefs = useMemo(() => {
+    if (!showNextDose) return []
+    const [x0, x1] = data.domainX
+    const ups = upcomingDoses(state, new Date(now), 60, 14)
+    const firstByProduct = new Map<string, number>() // primera próxima dosis por producto
+    for (const u of ups) {
+      const ts = u.date.getTime()
+      if (ts <= now || ts < x0 || ts > x1) continue
+      if (!firstByProduct.has(u.product)) firstByProduct.set(u.product, ts)
     }
-  }, [hasGlp1, showWeight, state.history, data.domainX])
+    const byHour = new Map<number, { product: string; ts: number }[]>() // agrupar por hora
+    for (const [product, ts] of firstByProduct) {
+      const bucket = Math.floor(ts / 3_600_000)
+      const arr = byHour.get(bucket) ?? []
+      arr.push({ product, ts })
+      byHour.set(bucket, arr)
+    }
+    const refs: { t: number; label: string; color?: string; dot?: boolean }[] = []
+    for (const group of byHour.values()) {
+      if (group.length >= 2) {
+        const ts = Math.min(...group.map((g) => g.ts))
+        const hora = new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
+        refs.push({ t: ts, label: `stack (${group.length} péptidos) · ${hora}`, color: 'var(--teal-bright)', dot: true })
+      } else {
+        const { product, ts } = group[0]
+        const color = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--teal)'
+        refs.push({ t: ts, label: product, color, dot: true })
+      }
+    }
+    return refs
+  }, [showNextDose, state, now, data.domainX])
 
   const toggle = (product: string) =>
     setHidden((prev) => {
@@ -394,25 +401,6 @@ export function Vida() {
     const lastDoseTs = Math.max(...doses.map((d) => d.ts))
     return lastDoseTs + washoutMs(HALF_LIFE_H[s.product] ?? 0)
   }, [data.series, hidden, byProduct])
-
-  // KPI overlay
-  const kpiHistoryOptions = useMemo(
-    () =>
-      Object.keys(state.history).filter(
-        (k) =>
-          k !== 'Altura' &&
-          (state.history[k] ?? []).some(
-            (s) => s.ts >= data.domainX[0] && s.ts <= data.domainX[1],
-          ),
-      ),
-    [state.history, data.domainX],
-  )
-  const kpiPoints = useMemo(() => {
-    if (!kpiOverlay) return []
-    return (state.history[kpiOverlay] ?? [])
-      .filter((s) => s.ts >= data.domainX[0] && s.ts <= data.domainX[1])
-      .sort((a, b) => a.ts - b.ts)
-  }, [kpiOverlay, state.history, data.domainX])
 
   // Tabla sr-only para a11y
   const srTableRows = useMemo(
@@ -647,34 +635,12 @@ export function Vida() {
               />
             </div>
 
-            {/* Opciones secundarias */}
-            {(nextDose || hasGlp1 || kpiHistoryOptions.length > 0) && (
+            {/* Opciones secundarias — solo "Próxima dosis" (las líneas verticales por péptido) */}
+            {nextDose && (
               <div className="mb-3 flex flex-wrap items-center gap-1.5">
-                {nextDose && (
-                  <Chip active={showNextDose} onClick={() => setShowNextDose((v) => !v)}>
-                    Próxima dosis
-                  </Chip>
-                )}
-                {hasGlp1 && (
-                  <Chip active={showWeight} onClick={() => setShowWeight((v) => !v)}>
-                    Mostrar peso
-                  </Chip>
-                )}
-                {/* #85: feedback cuando se activa "peso" pero no hay suficientes pesajes para la overlay */}
-                {hasGlp1 && showWeight && !weightOverlay && (
-                  <span className="self-center text-[11px] text-muted-foreground">
-                    Registra al menos 2 pesajes en este período
-                  </span>
-                )}
-                {kpiHistoryOptions.slice(0, 4).map((k) => (
-                  <Chip
-                    key={k}
-                    active={kpiOverlay === k}
-                    onClick={() => setKpiOverlay((prev) => (prev === k ? null : k))}
-                  >
-                    {k}
-                  </Chip>
-                ))}
+                <Chip active={showNextDose} onClick={() => setShowNextDose((v) => !v)}>
+                  Próxima dosis
+                </Chip>
               </div>
             )}
 
@@ -730,80 +696,12 @@ export function Vida() {
                       : []
                   }
                   verticalRefs={[
-                    ...(showNextDose &&
-                    nextDose &&
-                    nextDose.date.getTime() >= data.domainX[0] &&
-                    nextDose.date.getTime() <= data.domainX[1]
-                      ? [
-                          {
-                            t: nextDose.date.getTime(),
-                            label: `próxima · ${nextDose.product}`,
-                            color: 'var(--teal)',
-                          },
-                        ]
-                      : []),
+                    ...nextDoseRefs,
                     ...threshold25Refs,
                   ]}
-                  secondarySeries={weightOverlay ?? undefined}
-                  showSecondaryAxis={!!weightOverlay}
-                  domainY2={weightOverlay?.domainY2}
                   shadeFrom={washoutShadingTs}
                 />
 
-                {/* KPI markers overlay */}
-                {kpiOverlay && kpiPoints.length > 0 && (
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0"
-                  >
-                    {kpiPoints.map((pt, i) => {
-                      const [xMin, xMax] = data.domainX
-                      const xPct =
-                        xMax > xMin ? ((pt.ts - xMin) / (xMax - xMin)) * 100 : 50
-                      if (xPct < 0 || xPct > 100) return null
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          aria-label={`${kpiOverlay}: ${pt.value}`}
-                          onClick={() => setKpiTipIdx((prev) => (prev === i ? null : i))}
-                          className="pointer-events-auto absolute flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring rounded"
-                          style={{
-                            left: `${xPct}%`,
-                            top: '10%',
-                            transform: 'translateX(-50%) translateY(-50%)',
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            /* 44×44 invisible touch area */
-                            width: 44,
-                            height: 44,
-                            zIndex: kpiTipIdx === i ? 12 : 4,
-                          }}
-                        >
-                          <svg
-                            width="11"
-                            height="9"
-                            viewBox="0 0 12 10"
-                            fill="var(--ok)"
-                            opacity={0.7}
-                            style={{ display: 'block', flexShrink: 0 }}
-                          >
-                            <polygon points="6,0 12,10 0,10" />
-                          </svg>
-                          {kpiTipIdx === i && (
-                            <div
-                              className="pointer-events-none absolute bottom-[120%] left-1/2 -translate-x-1/2 rounded-md bg-card px-2 py-1 text-[11px] font-semibold text-foreground shadow"
-                              style={{ whiteSpace: 'nowrap' }}
-                            >
-                              {kpiOverlay}: {pt.value}
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* Tabla sr-only para lectores de pantalla */}
@@ -867,13 +765,6 @@ export function Vida() {
             ))}
           </div>
 
-          {showWeight && hasGlp1 && (
-            <div className="px-4 pb-3">
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Observacional — no implica causalidad entre la dosis y el cambio de peso.
-              </p>
-            </div>
-          )}
         </Glass>
       </motion.div>
 

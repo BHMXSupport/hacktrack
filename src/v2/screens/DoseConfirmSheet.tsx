@@ -222,6 +222,7 @@ export function DoseConfirmSheet({
   const [effect, setEffect] = useState<string | undefined>(undefined)
   const [customEffect, setCustomEffect] = useState('')
   const [showCustomEffect, setShowCustomEffect] = useState(false)
+  const [effectIntensity, setEffectIntensity] = useState(60) // intensidad 0–100 del efecto
 
   // Reset al cerrar
   useEffect(() => {
@@ -234,6 +235,7 @@ export function DoseConfirmSheet({
       setEffect(undefined)
       setCustomEffect('')
       setShowCustomEffect(false)
+      setEffectIntensity(60)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -257,7 +259,7 @@ export function DoseConfirmSheet({
     setStep('effect')
   }
 
-  function commitEffect(eff: string) {
+  function commitEffect(eff: string, intensity?: number) {
     // #31: buscar la dosis con |ts - chosenTs| mínimo para este producto;
     // si chosenTs es null, tomar la más reciente. Así evitamos taggear la primera dosis del historial.
     let itemId: string | undefined
@@ -272,7 +274,7 @@ export function DoseConfirmSheet({
         }
       }
     }
-    if (itemId) dispatch({ t: 'setLogEffect', id: itemId, effect: eff })
+    if (itemId) dispatch({ t: 'setLogEffect', id: itemId, effect: eff, effectIntensity: intensity })
     onClose()
   }
 
@@ -425,8 +427,8 @@ export function DoseConfirmSheet({
                   key={opt}
                   active={effect === opt}
                   onClick={() => {
-                    setEffect(opt)
-                    commitEffect(opt)
+                    setEffect(effect === opt ? undefined : opt)
+                    setShowCustomEffect(false)
                   }}
                 >
                   {opt}
@@ -434,11 +436,34 @@ export function DoseConfirmSheet({
               ))}
               <Chip
                 active={showCustomEffect}
-                onClick={() => setShowCustomEffect((v) => !v)}
+                onClick={() => { setShowCustomEffect((v) => !v); setEffect(undefined) }}
               >
                 Otro
               </Chip>
             </div>
+
+            {/* Slider de intensidad + Guardar — al elegir un efecto de la lista */}
+            {effect && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={effectIntensity}
+                    onChange={(e) => setEffectIntensity(Number(e.target.value))}
+                    aria-label="Intensidad del efecto, de 0 a 100"
+                    className="h-1.5 flex-1 cursor-pointer accent-teal"
+                  />
+                  <span className="w-7 text-right font-mono text-[12px] font-semibold tabular-nums text-teal">{effectIntensity}</span>
+                </div>
+                <Button variant="primary" size="full" onClick={() => commitEffect(effect, effectIntensity)}>
+                  Guardar
+                </Button>
+              </div>
+            )}
 
             <AnimatePresence initial={false}>
               {showCustomEffect && (
@@ -450,7 +475,7 @@ export function DoseConfirmSheet({
                   transition={{ duration: 0.15 }}
                   style={{ overflow: 'hidden' }}
                 >
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2">
                     <input
                       type="text"
                       maxLength={80}
@@ -459,13 +484,29 @@ export function DoseConfirmSheet({
                       placeholder="Describe cómo te sientes…"
                       aria-label="Efecto personalizado"
                       autoFocus
-                      className="h-11 flex-1 rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                      className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
                     />
+                    {customEffect.trim() && (
+                      <div className="flex items-center gap-3">
+                        <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={5}
+                          value={effectIntensity}
+                          onChange={(e) => setEffectIntensity(Number(e.target.value))}
+                          aria-label="Intensidad del efecto, de 0 a 100"
+                          className="h-1.5 flex-1 cursor-pointer accent-teal"
+                        />
+                        <span className="w-7 text-right font-mono text-[12px] font-semibold tabular-nums text-teal">{effectIntensity}</span>
+                      </div>
+                    )}
                     <Button
                       variant="primary"
-                      size="sm"
+                      size="full"
                       disabled={!customEffect.trim()}
-                      onClick={() => { if (customEffect.trim()) commitEffect(customEffect.trim()) }}
+                      onClick={() => { if (customEffect.trim()) commitEffect(customEffect.trim(), effectIntensity) }}
                     >
                       Guardar
                     </Button>

@@ -17,11 +17,10 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react'
-import { useApp, isoKey } from '../../lib/store'
+import { useApp, isoKey, adherenceMonth } from '../../lib/store'
 import { startOfDay, dayLabel, cyclePhaseInfo } from '../../lib/cadence'
 import {
   productStreak,
-  weekAdherencePctLast8,
   phaseForDate,
 } from '../../lib/calendar'
 import { presenceNow } from '../../lib/pharma'
@@ -477,10 +476,11 @@ function TimelineRow({
               <p className="text-[11px] text-muted-foreground italic mt-1 leading-snug">"{item.note}"</p>
             )}
 
-            {/* efecto observado (dose) */}
+            {/* efecto observado (dose) + intensidad 0–100 si la registró */}
             {item.type === 'dose' && item.effect && (
               <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-teal/8 border border-teal/18 px-2 py-0.5 text-[10px] font-medium text-teal">
                 {item.effect}
+                {item.effectIntensity != null && <span className="font-mono tabular-nums opacity-80">· {item.effectIntensity}</span>}
               </span>
             )}
 
@@ -762,13 +762,19 @@ export function Diario() {
     return streak
   }, [pf, state])
 
-  // adherencia del período
+  // reloj propio cada 30 s — IGUAL que Inicio — para que el % de adherencia se recalcule en el mismo
+  // instante (si no, cerca de la hora de una toma podían divergir ~medio minuto entre pantallas).
+  const [adhNow, setAdhNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = window.setInterval(() => setAdhNow(Date.now()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
+  // adherencia: MISMA fuente de verdad que Inicio (adherenceMonth → % del mes en curso), para que
+  // el número coincida entre pantallas. Antes Diario promediaba 8 semanas ISO → divergía de Inicio.
   const periodAdherence = useMemo(() => {
-    const weeks = weekAdherencePctLast8(state, new Date(state.todayTs))
-    const valid = weeks.filter((w): w is number => w !== null)
-    if (valid.length === 0) return null
-    return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length)
-  }, [state])
+    const a = adherenceMonth(state, new Date(adhNow))
+    return a ? a.pct : null
+  }, [state, adhNow])
 
   // fase ciclo off para producto filtrado
   const productCycleOff = useMemo(() => {
@@ -1012,7 +1018,7 @@ export function Diario() {
           {periodAdherence !== null && (
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold border ${periodAdherence >= 70 ? 'text-ok bg-ok/10 border-ok/20' : 'text-warn bg-warn/10 border-warn/20'}`}>
               <Check size={12} />
-              {periodAdherence}% adherencia
+              {periodAdherence}% adherencia este mes
             </span>
           )}
         </motion.div>

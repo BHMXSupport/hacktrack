@@ -204,7 +204,10 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
   const byProduct = collectDosesByProduct(s)
 
   const hasAnyDose = byProduct.size > 0
-  const domainX: [number, number] = [now - windowMs, now + windowMs * 0.08]
+  // Ventana CENTRADA en "ahora": windowMs es el ANCHO TOTAL → mitad atrás, mitad adelante.
+  // (24h → −12h/+12h, 72h → −36h/+36h, 7d → −3.5d/+3.5d.) Así se ve el presente al centro: el
+  // pasado reciente y la proyección de decaimiento hacia adelante.
+  const domainX: [number, number] = [now - windowMs / 2, now + windowMs / 2]
   const skipped: string[] = []
   const outOfWindow: { product: string; lastTs: number }[] = [] // #10: registrados, sin presencia en esta ventana
   const rawSeries: { product: string; doses: Dose[]; halfMs: number; halfLifeH: number }[] = []
