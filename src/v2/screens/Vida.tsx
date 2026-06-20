@@ -281,7 +281,7 @@ export function Vida() {
       if (group.length >= 2) {
         const ts = Math.min(...group.map((g) => g.ts))
         const hora = new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
-        refs.push({ t: ts, label: `stack (${group.length} péptidos) · ${hora}`, color: 'var(--teal-bright)', dot: true })
+        refs.push({ t: ts, label: `stack (${group.length}) · ${hora}`, color: 'var(--teal-bright)', dot: true })
       } else {
         const { product, ts } = group[0]
         const color = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--teal)'

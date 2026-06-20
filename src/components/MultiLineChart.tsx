@@ -276,49 +276,71 @@ export function MultiLineChart({
       })}
 
       {/* líneas de referencia VERTICALES (dibujadas antes de las series) */}
-      {verticalRefs.map((r) => {
-        const vx = sx(r.t)
-        if (vx < PAD.l || vx > W - PAD.r) return null
-        const col = r.color ?? 'var(--brand-500)'
-        // truncar etiqueta para que no se salga por la derecha; anclar a la izquierda si
-        // la línea cae en la mitad derecha del plot.
-        const max = r.dot ? 22 : 14
-        const labelTxt = r.label.length > max ? r.label.slice(0, max - 1) + '…' : r.label
-        const anchorEnd = vx > PAD.l + plotW / 2
-        // Las líneas de "próxima dosis" (dot) se ven más bonitas: trazo un poco más marcado, un
-        // punto en la cima (color del péptido) y la etiqueta con fondo sutil para legibilidad.
-        const labelW = labelTxt.length * 4.9 + 8
-        return (
-          <g key={`vref-${r.t}-${r.label}`}>
-            <line
-              x1={vx} y1={PAD.t} x2={vx} y2={PAD.t + plotH}
-              stroke={col} strokeWidth={r.dot ? 1.4 : 1}
-              strokeDasharray={r.dot ? '1 4' : '3 4'} strokeLinecap="round"
-              opacity={r.dot ? 0.9 : 0.8}
-            />
-            {r.dot && (
-              <circle cx={vx} cy={PAD.t + 3.5} r={3} fill={col} stroke="var(--card)" strokeWidth={1.2} />
-            )}
-            {r.dot && (
-              <rect
-                x={anchorEnd ? vx - 4 - labelW : vx + 4}
-                y={PAD.t + 8}
-                width={labelW} height={12} rx={6}
-                fill="var(--card)" opacity={0.82}
+      {(() => {
+        // Anti-overlape de etiquetas: en vez de dibujarlas todas a la misma altura (se encimaban
+        // cuando hay varias tomas próximas en tiempos cercanos), las ESCALONO en hasta 3 filas según
+        // su cercanía en X. La línea + el punto de color siempre se dibujan; solo la etiqueta baja de fila.
+        const ROW_H = 13
+        const ROWS = 4
+        const refs = verticalRefs
+          .map((r) => {
+            const vx = sx(r.t)
+            const max = r.dot ? 22 : 14
+            const labelTxt = r.label.length > max ? r.label.slice(0, max - 1) + '…' : r.label
+            return { r, vx, labelTxt, w: labelTxt.length * 4.9 + 12 }
+          })
+          .filter(({ vx }) => vx >= PAD.l && vx <= W - PAD.r)
+        // asignar filas por orden de X (empacar en la primera fila libre). row = -1 → no cabe en ninguna
+        // fila sin encimarse: se oculta SOLO el texto (la línea + el punto de color siguen visibles).
+        const sorted = [...refs].sort((a, b) => a.vx - b.vx)
+        const rowRight = new Array(ROWS).fill(-Infinity)
+        const rowOf = new Map<typeof refs[number], number>()
+        for (const it of sorted) {
+          let row = -1
+          for (let i = 0; i < ROWS; i++) { if (it.vx >= rowRight[i]) { row = i; break } }
+          if (row >= 0) rowRight[row] = it.vx + it.w
+          rowOf.set(it, row)
+        }
+        return refs.map((item) => {
+          const { r, vx, labelTxt, w } = item
+          const col = r.color ?? 'var(--brand-500)'
+          const anchorEnd = vx > PAD.l + plotW / 2
+          const row = rowOf.get(item) ?? 0
+          const showLabel = row >= 0
+          const yBase = PAD.t + (r.dot ? 8 : 12) + Math.max(0, row) * ROW_H
+          return (
+            <g key={`vref-${r.t}-${r.label}`}>
+              <line
+                x1={vx} y1={PAD.t} x2={vx} y2={PAD.t + plotH}
+                stroke={col} strokeWidth={r.dot ? 1.4 : 1}
+                strokeDasharray={r.dot ? '1 4' : '3 4'} strokeLinecap="round"
+                opacity={r.dot ? 0.9 : 0.8}
               />
-            )}
-            <text
-              x={anchorEnd ? vx - (r.dot ? 8 : 3) : vx + (r.dot ? 8 : 3)}
-              y={r.dot ? PAD.t + 17 : PAD.t + 20}
-              textAnchor={anchorEnd ? 'end' : 'start'}
-              fontSize={r.dot ? 8.5 : 8} fontWeight={r.dot ? 600 : 400}
-              fontFamily="JetBrains Mono, monospace" fill={col}
-            >
-              {labelTxt}
-            </text>
-          </g>
-        )
-      })}
+              {r.dot && (
+                <circle cx={vx} cy={PAD.t + 3.5} r={3} fill={col} stroke="var(--card)" strokeWidth={1.2} />
+              )}
+              {showLabel && r.dot && (
+                <rect
+                  x={anchorEnd ? vx - 4 - w : vx + 4}
+                  y={yBase} width={w} height={12} rx={6}
+                  fill="var(--card)" opacity={0.85}
+                />
+              )}
+              {showLabel && (
+                <text
+                  x={anchorEnd ? vx - (r.dot ? 8 : 3) : vx + (r.dot ? 8 : 3)}
+                  y={yBase + (r.dot ? 9 : 8)}
+                  textAnchor={anchorEnd ? 'end' : 'start'}
+                  fontSize={r.dot ? 8.5 : 8} fontWeight={r.dot ? 600 : 400}
+                  fontFamily="JetBrains Mono, monospace" fill={col}
+                >
+                  {labelTxt}
+                </text>
+              )}
+            </g>
+          )
+        })
+      })()}
 
       {/* etiquetas X */}
       {xTicks.map(({ t, label }, i) => (
