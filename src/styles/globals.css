@@ -49,6 +49,20 @@
     html, body { overflow: hidden; }
   }
 
+  /* PWA INSTALADA (standalone): usar 100vh, que SÍ incluye la zona del home-indicator/barra de gestos.
+     100dvh la EXCLUYE → por eso quedaba la franja negra abajo (mismo fix que la app vieja). Así el frame
+     y su fondo llegan hasta el borde físico inferior. */
+  @media all and (display-mode: standalone) {
+    html, body, #root { height: 100vh; }
+    .app-frame {
+      height: 100vh !important;
+      max-height: none !important;
+      max-width: none !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+    }
+  }
+
   /* Los contenedores con scroll no encadenan su overscroll al padre (no arrastran ni rebotan la página). */
   .overflow-y-auto, .overflow-auto, .overflow-y-scroll, .overflow-x-auto {
     overscroll-behavior: contain;
