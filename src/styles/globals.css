@@ -138,10 +138,12 @@
      el blur en cada frame → la subida se ve "rara/mecánica". Durante el movimiento usamos esta versión
      opaca (sin backdrop-filter, GPU barata); al asentarse, el sheet vuelve a .glass. Mismo aspecto. */
   .sheet-solid {
-    background: rgba(20, 27, 36, 0.97);
+    /* Semi-transparente (cercana a .glass .72), NO opaca: durante el slide un 0.97 se veía como un
+       bloque/"tile" negro. Sigue SIN backdrop-filter → barata en GPU (no reintroduce el jank del blur). */
+    background: rgba(23, 30, 39, 0.78);
     border: 1px solid rgba(255,255,255,0.08);
     border-top-color: rgba(255,255,255,0.14);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 40px rgba(0,0,0,.55), 0 0 0 .5px rgba(95,201,184,.10);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 40px rgba(0,0,0,.45), 0 0 0 .5px rgba(95,201,184,.10);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

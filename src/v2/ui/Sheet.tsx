@@ -27,12 +27,17 @@ export function Sheet({
   // un gap arriba) PERO sin inflar: así casi todo el recorrido es VISIBLE (no se queda fuera de pantalla).
   const [hideY] = useState(() => (typeof window !== 'undefined' ? Math.ceil(Math.max(window.innerHeight, 920)) + 24 : 1000))
 
-  // `moving` = true mientras el panel se desliza (entrada/salida). CAUSA RAÍZ del "sube raro"
-  // (confirmada por red-team): animar el transform de un elemento con backdrop-filter: blur(20px)
-  // ENCIMA del video ambiental obliga a iOS a re-rasterizar el blur en cada frame → stutter que ningún
-  // cambio de curva arregla. Solución: durante el movimiento, el panel usa una variante SÓLIDA sin blur
-  // (.sheet-solid) y el overlay tampoco desenfoca; al asentarse vuelve a .glass. GPU barata en el slide.
-  const [moving, setMoving] = useState(false)
+  // `settled` = el sheet llegó a reposo (abierto y quieto). `moving = !settled` = entrando, saliendo o aún sin asentar.
+  // Durante `moving`: el panel usa .sheet-solid SIN blur (evita el jank de animar backdrop-filter sobre el video)
+  // Y tanto el panel como el backdrop son pointer-events-none. CLAVE anti dead-click: en la SALIDA `settled`
+  // NUNCA vuelve a true (onAnimationComplete solo asienta si sigue abierto), así que si AnimatePresence dejara
+  // un nodo huérfano, queda pointer-events-none → NO puede tragar clics de la página. Solo al asentar (abierto)
+  // el backdrop recupera pointer-events-auto (para cerrar tocando afuera) y el panel vuelve a .glass.
+  const [settled, setSettled] = useState(false)
+  const moving = !settled
+  const openRef = useRef(open)
+  openRef.current = open
+  useEffect(() => { if (!open) setSettled(false) }, [open])
 
   // Escape para cerrar + foco inicial + focus-trap (Tab cicla dentro del panel).
   useEffect(() => {
@@ -75,12 +80,18 @@ export function Sheet({
           exit={{ opacity: 1 }}
         >
           <motion.div
-            className="pointer-events-auto absolute inset-0 bg-black/55"
-            // Sin blur mientras el panel se mueve (mismo motivo que el panel); el blur entra al asentarse.
-            style={moving ? undefined : { backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+            // pointer-events solo cuando está asentado (abierto+quieto): en movimiento/salida = none → un
+            // overlay huérfano no bloquea clics. Sin blur durante el movimiento; menos oscuro para no "tile negro".
+            className={`${moving ? 'pointer-events-none' : 'pointer-events-auto'} absolute inset-0`}
+            style={{
+              backgroundColor: moving ? 'rgba(0,0,0,0.34)' : 'rgba(0,0,0,0.55)',
+              ...(moving ? {} : { backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }),
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            // pointerEvents:'none' en EXIT: framer lo fija en el nodo saliente; aunque AnimatePresence
+            // dejara un huérfano, queda con pointer-events:none (inline gana a la clase) → no traga clics.
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             onClick={onClose}
           />
           {/* Panel: SÓLIDO (.sheet-solid, sin backdrop-filter) mientras se mueve; .glass al asentarse.
@@ -92,13 +103,15 @@ export function Sheet({
             aria-modal="true"
             aria-label={title}
             tabIndex={-1}
-            className={`${moving ? 'sheet-solid' : 'glass'} pointer-events-auto relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform`}
+            className={`${moving ? 'sheet-solid pointer-events-none' : 'glass pointer-events-auto'} relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform`}
             initial={reduce ? { opacity: 0 } : { y: hideY }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: hideY, transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
+            // pointerEvents:'none' en EXIT → el panel saliente (aunque quede huérfano) no bloquea clics.
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: hideY, pointerEvents: 'none', transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
             transition={reduce ? { duration: 0.15 } : { type: 'spring', bounce: 0, duration: 0.45 }}
-            onAnimationStart={() => setMoving(true)}
-            onAnimationComplete={() => setMoving(false)}
+            onAnimationStart={() => setSettled(false)}
+            // Solo asienta si SIGUE abierto: en la salida NO re-activa pointer-events (anti dead-click).
+            onAnimationComplete={() => { if (openRef.current) setSettled(true) }}
           >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
             <div className="mb-4 flex items-center justify-between">
