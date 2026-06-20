@@ -12,6 +12,7 @@ import {
   proximasCadence,
   cadenceLabel,
   presetCad,
+  startOfDay,
 } from '../../lib/cadence'
 import type { UserCadence } from '../../lib/types'
 import { Sheet } from '../ui/Sheet'
@@ -49,7 +50,7 @@ function avgDoseForPhase(
   endDate: number | null,
 ): number | null {
   if (totalPhases <= 0) return null
-  const end = endDate ?? Date.now()
+  const end = endDate ?? startOfDay(new Date()).getTime()
   const span = end - startDate
   const phaseLen = span / totalPhases
   const phaseStart = startDate + phaseIdx * phaseLen
@@ -140,7 +141,11 @@ export function ProtocoloEditSheet({
 
   // Estado derivado de p — se reinicializa cuando cambia el producto o se abre el sheet
   const defaultCad = p?.cadence ?? (entry ? presetCad(entry) : presetCad())
-  const isFreshCadence = !p?.cadence  // M1: sin cadencia confirmada → es sugerencia
+  // #35: cadencia fresca si el protocolo no tiene cadencia guardada previamente o aún no se ha confirmado en esta sesión
+  // Usamos (p as any).cadenceConfirmed para persistencia sin tocar tipos globales
+  const [isFreshCadence, setIsFreshCadence] = useState(
+    !(p as { cadenceConfirmed?: boolean } | null)?.cadenceConfirmed,
+  )
 
   const [startStr, setStartStr] = useState(toInputDate(p?.startDate ?? state.todayTs))
   const [endStr, setEndStr] = useState(p?.endDate ? toInputDate(p.endDate) : '')
@@ -151,9 +156,8 @@ export function ProtocoloEditSheet({
     (p?.phaseDoses ?? []).map((d) => (d == null ? '' : String(d))),
   )
   const [reminderTime, setReminderTime] = useState(p?.reminderTime ?? '08:00')
-  const [totalMgStr, setTotalMgStr] = useState(
-    p?.vialStock ? String(p.vialStock.totalMg) : '',
-  )
+  // #36: siempre vacío — solo despachar setVialStock si el usuario lo rellena explícitamente
+  const [totalMgStr, setTotalMgStr] = useState('')
   const [purchaseMgStr, setPurchaseMgStr] = useState('')
   const [purchaseCostStr, setPurchaseCostStr] = useState('')
   const [showHistory, setShowHistory] = useState(false)
@@ -168,10 +172,13 @@ export function ProtocoloEditSheet({
     setProgN(p.progN ?? (entry?.phases ?? 2))
     setPhaseDoses((p.phaseDoses ?? []).map((d) => (d == null ? '' : String(d))))
     setReminderTime(p.reminderTime ?? '08:00')
-    setTotalMgStr(p.vialStock ? String(p.vialStock.totalMg) : '')
+    // #36: inicializar siempre vacío para no re-disparar setVialStock al guardar sin cambios
+    setTotalMgStr('')
     setPurchaseMgStr('')
     setPurchaseCostStr('')
     setShowHistory(false)
+    // #35: re-sincronizar estado fresco al cambiar de producto
+    setIsFreshCadence(!(p as { cadenceConfirmed?: boolean })?.cadenceConfirmed)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editProduct])
 
@@ -231,6 +238,8 @@ export function ProtocoloEditSheet({
 
   // Historial reciente
   const historial = lastDoses(state.log, p.product)
+  // #38: unidad derivada de las últimas dosis registradas (no hardcoded 'mg')
+  const doseUnit = historial[0]?.unit ?? 'mg'
 
   // Etiqueta legible de la cadencia en edición (para el chip de preview)
   const cadPreviewLabel = cadenceLabel(cad)
@@ -258,20 +267,25 @@ export function ProtocoloEditSheet({
     dispatch({
       t: 'updateProtocolFor',
       product: p.product,
+      // #35: cadenceConfirmed persiste en el objeto del protocolo (campo extra tolerado por JS en runtime)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       patch: {
         cadence: cad,
+        cadenceConfirmed: true,
         progOn,
         progN,
         phaseDoses: progOn ? doses : undefined,
         startDate: sd,
         endDate: ed,
         reminderTime,
-      },
+      } as any,
     })
+    // #35: suprimir banner en la sesión actual
+    setIsFreshCadence(false)
 
-    // Stock de vial
+    // #36: solo despachar setVialStock si el usuario rellenó el campo explícitamente
     const totalMg = parseFloat(totalMgStr)
-    if (!isNaN(totalMg) && totalMg > 0) {
+    if (totalMgStr.trim() !== '' && !isNaN(totalMg) && totalMg > 0) {
       dispatch({ t: 'setVialStock', product: p.product, totalMg })
     }
 
@@ -341,14 +355,22 @@ export function ProtocoloEditSheet({
             )}
           </p>
           {/* Scroll horizontal si caben todos los modos en pantalla angosta */}
-          <div className="overflow-x-auto pb-1">
-            <div className="min-w-[440px]">
-              <SegmentedTabs<EditableMode>
-                options={MODE_OPTIONS}
-                value={mode}
-                onChange={setMode}
-              />
+          {/* #40: contenedor relativo con fade lateral para insinuar más contenido en iPhone ≤390px */}
+          <div className="relative">
+            <div className="overflow-x-auto pb-1">
+              <div className="min-w-[440px]">
+                <SegmentedTabs<EditableMode>
+                  options={MODE_OPTIONS}
+                  value={mode}
+                  onChange={setMode}
+                />
+              </div>
             </div>
+            {/* Gradiente derecho: insinúa scroll horizontal sin romper funcionalidad */}
+            <div
+              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-background"
+              aria-hidden
+            />
           </div>
         </section>
 
@@ -697,14 +719,15 @@ export function ProtocoloEditSheet({
                           onChange={(e) => setPhaseDose(i, e.target.value)}
                           className="h-11 flex-1 rounded-xl border border-white/12 bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
                         />
-                        <span className="shrink-0 text-[12px] text-muted-foreground">mg</span>
+                        {/* #38: unidad dinámica derivada de las dosis del log */}
+                        <span className="shrink-0 text-[12px] text-muted-foreground">{doseUnit}</span>
                       </div>
                       {/* item R14: promedio real vs planeado */}
                       {avg != null && (
                         <div className="ml-[68px] flex items-center gap-2">
                           <span className="text-[11px] text-muted-foreground">
                             Promedio real:{' '}
-                            <strong className="text-foreground">{avg.toFixed(2)} mg</strong>
+                            <strong className="text-foreground">{avg.toFixed(2)} {doseUnit}</strong>
                           </span>
                           {!isNaN(planned) && planned > 0 && (
                             <span

@@ -79,7 +79,7 @@ export function ProtocolSetup() {
         >
           <ChevronLeft size={22} />
         </button>
-        <div className="flex-1"><div className="h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full w-4/5 rounded-full bg-teal" /></div></div>
+        <div className="flex-1"><div className="h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full w-[83%] rounded-full bg-teal" /></div></div>
         <div className="w-11" />
       </header>
 

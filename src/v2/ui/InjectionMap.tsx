@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { useApp, SITE_LABEL, injectionZoneRecency } from '../../lib/store'
+import { useApp, SITE_LABEL, injectionZoneRecency, nextInjectionSite } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
 import type { ZoneRecency } from '../../lib/store'
 import bodySrc from '../../assets/rebuild/injection-body.webp'
@@ -50,8 +50,8 @@ const ZONES: { site: InjectionSite; x: number; y: number }[] = [
   { site: 'abdomen-izq', x: 28, y: 46 },
   { site: 'muslo-der', x: 18, y: 66 },
   { site: 'muslo-izq', x: 32, y: 66 },
-  { site: 'gluteo-izq', x: 71, y: 50 },
-  { site: 'gluteo-der', x: 79, y: 50 },
+  { site: 'gluteo-izq', x: 69, y: 50 },
+  { site: 'gluteo-der', x: 81, y: 50 },
 ]
 
 function relLabel(ts: number | null): string {
@@ -89,7 +89,7 @@ function Zone({
       aria-label={`${SITE_LABEL[site]}: ${RECENCY_LABEL[recency]}`}
       aria-pressed={isSelected}
       onClick={onSelect}
-      className="absolute grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="absolute grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       style={{ left: `${x}%`, top: `${y}%` }}
     >
       {/* halo de zona sugerida */}
@@ -140,14 +140,17 @@ export function InjectionMap({
   const reduce = !!useReducedMotion()
   const recencyMap = useMemo(() => injectionZoneRecency(state), [state])
 
+  // #19: seguir la ROTACIÓN real del store (siguiente sitio tras el ÚLTIMO usado), no el primer
+  // sitio "sin uso" en orden de array (que siempre devolvía abdomen-izq).
   const suggested = useMemo<InjectionSite | null>(() => {
-    const ORDER: ZoneRecency[] = ['none', 'ok', 'recent', 'fresh']
-    const all: InjectionSite[] = ['abdomen-izq', 'abdomen-der', 'muslo-izq', 'muslo-der', 'gluteo-izq', 'gluteo-der']
-    for (const level of ORDER) {
-      const site = all.find((s) => recencyMap[s]?.recency === level)
-      if (site) return site
+    const sites = Object.keys(recencyMap) as InjectionSite[]
+    let lastSite: InjectionSite | null = null
+    let lastTs = -Infinity
+    for (const s of sites) {
+      const ts = recencyMap[s]?.lastTs
+      if (ts != null && ts > lastTs) { lastTs = ts; lastSite = s }
     }
-    return null
+    return nextInjectionSite(lastSite ?? undefined)
   }, [recencyMap])
 
   const detail = useMemo(() => {

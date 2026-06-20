@@ -672,7 +672,6 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                 ref={avatarFileRef}
                 type="file"
                 accept="image/*"
-                capture="user"
                 className="hidden"
                 aria-hidden
                 onChange={handleAvatarFile}

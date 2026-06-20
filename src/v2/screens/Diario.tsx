@@ -60,21 +60,27 @@ function getISOWeekKey(dateKey: string): string {
 // ── CSV export ───────────────────────────────────────────────────────────────
 
 function buildCsv(items: LogItem[]): string {
-  const rows: string[][] = [['Fecha', 'Hora', 'Tipo', 'Nombre', 'Valor', 'Producto', 'Nota', 'Efecto']]
+  // BOM UTF-8 para que Excel / Sheets abran el archivo correctamente (#49)
+  const BOM = '﻿'
+  const rows: string[][] = [['Fecha', 'Hora', 'HoraISO', 'Timestamp', 'Tipo', 'Nombre', 'Valor', 'Unidad', 'ValorDisplay', 'Producto', 'Nota', 'Efecto']]
   for (const it of items) {
     const d = new Date(it.ts)
     rows.push([
       d.toLocaleDateString('es-MX'),
       it.t,
+      d.toISOString(),
+      String(it.ts),
       it.type,
       it.n,
+      it.value != null ? String(it.value) : '',
+      it.unit ?? '',
       it.u,
       it.product ?? '',
       it.note ?? '',
       it.effect ?? '',
     ])
   }
-  return rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+  return BOM + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -362,7 +368,7 @@ function EditLogSheet({
 
 // ── row de un registro con swipe-to-delete + tap-to-edit (R51 + R52) ─────────
 
-const SWIPE_THRESHOLD = -64
+const SWIPE_THRESHOLD = -120
 
 function TimelineRow({
   item,
@@ -387,14 +393,45 @@ function TimelineRow({
   // R51: edit sheet state
   const [editOpen, setEditOpen] = useState(false)
 
+  // #48: Trash confirmation state — primer tap arma, segundo tap dentro de 3s confirma
+  const [trashArmed, setTrashArmed] = useState(false)
+  const trashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const canEdit = item.type === 'dose' || item.type === 'medida' || item.type === 'skip'
 
   function handleDragEnd(_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
+    // Cancelar si el gesto es más vertical que horizontal (scroll accidental)
+    if (Math.abs(info.offset.y) > Math.abs(info.offset.x)) {
+      setDragX(0)
+      return
+    }
     if (info.offset.x < SWIPE_THRESHOLD) {
       onDelete(item.id)
     }
     setDragX(0)
   }
+
+  function handleTrashClick() {
+    if (trashArmed) {
+      // Segundo tap: confirmar
+      if (trashTimerRef.current) clearTimeout(trashTimerRef.current)
+      setTrashArmed(false)
+      onDelete(item.id)
+    } else {
+      // Primer tap: armar
+      setTrashArmed(true)
+      trashTimerRef.current = setTimeout(() => {
+        setTrashArmed(false)
+        trashTimerRef.current = null
+      }, 3000)
+    }
+  }
+
+  // Limpiar timer al desmontar
+  useEffect(
+    () => () => { if (trashTimerRef.current) clearTimeout(trashTimerRef.current) },
+    [],
+  )
 
   return (
     <>
@@ -484,14 +521,14 @@ function TimelineRow({
                 <Pencil size={13} />
               </button>
             )}
-            {/* botón eliminar (R52) */}
+            {/* botón eliminar (R52) — requiere doble tap para confirmar (#48) */}
             <button
               type="button"
-              aria-label={`Eliminar ${isSkip ? 'dosis saltada de ' + item.u : item.n}`}
-              onClick={() => onDelete(item.id)}
-              className="h-11 w-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-alert transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              aria-label={trashArmed ? `Confirmar eliminación de ${isSkip ? 'dosis saltada' : item.n}` : `Eliminar ${isSkip ? 'dosis saltada de ' + item.u : item.n}`}
+              onClick={handleTrashClick}
+              className={`h-11 w-11 flex items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${trashArmed ? 'text-alert bg-alert/12' : 'text-muted-foreground hover:text-alert'}`}
             >
-              <Trash2 size={13} />
+              {trashArmed ? <Check size={13} strokeWidth={3} /> : <Trash2 size={13} />}
             </button>
           </div>
         </motion.div>
@@ -586,9 +623,15 @@ function MeasureSummary({
     for (const g of filtered) {
       for (const it of g.items) {
         if (it.type !== 'medida') continue
-        const numMatch = it.u.match(/^([\d.]+)/)
-        if (!numMatch) continue
-        const val = parseFloat(numMatch[1])
+        // #50: preferir it.value cuando existe; regex sobre it.u solo como fallback
+        let val: number
+        if (it.value != null) {
+          val = it.value
+        } else {
+          const numMatch = it.u.match(/^([\d.]+)/)
+          if (!numMatch) continue
+          val = parseFloat(numMatch[1])
+        }
         if (isNaN(val)) continue
         if (!byName[it.n]) {
           byName[it.n] = { first: val, last: val, firstTs: it.ts, lastTs: it.ts }
@@ -781,11 +824,11 @@ export function Diario() {
   const handleDelete = useCallback((id: string) => {
     if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
     dispatch({ t: 'deleteLog', id })
-    // clearDeletedLogBuffer después de 5s (coincide con el auto-dismiss del Toast)
+    // clearDeletedLogBuffer después de 8s (undo extendido, #48)
     deleteTimerRef.current = setTimeout(() => {
       dispatch({ t: 'clearDeletedLogBuffer' })
       deleteTimerRef.current = null
-    }, 5200)
+    }, 8200)
   }, [dispatch])
 
   // Limpiar timer al desmontar

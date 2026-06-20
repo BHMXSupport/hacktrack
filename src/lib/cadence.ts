@@ -70,9 +70,9 @@ export function cadenceLabel(cad: UserCadence): string {
     case 'uso':
       return 'Por uso'
     case 'cadaN':
-      return `Cada ${cad.n} días`
+      return `Cada ${cad.n ?? 1} días`
     case 'ciclo':
-      return `${cad.on} on / ${cad.off} off`
+      return `${cad.on ?? 1} on / ${cad.off ?? 0} off`
     case 'mes':
       return cad.every > 1 ? `Cada ${cad.every} meses` : 'Cada mes'
     case 'sem': {

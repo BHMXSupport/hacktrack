@@ -94,7 +94,7 @@ export function Baseline() {
             id="ht-peso"
             className="field"
             type="number"
-            inputMode="numeric"
+            inputMode="decimal"
             placeholder="ej. 78"
             min={20}
             max={300}
@@ -113,7 +113,7 @@ export function Baseline() {
             id="ht-meta"
             className="field"
             type="number"
-            inputMode="numeric"
+            inputMode="decimal"
             placeholder="ej. 70"
             min={20}
             max={300}
@@ -132,7 +132,7 @@ export function Baseline() {
             id="ht-est"
             className="field"
             type="number"
-            inputMode="numeric"
+            inputMode="decimal"
             placeholder="ej. 170"
             min={100}
             max={250}

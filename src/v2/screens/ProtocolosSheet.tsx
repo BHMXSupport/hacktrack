@@ -369,7 +369,9 @@ export function ProtocolosSheet({
       </Sheet>
 
       {/* Sheet de edición anidado — se monta encima del listado */}
+      {/* #37: key fuerza remontaje limpio al cambiar de producto */}
       <ProtocoloEditSheet
+        key={editProduct ?? undefined}
         open={editProduct != null}
         onClose={() => setEditProduct(null)}
         product={editProduct}

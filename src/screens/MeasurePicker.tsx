@@ -14,12 +14,26 @@ const MAX_CHIPS = 6
 
 export function MeasurePicker() {
   const { state, dispatch } = useApp()
-  const goal = state.curGoal ?? 'Explorar'
+
+  // Unión de métricas de curGoal + secondaryGoals (deduplicada)
+  const goals = [state.curGoal, ...(state.secondaryGoals ?? [])].filter(Boolean) as string[]
+  const goal = goals[0] ?? 'Explorar'
+
+  // Muestra los chips del goal primario (interfaz sin paginar como en v2)
   // % grasa/% músculo se capturan en "Cambio de medidas" → no se ofrecen como chip de medida suelta aquí
   const measures = (MEASURES_BY[goal] ?? MEASURES_BY['Explorar'])
     .filter((m) => !MEDIDAS_ONLY_MEASURES.includes(m))
     .slice(0, MAX_CHIPS)
-  const defaults = measures.slice(0, 4)
+
+  // Defaults = unión de las primeras 4 métricas de cada goal (deduplicada)
+  const defaultsSet = new Set<string>()
+  for (const g of (goals.length ? goals : ['Explorar'])) {
+    const gMeasures = (MEASURES_BY[g] ?? MEASURES_BY['Explorar'])
+      .filter((m: string) => !MEDIDAS_ONLY_MEASURES.includes(m))
+      .slice(0, 4)
+    for (const m of gMeasures) defaultsSet.add(m)
+  }
+  const defaults = [...defaultsSet]
 
   const [selected, setSelected] = useState<Set<string>>(new Set(defaults))
   const color = CATEGORY_COLOR[goal as keyof typeof CATEGORY_COLOR] ?? 'var(--brand-700)'
@@ -43,7 +57,9 @@ export function MeasurePicker() {
   }
 
   function handleSaltar() {
-    dispatch({ t: 'setMeasures', measures: defaults })
+    // Fusiona seleccionado con defaults de todos los goals para no perder métricas
+    const measures = [...new Set([...selected, ...defaults])]
+    dispatch({ t: 'setMeasures', measures })
     dispatch({ t: 'go', screen: 's-account' })
   }
 

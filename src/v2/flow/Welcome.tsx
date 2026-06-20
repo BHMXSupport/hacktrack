@@ -196,6 +196,9 @@ export function Welcome() {
             {hasProducts ? 'Ver mi plan' : 'Agregar mi primer producto'}
           </Button>
           <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+            Tus registros se guardan en este dispositivo. Tu cuenta solo sirve para respaldo seguro.
+          </p>
+          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
             Hacktrack es una herramienta de seguimiento personal.
             No reemplaza consejo médico.
           </p>

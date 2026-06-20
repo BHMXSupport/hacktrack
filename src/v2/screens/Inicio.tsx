@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import {
-  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp, SkipForward,
+  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp, SkipForward, AlertTriangle,
 } from 'lucide-react'
 import { useApp, nextInjectionSite, doseForProduct, adherenceMonth } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
@@ -35,10 +35,12 @@ function countdown(at: Date, now: Date): string {
 
 // Semáforo de ventana de toma (verde ±0 ≤30 min, ámbar 31–120 min, rojo >120 min)
 function windowStatus(tsScheduled: number, nowTs: number): 'ok' | 'near' | 'late' {
-  const diffMin = Math.abs(nowTs - tsScheduled) / 60000
-  if (diffMin <= 30) return 'ok'
-  if (diffMin <= 120) return 'near'
-  return 'late'
+  // #16: diferencia CON SIGNO (antes usaba Math.abs → marcaba "Tarde" tanto antes como después).
+  // Solo es "Tarde" si la hora ya pasó por >2 h; cerca de la hora = en ventana; lo demás = próxima.
+  const diffMin = (nowTs - tsScheduled) / 60000 // + = ya pasó la hora programada
+  if (diffMin > 120) return 'late'
+  if (Math.abs(diffMin) <= 30) return 'ok'
+  return 'near'
 }
 
 const WIN_COLOR: Record<'ok' | 'near' | 'late', string> = {
@@ -65,7 +67,13 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
   const playHero = !reduce
-  const now = new Date()
+  // #15: reloj propio que tickea cada 30 s — antes `now` solo se recalculaba al re-renderizar
+  // (cuenta regresiva y semáforo se congelaban si el reducer de 'tick' no cambiaba el estado).
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
   const nowTs = now.getTime()
 
   const next = useMemo(() => upcomingDoses(state, now, 1)[0] ?? null, [state])
@@ -86,6 +94,18 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       })),
     [state],
   )
+
+  // #45: productos con stock de vial bajo (≤15% restante) para avisar antes de quedarse sin material
+  const lowStock = useMemo(() => {
+    const out: { product: string; remainingMg: number }[] = []
+    for (const [product, p] of Object.entries(state.protocols)) {
+      const vs = p.vialStock
+      if (p.archived || !vs || !(vs.totalMg > 0)) continue
+      const remaining = vs.totalMg - vs.usedMg
+      if (remaining <= 0 || remaining / vs.totalMg < 0.15) out.push({ product, remainingMg: Math.max(0, remaining) })
+    }
+    return out
+  }, [state.protocols])
 
   // ts de toma programada por producto (reminderTime)
   function tsFor(product: string): number {
@@ -271,6 +291,20 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
         )}
       </motion.div>
 
+      {/* ── #45: Aviso de stock bajo del vial ── */}
+      {lowStock.length > 0 && (
+        <motion.div variants={fade}>
+          <div className="flex items-start gap-2.5 rounded-xl border border-warn/30 bg-warn/[0.08] px-3 py-2.5">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+            <p className="text-[12px] leading-relaxed text-secondary-foreground">
+              <span className="font-semibold text-foreground">Stock bajo:</span>{' '}
+              {lowStock.map((l) => `${l.product} (~${Math.round(l.remainingMg)} mg)`).join(' · ')}.
+              {' '}Considera preparar un vial nuevo.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Tus dosis de hoy — ACCIONABLE (R24, R27, M9) ── */}
       {todayDoses.length > 0 && (
         <motion.div variants={fade}>
@@ -317,9 +351,13 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                     </span>
                     {win && !done && !skipped && (
                       <span
-                        className="text-[11px] font-semibold mt-0.5"
+                        className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold"
                         style={{ color: WIN_COLOR[win] }}
                       >
+                        {/* #53: forma distinta por estado para no depender solo del color (daltonismo) */}
+                        <span aria-hidden className="font-mono leading-none">
+                          {win === 'late' ? '●' : win === 'near' ? '◐' : '○'}
+                        </span>
                         {WIN_LABEL[win]}
                       </span>
                     )}

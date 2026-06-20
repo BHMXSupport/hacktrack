@@ -259,8 +259,11 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
     maxMg = Math.max(maxMg, peakMg)
 
     const color = CATEGORY_COLOR[PEPTIDES[r.product]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
+    // #26: en modo "%" normalizar al pico DE LA VENTANA (no al histórico global) para que la curva
+    // use todo el alto; antes, si hubo una dosis mayor fuera de la ventana, nunca llegaba a 100%.
+    const pctPeak = maxRawWin > 0 ? maxRawWin : peakMg
     const toY = (mg: number) => {
-      const v = mode === 'percent' ? (mg / peakMg) * 100 : mg
+      const v = mode === 'percent' ? (mg / pctPeak) * 100 : mg
       return Math.abs(v) < THRESHOLD * (mode === 'percent' ? 100 : peakMg) ? 0 : v
     }
     const points: Pt[] = ts.map((t, i) => [t, toY(rawByT[i])])

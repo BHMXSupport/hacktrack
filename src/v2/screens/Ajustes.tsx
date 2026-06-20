@@ -380,7 +380,22 @@ export function Ajustes({
         try {
           const parsed = JSON.parse(ev.target?.result as string)
           const importedState = parsed.state ?? parsed
-          if (!importedState.log || !importedState.settings) throw new Error('Formato inválido')
+          // #46: validar estructura mínima razonable — debe tener log (array) + settings +
+          // al menos protocols o products para ser un respaldo Hacktrack válido.
+          const hasLog = Array.isArray(importedState.log)
+          const hasSettings = typeof importedState.settings === 'object' && importedState.settings !== null
+          const hasProtocols =
+            (typeof importedState.protocols === 'object' && importedState.protocols !== null) ||
+            Array.isArray(importedState.importedProducts)
+          if (!hasLog || !hasSettings || !hasProtocols) {
+            dispatch({ t: 'toast', msg: 'Archivo de respaldo inválido' })
+            return
+          }
+          // #46: pedir confirmación antes de sobreescribir todos los datos
+          const ok = window.confirm(
+            'Esto reemplazará TODOS tus datos actuales. No se puede deshacer.',
+          )
+          if (!ok) return
           dispatch({ t: 'replaceState', state: importedState })
         } catch {
           dispatch({ t: 'toast', msg: 'Error al leer el archivo — verifica que sea un respaldo válido.' })

@@ -621,6 +621,11 @@ export function Semana() {
   const metabolic =
     state.curGoal === 'Metabolismo' || state.curGoal === 'Crecimiento' ||
     (state.secondaryGoals ?? []).some((g) => g === 'Metabolismo' || g === 'Crecimiento')
+
+  // #65: para objetivo de Crecimiento (muscle gain) un superávit es positivo → señal invertida
+  const isGrowth =
+    state.curGoal === 'Crecimiento' ||
+    (state.secondaryGoals ?? []).some((g) => g === 'Crecimiento')
   // Calorías promedio y TDEE
   const avg7 = avgKcal(state, 7)
   const tdeeVal = useMemo(() => tdee(state), [state.profile])
@@ -855,7 +860,9 @@ export function Semana() {
               {caloricDelta != null && (
                 <span
                   className={`font-mono text-[13px] font-semibold ${
-                    caloricDelta < 0 ? 'text-ok' : 'text-warn'
+                    isGrowth
+                      ? caloricDelta > 0 ? 'text-ok' : 'text-warn'
+                      : caloricDelta < 0 ? 'text-ok' : 'text-warn'
                   }`}
                 >
                   {caloricDelta > 0 ? '+' : ''}{caloricDelta}{' '}
@@ -1031,7 +1038,11 @@ export function Semana() {
                       <StatRow
                         label={caloricDelta < 0 ? 'Déficit' : 'Superávit'}
                         value={
-                          <span className={caloricDelta < 0 ? 'text-ok' : 'text-warn'}>
+                          <span className={
+                            isGrowth
+                              ? caloricDelta > 0 ? 'text-ok' : 'text-warn'
+                              : caloricDelta < 0 ? 'text-ok' : 'text-warn'
+                          }>
                             {Math.abs(caloricDelta)}
                           </span>
                         }

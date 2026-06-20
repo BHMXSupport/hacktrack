@@ -355,6 +355,8 @@ function GoalsEditor({
   const [protStr, setProtStr] = useState(macroGoals?.protein != null ? String(macroGoals.protein) : '')
   const [carbStr, setCarbStr] = useState(macroGoals?.carbs != null ? String(macroGoals.carbs) : '')
   const [fatStr, setFatStr] = useState(macroGoals?.fat != null ? String(macroGoals.fat) : '')
+  // #54: error visible cuando el usuario llena algunos pero no todos los macros
+  const [macroError, setMacroError] = useState('')
 
   const parsePos = (s: string) => {
     const v = parseFloat(s.replace(',', '.'))
@@ -367,9 +369,17 @@ function GoalsEditor({
     const p = parsePos(protStr)
     const c = parsePos(carbStr)
     const f = parsePos(fatStr)
-    if (p != null && c != null && f != null) {
+    const anyFilled = protStr !== '' || carbStr !== '' || fatStr !== ''
+    const allFilled = p != null && c != null && f != null
+    // #54: si hay valores parciales (1-2 de 3) mostrar error y NO cerrar ni guardar
+    if (anyFilled && !allFilled) {
+      setMacroError('Completa los 3 macros o déjalos todos vacíos')
+      return
+    }
+    setMacroError('')
+    if (allFilled) {
       onSaveMacros({ protein: p, carbs: c, fat: f })
-    } else if (!protStr && !carbStr && !fatStr) {
+    } else {
       onSaveMacros(null)
     }
     onClose()
@@ -423,9 +433,13 @@ function GoalsEditor({
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mt-1">
           Macros (opcional — deja vacío para desactivar)
         </p>
-        {numField('Proteína', protStr, setProtStr, 'Ej. 150', 'Meta proteína en g', 'g')}
-        {numField('Carbohidratos', carbStr, setCarbStr, 'Ej. 200', 'Meta carbos en g', 'g')}
-        {numField('Grasa', fatStr, setFatStr, 'Ej. 65', 'Meta grasa en g', 'g')}
+        {numField('Proteína', protStr, (v) => { setProtStr(v); setMacroError('') }, 'Ej. 150', 'Meta proteína en g', 'g')}
+        {numField('Carbohidratos', carbStr, (v) => { setCarbStr(v); setMacroError('') }, 'Ej. 200', 'Meta carbos en g', 'g')}
+        {numField('Grasa', fatStr, (v) => { setFatStr(v); setMacroError('') }, 'Ej. 65', 'Meta grasa en g', 'g')}
+        {/* #54: error de macros parciales */}
+        {macroError && (
+          <p className="text-[12px] text-alert" role="alert">{macroError}</p>
+        )}
       </div>
       <Button variant="primary" size="full" onClick={handleSave}>
         <Check size={15} /> Guardar metas
@@ -676,7 +690,14 @@ export function Comida() {
 
   const handleUndoDelete = useCallback(() => {
     if (!deletedMealBuffer) return
+    // #55: limpiar buffer ANTES del dispatch para hacer undo idempotente —
+    // múltiples taps del botón "Deshacer" no crean duplicados porque el buffer
+    // ya está vacío en el segundo tap (el botón desaparece con AnimatePresence).
+    // Nota: addMeal no acepta id/favId en su firma → el reducer genera un nuevo id;
+    // la restauración preserva todos los macros y la hora original pero no el id original.
     const m = deletedMealBuffer
+    setDeletedMealBuffer(null)
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
     dispatch({
       t: 'addMeal',
       kcal: m.kcal,
@@ -687,8 +708,6 @@ export function Comida() {
       ts: m.ts,
     })
     dispatch({ t: 'toast', msg: null })
-    setDeletedMealBuffer(null)
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
   }, [deletedMealBuffer, dispatch])
 
   // ── R38: Electrolitos ─────────────────────────────────────────────────────

@@ -88,10 +88,10 @@ export function Goal() {
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 1 de 2 */}
+        {/* Barra de progreso — paso 1 de 4 (~33%) */}
         <div className="flex-1">
           <div className="h-1 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-1/2 rounded-full bg-teal" />
+            <div className="h-full w-[33%] rounded-full bg-teal" />
           </div>
         </div>
 

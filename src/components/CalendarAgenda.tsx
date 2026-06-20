@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { upcomingDoses, pendingDoses } from '../lib/calendar'
 import { fmtDate, fmtTime } from '../lib/cadence'
 import { PEPTIDES, CATEGORY_COLOR } from '../lib/catalog'
-import { useApp, isoKey } from '../lib/store'
+import { useApp, isoKey, nextInjectionSite } from '../lib/store'
 import { sharedAxisX, dur, ease, spring } from '../lib/motion'
 import { Glyph } from './glyphs'
 
@@ -61,12 +61,14 @@ function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
   const [done, setDone] = useState(false)
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const { state } = useApp()
+
   const handleMark = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation()
-    // Generar un ID temporal para el undo — el store genera el real,
-    // pero necesitamos buscarlo después. Usamos el ts+product como clave de búsqueda:
-    // logDose con ts del dueTime del día.
-    dispatch({ t: 'logDose', product, value: null, unit: '', ts: doseTs })
+    // #32(a): calcular el sitio sugerido con nextInjectionSite para actualizar lastInjectionSite
+    const lastSite = state.lastInjectionSite[product]
+    const site = nextInjectionSite(lastSite)
+    dispatch({ t: 'logDose', product, value: null, unit: '', ts: doseTs, site })
     setDone(true)
     // El store mete el id en toastUndoId. Aquí hacemos un undo local por conveniencia:
     // guardamos el ts para poder llamar a deleteLog si el usuario presiona Deshacer.
@@ -76,10 +78,9 @@ function MarkDoseButton({ product, doseTs, dispatch }: MarkDoseButtonProps) {
     undoTimerRef.current = setTimeout(() => {
       setMarkedId(null)
     }, 4000)
-  }, [dispatch, product, doseTs])
+  }, [dispatch, product, doseTs, state.lastInjectionSite])
 
   // Capturar el id del item recién creado desde el store
-  const { state } = useApp()
   useEffect(() => {
     if (!done || markedId) return
     // Buscar en el log el item más reciente de este producto con ese ts

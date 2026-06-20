@@ -12,7 +12,7 @@
  */
 import { useState, useId } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ChevronLeft, Scale, Ruler, Target, Info } from 'lucide-react'
+import { ChevronLeft, Scale, Ruler, Target, Info, Percent } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
@@ -40,6 +40,8 @@ function NumericField({
   max,
   value,
   onChange,
+  optional = true,
+  error,
 }: {
   id: string
   label: string
@@ -50,13 +52,15 @@ function NumericField({
   max: number
   value: string
   onChange: (v: string) => void
+  optional?: boolean
+  error?: string
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="flex items-center gap-1.5 text-[13px] font-semibold text-secondary-foreground">
         <Icon size={14} className="text-teal" aria-hidden="true" />
         {label}
-        <span className="ml-auto text-[11px] font-normal text-muted-foreground">opcional</span>
+        {optional && <span className="ml-auto text-[11px] font-normal text-muted-foreground">opcional</span>}
       </label>
       <div className="relative">
         <input
@@ -68,7 +72,9 @@ function NumericField({
           max={max}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-14 w-full rounded-lg border border-white/10 bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-muted-foreground/40 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors"
+          aria-invalid={!!error}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={`h-14 w-full rounded-lg border bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 transition-colors ${error ? 'border-red-400/70 focus:border-red-400/70 focus:ring-red-400/20' : 'border-white/10 focus:border-teal/60 focus:ring-teal/20'}`}
         />
         <span
           aria-hidden="true"
@@ -77,11 +83,24 @@ function NumericField({
           {unit}
         </span>
       </div>
+      {error && (
+        <p id={`${id}-error`} role="alert" className="text-[12px] text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
+
+// Validación de rangos
+function validateField(val: string, min: number, max: number): string | undefined {
+  if (!val) return undefined // campo vacío = omitido, siempre válido
+  const n = parseFloat(val)
+  if (isNaN(n) || n < min || n > max) return `Debe estar entre ${min} y ${max}`
+  return undefined
+}
 
 export function Baseline() {
   const { dispatch } = useApp()
@@ -90,16 +109,35 @@ export function Baseline() {
   const [peso, setPeso] = useState('')
   const [meta, setMeta] = useState('')
   const [est, setEst] = useState('')
+  const [grasa, setGrasa] = useState('')
+
+  // Errores inline (undefined = sin error)
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({})
 
   const uid = useId()
 
   function handleContinuar() {
+    const newErrors = {
+      peso: validateField(peso, 20, 300),
+      meta: validateField(meta, 20, 300),
+      est: validateField(est, 100, 250),
+      grasa: validateField(grasa, 1, 60),
+    }
+    if (Object.values(newErrors).some(Boolean)) {
+      setErrors(newErrors)
+      return
+    }
+    setErrors({})
     dispatch({
       t: 'setBaseline',
       peso: peso ? parseFloat(peso) : undefined,
       metaPesoKg: meta ? parseFloat(meta) : undefined,
       est: est ? parseFloat(est) : undefined,
     })
+    // % grasa: saveMedidas lo guarda en profile.grasa + history['% grasa'] (setBaseline no lo acepta)
+    if (grasa) {
+      dispatch({ t: 'saveMedidas', values: { grasa: parseFloat(grasa) } })
+    }
     dispatch({ t: 'go', screen: 's-measures' })
   }
 
@@ -107,11 +145,13 @@ export function Baseline() {
     dispatch({ t: 'go', screen: 's-measures' })
   }
 
-  // IMC preview (solo si peso y est están rellenos)
+  // IMC preview (solo si peso y est están rellenos y son válidos)
   const pesoN = parseFloat(peso)
   const estN = parseFloat(est)
   const bmi =
-    pesoN > 0 && estN > 0 ? (pesoN / ((estN / 100) * (estN / 100))).toFixed(1) : null
+    pesoN >= 20 && pesoN <= 300 && estN >= 100 && estN <= 250
+      ? (pesoN / ((estN / 100) * (estN / 100))).toFixed(1)
+      : null
 
   return (
     <div
@@ -134,10 +174,10 @@ export function Baseline() {
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 1.5 (entre goal y measures) */}
+        {/* Barra de progreso — paso 2 de 4 (~50%) */}
         <div className="flex-1" aria-hidden="true">
           <div className="h-1 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-[40%] rounded-full bg-teal" />
+            <div className="h-full w-[50%] rounded-full bg-teal" />
           </div>
         </div>
 
@@ -171,7 +211,8 @@ export function Baseline() {
             min={20}
             max={300}
             value={peso}
-            onChange={setPeso}
+            onChange={(v) => { setPeso(v); setErrors((e) => ({ ...e, peso: undefined })) }}
+            error={errors.peso}
           />
           <NumericField
             id={`${uid}-meta`}
@@ -182,7 +223,8 @@ export function Baseline() {
             min={20}
             max={300}
             value={meta}
-            onChange={setMeta}
+            onChange={(v) => { setMeta(v); setErrors((e) => ({ ...e, meta: undefined })) }}
+            error={errors.meta}
           />
           <NumericField
             id={`${uid}-est`}
@@ -193,7 +235,20 @@ export function Baseline() {
             min={100}
             max={250}
             value={est}
-            onChange={setEst}
+            onChange={(v) => { setEst(v); setErrors((e) => ({ ...e, est: undefined })) }}
+            error={errors.est}
+          />
+          <NumericField
+            id={`${uid}-grasa`}
+            label="% grasa"
+            icon={Percent}
+            placeholder="ej. 20"
+            unit="%"
+            min={1}
+            max={60}
+            value={grasa}
+            onChange={(v) => { setGrasa(v); setErrors((e) => ({ ...e, grasa: undefined })) }}
+            error={errors.grasa}
           />
         </motion.div>
 

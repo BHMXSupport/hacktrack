@@ -637,20 +637,39 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'importProducts': {
       // fusiona (no reemplaza) — crea un protocolo por cada producto nuevo del catálogo
       const protocols = { ...s.protocols }
-      for (const name of a.names.filter((n) => n in PEPTIDES)) {
+      const recognized = a.names.filter((n) => n in PEPTIDES)
+      const unknown = a.names.filter((n) => !(n in PEPTIDES))
+      for (const name of recognized) {
         if (!protocols[name]) {
           const fp = freshProtocol(name, s.todayTs)
           if (fp) protocols[name] = fp
         }
       }
       const activeProduct = s.activeProduct ?? Object.keys(protocols)[0] ?? null
-      return syncActive({ ...s, protocols, activeProduct })
+      // #58: no descartar en silencio — avisar cuáles no se reconocieron del catálogo.
+      const toast = unknown.length
+        ? `No se reconocieron del catálogo: ${unknown.join(', ')}`
+        : s.toast
+      return syncActive({ ...s, protocols, activeProduct, toast })
     }
 
     // P0-1: la dosis tecleada ENTRA al diario; activa dashboard; suma racha. Respeta la hora elegida.
     case 'logDose': {
       const now = a.ts ? new Date(a.ts) : new Date()
-      const rawNote = a.note?.trim().slice(0, 120)   // loop 138: ≤120 chars
+      // #17: guard anti doble-tap — ignora una dosis IDÉNTICA (mismo producto/valor/unidad) registrada
+      // < 5 s antes. Evita duplicar la dosis, descontar stock dos veces y romper la racha por un toque doble.
+      const nowMsDup = now.getTime()
+      const recentItems = s.log[0]?.items ?? []
+      for (const it of recentItems) {
+        if (
+          it.type === 'dose' && it.product === a.product &&
+          it.value === (a.value ?? null) && it.unit === a.unit &&
+          nowMsDup - it.ts >= 0 && nowMsDup - it.ts < 5_000
+        ) {
+          return s // duplicado por doble-tap → no registrar de nuevo
+        }
+      }
+      const rawNote = a.note?.trim().slice(0, 200)   // nota opcional (#29: 200, alineado con el input)
       const item: LogItem = {
         id: genId(),
         t: fmtTime(now),
@@ -1169,7 +1188,9 @@ export function reducer(s: AppState, a: Action): AppState {
       }
     }
 
-    // setVialStock: actualiza o inicializa el stock del vial de un producto
+    // setVialStock: abre un vial NUEVO de un producto (mg totales). #28: usedMg se REINICIA a 0
+    // (es un vial fresco — antes arrastraba el usado del vial anterior, mostrando "queda menos" de lo real)
+    // y openedAt se fija siempre (a.openedAt o ahora) para no perder la fecha de apertura al editar.
     case 'setVialStock': {
       const proto = s.protocols[a.product]
       if (!proto) return s
@@ -1179,7 +1200,7 @@ export function reducer(s: AppState, a: Action): AppState {
           ...s.protocols,
           [a.product]: {
             ...proto,
-            vialStock: { totalMg: a.totalMg, usedMg: proto.vialStock?.usedMg ?? 0, ...(a.openedAt != null ? { openedAt: a.openedAt } : {}) },
+            vialStock: { totalMg: a.totalMg, usedMg: 0, openedAt: a.openedAt ?? Date.now() },
           },
         },
       })
@@ -1346,7 +1367,10 @@ export function adherence(s: AppState, days = 30, now: Date = new Date()): Adher
 
 // mes calendario actual: TODAS las dosis que tocarían en el mes (incl. futuras) — para Inicio
 export function adherenceMonth(s: AppState, now: Date = new Date()): AdherenceStat | null {
-  if (!s.protocol) return null
+  // #33: NO depender de s.protocol (producto "activo" único). tallyDoses cuenta TODOS los protocolos
+  // activos; basta con que exista al menos uno, si no el anillo desaparecía teniendo protocolos activos.
+  const activeProtos = Object.values(s.protocols).filter((p) => !p.archived)
+  if (activeProtos.length === 0) return null
   const today = startOfDay(new Date(s.todayTs))
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
   // #9: no penalizar desde el día 1 del mes si el protocolo empezó después (evita arrancar en 8%).

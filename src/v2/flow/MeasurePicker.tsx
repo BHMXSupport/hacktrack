@@ -83,8 +83,10 @@ export function MeasurePicker() {
   }
 
   function handleSaltar() {
-    // Saltar el resto: conserva lo seleccionado (incluye los recomendados de todos los objetivos)
-    dispatch({ t: 'setMeasures', measures: [...(selected.size ? selected : allDefaults)] })
+    // Saltar el resto: fusiona lo seleccionado con los defaults de TODOS los objetivos
+    // para no perder métricas de goals no visitados.
+    const measures = [...new Set([...selected, ...allDefaults])]
+    dispatch({ t: 'setMeasures', measures })
     dispatch({ t: 'go', screen: 's-protocol' })
   }
 
@@ -114,10 +116,10 @@ export function MeasurePicker() {
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso ~65% */}
+        {/* Barra de progreso — paso 3 de 4 (~66%) */}
         <div className="flex-1" aria-hidden="true">
           <div className="h-1 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-[65%] rounded-full bg-teal" />
+            <div className="h-full w-[66%] rounded-full bg-teal" />
           </div>
         </div>
 

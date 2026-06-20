@@ -258,13 +258,17 @@ export function DoseConfirmSheet({
   }
 
   function commitEffect(eff: string) {
-    // Buscar el item recién registrado para setLogEffect
+    // #31: buscar la dosis con |ts - chosenTs| mínimo para este producto;
+    // si chosenTs es null, tomar la más reciente. Así evitamos taggear la primera dosis del historial.
     let itemId: string | undefined
+    let bestDelta = Infinity
     for (const g of state.log) {
       for (const it of g.items) {
-        if (it.type === 'dose' && it.product === product) {
-          if (!itemId) itemId = it.id
-          if (chosenTs != null && Math.abs(it.ts - chosenTs) < 2000) { itemId = it.id; break }
+        if (it.type !== 'dose' || it.product !== product) continue
+        const delta = chosenTs != null ? Math.abs(it.ts - chosenTs) : 0
+        if (delta < bestDelta) {
+          bestDelta = delta
+          itemId = it.id
         }
       }
     }

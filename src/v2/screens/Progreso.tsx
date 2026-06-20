@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useId } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   ChevronLeft,
@@ -343,6 +343,9 @@ interface LineGraphProps {
 }
 
 function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height = 100, showDots = true }: LineGraphProps) {
+  // #66: cada instancia obtiene un id único para el linearGradient, evitando colisiones entre múltiples KpiChartCards
+  const gradId = useId()
+
   if (samples.length < 2) {
     return (
       <div className="flex items-center justify-center py-4 text-[12px] text-muted-foreground" style={{ height }}>
@@ -388,7 +391,7 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
       aria-label="Gráfica de progreso"
     >
       <defs>
-        <linearGradient id="line-fill" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity={0.22} />
           <stop offset="100%" stopColor={color} stopOpacity={0.02} />
         </linearGradient>
@@ -421,7 +424,7 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
       })}
 
       {/* Area fill */}
-      <path d={areaD} fill="url(#line-fill)" />
+      <path d={areaD} fill={`url(#${gradId})`} />
 
       {/* Line */}
       <path
