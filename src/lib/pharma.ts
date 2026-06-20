@@ -66,7 +66,7 @@ export function hasAccumulation(doses: { ts: number; value: number; product: str
   return false
 }
 
-export type Mode = 'percent' | 'absolute' | 'log'
+export type Mode = 'percent' | 'absolute'
 export type Pt = [number, number] // [epoch ms, y]
 
 export interface PharmaSeries {

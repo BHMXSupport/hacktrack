@@ -27,7 +27,7 @@ interface Props {
   formatY?: (v: number) => string
   xTicks?: { t: number; label: string }[]
   refLines?: { y: number; label: string; tooltip?: string }[] // tooltip educativo al tap (item 380)
-  mode?: 'percent' | 'absolute' | 'log'
+  mode?: 'percent' | 'absolute'
   verticalRefs?: { t: number; label: string; color?: string; tooltip?: string; dot?: boolean }[]
   secondarySeries?: { points: [number, number][]; color?: string; label?: string }
   showSecondaryAxis?: boolean
@@ -94,19 +94,8 @@ export function MultiLineChart({
   const sx = (t: number) => PAD.l + ((t - x0) / spanX) * plotW
   const sy = (v: number) => PAD.t + plotH - ((v - y0) / spanY) * plotH
 
-  // escala logarítmica (modo 'log'): mapea log10(v) en [logMin, logMax] → coordenada Y.
-  // Piso: LOG_EPS = 0.001 para evitar log(0) = -∞.
-  const LOG_EPS = 0.001
-  const isLog = mode === 'log'
-  const logMin = Math.log10(Math.max(y0 > 0 ? y0 : LOG_EPS, LOG_EPS))
-  const logMax = Math.log10(Math.max(y1, LOG_EPS * 10))
-  const spanLog = logMax - logMin || 1
-  const syLog = (v: number) => {
-    const safeV = Math.max(v, LOG_EPS)
-    return PAD.t + plotH - ((Math.log10(safeV) - logMin) / spanLog) * plotH
-  }
-  // toY: selector unificado de mapeo Y (lineal o log según modo)
-  const toY = (v: number) => (isLog ? syLog(v) : sy(v))
+  // Mapeo Y siempre lineal (se quitó la escala logarítmica).
+  const toY = (v: number) => sy(v)
 
   const nowX = sx(nowTs)
 

@@ -51,7 +51,6 @@ const WIN_OPTS: { value: Win; label: string }[] = [
 const MODE_OPTS: { value: Mode; label: string }[] = [
   { value: 'percent', label: '% pico' },
   { value: 'absolute', label: 'mg' },
-  { value: 'log', label: 'Log' },
 ]
 
 // ── Motion ────────────────────────────────────────────────────────────────────
@@ -353,35 +352,13 @@ export function Vida() {
 
   // ── Ejes ──────────────────────────────────────────────────────────────────
 
-  const LOG_EPS = 0.001 // piso para log: valores ≤ 0 se fijan aquí
   const yTicks = useMemo(() => {
     if (mode === 'percent') return [0, 50, 100]
-    if (mode === 'absolute') return [0, data.domainY[1] / 2, data.domainY[1]]
-    // modo 'log': ticks en potencias de 10 entre LOG_EPS y domainY[1]
-    const maxVal = Math.max(data.domainY[1], LOG_EPS * 10)
-    const ticks: number[] = []
-    const expMin = Math.floor(Math.log10(LOG_EPS))
-    const expMax = Math.ceil(Math.log10(maxVal))
-    for (let e = expMin; e <= expMax; e++) {
-      const v = Math.pow(10, e)
-      if (v >= LOG_EPS * 0.9 && v <= maxVal * 1.1) ticks.push(v)
-    }
-    return ticks.length >= 2 ? ticks : [LOG_EPS, maxVal]
+    return [0, data.domainY[1] / 2, data.domainY[1]]
   }, [mode, data.domainY])
 
   const formatY = useMemo(() => {
     if (mode === 'percent') return (v: number) => `${Math.round(v)}%`
-    if (mode === 'log') {
-      return (v: number) => {
-        if (v <= 0) return ''
-        if (v < 0.001) return v.toExponential(0)
-        if (v < 0.01) return v.toFixed(3)
-        if (v < 0.1) return v.toFixed(2)
-        if (v < 1) return v.toFixed(1)
-        if (v >= 1000) return `${(v / 1000).toFixed(0)}k`
-        return v >= 10 ? String(Math.round(v)) : v.toFixed(1)
-      }
-    }
     return (v: number) => (v >= 1 ? String(Math.round(v)) : v.toFixed(1))
   }, [mode])
 
@@ -646,9 +623,9 @@ export function Vida() {
                   Estimado de cuánto sigue activo tras cada dosis
                 </p>
               </div>
-              {(mode === 'absolute' || mode === 'log') && (
+              {mode === 'absolute' && (
                 <span className="shrink-0 rounded-md bg-white/6 px-2 py-1 font-mono text-[10px] text-muted-foreground">
-                  {mode === 'log' ? 'mg · log' : 'mg residual'}
+                  mg residual
                 </span>
               )}
             </div>
@@ -694,8 +671,6 @@ export function Vida() {
                 Eje vertical:{' '}
                 {mode === 'percent'
                   ? '% del pico estimado'
-                  : mode === 'log'
-                  ? 'mg estimados — escala logarítmica (log₁₀)'
                   : 'mg estimados en el cuerpo'}
               </p>
               <div
