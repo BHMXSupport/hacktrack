@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useId } from 'react'
+import { useState, useMemo, useCallback, useEffect, useId } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   ChevronLeft,
@@ -11,13 +11,16 @@ import {
   Calendar,
   TrendingUp,
   FileText,
+  X,
 } from 'lucide-react'
-import { useApp } from '../../lib/store'
+import { useApp, adherenceMonth } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
 import {
   dayProducts,
   dayStatusEx,
   doseTakenOnProduct,
+  doseSkippedOnProduct,
+  dueTime,
   protocolStreak,
   weekAdherencePctLast8,
   type DayStateEx,
@@ -82,10 +85,14 @@ function DayCell({
   date,
   status,
   isToday,
+  isSelected,
+  onSelect,
 }: {
   date: Date | null
   status: DayStateEx | null
   isToday: boolean
+  isSelected?: boolean
+  onSelect?: (d: Date) => void
 }) {
   if (!date) return <div role="gridcell" className="h-11" aria-hidden />
 
@@ -132,15 +139,19 @@ function DayCell({
   }
 
   return (
-    <div
-      role="gridcell"
-      className={`relative flex h-11 flex-col items-center justify-center rounded-lg ${bg}`}
-      aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : eff === 'skipped' ? ', dosis saltada' : ''}`}
-    >
-      <span className={`text-[13px] leading-none ${textCls}`}>{label}</span>
-      {dotColor && (
-        <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${dotColor}`} aria-hidden />
-      )}
+    <div role="gridcell" className="flex">
+      <button
+        type="button"
+        onClick={() => onSelect?.(date)}
+        aria-pressed={isSelected}
+        className={`relative flex h-11 w-full flex-col items-center justify-center rounded-lg transition-colors ${bg} ${isSelected ? 'ring-2 ring-[var(--teal-bright)]' : ''} ${onSelect ? 'cursor-pointer hover:brightness-125 active:scale-95' : ''}`}
+        aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : eff === 'skipped' ? ', dosis saltada' : ''}. Toca para ver el detalle del día.`}
+      >
+        <span className={`text-[13px] leading-none ${textCls}`}>{label}</span>
+        {dotColor && (
+          <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${dotColor}`} aria-hidden />
+        )}
+      </button>
     </div>
   )
 }
@@ -156,6 +167,9 @@ function CalendarioTab() {
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [exporting, setExporting] = useState(false)
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null) // día tocado en el calendario
+  // limpiar la selección al cambiar de mes (si no, el panel mostraría un día de otro mes)
+  useEffect(() => { setSelectedDay(null) }, [viewMonth, viewYear])
 
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth])
 
@@ -271,12 +285,18 @@ function CalendarioTab() {
                     date.getDate() === today.getDate()
                   const stateKey = date ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` : null
                   const status = stateKey ? (dayStates[stateKey] ?? null) : null
+                  const isSelected = !!(date && selectedDay &&
+                    date.getFullYear() === selectedDay.getFullYear() &&
+                    date.getMonth() === selectedDay.getMonth() &&
+                    date.getDate() === selectedDay.getDate())
                   return (
                     <DayCell
                       key={di}
                       date={date}
                       status={status}
                       isToday={isToday}
+                      isSelected={isSelected}
+                      onSelect={setSelectedDay}
                     />
                   )
                 })}
@@ -285,6 +305,59 @@ function CalendarioTab() {
           </motion.div>
         </AnimatePresence>
       </Glass>
+
+      {/* Detalle del día tocado: qué toca inyectar ese día y a qué hora (por producto) */}
+      {selectedDay && (() => {
+        const products = dayProducts(state, selectedDay)
+        const nowMs = Date.now()
+        const fecha = selectedDay.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+        return (
+          <motion.div variants={reduce ? {} : fade}>
+            <Glass className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold capitalize text-foreground">{fecha}</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDay(null)}
+                  aria-label="Cerrar detalle del día"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-white/8 hover:text-foreground"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {products.length === 0 ? (
+                <p className="text-[13px] text-muted-foreground">Sin dosis programadas este día.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {products.map((p) => {
+                    const dueT = dueTime(state, selectedDay, p)
+                    const hora = dueT.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
+                    const taken = doseTakenOnProduct(state, selectedDay, p)
+                    const skipped = doseSkippedOnProduct(state, selectedDay, p)
+                    const st = taken
+                      ? { label: 'Tomada', cls: 'text-teal bg-teal/12', dot: 'bg-teal' }
+                      : skipped
+                        ? { label: 'Saltada', cls: 'text-purple-300 bg-purple-500/12', dot: 'bg-purple-400' }
+                        : dueT.getTime() < nowMs
+                          ? { label: 'Omitida', cls: 'text-alert bg-alert/12', dot: 'bg-alert' }
+                          : { label: 'Programada', cls: 'text-warn bg-warn/12', dot: 'bg-warn' }
+                    return (
+                      <div key={p} className="flex items-center gap-3 rounded-lg border border-white/[0.07] bg-raised/40 px-3 py-2.5">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${st.dot}`} aria-hidden />
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate text-[13px] font-medium text-foreground">{p}</span>
+                          <span className="font-mono text-[11px] text-muted-foreground">Inyectar a las {hora}</span>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </Glass>
+          </motion.div>
+        )
+      })()}
 
       {/* Leyenda — color + ÍCONO (forma) para no depender solo del color (#24, accesibilidad) */}
       <Glass className="flex flex-col gap-2 py-3">
@@ -691,20 +764,19 @@ function AvancesTab() {
 
   const streak = useMemo(() => protocolStreak(state, today, now), [state, today, now])
 
-  // Adherencia de los últimos 30 días
+  // reloj propio de 30 s — IGUAL que Inicio/Diario — para que la adherencia coincida entre pantallas.
+  const [adhNow, setAdhNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = window.setInterval(() => setAdhNow(Date.now()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
+  // Adherencia: MISMA fuente de verdad que Inicio/Diario (adherenceMonth → mes en curso). Antes esta
+  // pantalla calculaba un rolling de 30 días que contaba los skips como falta y con `now` estático →
+  // divergía del resto. (Conserva el nombre adh30 para no tocar los renders de abajo.)
   const adh30 = useMemo(() => {
-    let due = 0
-    let taken = 0
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today)
-      d.setDate(d.getDate() - i)
-      for (const p of dayProducts(state, d)) {
-        due++
-        if (doseTakenOnProduct(state, d, p)) taken++
-      }
-    }
-    return { due, taken, pct: due > 0 ? Math.round((taken / due) * 100) : 0 }
-  }, [state, today])
+    const a = adherenceMonth(state, new Date(adhNow))
+    return { due: a?.due ?? 0, taken: a?.taken ?? 0, pct: a?.pct ?? 0 }
+  }, [state, adhNow])
 
   // Adherencia semanal (últimas 8 semanas, más reciente primero)
   const weekly8 = useMemo(() => weekAdherencePctLast8(state, today), [state, today])
@@ -772,7 +844,7 @@ function AvancesTab() {
               goal={100}
               unit="%"
               label="Adherencia"
-              sub="30 días"
+              sub="este mes"
               size={120}
               stroke={10}
             />
@@ -796,7 +868,7 @@ function AvancesTab() {
       <motion.div variants={reduce ? {} : fade}>
         <Glass className="flex items-center justify-between">
           <div>
-            <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Dosis (30 días)</p>
+            <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Dosis (este mes)</p>
             <p className="mt-0.5 font-mono text-[26px] font-semibold tabular-nums text-foreground">
               {adh30.taken}
               <span className="text-[16px] text-muted-foreground"> / {adh30.due}</span>

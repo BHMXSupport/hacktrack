@@ -2,7 +2,7 @@
 // Líneas por producto, gridlines, línea "ahora" con punto pulsante, marcadores de inyección,
 // líneas de referencia y tooltip táctil (valor de cada serie en el instante tocado).
 // (Optimizador de dashboards + diseñador del equipo multiagente — Loop 02.)
-import { useRef, useState } from 'react'
+import { useRef, useState, useId } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { dur, ease, spring } from '../lib/motion'
 import type { Pt } from '../lib/pharma'
@@ -76,6 +76,7 @@ export function MultiLineChart({
 }: Props) {
   const reduce = useReducedMotion()
   const svgRef = useRef<SVGSVGElement>(null)
+  const washoutGradId = `washoutGrad-${useId()}` // id único por instancia (evita colisión si hay varios charts)
   const [hoverT, setHoverT] = useState<number | null>(null)
   // item 380 — tooltip educativo en refLines al tap (índice de la línea activa, o null)
   const [activeRefLine, setActiveRefLine] = useState<number | null>(null)
@@ -183,30 +184,42 @@ export function MultiLineChart({
         return (
           <g key={`y${v}`}>
             <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--border)" strokeWidth={1} strokeDasharray="4 4" opacity={0.6} />
-            <text x={PAD.l - 6} y={y + 3} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
+            <text x={PAD.l - 6} y={y + 3} textAnchor="end" fontSize={9} fontWeight={500} fontFamily="JetBrains Mono, monospace" fill="var(--ink-400)">
               {formatY(v)}
             </text>
           </g>
         )
       })}
 
-      {/* item 280 — zona de washout sombreada */}
+      {/* item 280 — zona de washout: gradiente que se desvanece hacia el futuro + borde suave + etiqueta */}
       {washoutShade && (
         <g>
+          <defs>
+            <linearGradient id={washoutGradId} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="var(--ink-100)" stopOpacity={0.55} />
+              <stop offset="100%" stopColor="var(--ink-100)" stopOpacity={0.1} />
+            </linearGradient>
+          </defs>
           <rect
             x={washoutShade.left}
             y={PAD.t}
             width={washoutShade.right - washoutShade.left}
             height={plotH}
-            fill="var(--ink-100)"
-            opacity={0.55}
+            fill={`url(#${washoutGradId})`}
+          />
+          {/* borde de inicio del washout — marca suave de dónde empieza */}
+          <line
+            x1={washoutShade.left} y1={PAD.t} x2={washoutShade.left} y2={PAD.t + plotH}
+            stroke="var(--ink-300)" strokeWidth={1} strokeDasharray="2 3" strokeLinecap="round" opacity={0.55}
+          />
+          {/* etiqueta abajo (no choca con las de próxima dosis arriba) */}
+          <rect
+            x={washoutShade.left + 4} y={PAD.t + plotH - 16}
+            width={48} height={13} rx={6.5} fill="var(--card)" opacity={0.78}
           />
           <text
-            x={washoutShade.left + 4}
-            y={PAD.t + 12}
-            fontSize={8}
-            fontFamily="JetBrains Mono, monospace"
-            fill="var(--ink-300)"
+            x={washoutShade.left + 9} y={PAD.t + plotH - 6.5}
+            fontSize={8.5} fontWeight={600} fontFamily="Inter, sans-serif" fill="var(--ink-400)"
           >
             washout
           </text>
@@ -344,7 +357,7 @@ export function MultiLineChart({
 
       {/* etiquetas X */}
       {xTicks.map(({ t, label }, i) => (
-        <text key={`x${i}`} x={sx(t)} y={H - 6} textAnchor="middle" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
+        <text key={`x${i}`} x={sx(t)} y={H - 6} textAnchor="middle" fontSize={9} fontWeight={500} fontFamily="JetBrains Mono, monospace" fill="var(--ink-400)">
           {label}
         </text>
       ))}
@@ -359,7 +372,7 @@ export function MultiLineChart({
             animate={{ x1: nowX, x2: nowX }}
             transition={{ duration: dur.base, ease: ease.standard }}
           />
-          <text x={nowX} y={PAD.t - 5} textAnchor="middle" fontSize={9} fontFamily="JetBrains Mono, monospace" fill="var(--brand-500)">
+          <text x={nowX} y={PAD.t - 5} textAnchor="middle" fontSize={9} fontWeight={600} fontFamily="JetBrains Mono, monospace" fill="var(--brand-500)">
             ahora
           </text>
         </g>
