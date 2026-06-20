@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/hacktrack/rebuild/sw.js', { scope: '/hacktrack/rebuild/' })})}
