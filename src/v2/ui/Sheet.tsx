@@ -49,9 +49,18 @@ export function Sheet({
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-50 flex items-end">
+        // Contenedor full-screen como hijo motion DIRECTO de AnimatePresence → desmontaje fiable
+        // (un <div> plano no lo rastrea bien y quedaba huérfano interceptando clics). pointer-events-none
+        // es el cinturón de seguridad: aunque quedara montado a media salida, NO traga clics de la página;
+        // solo el backdrop y el panel re-habilitan pointer-events-auto.
+        <motion.div
+          className="pointer-events-none absolute inset-0 z-50 flex items-end"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 1 }}
+        >
           <motion.div
-            className="absolute inset-0 bg-black/55"
+            className="pointer-events-auto absolute inset-0 bg-black/55"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -64,7 +73,7 @@ export function Sheet({
             aria-modal="true"
             aria-label={title}
             tabIndex={-1}
-            className="glass relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none"
+            className="glass pointer-events-auto relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0 } : { y: '100%' }}
@@ -83,7 +92,7 @@ export function Sheet({
             </div>
             {children}
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   )
