@@ -1,14 +1,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'node:child_process'
 
 // Base de despliegue: '/' en dev/local; '/hacktrack/' para GitHub Pages (subpath).
 // Se activa con BASE_PATH=/hacktrack/ npm run build (no afecta el dev server).
 const BASE = process.env.BASE_PATH || '/'
 
+// Sello de build (hash corto de git + fecha) → visible en Ajustes para DIAGNOSTICAR caché:
+// si el usuario ve un hash viejo, está cargando un bundle viejo (no es bug de la app).
+let GIT_SHA = 'dev'
+try { GIT_SHA = execSync('git rev-parse --short HEAD').toString().trim() } catch { /* sin git */ }
+const BUILD_TIME = new Date().toISOString()
+
 // https://vite.dev/config/
 export default defineConfig({
   base: BASE,
+  define: {
+    __BUILD_SHA__: JSON.stringify(GIT_SHA),
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   plugins: [
     react(),
     VitePWA({

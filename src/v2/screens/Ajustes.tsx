@@ -113,22 +113,22 @@ function DeleteConfirmDialog({
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
           <motion.div
-            className="absolute inset-0 bg-black/60"
+            className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             onClick={onCancel}
           />
           <motion.div
             role="alertdialog"
             aria-label="Confirmar borrado de cuenta"
-            className="relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: '100%' }}
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
             transition={
               reduce
                 ? { duration: 0.15 }
@@ -176,22 +176,22 @@ function LogoutConfirmDialog({
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
           <motion.div
-            className="absolute inset-0 bg-black/60"
+            className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             onClick={onCancel}
           />
           <motion.div
             role="alertdialog"
             aria-label="Confirmar cierre de sesión"
-            className="relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: '100%' }}
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
             transition={
               reduce
                 ? { duration: 0.15 }
@@ -1015,6 +1015,11 @@ export function Ajustes({
               Tu historial se guarda solo en tu dispositivo. Al borrar, no hay recuperación.
             </p>
           </section>
+
+          {/* Sello de build — para diagnosticar caché: si el hash no coincide con el último deploy, estás en un bundle viejo. */}
+          <p className="px-1 pt-2 text-center font-mono text-[10px] text-muted-foreground/60">
+            build {__BUILD_SHA__} · {__BUILD_TIME__.slice(0, 16).replace('T', ' ')}
+          </p>
         </div>
       </Sheet>
 

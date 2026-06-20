@@ -153,22 +153,22 @@ function DeleteAccountDialog({
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
           <motion.div
-            className="absolute inset-0 bg-black/65"
+            className="pointer-events-auto absolute inset-0 bg-black/65"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             onClick={onCancel}
           />
           <motion.div
             role="alertdialog"
             aria-label="Confirmar eliminación de cuenta"
-            className="relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: '100%' }}
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
             transition={
               reduce
                 ? { duration: 0.15 }
@@ -224,22 +224,22 @@ function LogoutDialog({
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
           <motion.div
-            className="absolute inset-0 bg-black/60"
+            className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             onClick={onCancel}
           />
           <motion.div
             role="alertdialog"
             aria-label="Confirmar cierre de sesión"
-            className="relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: '100%' }}
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
             transition={
               reduce
                 ? { duration: 0.15 }
@@ -372,22 +372,22 @@ function RevocacionDialog({
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-[60] flex items-end">
+        <div className="pointer-events-none absolute inset-0 z-[60] flex items-end">
           <motion.div
-            className="absolute inset-0 bg-black/60"
+            className="pointer-events-auto absolute inset-0 bg-black/60"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             onClick={onCancel}
           />
           <motion.div
             role="dialog"
             aria-label="Gestionar consentimiento y modo local"
-            className="relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
-            exit={reduce ? { opacity: 0 } : { y: '100%' }}
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
             transition={
               reduce
                 ? { duration: 0.15 }
