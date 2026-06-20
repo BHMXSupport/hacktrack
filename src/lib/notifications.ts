@@ -70,10 +70,30 @@ let _swReg: ServiceWorkerRegistration | null = null
 export async function registerSW(): Promise<void> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
   try {
-    _swReg = await navigator.serviceWorker.register('/sw.js')
+    // BUG FIX: el SW vive en BASE_URL (/hacktrack/sw.js en prod), no en '/sw.js' → antes el register
+    // daba 404 en prod. Usamos getRegistration (el plugin PWA ya lo registró en el scope correcto)
+    // y, si no, registramos en la ruta correcta.
+    _swReg = (await navigator.serviceWorker.getRegistration())
+      ?? (await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`))
   } catch {
     /* SW no disponible (localhost sin HTTPS, Firefox private, etc.) */
   }
+}
+
+/**
+ * Programa UNA notificación local. CLAVE: siempre usa setTimeout en el hilo principal (que SÍ dispara
+ * con la app ABIERTA) Y además postMessage al SW por si en el futuro hay un SW/push que lo entregue con
+ * la app cerrada. Mismo `tag` → si ambos llegaran, el navegador muestra solo una (no duplica).
+ * Antes solo posteaba al SW (que es un stub self-destroy y lo ignora) → no disparaba ni con app abierta.
+ * Limitación: con la app CERRADA en iOS PWA no llega sin servidor de push (web push / VAPID) — pendiente backend.
+ */
+export async function scheduleNotif(title: string, body: string, delayMs: number, tag: string): Promise<void> {
+  if (delayMs <= 0 || delayMs > 24 * 60 * 60_000) return // solo hasta 24 h adelante
+  try {
+    const reg = _swReg ?? (await navigator.serviceWorker?.getRegistration()) ?? null
+    reg?.active?.postMessage({ type: 'SCHEDULE_NOTIF', title, body, delayMs, tag })
+  } catch { /* sin SW: el setTimeout de abajo cubre el caso app-abierta */ }
+  window.setTimeout(() => { void showReminder(title, body, { tag }) }, delayMs)
 }
 
 /**
@@ -85,25 +105,12 @@ export async function registerSW(): Promise<void> {
  * @param delayMs   Milisegundos hasta mostrar la notificación.
  */
 export async function scheduleSwReminder(product: string, delayMs: number): Promise<void> {
-  if (delayMs <= 0) return
-  const reg = _swReg ?? (await navigator.serviceWorker?.getRegistration()) ?? null
-  if (reg?.active) {
-    reg.active.postMessage({
-      type: 'SCHEDULE_NOTIF',
-      title: 'Hacktrack · recordatorio',
-      body: `Es hora de tu registro de ${product}.`,
-      delayMs,
-      tag: `hacktrack-dose-${product}`,
-    })
-  } else {
-    // Fallback: setTimeout en el hilo principal (requiere app abierta)
-    window.setTimeout(() => {
-      void showReminder('Hacktrack · recordatorio', `Es hora de tu registro de ${product}.`, {
-        tag: `hacktrack-dose-${product}`,
-        product,
-      })
-    }, delayMs)
-  }
+  await scheduleNotif('Hacktrack · recordatorio', `Es hora de tu registro de ${product}.`, delayMs, `hacktrack-dose-${product}`)
+}
+
+/** Resumen diario: una notificación con TODOS los protocolos programados para hoy. */
+export async function scheduleDailySummary(body: string, delayMs: number): Promise<void> {
+  await scheduleNotif('Hacktrack · hoy', body, delayMs, 'hacktrack-daily-summary')
 }
 
 /**

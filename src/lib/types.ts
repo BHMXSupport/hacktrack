@@ -198,6 +198,8 @@ export interface UserSettings {
    *  Si el usuario no registra dentro de esta ventana se dispara un segundo aviso. */
   rescueWindowMin?: 0 | 15 | 30 | 60
   weeklySummary: boolean
+  dailySummary?: boolean      // resumen diario ("hoy tienes programados …" de todos los protocolos activos)
+  summaryTime?: string        // 'HH:MM' hora del resumen diario (default '08:00')
   emailNotices: boolean
   consentVersion: string
   consentActive: boolean

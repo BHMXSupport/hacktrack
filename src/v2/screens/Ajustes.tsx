@@ -356,8 +356,9 @@ export function Ajustes({
   // unidades
   const currentUnit: UnitSystem = settings.unitSystem ?? 'metric'
 
-  // hora de recordatorio
-  const reminderTime = protocol?.reminderTime ?? '08:00'
+  // hora del RESUMEN DIARIO (la "general" de Ajustes). Los recordatorios POR DOSIS usan la hora de cada
+  // protocolo (se configura en cada protocolo); aquí solo se elige la hora del resumen de todos.
+  const summaryTime = settings.summaryTime ?? '08:00'
   const hasProtocol = protocol != null
 
   // segundo recordatorio
@@ -384,7 +385,7 @@ export function Ajustes({
   }
 
   function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
-    dispatch({ t: 'setReminderTime', time: e.target.value })
+    dispatch({ t: 'setSetting', key: 'summaryTime', value: e.target.value })
   }
 
   function handleDeleteAccount() {
@@ -642,14 +643,13 @@ export function Ajustes({
                 />
               </Row>
 
-              {/* Nota iOS: recordatorios solo con app abierta (#86) */}
-              {isIOS && (
-                <p className="mx-4 mt-0.5 mb-1 text-[11px] leading-relaxed text-muted-foreground">
-                  En iPhone los recordatorios solo aparecen con la app abierta. Instala la app a tu pantalla de inicio para más fiabilidad.
-                </p>
-              )}
+              {/* Cómo funcionan: por dosis (cada protocolo a su hora) + resumen diario. Nota honesta de iOS. */}
+              <p className="mx-4 mt-0.5 mb-1 text-[11px] leading-relaxed text-muted-foreground">
+                Recibes un aviso <span className="text-foreground">por cada dosis</span>, a la hora de cada protocolo (la configuras en cada uno).
+                {isIOS && ' En iPhone los recordatorios funcionan con la app abierta; con la app cerrada llegarán cuando conectemos el servidor de avisos.'}
+              </p>
 
-              {/* Selector de hora */}
+              {/* Resumen diario — hora del aviso "hoy tienes programado…" con TODOS los protocolos activos */}
               <Row className="px-4">
                 <Clock
                   size={18}
@@ -662,19 +662,17 @@ export function Ajustes({
                       hasProtocol ? 'text-foreground' : 'text-muted-foreground',
                     ].join(' ')}
                   >
-                    Hora del recordatorio
+                    Resumen diario
                   </span>
-                  {!hasProtocol && (
-                    <span className="text-[12px] italic text-muted-foreground">
-                      Configura un protocolo primero
-                    </span>
-                  )}
+                  <span className="text-[12px] text-muted-foreground">
+                    {hasProtocol ? 'Un aviso con todo lo de hoy, a esta hora' : 'Configura un protocolo primero'}
+                  </span>
                 </span>
                 <input
                   type="time"
-                  value={reminderTime}
+                  value={summaryTime}
                   disabled={!hasProtocol}
-                  aria-label="Hora del recordatorio"
+                  aria-label="Hora del resumen diario"
                   onChange={handleTimeChange}
                   className={[
                     'h-[36px] rounded-md bg-card px-2 font-mono text-[13px] tabular-nums text-foreground',
