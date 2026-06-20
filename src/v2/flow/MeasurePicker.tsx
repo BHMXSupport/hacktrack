@@ -22,7 +22,6 @@ import {
 } from '../../lib/catalog'
 import { Button } from '../ui/Button'
 import { Chip } from '../ui/Chip'
-import { Glass } from '../ui/Glass'
 
 // ── Animación ─────────────────────────────────────────────────────────────────
 
@@ -116,10 +115,11 @@ export function MeasurePicker() {
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 3 de 4 (~66%) */}
-        <div className="flex-1" aria-hidden="true">
-          <div className="h-1 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-[66%] rounded-full bg-teal" />
+        {/* Barra de progreso — paso 3 de 4 */}
+        <div className="flex-1 flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-muted-foreground">Paso 3 de 4</span>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 3 de 4">
+            <div className="h-full w-[75%] rounded-full bg-teal" />
           </div>
         </div>
 
@@ -215,7 +215,7 @@ export function MeasurePicker() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22 }}
           >
-            <Glass className="flex flex-col gap-2 py-3">
+            <div className="rounded-xl border border-white/10 bg-raised/80 p-4 flex flex-col gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Seguirás
               </p>
@@ -233,7 +233,7 @@ export function MeasurePicker() {
                   </span>
                 ))}
               </div>
-            </Glass>
+            </div>
           </motion.div>
         )}
 
@@ -246,11 +246,22 @@ export function MeasurePicker() {
 
         {/* CTAs */}
         <motion.div variants={fade} className="mt-auto flex flex-col gap-2">
-          <Button size="full" onClick={handleContinuar} disabled={selected.size === 0} aria-disabled={selected.size === 0}>
+          <Button
+            size="full"
+            onClick={handleContinuar}
+            disabled={selected.size === 0}
+            aria-disabled={selected.size === 0}
+            aria-label={isLastGoal ? 'Guardar métricas elegidas y continuar' : 'Confirmar métricas de este objetivo y pasar al siguiente'}
+          >
             {isLastGoal ? 'Continuar' : 'Siguiente objetivo'}
           </Button>
-          <Button size="full" variant="ghost" onClick={handleSaltar}>
-            {isLastGoal ? 'Saltar — usar recomendados' : 'Saltar el resto'}
+          <Button
+            size="full"
+            variant="outline"
+            onClick={handleSaltar}
+            aria-label="Omitir selección y usar las métricas recomendadas para todos mis objetivos"
+          >
+            Usar métricas recomendadas
           </Button>
         </motion.div>
       </motion.div>

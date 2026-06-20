@@ -26,10 +26,10 @@ export function SectionHero({
         <AutoVideo src={video} poster={poster} className="absolute inset-0 h-full w-full object-cover" />
       )}
       {/* Gradiente para garantizar contraste del título (texto crítico nunca sobre media a secas) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/40" />
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
         <div>
-          <h1 className="text-[24px] font-bold leading-tight text-foreground">{title}</h1>
+          <h1 className="text-[24px] font-bold leading-tight text-foreground [text-shadow:0_2px_10px_rgba(0,0,0,.6)]">{title}</h1>
           {subtitle && <p className="mt-0.5 text-[13px] text-secondary-foreground">{subtitle}</p>}
         </div>
         {action}

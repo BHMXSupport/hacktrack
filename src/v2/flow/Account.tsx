@@ -17,7 +17,6 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Eye, EyeOff, Shield, User } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { Button } from '../ui/Button'
-import { Glass } from '../ui/Glass'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -129,9 +128,10 @@ export function Account() {
           <ChevronLeft size={22} />
         </button>
 
-        {/* Paso 2 de 2 */}
-        <div className="flex-1">
-          <div className="h-1 overflow-hidden rounded-full bg-white/10">
+        {/* Paso 5 de 5 */}
+        <div className="flex-1 flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-muted-foreground">Paso 5 de 5</span>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={5} aria-valuemin={1} aria-valuemax={5} aria-label="Último paso">
             <div className="h-full w-full rounded-full bg-teal" />
           </div>
         </div>
@@ -148,10 +148,10 @@ export function Account() {
         {/* Título */}
         <motion.div variants={fade} className="text-center">
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
-            Crea tu cuenta
+            ¡Casi listo!
           </h1>
           <p className="mt-2 text-[14px] text-muted-foreground">
-            Tu cuenta guarda tu acceso; tu historial vive en tu dispositivo.
+            Tu cuenta es tu llave para entrar desde cualquier dispositivo; tus registros viven solo en este dispositivo.
           </p>
         </motion.div>
 
@@ -255,8 +255,30 @@ export function Account() {
             )}
           </Field>
 
-          {/* Checkbox de privacidad — #15: párrafo fluido (no flex) para que el texto no se encime */}
-          <Glass className="flex items-start gap-3 p-4">
+          {/* Trust badges — visibles antes del consentimiento */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              'Datos locales',
+              'Sin rastreo',
+              'Hecho en México',
+            ].map((txt) => (
+              <span
+                key={txt}
+                className="inline-flex items-center gap-1.5 rounded-full border border-teal/20 bg-teal/8 px-3 py-1 text-[11px] font-medium text-teal"
+              >
+                <Shield size={11} />
+                {txt}
+              </span>
+            ))}
+          </div>
+
+          {/* Disclaimer médico — posición visible, antes del checkbox */}
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            No reemplaza consejo médico profesional.
+          </p>
+
+          {/* Checkbox de privacidad — contenedor sólido para consentimiento legible */}
+          <div className="rounded-xl border border-white/10 bg-raised/80 p-4 flex items-start gap-3">
             <input
               id="ht-privacy"
               type="checkbox"
@@ -265,12 +287,12 @@ export function Account() {
               aria-required="true"
               className="mt-0.5 h-6 w-6 flex-shrink-0 cursor-pointer rounded accent-teal"
             />
-            <label htmlFor="ht-privacy" className="block cursor-pointer text-[13px] leading-relaxed text-secondary-foreground">
+            <label htmlFor="ht-privacy" className="block cursor-pointer text-[13px] leading-relaxed text-foreground">
               He leído y acepto el{' '}
               <span className="font-semibold text-teal underline underline-offset-2">Aviso de Privacidad</span>.
               Tu historial se guarda solo en tu dispositivo.
             </label>
-          </Glass>
+          </div>
 
           {/* CTA crear */}
           <Button
@@ -291,43 +313,10 @@ export function Account() {
         </motion.div>
 
         {/* Cuenta obligatoria: solo "ya tengo cuenta" (se quitó "continuar sin cuenta") */}
-        <motion.div variants={fade} className="flex flex-col gap-3">
+        <motion.div variants={fade}>
           <Button size="full" variant="outline" onClick={() => dispatch({ t: 'go', screen: 's-login' })}>
             Ya tengo cuenta · Iniciar sesión
           </Button>
-          <p className="text-center text-[12px] text-muted-foreground">
-            Tu cuenta (correo) se guarda en la nube para iniciar sesión donde sea. Tus registros viven solo en este dispositivo.
-          </p>
-        </motion.div>
-
-        {/* Footer */}
-        <motion.div
-          variants={fade}
-          className="mt-auto flex flex-col items-center gap-4 pt-2"
-        >
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap justify-center gap-3">
-            {[
-              'Datos locales',
-              'Sin rastreo',
-              'Hecho en México',
-            ].map((txt) => (
-              <span
-                key={txt}
-                className="inline-flex items-center gap-1.5 rounded-full border border-teal/20 bg-teal/8 px-3 py-1 text-[11px] font-medium text-teal"
-              >
-                <Shield size={11} />
-                {txt}
-              </span>
-            ))}
-          </div>
-
-          {/* Disclaimer */}
-          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-            Hacktrack es una herramienta de seguimiento personal.
-            No reemplaza consejo médico profesional.
-          </p>
         </motion.div>
       </motion.div>
     </div>

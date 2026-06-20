@@ -402,11 +402,11 @@ function RevocacionDialog({
                 Gestionar consentimiento (Oposición)
               </h3>
             </div>
+            {/* Interino honesto: localOnly se guarda en estado pero no hay sync que bloquear todavía */}
             <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
-              Ejerces tu derecho de Oposición (LFPDPPP art. 27). Puedes activar el{' '}
-              <span className="font-semibold text-foreground">modo solo local</span> para asegurarte
-              de que ningún dato salga de tu dispositivo, o eliminar todos tus datos con el botón
-              Cancelar cuenta.
+              Ejerces tu derecho de Oposición (LFPDPPP art. 27). Tus datos ya viven solo en este
+              dispositivo; no se sincronizan a ningún servidor. Puedes eliminar todos tus datos con
+              el botón Cancelar cuenta.
             </p>
 
             {/* Toggle modo solo local */}
@@ -416,8 +416,8 @@ function RevocacionDialog({
                 <span className="text-[14px] font-medium text-foreground">Modo solo local</span>
                 <span className="text-[12px] text-muted-foreground">
                   {localOnly
-                    ? 'Activo — datos confinados a este dispositivo'
-                    : 'Desactivado — sincronización según configuración'}
+                    ? 'Activo — preferencia registrada'
+                    : 'Desactivado'}
                 </span>
               </span>
               {/* Chip de estado */}

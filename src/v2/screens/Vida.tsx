@@ -276,12 +276,20 @@ export function Vida() {
       arr.push({ product, ts })
       byHour.set(bucket, arr)
     }
-    const refs: { t: number; label: string; color?: string; dot?: boolean }[] = []
+    const refs: { t: number; label: string; color?: string; tooltip?: string; dot?: boolean }[] = []
     for (const group of byHour.values()) {
       if (group.length >= 2) {
         const ts = Math.min(...group.map((g) => g.ts))
         const hora = new Date(ts).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
-        refs.push({ t: ts, label: `stack (${group.length}) · ${hora}`, color: 'var(--teal-bright)', dot: true })
+        const names = group.map((g) => g.product)
+        // Si los nombres caben en el label (≤ 28 chars), los incluimos directamente;
+        // si no, caemos al formato 'stack (N)' pero añadimos los nombres en el tooltip.
+        const namesJoined = names.join(' + ')
+        const labelBase = namesJoined.length <= 28
+          ? `${namesJoined} · ${hora}`
+          : `stack (${group.length}) · ${hora}`
+        const tooltipStr = namesJoined.length > 28 ? `${namesJoined} · ${hora}` : undefined
+        refs.push({ t: ts, label: labelBase, color: 'var(--teal-bright)', dot: true, ...(tooltipStr ? { tooltip: tooltipStr } : {}) })
       } else {
         const { product, ts } = group[0]
         const color = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--teal)'
@@ -773,12 +781,12 @@ export function Vida() {
         <motion.div variants={fade}>
           <Glass>
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Exposición acumulada{' '}
+              Carga acumulada (AUC){' '}
               <span className="font-normal text-muted-foreground/70">· en esta ventana</span>
             </p>
             <AucBars series={visible} />
             <p className="mt-2 text-[11px] text-muted-foreground leading-snug">
-              Estimación teórica de exposición (área bajo la curva), no un nivel en sangre.
+              Cuánta concentración × tiempo pasó en tu cuerpo en esta ventana (estimación teórica, no un nivel en sangre).
             </p>
           </Glass>
         </motion.div>

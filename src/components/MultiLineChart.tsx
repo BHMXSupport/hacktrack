@@ -252,7 +252,7 @@ export function MultiLineChart({
             </text>
             {/* hit area ampliado para tap */}
             {hasTooltip && (
-              <rect x={PAD.l} y={y - 8} width={plotW} height={16} fill="transparent" />
+              <rect x={PAD.l} y={y - 12} width={plotW} height={24} fill="transparent" style={{ cursor: 'pointer' }} />
             )}
             {/* item 380 — tooltip educativo expandible */}
             <AnimatePresence>

@@ -92,6 +92,8 @@ export function MedidaSheet({
       setScaleNumStr('')
       setValue(50)
       setNota('')
+      setInputMode('buttons')
+      setRangeError(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -118,6 +120,7 @@ export function MedidaSheet({
 
   // ── Delta feedback al guardar ──────────────────────────────────────────────
   const [savedDelta, setSavedDelta] = useState<string | null>(null)
+  const [rangeError, setRangeError] = useState(false)
 
   function computeDelta(v: number): string | null {
     if (prevMeasure == null) return null
@@ -138,6 +141,22 @@ export function MedidaSheet({
     })
   }
 
+  // ── Topes máximos para medidas numéricas (sin campo max en MEASURE_META) ──
+  const NUM_MAX: Record<string, number> = {
+    'Peso':           300,   // kg
+    'Altura':         250,   // cm
+    'Cintura':        200,   // cm
+    '% grasa':        70,    // %
+    '% músculo':      70,    // %
+    'IMC':            70,
+    'Glucosa ayunas': 600,   // mg/dL
+    'Frecuencia sexual': 99, // /sem
+  }
+
+  function numMaxFor(n: string): number {
+    return NUM_MAX[n] ?? 9999
+  }
+
   // ── Guardar ───────────────────────────────────────────────────────────────
   const handleSave = useCallback(() => {
     if (!name) {
@@ -148,10 +167,20 @@ export function MedidaSheet({
     if (isNum) {
       const v = parseFloat(numStr)
       if (isNaN(v) || v < 0) return
+      const maxAllowed = numMaxFor(name)
+      if (v > maxAllowed) {
+        setRangeError(true)
+        setTimeout(() => setRangeError(false), 2200)
+        return
+      }
+      setRangeError(false)
       const delta = computeDelta(v)
       dispatch({ t: 'saveMeasure', name, value: v, nota: nota.trim() || undefined })
       if (delta) {
         setSavedDelta(delta)
+        setTimeout(() => { setSavedDelta(null); onClose() }, 1800)
+      } else if (prevMeasure == null) {
+        setSavedDelta('Primera medida · punto de partida')
         setTimeout(() => { setSavedDelta(null); onClose() }, 1800)
       } else {
         onClose()
@@ -162,6 +191,9 @@ export function MedidaSheet({
       dispatch({ t: 'saveMeasure', name, value, nota: nota.trim() || undefined })
       if (delta) {
         setSavedDelta(delta)
+        setTimeout(() => { setSavedDelta(null); onClose() }, 1800)
+      } else if (prevMeasure == null) {
+        setSavedDelta('Primera medida · punto de partida')
         setTimeout(() => { setSavedDelta(null); onClose() }, 1800)
       } else {
         onClose()
@@ -198,6 +230,7 @@ export function MedidaSheet({
                     setTouched(false)
                     setValue(50)
                     setNota('')
+                    setInputMode('buttons')
                   }}
                 >
                   {k.label}
@@ -213,7 +246,7 @@ export function MedidaSheet({
             {/* Botón para cambiar de medida */}
             <button
               type="button"
-              onClick={() => setShowSelector(true)}
+              onClick={() => { setShowSelector(true); setInputMode('buttons') }}
               className="flex min-h-[44px] items-center justify-between rounded-lg border border-white/10 bg-raised px-4 py-3 text-left active:scale-[.99]"
             >
               <span className="font-medium text-foreground">{name}</span>
@@ -396,7 +429,21 @@ export function MedidaSheet({
               />
             </div>
 
-            {/* ── Delta feedback ── */}
+            {/* ── Error de rango ── */}
+            <AnimatePresence>
+              {rangeError && (
+                <motion.p
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="text-center text-[13px] font-semibold text-red-400"
+                >
+                  Valor fuera de rango — revisa el número ingresado
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            {/* ── Delta / primera medida feedback ── */}
             <AnimatePresence>
               {savedDelta && (
                 <motion.p

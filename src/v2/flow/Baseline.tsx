@@ -15,7 +15,6 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Scale, Ruler, Target, Info, Percent } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { Button } from '../ui/Button'
-import { Glass } from '../ui/Glass'
 
 // ── Animación ─────────────────────────────────────────────────────────────────
 
@@ -174,9 +173,10 @@ export function Baseline() {
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 2 de 4 (~50%) */}
-        <div className="flex-1" aria-hidden="true">
-          <div className="h-1 overflow-hidden rounded-full bg-white/10">
+        {/* Barra de progreso — paso 2 de 4 */}
+        <div className="flex-1 flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-muted-foreground">Paso 2 de 4</span>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={2} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 2 de 4">
             <div className="h-full w-[50%] rounded-full bg-teal" />
           </div>
         </div>
@@ -259,13 +259,13 @@ export function Baseline() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.22 }}
           >
-            <Glass className="flex items-center gap-3 py-3 px-4">
+            <div className="rounded-xl border border-white/10 bg-raised/80 p-4 flex items-center gap-3">
               <Info size={14} className="flex-shrink-0 text-teal" aria-hidden="true" />
-              <p className="text-[13px] text-secondary-foreground">
+              <p className="text-[13px] text-foreground">
                 IMC estimado:{' '}
                 <span className="font-bold tabular-nums text-foreground">{bmi}</span>
               </p>
-            </Glass>
+            </div>
           </motion.div>
         )}
 
@@ -278,11 +278,20 @@ export function Baseline() {
 
         {/* CTAs */}
         <motion.div variants={fade} className="mt-auto flex flex-col gap-2">
-          <Button size="full" onClick={handleContinuar}>
+          <Button
+            size="full"
+            onClick={handleContinuar}
+            aria-label="Guardar mis datos biométricos y continuar"
+          >
             Continuar
           </Button>
-          <Button size="full" variant="ghost" onClick={handleSaltar}>
-            Saltar por ahora
+          <Button
+            size="full"
+            variant="outline"
+            onClick={handleSaltar}
+            aria-label="Usar valores recomendados y omitir biométricos por ahora"
+          >
+            Usar valores recomendados
           </Button>
         </motion.div>
       </motion.div>

@@ -85,7 +85,7 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   }, [])
   const nowTs = now.getTime()
 
-  const next = useMemo(() => upcomingDoses(state, now, 1)[0] ?? null, [state])
+  const next = useMemo(() => upcomingDoses(state, now, 1)[0] ?? null, [state, now])
   const streak = useMemo(() => protocolStreak(state, now), [state])
   const today = startOfDay(now)
 
@@ -204,16 +204,18 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
       variants={{ show: { transition: { staggerChildren: 0.07 } } }}
     >
       {/* Header */}
-      <motion.div variants={fade} className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[13px] text-muted-foreground">{fecha}</p>
-          <h1 className="truncate text-[28px] font-bold leading-tight text-foreground">
-            Hola{name ? `, ${name}` : ''}
-          </h1>
+      <motion.div variants={fade} className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[13px] text-muted-foreground">{fecha}</p>
+            <h1 className="truncate text-[28px] font-bold leading-tight text-foreground">
+              Hola{name ? `, ${name}` : ''}
+            </h1>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-[12px] font-medium text-teal">
+            <Shield size={13} /> Tus datos son tuyos
+          </span>
         </div>
-        <span className="mt-1 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-[12px] font-medium text-teal">
-          <Shield size={13} /> Tus datos son tuyos
-        </span>
       </motion.div>
 
       {/* HERO — próxima toma con video en movimiento + readout en data-plate */}
@@ -223,13 +225,13 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
             src={posterSrc}
             alt=""
             aria-hidden
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-35"
           />
           {playHero && (
             <AutoVideo
               src={heroSrc}
               poster={posterSrc}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-50"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"
             />
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/70 to-transparent" />
@@ -375,38 +377,79 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
               return (
                 <div
                   key={product}
-                  className={`flex items-center gap-3 px-3 py-3 min-h-[56px]${!isLast ? ' border-b border-white/[0.07]' : ''}`}
+                  className={`flex flex-col gap-2 px-3 py-3 min-h-[64px] sm:flex-row sm:items-center sm:gap-3${!isLast ? ' border-b border-white/[0.07]' : ''}`}
                   style={{
                     // Borde izquierdo semáforo solo en pendientes
                     borderLeft: win ? `3px solid ${WIN_COLOR[win]}` : '3px solid transparent',
                     opacity: skipped ? 0.55 : 1,
                   }}
                 >
-                  {/* Indicador estado */}
-                  <span
-                    aria-hidden
-                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
-                      done
-                        ? 'border-teal bg-teal text-primary-foreground'
-                        : skipped
-                          ? 'border-white/20 text-white/30'
-                          : 'border-white/20 text-transparent'
-                    }`}
-                  >
-                    {done ? <Check size={14} strokeWidth={3} /> : skipped ? <X size={12} /> : null}
-                  </span>
-
-                  {/* Nombre + ventana */}
-                  <div className="flex flex-1 flex-col min-w-0">
+                  {/* Fila superior: indicador + nombre + chip cadencia */}
+                  <div className="flex items-center gap-3 sm:flex-1 sm:min-w-0">
+                    {/* Indicador estado */}
                     <span
-                      className="font-medium text-foreground text-[14px] leading-snug truncate"
-                      style={{ textDecoration: done || skipped ? 'line-through' : 'none', opacity: done || skipped ? 0.6 : 1 }}
+                      aria-hidden
+                      className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
+                        done
+                          ? 'border-teal bg-teal text-primary-foreground'
+                          : skipped
+                            ? 'border-white/20 text-white/30'
+                            : 'border-white/20 text-transparent'
+                      }`}
                     >
-                      {product}
+                      {done ? <Check size={14} strokeWidth={3} /> : skipped ? <X size={12} /> : null}
                     </span>
+
+                    {/* Nombre + estados */}
+                    <div className="flex flex-1 flex-col min-w-0">
+                      <span
+                        className="font-medium text-foreground text-[14px] leading-snug truncate"
+                        style={{ textDecoration: done || skipped ? 'line-through' : 'none', opacity: done || skipped ? 0.6 : 1 }}
+                      >
+                        {product}
+                      </span>
+                      {done && (
+                        <span className="text-[11px] text-ok mt-0.5 font-medium">Hecha</span>
+                      )}
+                      {skipped && (
+                        <span className="text-[11px] text-muted-foreground mt-0.5">Saltada hoy</span>
+                      )}
+                      {/* M2: cadencia del protocolo — toca para editar días/cadencia */}
+                      {state.protocols[product]?.cadence && (
+                        <button
+                          type="button"
+                          onClick={() => editProtocol(product)}
+                          aria-label={`Editar protocolo de ${product}`}
+                          className="mt-1 self-start rounded-full transition-opacity active:opacity-60"
+                        >
+                          <CadenciaChip cad={state.protocols[product]?.cadence} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Badge de estado (hecha/saltada) — solo en sm+ se queda en esta fila */}
+                    {(done || skipped) && (
+                      <span
+                        className="hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 h-[32px] text-[11px] font-semibold shrink-0"
+                        style={{
+                          background: done
+                            ? 'color-mix(in srgb, var(--ok) 15%, transparent)'
+                            : 'color-mix(in srgb, var(--muted-foreground) 10%, transparent)',
+                          color: done ? 'var(--ok)' : 'var(--muted-foreground)',
+                        }}
+                      >
+                        {done ? <Check size={11} /> : <X size={11} />}
+                        {done ? 'Hecha' : 'Saltada'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Fila inferior (en base) / misma fila (en sm+): ventana + botones */}
+                  <div className="flex items-center justify-between gap-2 sm:justify-end sm:shrink-0">
+                    {/* Indicador de ventana de toma */}
                     {win && !done && !skipped && (
                       <span
-                        className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold"
+                        className="flex items-center gap-1 text-[11px] font-semibold leading-relaxed"
                         style={{ color: WIN_COLOR[win] }}
                       >
                         {/* #53: forma distinta por estado para no depender solo del color (daltonismo) */}
@@ -416,74 +459,57 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                         {WIN_LABEL[win]}
                       </span>
                     )}
-                    {done && (
-                      <span className="text-[11px] text-ok mt-0.5 font-medium">Hecha</span>
-                    )}
-                    {skipped && (
-                      <span className="text-[11px] text-muted-foreground mt-0.5">Saltada hoy</span>
-                    )}
-                    {/* M2: cadencia del protocolo — toca para editar días/cadencia */}
-                    {state.protocols[product]?.cadence && (
-                      <button
-                        type="button"
-                        onClick={() => editProtocol(product)}
-                        aria-label={`Editar protocolo de ${product}`}
-                        className="mt-1 self-start rounded-full transition-opacity active:opacity-60"
+
+                    {/* Botones de acción */}
+                    {!done && !skipped ? (
+                      <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
+                        {/* Confirmación rápida (dose-confirm): hora + efecto, dosis/sitio pre-cargados */}
+                        <button
+                          type="button"
+                          onClick={() => markDose(product)}
+                          aria-label={`Marcar dosis de ${product}`}
+                          className="flex items-center justify-center gap-1.5 rounded-full px-3 h-[44px] min-w-[44px] font-semibold text-[12px] transition-colors"
+                          style={{
+                            background: 'color-mix(in srgb, var(--teal) 15%, transparent)',
+                            border: '1.5px solid var(--teal)',
+                            color: 'var(--teal-bright)',
+                          }}
+                        >
+                          <Check size={13} strokeWidth={2.5} />
+                          <span>Marcar</span>
+                        </button>
+                        {/* "No hoy" — saltar el día (no penaliza adherencia). #13: claramente tocable */}
+                        <button
+                          type="button"
+                          onClick={() => skipDose(product)}
+                          aria-label={`Saltar dosis de ${product} hoy`}
+                          className="flex items-center justify-center gap-1.5 rounded-full h-[44px] min-w-[44px] px-3 font-semibold text-[12px] transition-colors active:opacity-70"
+                          style={{
+                            border: '1.5px solid rgba(255,255,255,0.28)',
+                            background: 'rgba(255,255,255,0.06)',
+                            color: 'var(--secondary-foreground)',
+                          }}
+                        >
+                          <SkipForward size={13} strokeWidth={2.5} />
+                          <span>No hoy</span>
+                        </button>
+                      </div>
+                    ) : (
+                      // Badge solo informativo cuando ya está resuelta — solo en mobile (base), oculto en sm+
+                      <span
+                        className="inline-flex sm:hidden items-center gap-1 rounded-full px-2.5 h-[32px] text-[11px] font-semibold shrink-0"
+                        style={{
+                          background: done
+                            ? 'color-mix(in srgb, var(--ok) 15%, transparent)'
+                            : 'color-mix(in srgb, var(--muted-foreground) 10%, transparent)',
+                          color: done ? 'var(--ok)' : 'var(--muted-foreground)',
+                        }}
                       >
-                        <CadenciaChip cad={state.protocols[product]?.cadence} />
-                      </button>
+                        {done ? <Check size={11} /> : <X size={11} />}
+                        {done ? 'Hecha' : 'Saltada'}
+                      </span>
                     )}
                   </div>
-
-                  {/* Botones de acción */}
-                  {!done && !skipped ? (
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* Confirmación rápida (dose-confirm): hora + efecto, dosis/sitio pre-cargados */}
-                      <button
-                        type="button"
-                        onClick={() => markDose(product)}
-                        aria-label={`Marcar dosis de ${product}`}
-                        className="flex items-center justify-center gap-1.5 rounded-full px-3 h-[44px] min-w-[44px] font-semibold text-[12px] transition-colors"
-                        style={{
-                          background: 'color-mix(in srgb, var(--teal) 15%, transparent)',
-                          border: '1.5px solid var(--teal)',
-                          color: 'var(--teal-bright)',
-                        }}
-                      >
-                        <Check size={13} strokeWidth={2.5} />
-                        <span>Marcar</span>
-                      </button>
-                      {/* "No hoy" — saltar el día (no penaliza adherencia). #13: claramente tocable */}
-                      <button
-                        type="button"
-                        onClick={() => skipDose(product)}
-                        aria-label={`Saltar dosis de ${product} hoy`}
-                        className="flex items-center justify-center gap-1.5 rounded-full h-[44px] min-w-[44px] px-3 font-semibold text-[12px] transition-colors active:opacity-70"
-                        style={{
-                          border: '1.5px solid rgba(255,255,255,0.28)',
-                          background: 'rgba(255,255,255,0.06)',
-                          color: 'var(--secondary-foreground)',
-                        }}
-                      >
-                        <SkipForward size={13} strokeWidth={2.5} />
-                        <span>No hoy</span>
-                      </button>
-                    </div>
-                  ) : (
-                    // Badge solo informativo cuando ya está resuelta
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-2.5 h-[32px] text-[11px] font-semibold shrink-0"
-                      style={{
-                        background: done
-                          ? 'color-mix(in srgb, var(--ok) 15%, transparent)'
-                          : 'color-mix(in srgb, var(--muted-foreground) 10%, transparent)',
-                        color: done ? 'var(--ok)' : 'var(--muted-foreground)',
-                      }}
-                    >
-                      {done ? <Check size={11} /> : <X size={11} />}
-                      {done ? 'Hecha' : 'Saltada'}
-                    </span>
-                  )}
                 </div>
               )
             })}

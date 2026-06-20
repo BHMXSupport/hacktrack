@@ -78,7 +78,12 @@ export function ProtocolSetup() {
         >
           <ChevronLeft size={22} />
         </button>
-        <div className="flex-1"><div className="h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full w-[83%] rounded-full bg-teal" /></div></div>
+        <div className="flex-1 flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-muted-foreground">Paso 4 de 5</span>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={4} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 4 de 5">
+            <div className="h-full w-[80%] rounded-full bg-teal" />
+          </div>
+        </div>
         <div className="w-11" />
       </header>
 
@@ -90,10 +95,18 @@ export function ProtocolSetup() {
         style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
       >
         <motion.div variants={fade}>
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">Arma tu protocolo</h1>
+          <p className="mb-1 text-[12px] font-semibold text-muted-foreground">
+            Arma tu protocolo
+            <span className="ml-2 text-teal">
+              {picker ? '· 1/2 Elige productos' : '· 2/2 Configura cada uno'}
+            </span>
+          </p>
+          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
+            {picker ? 'Elige tus productos' : 'Configura tu protocolo'}
+          </h1>
           <p className="mt-2 text-[14px] text-secondary-foreground">
             {picker
-              ? `Elige tus productos${state.curGoal ? ` para ${state.curGoal.toLowerCase()}` : ''}. Lo dejamos listo con días y recordatorio.`
+              ? `${state.curGoal ? `Sugeridos para ${state.curGoal.toLowerCase()}.` : 'Selecciona lo que quieres rastrear.'} Lo dejamos listo con días y recordatorio.`
               : 'Ajusta días, cadencia y hora de recordatorio de cada uno.'}
           </p>
         </motion.div>
@@ -150,9 +163,17 @@ export function ProtocolSetup() {
               <Button size="full" disabled={selected.size === 0} onClick={addSelected}>
                 Agregar {selected.size > 0 ? `(${selected.size})` : ''}
               </Button>
-              <Button size="full" variant="ghost" onClick={goAccount}>
-                Lo configuro después
+              <Button
+                size="full"
+                variant="outline"
+                onClick={goAccount}
+                aria-label="Omitir protocolo y configurarlo después (sin dosis que registrar todavía)"
+              >
+                Configurar mi protocolo después
               </Button>
+              <p className="text-center text-[12px] leading-relaxed text-muted-foreground">
+                Sin un protocolo no tendrás dosis que registrar todavía.
+              </p>
             </motion.div>
           </>
         ) : (

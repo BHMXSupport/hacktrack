@@ -5,7 +5,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
-  Lock, Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator,
+  Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
@@ -239,6 +239,9 @@ function AliasSheet({
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(products.map((p) => [p, aliases[p] ?? '']))
   )
+  const [search, setSearch] = useState('')
+  // Producto que acaba de guardarse (para feedback visual momentáneo)
+  const [savedProduct, setSavedProduct] = useState<string | null>(null)
 
   // Re-sincronizar drafts con productos/aliases al abrir (#100)
   useEffect(() => {
@@ -246,18 +249,28 @@ function AliasSheet({
       const currentProducts = state.importedProducts ?? []
       const currentAliases = state.productAliases ?? {}
       setDrafts(Object.fromEntries(currentProducts.map((p) => [p, currentAliases[p] ?? ''])))
+      setSearch('')
+      setSavedProduct(null)
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function save(product: string) {
     const alias = (drafts[product] ?? '').trim()
     dispatch({ t: 'setProductAlias', product, alias: alias || null })
+    // Feedback visual: mostrar check por 1.2 s
+    setSavedProduct(product)
+    window.setTimeout(() => setSavedProduct((p) => (p === product ? null : p)), 1200)
   }
 
   function saveAll() {
     products.forEach(save)
     onClose()
   }
+
+  const query = search.trim().toLowerCase()
+  const filteredProducts = query
+    ? products.filter((p) => p.toLowerCase().includes(query))
+    : products
 
   return (
     <Sheet open={open} onClose={onClose} title="Nombres privados">
@@ -271,34 +284,65 @@ function AliasSheet({
             Sin productos en protocolo.
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {products.map((product) => (
-              <div key={product} className="flex flex-col gap-1">
-                <label
-                  htmlFor={`alias-${product}`}
-                  className="text-[12px] font-semibold text-muted-foreground"
-                >
-                  {product}
-                </label>
-                <input
-                  id={`alias-${product}`}
-                  type="text"
-                  value={drafts[product] ?? ''}
-                  placeholder="Alias privado (p.ej. Tratamiento A)"
-                  maxLength={32}
-                  onChange={(e) =>
-                    setDrafts((d) => ({ ...d, [product]: e.target.value }))
-                  }
-                  onBlur={() => save(product)}
-                  className={[
-                    'h-[44px] w-full rounded-xl border border-white/10 bg-raised px-3',
-                    'text-[14px] text-foreground placeholder:text-muted-foreground',
-                    'focus:outline-none focus-visible:ring-1 focus-visible:ring-teal',
-                  ].join(' ')}
-                />
-              </div>
-            ))}
-          </div>
+          <>
+            {/* Buscador de productos */}
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar producto…"
+              aria-label="Filtrar productos por nombre"
+              className={[
+                'h-[44px] w-full rounded-xl border border-white/10 bg-raised px-3',
+                'text-[14px] text-foreground placeholder:text-muted-foreground',
+                'focus:outline-none focus-visible:ring-1 focus-visible:ring-teal',
+              ].join(' ')}
+            />
+
+            <div className="flex flex-col gap-3">
+              {filteredProducts.length === 0 && (
+                <p className="italic text-[13px] text-muted-foreground">
+                  Sin resultados para "{search}".
+                </p>
+              )}
+              {filteredProducts.map((product) => {
+                const isSaved = savedProduct === product
+                return (
+                  <div key={product} className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`alias-${product}`}
+                      className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground"
+                    >
+                      {product}
+                      {/* Feedback de guardado */}
+                      {isSaved && (
+                        <span className="text-teal text-[11px] font-semibold">
+                          Guardado
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      id={`alias-${product}`}
+                      type="text"
+                      value={drafts[product] ?? ''}
+                      placeholder="Alias privado (p.ej. Tratamiento A)"
+                      maxLength={32}
+                      onChange={(e) =>
+                        setDrafts((d) => ({ ...d, [product]: e.target.value }))
+                      }
+                      onBlur={() => save(product)}
+                      className={[
+                        'h-[44px] w-full rounded-xl border bg-raised px-3 transition-colors duration-200',
+                        'text-[14px] text-foreground placeholder:text-muted-foreground',
+                        'focus:outline-none focus-visible:ring-1 focus-visible:ring-teal',
+                        isSaved ? 'border-teal/60' : 'border-white/10',
+                      ].join(' ')}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
 
         {products.length > 0 && (
@@ -588,34 +632,8 @@ export function Ajustes({
           </section>
 
           {/* ── SEGURIDAD (R48) ───────────────────────────────────────────── */}
-          <section>
-            <SectionLabel>Seguridad</SectionLabel>
-            <RowCard>
-              {/* PIN de acceso */}
-              <Row className="px-4">
-                <Lock
-                  size={18}
-                  className={settings.pinEnabled ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'}
-                />
-                <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">PIN de acceso</span>
-                  <span className="text-[12px] text-muted-foreground">
-                    {settings.pinEnabled
-                      ? 'Protegido — se solicita al abrir la app'
-                      : 'Desactivado'}
-                  </span>
-                </span>
-                <Switch
-                  checked={!!settings.pinEnabled}
-                  onChange={(v) => dispatch({ t: 'setSetting', key: 'pinEnabled', value: v })}
-                  label="Activar PIN de acceso"
-                />
-              </Row>
-            </RowCard>
-            <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
-              El PIN se almacena localmente y protege el acceso a la app.
-            </p>
-          </section>
+          {/* TODO(handoff): implementar PIN local (hash) o por backend — ver Auth & Backend Handoff */}
+          {/* El toggle de PIN está oculto hasta que la pantalla de validación de PIN esté implementada */}
 
           {/* ── RECORDATORIOS ────────────────────────────────────────────── */}
           <section>
@@ -860,36 +878,31 @@ export function Ajustes({
           </section>
 
           {/* ── AVISOS POR CORREO (R48) ───────────────────────────────────── */}
+          {/* Interino: no hay backend de correo todavía — switch deshabilitado */}
           <section>
             <SectionLabel>Comunicaciones</SectionLabel>
             <RowCard>
               <Row className="px-4">
                 <Mail
                   size={18}
-                  className={settings.emailNotices ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'}
+                  className="shrink-0 text-muted-foreground opacity-50"
                 />
-                <span className="flex flex-1 flex-col">
+                <span className="flex flex-1 flex-col opacity-50">
                   <span className="text-[14px] font-medium text-foreground">
-                    Avisos por correo
+                    Avisos por correo · Próximamente
                   </span>
                   <span className="text-[12px] text-muted-foreground">
-                    {settings.emailNotices
-                      ? 'Recibirás resúmenes y alertas al correo registrado'
-                      : 'Desactivado — solo notificaciones en el dispositivo'}
+                    Disponible cuando conectemos tu cuenta.
                   </span>
                 </span>
                 <Switch
-                  checked={!!settings.emailNotices}
-                  onChange={(v) => dispatch({ t: 'setSetting', key: 'emailNotices', value: v })}
-                  label="Activar avisos por correo"
+                  checked={false}
+                  onChange={() => {}}
+                  disabled
+                  label="Avisos por correo — próximamente"
                 />
               </Row>
             </RowCard>
-            {settings.emailNotices && !profile.email && (
-              <p className="mt-1.5 px-1 text-[11px] text-alert">
-                Configura un correo en tu perfil para recibir avisos.
-              </p>
-            )}
           </section>
 
           {/* ── PRIVACIDAD — alias de productos (R48) ─────────────────────── */}

@@ -164,7 +164,7 @@ export function InjectionMap({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold tracking-tight text-foreground">Sitio de inyección</h3>
         {suggested && (
-          <span className="flex items-center gap-1 font-mono text-[11px] text-teal">
+          <span className="inline-flex items-center gap-1 rounded-full border border-teal/30 bg-teal/15 px-2 py-0.5 font-mono text-[11px] font-semibold text-teal">
             <span aria-hidden>◎</span>
             <span>Sugerido: {SITE_SHORT[suggested]}</span>
           </span>

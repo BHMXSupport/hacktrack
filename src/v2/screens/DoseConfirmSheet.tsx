@@ -6,6 +6,7 @@
 // Compliance: sin jeringas, sin claims médicos, dato observacional.
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { X } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { EFFECT_OPTIONS } from '../../lib/catalog'
 import { fmtTime } from '../../lib/cadence'
@@ -109,7 +110,7 @@ function WheelCol({
             fontFamily: 'var(--font-mono, monospace)',
             fontSize: i === index ? 20 : 15,
             fontWeight: i === index ? 700 : 400,
-            color: i === index ? 'var(--teal, #5FC9B8)' : 'rgba(255,255,255,0.3)',
+            color: i === index ? 'var(--teal, #5FC9B8)' : 'rgba(255,255,255,0.5)',
             transition: 'font-size .1s, color .1s',
           }}
         >
@@ -292,15 +293,27 @@ export function DoseConfirmSheet({
 
   const btnRow = 'flex h-[60px] w-full flex-col items-center justify-center gap-0.5 rounded-xl font-semibold transition-all active:scale-[.98]'
 
+  const stepSubtitle =
+    step === 'time'
+      ? isPunctual
+        ? 'Confirmar hora'
+        : 'Hora de inyección'
+      : '¿Cómo te sientes?'
+
   return (
     <Sheet
       open={open}
       onClose={onClose}
-      title={step === 'time' ? (isPunctual ? 'Confirmar dosis' : '¿A qué hora?') : '¿Cómo te sientes?'}
+      title="Registrar dosis"
     >
       <AnimatePresence mode="wait" initial={false}>
         {step === 'time' ? (
           <motion.div key="step-time" {...slideProps} className="flex flex-col gap-4">
+
+            {/* Subtítulo del paso */}
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {stepSubtitle}
+            </p>
 
             {/* Descripción */}
             <p className="text-[14px] text-foreground">
@@ -413,6 +426,21 @@ export function DoseConfirmSheet({
         ) : (
           <motion.div key="step-effect" {...slideProps} className="flex flex-col gap-4">
 
+            {/* Cabecera del paso: subtítulo + X cierre siempre visible */}
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {stepSubtitle}
+              </p>
+              <button
+                type="button"
+                aria-label="Omitir y cerrar"
+                onClick={onClose}
+                className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-raised text-muted-foreground active:scale-95"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
             <p className="text-[14px] text-foreground">
               Dosis registrada.{' '}
               <span className="text-muted-foreground">¿Cómo te sientes?</span>
@@ -516,10 +544,6 @@ export function DoseConfirmSheet({
                 </motion.div>
               )}
             </AnimatePresence>
-
-            <Button variant="outline" size="full" onClick={onClose}>
-              Omitir
-            </Button>
 
           </motion.div>
         )}

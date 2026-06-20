@@ -20,7 +20,7 @@ export function Stepper({
         type="button"
         aria-label={decLabel}
         onClick={onDec}
-        className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/12 bg-raised text-foreground active:scale-95"
+        className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full border border-white/12 bg-raised text-foreground active:scale-95"
       >
         <Minus size={22} />
       </button>
@@ -29,7 +29,7 @@ export function Stepper({
         type="button"
         aria-label={incLabel}
         onClick={onInc}
-        className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/12 bg-raised text-foreground active:scale-95"
+        className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full border border-white/12 bg-raised text-foreground active:scale-95"
       >
         <Plus size={22} />
       </button>

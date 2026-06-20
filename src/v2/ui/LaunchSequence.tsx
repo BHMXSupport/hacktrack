@@ -185,7 +185,7 @@ export function LaunchSequence() {
                 alt="Hacktrack"
                 className="h-24 w-24 rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,.5),0_0_0_1px_rgba(95,201,184,.18)]"
               />
-              <h1 className="mt-6 text-[32px] font-bold tracking-tight">
+              <h1 className="mt-6 text-[34px] font-bold tracking-tight [text-shadow:0_2px_18px_rgba(0,0,0,.65)]">
                 <span className="text-foreground">Hack</span>
                 <span className="text-teal">track</span>
               </h1>

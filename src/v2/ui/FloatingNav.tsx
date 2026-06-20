@@ -69,7 +69,7 @@ function NavTab({ t, active, onClick, reduce }: { t: TabDef; active: boolean; on
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold',
+        'relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[12px] font-semibold',
         active ? 'text-teal' : 'text-secondary-foreground',
       )}
     >

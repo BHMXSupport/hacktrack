@@ -171,6 +171,7 @@ export interface UserProtocol {
   purchasedAt?: number | null       // epoch ms de la fecha de compra del último lote
   archived?: boolean                // protocolo archivado (oculto del flujo activo, conservado en historial)
   archivedAt?: number | null        // epoch ms en que se archivó
+  cadenceConfirmed?: boolean        // el usuario ya confirmó/ajustó la cadencia sugerida del catálogo (oculta el banner)
 }
 
 // ── Reconstitución de vial con fecha de mezcla (loop 166/167) ────────────────

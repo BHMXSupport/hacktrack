@@ -88,10 +88,14 @@ export function Goal() {
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 1 de 4 (~33%) */}
-        <div className="flex-1">
-          <div className="h-1 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-[33%] rounded-full bg-teal" />
+        {/* Barra de progreso — paso 1 de 4 */}
+        <div className="flex-1 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-muted-foreground">Paso 1 de 4</span>
+            <span className="text-[11px] text-muted-foreground">Configúralo en 2–3 min</span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={1} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 1 de 4">
+            <div className="h-full w-[25%] rounded-full bg-teal" />
           </div>
         </div>
 

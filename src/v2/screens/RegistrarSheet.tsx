@@ -6,7 +6,7 @@
 // R22: selector de hora (v2 time-input) en vez de Date.now().
 //       Unidades: 'mg' | 'mcg' | 'UI' | 'mL'  (clics == UI → no se registra por separado)
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Shield, Clock, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import { Shield, Clock, ChevronDown, ChevronUp, Sparkles, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 import { PEPTIDES, EFFECT_OPTIONS } from '../../lib/catalog'
@@ -400,6 +400,8 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false)
+  // tried: se activa al primer intento de guardar para mostrar errores inline persistentes
+  const [tried, setTried] = useState(false)
 
   // Diálogo STOP cuando el registro está a >1h de la hora programada del protocolo (bug del calendario).
   const [timeMismatch, setTimeMismatch] = useState<{ logTs: number; scheduledTs: number; product: string } | null>(null)
@@ -488,6 +490,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     }
     {
       setSaving(false)
+      setTried(false)
       setDose('')
       setSearchQuery('')
       setPickingCustom(false)
@@ -636,6 +639,13 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             </span>
           </button>
 
+          {/* Error inline — producto no seleccionado */}
+          {tried && !product.trim() && (
+            <p className="text-[12px] font-medium text-red-400" role="alert">
+              Selecciona un producto
+            </p>
+          )}
+
           <AnimatePresence initial={false}>
             {showPicker && (
               <motion.div
@@ -739,10 +749,17 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                   const v = e.target.value.replace(',', '.')
                   if (/^\d*\.?\d*$/.test(v)) setDose(v)
                 }}
-                className="w-full bg-transparent text-center font-mono text-[42px] font-bold tabular-nums text-[var(--teal-bright)] placeholder:text-muted-foreground focus:outline-none"
+                className="w-full bg-transparent text-center font-mono text-[42px] font-bold tabular-nums text-[var(--teal-bright)] placeholder:text-muted-foreground/50 focus:outline-none"
               />
             </DataPlate>
           </Stepper>
+
+          {/* Error inline — dosis vacía o cero */}
+          {(tried || dose !== '') && !(parseFloat(dose) > 0) && (
+            <p className="text-[12px] font-medium text-red-400" role="alert">
+              Ingresa al menos 0.1 {unit}
+            </p>
+          )}
 
           {/* Chips de unidad */}
           <div className="flex flex-wrap gap-2">
@@ -759,11 +776,11 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
           <p className="text-center text-[12px] text-muted-foreground">
             Paso: {UNIT_STEP[unit]} {unit}
-            <span className="opacity-50"> · mantén ± para rampa</span>
+            <span> · mantén ± para rampa</span>
           </p>
 
           {/* "Usadas antes" */}
-          {doseChips.length > 0 && !dose && (
+          {doseChips.length > 0 && (
             <div className="flex flex-col gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Usadas antes
@@ -809,6 +826,9 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             </div>
             {reconOpen ? <ChevronUp size={16} className="text-muted-foreground shrink-0" /> : <ChevronDown size={16} className="text-muted-foreground shrink-0" />}
           </button>
+          <p className="px-4 pb-2 text-[12px] text-muted-foreground">
+            Ingresa vial y agua para el cálculo automático · opcional
+          </p>
 
           <AnimatePresence initial={false}>
             {reconOpen && (
@@ -885,6 +905,9 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         <div className="flex flex-col gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Zona de inyección <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
+          </p>
+          <p className="text-[12px] text-muted-foreground">
+            Toca un área para recordar dónde te inyectaste (opcional)
           </p>
           {showHeavyMap ? (
             <InjectionMap selected={site} onSelect={setSite} />
@@ -1089,9 +1112,19 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           variant="primary"
           size="full"
           disabled={saving || !(parseFloat(dose) > 0)}
-          onClick={handleSave}
+          onClick={() => {
+            setTried(true)
+            handleSave()
+          }}
         >
-          Registrar
+          {saving ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="animate-spin" size={16} aria-hidden />
+              Guardando…
+            </span>
+          ) : (
+            'Registrar'
+          )}
         </Button>
 
         {/* ── Nota de privacidad ── */}

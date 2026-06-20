@@ -403,8 +403,8 @@ function CalendarioTab() {
           <LegendItem color="bg-teal" icon={<CheckCircle2 size={15} className="text-teal" />} label="Con dosis" />
           <LegendItem color="bg-alert" icon={<XCircle size={15} className="text-alert" />} label="Omitida" />
           <LegendItem color="bg-purple-400" icon={<Ban size={15} className="text-purple-300" />} label="Saltada" />
-          <LegendItem color="bg-muted-foreground" icon={<MinusCircle size={15} className="text-muted-foreground/50" />} label="Día libre" />
-          <LegendItem color="bg-muted-foreground" icon={<Circle size={15} className="text-muted-foreground/50" />} label="Sin protocolo" />
+          <LegendItem color="bg-teal/60" icon={<MinusCircle size={15} className="text-[#5FC9B8]/60" />} label="Día libre" />
+          <LegendItem color="bg-muted-foreground/40" icon={<Circle size={15} className="text-muted-foreground/40" />} label="Sin protocolo" />
           <LegendItem
             color="bg-teal/60"
             icon={<span className="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-[var(--teal)]" />}
@@ -945,18 +945,27 @@ function AvancesTab() {
                     aria-label={pct !== null ? `Semana ${weekly8.length - i}${isCurrentWeek ? ' (actual)' : ''}: ${pct}%` : `Semana ${weekly8.length - i}${isCurrentWeek ? ' (actual)' : ''}: sin datos`}
                   >
                     <div className="flex w-full flex-col items-center justify-end" style={{ height: 72 }}>
-                      <div
-                        className={`w-full rounded-t transition-all ${
-                          pct === null
-                            ? 'bg-white/8'
-                            : pct >= 75
+                      {pct === null ? (
+                        <div
+                          className="w-full rounded-t opacity-40"
+                          style={{
+                            height: 4,
+                            background: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 3px, transparent 3px, transparent 7px)',
+                          }}
+                          aria-hidden
+                        />
+                      ) : (
+                        <div
+                          className={`w-full rounded-t transition-all ${
+                            pct >= 75
                             ? isCurrentWeek ? 'bg-teal' : 'bg-teal/60'
                             : pct >= 50
                             ? isCurrentWeek ? 'bg-warn' : 'bg-warn/60'
                             : isCurrentWeek ? 'bg-alert' : 'bg-alert/60'
-                        }`}
-                        style={{ height: h }}
-                      />
+                          }`}
+                          style={{ height: h }}
+                        />
+                      )}
                     </div>
                     <span className="text-[9px] text-muted-foreground">
                       {pct !== null ? `${pct}%` : '—'}
@@ -969,6 +978,9 @@ function AvancesTab() {
               <span className="text-[11px] text-muted-foreground">← Hace 8 sem</span>
               <span className="ml-auto text-[11px] text-muted-foreground">Esta sem →</span>
             </div>
+            <p className="mt-2 text-[11px] text-muted-foreground/70">
+              Los días de descanso no cuentan contra tu adherencia.
+            </p>
           </Glass>
         </motion.div>
       )}
@@ -1028,7 +1040,7 @@ function AvancesTab() {
 
           {/* Grilla de resumen de KPIs (últimos valores de las otras medidas) */}
           {historyKeys.length > 1 && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {historyKeys
                 .filter(k => k !== measureForChart)
                 .map(k => {
@@ -1045,6 +1057,10 @@ function AvancesTab() {
                     delta == null || delta === 0
                       ? 'text-muted-foreground'
                       : (down ? delta < 0 : delta > 0) ? 'text-ok' : 'text-alert'
+                  const goal = state.measureGoals?.[k]
+                  const goalPct = goal != null && goal > 0
+                    ? Math.min(100, Math.round((last.value / goal) * 100))
+                    : null
                   return (
                     <button
                       key={k}
@@ -1060,6 +1076,25 @@ function AvancesTab() {
                         <p className={`mt-0.5 text-[11px] font-medium ${deltaColor}`}>
                           {delta > 0 ? '+' : ''}{delta.toFixed(1)} vs anterior
                         </p>
+                      )}
+                      {goal != null && (
+                        <div className="mt-2 flex flex-col gap-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground">meta: {goal}{unit}</span>
+                            {goalPct != null && (
+                              <span className="text-[10px] font-medium text-[#5FC9B8]">{goalPct}%</span>
+                            )}
+                          </div>
+                          {goalPct != null && (
+                            <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+                              <div
+                                className="h-full rounded-full bg-[#5FC9B8]/70"
+                                style={{ width: `${goalPct}%` }}
+                                aria-hidden
+                              />
+                            </div>
+                          )}
+                        </div>
                       )}
                       <span className="absolute right-3 top-3 opacity-0 transition-opacity group-hover:opacity-100">
                         <TrendingUp size={12} className="text-teal" aria-hidden />

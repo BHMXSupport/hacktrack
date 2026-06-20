@@ -175,7 +175,7 @@ export type Action =
   | { t: 'setThemeMode'; mode: ThemeMode }                              // modo de tema: auto | light | dark
   | { t: 'setName'; name: string }
   | { t: 'setProfileFields'; patch: Partial<Profile> }                // edad/sexo/actividad/meta (TDEE/proyección)
-  | { t: 'setReminderTime'; time: string }
+  | { t: 'setReminderTime'; time: string; product?: string }  // sin product → protocolo activo
   | { t: 'setRescueWindow'; minutes: 0 | 15 | 30 | 60 }  // item 168: ventana de rescate de notificación
   | { t: 'setScale'; scale: SyringeScale }
   | { t: 'setDraftDose'; draft: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; ts?: number } | null }
@@ -433,6 +433,38 @@ export function hydrate(s: AppState): AppState {
   // #104: normalizar secondaryGoals (estados antiguos pueden no tenerlo → crash al hacer spread/iterar)
   const secondaryGoals = Array.isArray(s.secondaryGoals) ? s.secondaryGoals : []
   return syncActive({ ...s, protocols, log, activeProduct, nutrition, secondaryGoals })
+}
+
+// #F4 — sanea un respaldo importado ANTES de aplicarlo: descarta entradas inválidas en vez de aceptarlas
+// (un LogItem con type inválido podía crashear vistas; un protocolo malformado se perdía en silencio).
+// Devuelve el estado saneado + cuántas entradas se descartaron (para avisar al usuario, no silenciar).
+const VALID_LOG_TYPES = new Set<string>(['dose', 'medida', 'none', 'skip', 'efecto-adverso', 'ayuno'])
+export function sanitizeImport(st: Partial<AppState>): { state: Partial<AppState>; dropped: number } {
+  const out: Partial<AppState> = { ...st }
+  let dropped = 0
+  // log: cada grupo {dateKey:string, items:[]}; cada item con ts numérico y type válido
+  if (Array.isArray(st.log)) {
+    out.log = (st.log as unknown[])
+      .filter((g): g is { dateKey: string; items: unknown[] } => !!g && typeof (g as { dateKey?: unknown }).dateKey === 'string' && Array.isArray((g as { items?: unknown }).items))
+      .map((g) => {
+        const before = g.items.length
+        const items = g.items.filter((it) => !!it && typeof (it as { ts?: unknown }).ts === 'number' && VALID_LOG_TYPES.has((it as { type?: unknown }).type as string))
+        dropped += before - items.length
+        return { ...g, items }
+      })
+      .filter((g) => g.items.length > 0) as AppState['log']
+  }
+  // protocols: producto→UserProtocol con product:string y cadence presente
+  if (st.protocols && typeof st.protocols === 'object') {
+    const ps: Record<string, UserProtocol> = {}
+    for (const [k, p] of Object.entries(st.protocols as Record<string, unknown>)) {
+      const pp = p as { product?: unknown; cadence?: unknown }
+      if (pp && typeof pp === 'object' && typeof pp.product === 'string' && pp.cadence) ps[k] = p as UserProtocol
+      else dropped += 1
+    }
+    out.protocols = ps
+  }
+  return { state: out, dropped }
 }
 
 // ── reducer ──────────────────────────────────────────────────────────────────
@@ -1016,11 +1048,13 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'setProfileFields':
       return { ...s, profile: { ...s.profile, ...a.patch } }
     case 'setReminderTime': {
-      // hora global de recordatorio: se aplica a TODOS los productos (todos están activos)
+      // #F3: actualiza SOLO el protocolo activo (el que muestra Ajustes), no todos. Antes homogeneizaba
+      // todos → pisaba las horas per-producto fijadas en ProtocoloEditSheet. La hora per-producto es la
+      // fuente de verdad; cada protocolo se edita por separado (o cambiando el activo).
       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)) return s
-      const protocols: Record<string, UserProtocol> = {}
-      for (const [name, p] of Object.entries(s.protocols)) protocols[name] = { ...p, reminderTime: a.time }
-      return syncActive({ ...s, protocols })
+      const target = a.product ?? s.activeProduct
+      if (!target || !s.protocols[target]) return s
+      return syncActive({ ...s, protocols: { ...s.protocols, [target]: { ...s.protocols[target], reminderTime: a.time } } })
     }
     case 'setRescueWindow':
       return { ...s, settings: { ...s.settings, rescueWindowMin: a.minutes } }
@@ -1047,17 +1081,20 @@ export function reducer(s: AppState, a: Action): AppState {
     // Restaurar respaldo COMPLETO: antes el import solo recreaba productos + perfil y perdía log/nutrition/
     // history/measureValues/recon/aliases/settings. Ahora reemplaza todo el estado (defaults para campos
     // faltantes vía initialState) y resincroniza cachés.
-    case 'replaceState':
+    case 'replaceState': {
+      // #F4: sanea el respaldo (descarta log items/protocolos inválidos) ANTES de hidratar.
+      const { state: clean, dropped } = sanitizeImport(a.state)
       // hydrate aplica las migraciones del respaldo (agua vasos→ml, reconstrucción de protocols desde
       // protocol/importedProducts, estampado de dosis legado) y resincroniza cachés. Luego fijamos lo efímero.
       return {
-        ...hydrate({ ...initialState, ...a.state } as AppState),
+        ...hydrate({ ...initialState, ...clean } as AppState),
         todayTs: startOfDay(new Date()).getTime(), // 'hoy' = ahora, no el día en que se exportó el respaldo
         screen: 's-app',
         sheet: null,
-        toast: 'Respaldo restaurado correctamente',
+        toast: dropped > 0 ? `Respaldo restaurado · ${dropped} entrada(s) inválida(s) omitida(s)` : 'Respaldo restaurado correctamente',
         toastUndoId: null,
       }
+    }
 
     case 'toast':
       return { ...s, toast: a.msg, toastUndoId: null } // un toast normal no trae acción de deshacer

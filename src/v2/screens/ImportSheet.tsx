@@ -167,6 +167,19 @@ function PhaseConnect({ onNext }: { onNext: () => void }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Aviso de demostración — la conexión real no existe todavía */}
+      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+        <span
+          className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide"
+          style={{ background: 'rgba(95,201,184,0.18)', color: '#5FC9B8' }}
+        >
+          Demo
+        </span>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          Vista de demostración — la sincronización real estará disponible pronto.
+        </p>
+      </div>
+
       {/* Hero BiohackMX — branding partner */}
       <Glass className="flex flex-col items-center gap-4 py-7 text-center">
         {/* Matraz BiohackMX — lucide FlaskConical con gradiente mint de marca */}

@@ -4,7 +4,8 @@ import { cn } from '../../lib/cn'
 
 // Botón shadcn-style. CTA primario = sólido teal (acción nunca es de vidrio).
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-[transform,background,filter] active:scale-[.98] disabled:opacity-40 disabled:pointer-events-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
+  // #D1: disabled a opacity-60 (no 40) → el estado deshabilitado del CTA teal mantiene contraste AA (~3:1+) y se distingue de "no existe".
+  'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-[transform,background,filter] active:scale-[.98] disabled:opacity-60 disabled:pointer-events-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
   {
     variants: {
       variant: {
