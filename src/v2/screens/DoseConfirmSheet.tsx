@@ -427,6 +427,8 @@ export function DoseConfirmSheet({
                   key={opt}
                   active={effect === opt}
                   onClick={() => {
+                    // "Sin efectos" no tiene intensidad → commitea directo, sin slider
+                    if (opt === 'Sin efectos') { commitEffect(opt); return }
                     setEffect(effect === opt ? undefined : opt)
                     setShowCustomEffect(false)
                   }}
@@ -442,8 +444,8 @@ export function DoseConfirmSheet({
               </Chip>
             </div>
 
-            {/* Slider de intensidad + Guardar — al elegir un efecto de la lista */}
-            {effect && (
+            {/* Slider de intensidad + Guardar — al elegir un efecto de la lista (no en "Sin efectos") */}
+            {effect && effect !== 'Sin efectos' && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>

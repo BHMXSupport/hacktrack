@@ -440,7 +440,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       site: site ?? undefined,
       note: noteStr,
       effect: effectStr,
-      effectIntensity: effectStr ? effectIntensity : undefined,
+      effectIntensity: effectStr && effectStr !== 'Sin efectos' ? effectIntensity : undefined,
     })
 
     try { localStorage.setItem(`ht_unit_${finalProduct}`, unit) } catch { /* noop */ }
@@ -932,7 +932,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             )}
           </AnimatePresence>
           {/* Slider de intensidad 0–100 — compacto, solo cuando ya elegiste un efecto */}
-          {(effect || (showCustomEffect && customEffect.trim())) && (
+          {((effect && effect !== 'Sin efectos') || (showCustomEffect && customEffect.trim())) && (
             <div className="flex items-center gap-3 pt-0.5">
               <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>
               <input
