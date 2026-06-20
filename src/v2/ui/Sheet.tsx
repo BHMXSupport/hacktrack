@@ -25,6 +25,18 @@ export function Sheet({
   // sin reasentamiento ni sobrepaso, independiente del dispositivo. Se lee una vez al montar.
   const [hideY] = useState(() => (typeof window !== 'undefined' ? Math.ceil(Math.max(window.innerHeight, 920) * 1.12) : 1100))
 
+  // Diferir el slide ~2 frames: el panel monta y PINTA fuera de pantalla (en hideY) y solo entonces
+  // sube. Así el trabajo pesado del primer render (reconciliación + layout + 1er paint + decode de la
+  // imagen del mapa) ocurre mientras está oculto, y el deslizamiento corre sobre contenido ya pintado
+  // → no compite por frames → no "brinca" ni se ve mecánico en teléfonos lentos.
+  const [slideIn, setSlideIn] = useState(false)
+  useEffect(() => {
+    if (!open) { setSlideIn(false); return }
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => setSlideIn(true)) })
+    return () => { cancelAnimationFrame(raf1); if (raf2) cancelAnimationFrame(raf2) }
+  }, [open])
+
   // Escape para cerrar + foco inicial + focus-trap (Tab cicla dentro del panel).
   useEffect(() => {
     if (!open) return
@@ -84,10 +96,13 @@ export function Sheet({
             aria-label={title}
             tabIndex={-1}
             className="glass pointer-events-auto relative max-h-[92%] w-full overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform"
-            initial={reduce ? { opacity: 0 } : { y: hideY }}
-            animate={reduce ? { opacity: 1 } : { y: 0 }}
+            // initial=false: monta directo en el valor de `animate` (slideIn=false → y:hideY, fuera de
+            // pantalla) SIN animar. Tras 2 rAF, slideIn→true y sube. AnimatePresence sigue manejando la salida.
+            initial={false}
+            animate={reduce ? { opacity: slideIn ? 1 : 0 } : { y: slideIn ? 0 : hideY }}
             exit={reduce ? { opacity: 0 } : { y: hideY, transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
-            transition={reduce ? { duration: 0.15 } : { type: 'tween', duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+            // Entrada: spring orgánico SIN rebote (bounce:0 → no se pasa de su reposo). Salida conserva su spring.
+            transition={reduce ? { duration: 0.15 } : { type: 'spring', bounce: 0, duration: 0.42 }}
           >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
             <div className="mb-4 flex items-center justify-between">
