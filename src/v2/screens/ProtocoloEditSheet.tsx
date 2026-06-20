@@ -17,6 +17,7 @@ import {
 import { doseTakenOnProduct, doseSkippedOnProduct } from '../../lib/calendar'
 import type { UserCadence } from '../../lib/types'
 import { Sheet } from '../ui/Sheet'
+import { Switch } from '../ui/Switch'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { Chip } from '../ui/Chip'
 import { Stepper } from '../ui/Stepper'
@@ -671,25 +672,7 @@ export function ProtocoloEditSheet({
                 Sube la dosis por etapas que tú defines
               </p>
             </div>
-            {/* Toggle accesible: aria-pressed */}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={progOn}
-              aria-label="Activar titulación por fases"
-              onClick={() => setProgOn((v) => !v)}
-              className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
-                progOn
-                  ? 'border-teal/50 bg-teal'
-                  : 'border-white/10 bg-white/8'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-                  progOn ? 'translate-x-5' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
+            <Switch checked={progOn} onChange={setProgOn} label="Activar titulación por fases" />
           </div>
 
           {progOn && (

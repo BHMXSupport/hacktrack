@@ -209,6 +209,14 @@ const itemVariants = {
 
 // ── sheet de edición inline (R51) ────────────────────────────────────────────
 
+// Unidades de dosis válidas del sistema. El editor las restringe a estas (antes la unidad era texto
+// libre → se podían meter unidades que el sistema no reconoce).
+const DOSE_UNITS = ['mg', 'mcg', 'UI', 'mL'] as const
+function normDoseUnit(u: string | null | undefined): string {
+  if (u === 'clics') return 'UI' // alias legado
+  return (DOSE_UNITS as readonly string[]).includes(u ?? '') ? (u as string) : 'mg'
+}
+
 function EditLogSheet({
   item,
   open,
@@ -222,7 +230,7 @@ function EditLogSheet({
 }) {
   // estado local del formulario
   const [value, setValue] = useState<string>(() => item.value != null ? String(item.value) : '')
-  const [unit, setUnit] = useState<string>(() => item.unit ?? '')
+  const [unit, setUnit] = useState<string>(() => normDoseUnit(item.unit))
   const [note, setNote] = useState<string>(item.note ?? '')
   // hora editable: extraída del timestamp
   const [timeStr, setTimeStr] = useState<string>(() => {
@@ -234,7 +242,7 @@ function EditLogSheet({
   useEffect(() => {
     if (!open) return
     setValue(item.value != null ? String(item.value) : '')
-    setUnit(item.unit ?? '')
+    setUnit(normDoseUnit(item.unit))
     setNote(item.note ?? '')
     const d = new Date(item.ts)
     setTimeStr(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
@@ -312,15 +320,18 @@ function EditLogSheet({
                 placeholder="0"
                 className="flex-1 h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 font-mono tabular-nums focus:outline-none focus:border-teal/40"
               />
-              {/* unidad — solo dosis muestra campo de unidad */}
+              {/* unidad — solo dosis; SELECT restringido a las unidades del sistema (no texto libre) */}
               {item.type === 'dose' && (
-                <input
-                  type="text"
+                <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  placeholder="mg"
-                  className="w-20 h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 font-mono focus:outline-none focus:border-teal/40"
-                />
+                  aria-label="Unidad de dosis"
+                  className="w-20 h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-2 font-mono focus:outline-none focus:border-teal/40"
+                >
+                  {DOSE_UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
               )}
               {/* medida: unidad fija del meta */}
               {item.type === 'medida' && measureMeta && (

@@ -9,6 +9,7 @@ import {
   Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
+import { Switch } from '../ui/Switch'
 import { Button } from '../ui/Button'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { useApp } from '../../lib/store'
@@ -58,42 +59,7 @@ function RowCard({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── switch accesible (aria-checked + role=switch + tap ≥44px) ────────────────
-function Switch({
-  checked,
-  onChange,
-  label,
-  disabled = false,
-}: {
-  checked: boolean
-  onChange: (next: boolean) => void
-  label: string
-  disabled?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={[
-        'relative h-[28px] w-[48px] shrink-0 rounded-full transition-colors duration-200',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
-        'disabled:opacity-40 disabled:cursor-not-allowed',
-        checked ? 'bg-teal' : 'bg-white/15',
-      ].join(' ')}
-    >
-      <span
-        className={[
-          'absolute top-[3px] left-[3px] h-[22px] w-[22px] rounded-full bg-white shadow transition-transform duration-200',
-          checked ? 'translate-x-[20px]' : 'translate-x-0',
-        ].join(' ')}
-      />
-    </button>
-  )
-}
+// Switch accesible reutilizable → movido a ../ui/Switch (compartido con titulación por fases, etc.)
 
 // ── chevron decorativo ────────────────────────────────────────────────────────
 function Chevron() {
