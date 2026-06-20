@@ -40,6 +40,15 @@ export async function requestNotif(): Promise<NotificationPermission> {
   }
 }
 
+// ── Click en notificación → enrutar a la hoja del destino ──────────────────────
+// El `tag` codifica el destino (hacktrack-measure-<medida>, hacktrack-dose-<producto>, …). La app
+// (provider) registra aquí un manejador que recibe el tag y abre la hoja correcta. Sin esto, picar la
+// notificación sólo traía la app al frente, NO a la medida/dosis que ibas a registrar.
+let _clickHandler: ((tag: string) => void) | null = null
+export function setNotifClickHandler(fn: ((tag: string) => void) | null): void {
+  _clickHandler = fn
+}
+
 // ── Mostrar notificación (item 380: copia con nombre del producto) ─────────────
 export async function showReminder(
   title: string,
@@ -51,9 +60,16 @@ export async function showReminder(
   try {
     const reg = await navigator.serviceWorker?.getRegistration()
     if (reg) {
-      await reg.showNotification(title, { body, icon: '/pwa-192.png', badge: '/pwa-192.png', tag })
+      // Con SW real, el click lo maneja notificationclick (lee data.tag). data viaja también al push del backend.
+      await reg.showNotification(title, { body, icon: '/pwa-192.png', badge: '/pwa-192.png', tag, data: { tag } } as NotificationOptions)
     } else {
-      new Notification(title, { body, icon: '/pwa-192.png', tag } as NotificationOptions)
+      // App abierta sin SW (caso real en iOS PWA): onclick en el hilo principal → enfoca la app y enruta por tag.
+      const n = new Notification(title, { body, icon: '/pwa-192.png', tag, data: { tag } } as NotificationOptions)
+      n.onclick = () => {
+        try { window.focus() } catch { /* noop */ }
+        n.close()
+        _clickHandler?.(tag)
+      }
     }
   } catch {
     /* noop */

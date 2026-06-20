@@ -3,7 +3,7 @@ import { AppContext, reducer, initialState, hydrate } from '../../lib/store'
 import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
 import { upcomingDoses, doseTakenOnProduct, phaseForDate, weekAdherencePctLast8, protocolStreak } from '../../lib/calendar'
-import { registerSW, scheduleSwReminder, schedulePreReminder, scheduleDailySummary, scheduleWeeklySummary, scheduleRescue, scheduleMeasureReminder, notifPermission } from '../../lib/notifications'
+import { registerSW, scheduleSwReminder, schedulePreReminder, scheduleDailySummary, scheduleWeeklySummary, scheduleRescue, scheduleMeasureReminder, notifPermission, setNotifClickHandler } from '../../lib/notifications'
 
 // Provider del rebuild: reusa el reducer/estado del app original (lib/store).
 const KEY = 'hacktrack:v2'
@@ -95,6 +95,42 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
   // Sin esto, todos los recordatorios eran decorativos (el rebuild nunca registraba el SW ni programaba avisos).
   useEffect(() => {
     void registerSW()
+  }, [])
+
+  // Al PICAR un recordatorio → abre la hoja del destino que ibas a registrar (no solo trae la app al frente).
+  // El tag codifica el destino. Cubre 3 caminos: onclick del hilo principal (iOS PWA en foreground, caso real
+  // hoy), postMessage del SW (push del backend con la app abierta) y ?goto= en la URL (app abierta desde cero).
+  useEffect(() => {
+    const routeTag = (tag: string) => {
+      if (tag.startsWith('hacktrack-measure-')) dispatch({ t: 'sheet', sheet: 'medida', arg: tag.slice('hacktrack-measure-'.length) })
+      else if (/^hacktrack-(dose|pre|rescue)-/.test(tag)) dispatch({ t: 'sheet', sheet: 'registrar', arg: tag.replace(/^hacktrack-(dose|pre|rescue)-/, '') })
+      else if (tag === 'hacktrack-weekly-summary') dispatch({ t: 'tab', tab: 'semana' })
+      else if (tag === 'hacktrack-daily-summary') dispatch({ t: 'tab', tab: 'inicio' })
+    }
+    const routeGoto = (goto: string) => {
+      if (goto.startsWith('medida:')) dispatch({ t: 'sheet', sheet: 'medida', arg: goto.slice('medida:'.length) })
+      else if (goto.startsWith('registrar:')) dispatch({ t: 'sheet', sheet: 'registrar', arg: goto.slice('registrar:'.length) })
+      else if (goto === 'tab:semana') dispatch({ t: 'tab', tab: 'semana' })
+    }
+    setNotifClickHandler(routeTag)
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data as { type?: string; goto?: string } | null
+      if (d?.type === 'NOTIF_GOTO' && typeof d.goto === 'string') routeGoto(d.goto)
+    }
+    navigator.serviceWorker?.addEventListener('message', onMsg)
+    try {
+      const g = new URLSearchParams(window.location.search).get('goto')
+      if (g) {
+        routeGoto(g)
+        const u = new URL(window.location.href); u.searchParams.delete('goto')
+        window.history.replaceState({}, '', u.toString()) // limpia el query → no re-enruta al recargar
+      }
+    } catch { /* sin URL/searchParams */ }
+    return () => {
+      setNotifClickHandler(null)
+      navigator.serviceWorker?.removeEventListener('message', onMsg)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Recordatorio POR DOSIS: una notificación por CADA toma pendiente de HOY, a la hora de cada protocolo

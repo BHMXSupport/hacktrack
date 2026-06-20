@@ -35,22 +35,40 @@ self.addEventListener('message', (event) => {
       icon: '/pwa-192.png',
       badge: '/pwa-192.png',
       tag: tag ?? 'hacktrack-reminder',
-      data: { url: '/' },
+      data: { tag: tag ?? 'hacktrack-reminder' },
     })
   }, delayMs)
 
   timers.set(tag, id)
 })
 
-// Al tocar la notificación: enfocar o abrir la app
+// El tag codifica el destino → mapea a un "goto" que la app sabe enrutar.
+// hacktrack-measure-<m> → medida:<m>; hacktrack-(dose|pre|rescue)-<p> → registrar:<p>; weekly → tab:semana.
+function gotoForTag(tag) {
+  if (!tag) return ''
+  if (tag.indexOf('hacktrack-measure-') === 0) return 'medida:' + tag.slice('hacktrack-measure-'.length)
+  const m = tag.match(/^hacktrack-(?:dose|pre|rescue)-(.+)$/)
+  if (m) return 'registrar:' + m[1]
+  if (tag === 'hacktrack-weekly-summary') return 'tab:semana'
+  return ''
+}
+
+// Al tocar la notificación: enfocar la app y llevarla a la hoja del destino.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = event.notification.data?.url ?? '/'
+  const tag = event.notification.tag || (event.notification.data && event.notification.data.tag)
+  const goto = gotoForTag(tag)
+  const base = self.registration.scope // p.ej. https://host/hacktrack/
+  const url = goto ? base + '?goto=' + encodeURIComponent(goto) : base
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       const existing = clients.find((c) => c.url.startsWith(self.location.origin))
-      if (existing) return existing.focus()
-      return self.clients.openWindow(url)
+      if (existing) {
+        // App ya abierta: enfoca y avísale el destino por postMessage (enruta sin recargar).
+        if (goto) existing.postMessage({ type: 'NOTIF_GOTO', goto })
+        return existing.focus()
+      }
+      return self.clients.openWindow(url) // app cerrada: abre con ?goto= y la app lo lee al cargar
     }),
   )
 })
