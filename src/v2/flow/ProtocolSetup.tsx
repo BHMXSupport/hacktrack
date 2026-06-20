@@ -63,19 +63,12 @@ export function ProtocolSetup() {
     if (names.length) dispatch({ t: 'importProducts', names })
     setSelected(new Set()); setQuery(''); setPicker(false)
   }
-  const goAccount = () => {
-    if (tracked.length === 0) {
-      const ok = window.confirm('¿Continuar sin configurar un protocolo? Podrás hacerlo después.')
-      if (!ok) return
-    }
-    dispatch({ t: 'go', screen: 's-account' })
-  }
+  // Continuar a crear cuenta. NO bloqueamos si no hay protocolo (Welcome ya invita a agregar el
+  // primer producto); un window.confirm aquí podía dejar al usuario atorado sin poder crear cuenta.
+  const goAccount = () => dispatch({ t: 'go', screen: 's-account' })
 
   return (
-    <div
-      className="flex h-full flex-col overflow-y-auto bg-void"
-      style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
-    >
+    <div className="flex h-full flex-col bg-void">
       {/* App bar */}
       <header className="flex flex-shrink-0 items-center gap-4 px-4" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))', paddingBottom: 12 }}>
         <button
@@ -89,7 +82,13 @@ export function ProtocolSetup() {
         <div className="w-11" />
       </header>
 
-      <motion.div initial={reduce ? false : 'hidden'} animate="show" variants={{ show: { transition: { staggerChildren: 0.03 } } }} className="flex flex-1 flex-col gap-5 px-5 pt-2">
+      <motion.div
+        initial={reduce ? false : 'hidden'}
+        animate="show"
+        variants={{ show: { transition: { staggerChildren: 0.03 } } }}
+        className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pt-2"
+        style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
+      >
         <motion.div variants={fade}>
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">Arma tu protocolo</h1>
           <p className="mt-2 text-[14px] text-secondary-foreground">
