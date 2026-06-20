@@ -429,6 +429,38 @@ export function MedidaSheet({
               />
             </div>
 
+            {/* ── Recordarme medir cada N días (recordatorio periódico de ESTA medida) ── */}
+            {name && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Recordarme medir <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
+                </p>
+                <div role="group" aria-label={`Recordatorio para medir ${name}`} className="flex overflow-hidden rounded-lg border border-white/10">
+                  {([{ k: null, l: 'No' }, { k: 3, l: 'Cada 3d' }, { k: 7, l: 'Cada 7d' }, { k: 14, l: 'Cada 14d' }, { k: 30, l: 'Cada 30d' }] as const).map(({ k, l }) => {
+                    const active = ((state.measureReminders?.[name] ?? null) as number | null) === k
+                    return (
+                      <button
+                        key={String(k)}
+                        type="button"
+                        aria-pressed={active}
+                        aria-label={k === null ? 'Sin recordatorio' : `Recordar cada ${k} días`}
+                        onClick={() => dispatch({ t: 'setMeasureReminder', name, intervalDays: k })}
+                        className={[
+                          'h-10 flex-1 border-l border-white/10 text-[12px] font-semibold transition-colors first:border-l-0',
+                          active ? 'bg-teal text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                        ].join(' ')}
+                      >
+                        {l}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Te avisamos cuando toque volver a medir tu {name.toLowerCase()} (desde tu último registro).
+                </p>
+              </div>
+            )}
+
             {/* ── Error de rango ── */}
             <AnimatePresence>
               {rangeError && (
