@@ -4,7 +4,7 @@
 // Compliance: sin claims médicos, sin dosis precargada, es-MX, tap targets ≥44px.
 import { useState, useCallback, useEffect } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Info, ChevronDown, ChevronUp, Archive, ArchiveRestore, Droplet } from 'lucide-react'
+import { Info, ChevronDown, ChevronUp, Archive, ArchiveRestore, Droplet, Sunrise, Sun, Moon } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { PEPTIDES, WDS } from '../../lib/catalog'
 import {
@@ -596,22 +596,22 @@ export function ProtocoloEditSheet({
           {/* #20: presets rápidos (incl. tomas nocturnas de primera clase) */}
           <div className="flex flex-wrap gap-2">
             {([
-              { label: '☀️ Mañana', value: '08:00' },
-              { label: '🌤️ Mediodía', value: '13:00' },
-              { label: '🌙 Noche', value: '21:00' },
+              { label: 'Mañana', value: '08:00', Icon: Sunrise },
+              { label: 'Mediodía', value: '13:00', Icon: Sun },
+              { label: 'Noche', value: '21:00', Icon: Moon },
             ] as const).map((preset) => (
               <button
                 key={preset.value}
                 type="button"
                 onClick={() => setReminderTime(preset.value)}
                 aria-pressed={reminderTime === preset.value}
-                className={`inline-flex min-h-[36px] items-center rounded-full border px-3 text-[12px] font-semibold transition-colors ${
+                className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold transition-colors ${
                   reminderTime === preset.value
                     ? 'border-teal bg-teal/15 text-teal'
                     : 'border-white/12 bg-transparent text-secondary-foreground hover:bg-white/6'
                 }`}
               >
-                {preset.label}
+                <preset.Icon size={13} aria-hidden /> {preset.label}
               </button>
             ))}
           </div>

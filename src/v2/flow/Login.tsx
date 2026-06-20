@@ -257,7 +257,7 @@ export function Login() {
         <motion.div variants={fade} className="mt-auto flex flex-col items-center gap-4 pt-2">
           {/* Trust badges */}
           <div className="flex flex-wrap justify-center gap-3">
-            {['Datos locales', 'Sin rastreo', 'Hecho en México 🇲🇽'].map((txt) => (
+            {['Datos locales', 'Sin rastreo', 'Hecho en México'].map((txt) => (
               <span
                 key={txt}
                 className="inline-flex items-center gap-1.5 rounded-full border border-teal/20 bg-teal/8 px-3 py-1 text-[11px] font-medium text-teal"

@@ -4,6 +4,7 @@
 // localStorage('ht:lastError') para diagnóstico y lo enseña bajo "detalle técnico".
 // resetKey: al cambiar (p.ej. cambiar de tab) limpia el error y reintenta render → la nav sigue usable.
 import { Component } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import type { ReactNode, ErrorInfo } from 'react'
 
 interface Props { children: ReactNode; resetKey?: unknown; scope?: string; allowReset?: boolean }
@@ -59,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
           textAlign: 'center', background: 'var(--bg)',
         }}
       >
-        <div aria-hidden="true" style={{ fontSize: 42 }}>🌀</div>
+        <AlertTriangle size={40} aria-hidden="true" style={{ color: 'var(--ink-400)' }} />
         <div className="h2" style={{ color: 'var(--ink-900)' }}>Algo se atoró aquí</div>
         <p className="sm" style={{ color: 'var(--ink-400)', maxWidth: 300, margin: 0 }}>
           Tu información está a salvo. Vuelve a intentar o cambia de pestaña abajo.

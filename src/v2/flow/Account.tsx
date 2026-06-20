@@ -189,7 +189,7 @@ export function Account() {
             </div>
             {name.trim() && (
               <p aria-live="polite" className="text-[13px] font-semibold text-teal">
-                Hola, {name.trim()} 👋
+                Hola, {name.trim()}
               </p>
             )}
           </Field>
@@ -311,7 +311,7 @@ export function Account() {
             {[
               'Datos locales',
               'Sin rastreo',
-              'Hecho en México 🇲🇽',
+              'Hecho en México',
             ].map((txt) => (
               <span
                 key={txt}

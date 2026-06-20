@@ -3,7 +3,7 @@
 // "Copiar a mi registro" → dispatch setDraftDose y abre 'registrar'.
 // Compliance: la calculadora SOLO convierte la dosis que el usuario teclea; no la decide.
 import { useState, useEffect, useRef } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, X } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { calcRecon, copyToRegisterToast } from '../../lib/calc'
 import { Sheet } from '../ui/Sheet'
@@ -216,7 +216,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                         onClick={() => dispatch({ t: 'deleteRecon', id: rec.id })}
                         className="text-red-400"
                       >
-                        ✕
+                        <X size={14} />
                       </Button>
                     </div>
                   </div>
@@ -286,7 +286,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                   Guardar
                 </Button>
                 <Button variant="ghost" size="sm" aria-label="Cancelar" onClick={() => setShowSaveForm(false)}>
-                  ✕
+                  <X size={14} />
                 </Button>
               </div>
             )}

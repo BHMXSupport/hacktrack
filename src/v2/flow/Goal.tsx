@@ -10,23 +10,23 @@
  */
 import { useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { ChevronLeft, Check } from 'lucide-react'
+import { ChevronLeft, Check, Flame, HeartPulse, Zap, Sparkles, Hourglass, Dumbbell, Flower2, Compass, Circle, type LucideIcon } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { GOALS, CATEGORY_COLOR } from '../../lib/catalog'
 import type { Category } from '../../lib/types'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
 
-// Íconos de categoría inline SVG para no depender de glyphs de v1
-const CAT_EMOJI: Record<string, string> = {
-  'Metabolismo':  '🔥',
-  'Recuperación': '💚',
-  'Cognitivo':    '⚡',
-  'Piel':         '✨',
-  'Anti-Aging':   '⏳',
-  'Crecimiento':  '💪',
-  'Reproductivo': '🌸',
-  'Explorar':     '🧭',
+// Íconos de categoría (lucide SVG — sin emojis en la app)
+const CAT_ICON: Record<string, LucideIcon> = {
+  'Metabolismo':  Flame,
+  'Recuperación': HeartPulse,
+  'Cognitivo':    Zap,
+  'Piel':         Sparkles,
+  'Anti-Aging':   Hourglass,
+  'Crecimiento':  Dumbbell,
+  'Reproductivo': Flower2,
+  'Explorar':     Compass,
 }
 
 const MAX_GOALS = 3
@@ -128,7 +128,7 @@ export function Goal() {
         {GOALS.map((g) => {
           const color = CATEGORY_COLOR[g.cat] ?? '#5FC9B8'
           const isActive = selected.has(g.cat)
-          const emoji = CAT_EMOJI[g.cat] ?? '●'
+          const CatIcon = CAT_ICON[g.cat] ?? Circle
 
           return (
             <motion.div key={g.cat} variants={fade}>
@@ -158,13 +158,13 @@ export function Goal() {
                 >
                   {/* Ícono */}
                   <span
-                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-[22px]"
+                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full"
                     style={{
                       background: `color-mix(in srgb, ${color} 14%, transparent)`,
                     }}
                     aria-hidden="true"
                   >
-                    {emoji}
+                    <CatIcon size={22} style={{ color }} />
                   </span>
 
                   {/* Texto */}
