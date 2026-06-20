@@ -7,6 +7,8 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 import { FloatingNav } from './ui/FloatingNav'
 import { AmbientBackground } from './ui/AmbientBackground'
 import { LaunchSequence } from './ui/LaunchSequence'
+import { InstallGate } from './ui/InstallGate'
+import { shouldShowInstallGate } from '../lib/install'
 import { Toast } from './ui/Toast'
 import { Inicio } from './screens/Inicio'
 import { Diario } from './screens/Diario'
@@ -133,6 +135,10 @@ function Shell() {
 }
 
 export function AppV2() {
+  // Gate de instalación: en móvil, si NO corre como app instalada (standalone), no deja pasar y
+  // muestra cómo agregarla a la pantalla de inicio. (Escritorio pasa: ahí no hay "instalar PWA" claro
+  // y se evita dejar sin acceso a revisores/colaboradores en Chrome de escritorio.)
+  if (shouldShowInstallGate()) return <InstallGate />
   return (
     <AppProviderV2>
       <Shell />
