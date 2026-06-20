@@ -191,40 +191,47 @@ export function MultiLineChart({
         )
       })}
 
-      {/* item 280 — zona de washout: gradiente que se desvanece hacia el futuro + borde suave + etiqueta */}
-      {washoutShade && (
-        <g>
-          <defs>
-            <linearGradient id={washoutGradId} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="var(--ink-100)" stopOpacity={0.55} />
-              <stop offset="100%" stopColor="var(--ink-100)" stopOpacity={0.1} />
-            </linearGradient>
-          </defs>
-          <rect
-            x={washoutShade.left}
-            y={PAD.t}
-            width={washoutShade.right - washoutShade.left}
-            height={plotH}
-            fill={`url(#${washoutGradId})`}
-          />
-          {/* borde de inicio del washout — marca suave de dónde empieza */}
-          <line
-            x1={washoutShade.left} y1={PAD.t} x2={washoutShade.left} y2={PAD.t + plotH}
-            stroke="var(--ink-300)" strokeWidth={1} strokeDasharray="2 3" strokeLinecap="round" opacity={0.55}
-          />
-          {/* etiqueta abajo (no choca con las de próxima dosis arriba) */}
-          <rect
-            x={washoutShade.left + 4} y={PAD.t + plotH - 16}
-            width={48} height={13} rx={6.5} fill="var(--card)" opacity={0.78}
-          />
-          <text
-            x={washoutShade.left + 9} y={PAD.t + plotH - 6.5}
-            fontSize={8.5} fontWeight={600} fontFamily="Inter, sans-serif" fill="var(--ink-400)"
-          >
-            washout
-          </text>
-        </g>
-      )}
+      {/* item 280 — zona de washout: gris CLARO (no se pierde en el negro) que se desvanece hacia el
+          futuro, borde de inicio + etiqueta CENTRADA a la altura del 50% del chart. */}
+      {washoutShade && (() => {
+        // centro horizontal de la zona, clamp para que la etiqueta no se salga del área de ploteo
+        const cx = Math.min(Math.max((washoutShade.left + washoutShade.right) / 2, washoutShade.left + 30), W - PAD.r - 30)
+        const cy = PAD.t + plotH / 2 // línea del 50%
+        return (
+          <g>
+            <defs>
+              <linearGradient id={washoutGradId} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="var(--ink-300)" stopOpacity={0.24} />
+                <stop offset="100%" stopColor="var(--ink-300)" stopOpacity={0.06} />
+              </linearGradient>
+            </defs>
+            <rect
+              x={washoutShade.left}
+              y={PAD.t}
+              width={washoutShade.right - washoutShade.left}
+              height={plotH}
+              fill={`url(#${washoutGradId})`}
+            />
+            {/* borde de inicio del washout — marca de dónde empieza (más visible) */}
+            <line
+              x1={washoutShade.left} y1={PAD.t} x2={washoutShade.left} y2={PAD.t + plotH}
+              stroke="var(--ink-400)" strokeWidth={1.25} strokeDasharray="2 3" strokeLinecap="round" opacity={0.7}
+            />
+            {/* etiqueta centrada a la altura del 50%, con fondo sólido + texto brillante (alto contraste) */}
+            <rect
+              x={cx - 28} y={cy - 8}
+              width={56} height={16} rx={8}
+              fill="var(--card)" opacity={0.94} stroke="var(--ink-400)" strokeWidth={0.75} strokeOpacity={0.45}
+            />
+            <text
+              x={cx} y={cy + 3.5} textAnchor="middle"
+              fontSize={9} fontWeight={700} letterSpacing="0.4" fontFamily="Inter, sans-serif" fill="var(--ink-700)"
+            >
+              washout
+            </text>
+          </g>
+        )
+      })()}
 
       {/* líneas de referencia (p.ej. 25%) — item 380: táctiles con tooltip educativo */}
       {refLines.map((r, ri) => {
