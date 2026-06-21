@@ -4,13 +4,13 @@
  * Inicio de sesión mock (email + contraseña). Simula delay de 600ms.
  * Éxito → finishOnboarding + go 's-app'.
  * "¿Olvidaste tu contraseña?" → go 's-forgot'.
- * "Crear cuenta" → go 's-account'.
+ * "Crear cuenta" → go 's-goal' (pasa por TODO el onboarding, igual que un usuario nuevo; no salta a s-account).
  *
  * ScreenId: 's-login'
  * Dispatch:
  *   { t: 'finishOnboarding' }        — auth ok, marca justOnboarded, screen→'s-app'
  *   { t: 'go', screen: 's-forgot' }  — recuperar contraseña
- *   { t: 'go', screen: 's-account' } — crear cuenta nueva
+ *   { t: 'go', screen: 's-goal' }    — crear cuenta nueva → arranca el onboarding desde el objetivo
  */
 import { useState, useId } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -247,7 +247,7 @@ export function Login() {
           <Button
             size="full"
             variant="outline"
-            onClick={() => dispatch({ t: 'go', screen: 's-account' })}
+            onClick={() => dispatch({ t: 'go', screen: 's-goal' })}
           >
             ¿No tienes cuenta? Crear cuenta
           </Button>
