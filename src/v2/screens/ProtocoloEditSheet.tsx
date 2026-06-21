@@ -31,9 +31,11 @@ const toInputDate = (ms: number): string => {
   const d = new Date(ms)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-const fromInputDate = (v: string): number => {
-  const [y, m, d] = v.split('-').map(Number)
-  return new Date(y, m - 1, d).getTime()
+const fromInputDate = (v: string): number | null => {
+  const parts = v.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(isNaN)) return null
+  const ts = new Date(parts[0], parts[1] - 1, parts[2]).getTime()
+  return isNaN(ts) ? null : ts
 }
 function fmtShortDate(d: Date): string {
   return d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' }).replace('.', '')
@@ -235,8 +237,8 @@ export function ProtocoloEditSheet({
       ? cad.semDays.some(Boolean)
       : true
 
-  // Preview próximas 5 tomas (item R11)
-  const startDate = startStr ? new Date(fromInputDate(startStr)) : new Date(p.startDate)
+  // Preview próximas 5 tomas (item R11). fromInputDate puede ser null (fecha parcial/borrada) → cae a p.startDate.
+  const startDate = new Date((startStr ? fromInputDate(startStr) : null) ?? p.startDate)
   // #F13: el preview de próximas tomas excluye días que el usuario ya registró o saltó (p.ej. hoy)
   // — antes la cadencia pura mostraba como "próxima" una dosis ya hecha/saltada.
   const proximas = (mode !== 'uso' ? proximasCadence(cad, startDate, new Date(), 5) : [])
@@ -260,6 +262,10 @@ export function ProtocoloEditSheet({
       return
     }
     const sd = startStr ? fromInputDate(startStr) : p.startDate
+    if (sd == null || isNaN(sd)) {
+      dispatch({ t: 'toast', msg: 'Fecha de inicio inválida' })
+      return
+    }
     const ed = endStr ? fromInputDate(endStr) : null
     if (ed != null && ed < sd) {
       dispatch({ t: 'toast', msg: 'La fecha de fin no puede ser antes del inicio' })

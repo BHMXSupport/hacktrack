@@ -149,7 +149,9 @@ function TimeWheelV2({
   const first = useRef(true)
 
   useEffect(() => {
-    // Emitir inmediatamente el ts correspondiente a la posición actual
+    // En el MONTAJE no emite (antes el guard estaba muerto: corría con first.current aún true) → el padre
+    // arranca con "Ahora" = null. Solo emite el ts al GIRAR el wheel.
+    if (first.current) return
     const h = HOURS[hi]
     let hour = h % 12
     if (ai === 1) hour += 12
@@ -160,7 +162,6 @@ function TimeWheelV2({
   }, [hi, mi, ai])
 
   useEffect(() => {
-    // montaje: no emitir para que el padre arranque con "Ahora" = null
     first.current = false
   }, [])
 
@@ -552,6 +553,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 type="button"
                 onClick={() => { setSaving(true); doLog(m.scheduledTs); onClose() }}
                 disabled={saving}
+                autoFocus
                 className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
                 <span className="text-[14px] font-semibold text-foreground">Mi dosis fue a las {schedHora}</span>
@@ -664,7 +666,6 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                   placeholder="Buscar producto…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
                   className="h-11 w-full rounded-md border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
                 />
 
@@ -712,7 +713,6 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                       value={customProduct}
                       onChange={(e) => setCustomProduct(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && confirmCustom()}
-                      autoFocus
                       className="h-11 flex-1 rounded-md border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
                     />
                     <button
@@ -1089,7 +1089,6 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                   onChange={(e) => setCustomEffect(e.target.value)}
                   placeholder="Describe cómo te sientes…"
                   aria-label="Efecto personalizado"
-                  autoFocus
                   className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
                 />
               </motion.div>
