@@ -112,7 +112,7 @@ export function Account() {
 
   return (
     <div
-      className="flex h-full flex-col overflow-y-auto"
+      className="relative z-10 flex h-full flex-col overflow-y-auto"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
       {/* App bar */}
