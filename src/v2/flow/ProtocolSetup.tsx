@@ -156,7 +156,7 @@ export function ProtocolSetup() {
                     type="button"
                     onClick={() => toggle(n)}
                     aria-pressed={on}
-                    className={`flex min-h-[52px] items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors ${on ? 'border-teal bg-teal/10' : 'border-white/20 bg-card hover:bg-white/5'}`}
+                    className={`flex min-h-[52px] items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors ${on ? 'border-teal bg-teal/10' : 'border-white/20 bg-card hover:border-white/40'}`}
                   >
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
                     <span className="flex flex-1 flex-col">
@@ -183,7 +183,7 @@ export function ProtocolSetup() {
                     key={p}
                     type="button"
                     onClick={() => setEditProduct(p)}
-                    className="flex items-center gap-3 rounded-xl border border-white/20 bg-card px-4 py-3 text-left hover:bg-white/5"
+                    className="flex items-center gap-3 rounded-xl border border-white/20 bg-card px-4 py-3 text-left hover:border-white/40"
                   >
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
                     <span className="flex min-w-0 flex-1 flex-col">
