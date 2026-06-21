@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import {
-  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp, SkipForward, AlertTriangle,
+  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp, SkipForward, AlertTriangle, Ruler,
 } from 'lucide-react'
 import { useApp, nextInjectionSite, doseForProduct, adherenceMonth } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
@@ -601,6 +601,26 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
             Gestionar
           </button>
         </div>
+
+        {/* "Cambio de medidas" — slab fijo (no removible), ancho completo (= 2 tiles), más bajo y de color
+            distinto. Abre la misma captura compuesta del onboarding (peso/altura/%grasa/%músculo) → agrega
+            un registro nuevo al diario, no sobreescribe. */}
+        <button
+          type="button"
+          onClick={() => dispatch({ t: 'sheet', sheet: 'medidas' })}
+          aria-label="Cambio de medidas: registrar peso, altura, % grasa y % músculo juntos"
+          className="flex w-full items-center gap-3 rounded-xl border border-teal/30 bg-teal/12 px-3.5 py-2.5 text-left transition-opacity active:opacity-70"
+        >
+          <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal/20 text-teal">
+            <Ruler size={16} />
+          </span>
+          <span className="flex flex-col">
+            <span className="text-[14px] font-semibold text-foreground">Cambio de medidas</span>
+            <span className="text-[11px] text-muted-foreground">Peso, altura, % grasa y músculo de una vez</span>
+          </span>
+          <ChevronRight size={18} className="ml-auto shrink-0 text-teal" />
+        </button>
+
         {measures.length > 0 ? (
           <div className="grid grid-cols-2 gap-2.5">
             {measures.map(({ m, v }) => (

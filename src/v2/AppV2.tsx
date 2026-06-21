@@ -19,6 +19,7 @@ import { Comida } from './screens/Comida'
 import { Semana } from './screens/Semana'
 import { RegistrarSheet } from './screens/RegistrarSheet'
 import { MedidaSheet } from './screens/MedidaSheet'
+import { CambioMedidasSheet } from './screens/CambioMedidasSheet'
 import { ConfirmDeleteSheet } from './screens/ConfirmDeleteSheet'
 import { RecetarioSheet } from './screens/RecetarioSheet'
 import { Ajustes } from './screens/Ajustes'
@@ -110,6 +111,7 @@ function Shell() {
 
       <RegistrarSheet open={sheet === 'registrar' || sheet === 'agregar'} onClose={closeSheet} />
       <MedidaSheet open={sheet === 'medida'} onClose={closeSheet} measure={sheetArg} />
+      <CambioMedidasSheet open={sheet === 'medidas'} onClose={closeSheet} />
       <ConfirmDeleteSheet open={sheet === 'confirm-delete'} onClose={closeSheet} id={sheetArg} />
       <RecetarioSheet
         open={sheet === 'recetario' || sheet === 'crear-platillo'}
