@@ -97,12 +97,14 @@ export function ProtocolSetup() {
         <div className="w-11" />
       </header>
 
+      {/* Scroller PLANO (no framer-motion): en iOS un contenedor con transform/animación no hace
+          touch-scroll. El motion.div con la animación de entrada va ADENTRO. */}
+      <div className="ios-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-2">
       <motion.div
         initial={reduce ? false : 'hidden'}
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.03 } } }}
-        className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-2"
-        style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
+        className="flex flex-col gap-5"
       >
         <motion.div variants={fade}>
           <p className="mb-1 text-[12px] font-semibold text-secondary-foreground">
@@ -131,7 +133,7 @@ export function ProtocolSetup() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar péptido…"
-                className="h-12 w-full rounded-lg border border-white/10 bg-raised pl-9 pr-3 text-[15px] text-foreground placeholder:text-secondary-foreground focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20"
+                className="h-12 w-full rounded-lg border border-white/20 bg-card pl-9 pr-3 text-[15px] text-foreground placeholder:text-secondary-foreground focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20"
               />
             </motion.div>
 
@@ -154,7 +156,7 @@ export function ProtocolSetup() {
                     type="button"
                     onClick={() => toggle(n)}
                     aria-pressed={on}
-                    className={`flex min-h-[52px] items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors ${on ? 'border-teal bg-teal/10' : 'border-white/10 bg-raised hover:bg-white/5'}`}
+                    className={`flex min-h-[52px] items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors ${on ? 'border-teal bg-teal/10' : 'border-white/20 bg-card hover:bg-white/5'}`}
                   >
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
                     <span className="flex flex-1 flex-col">
@@ -167,23 +169,6 @@ export function ProtocolSetup() {
                   </button>
                 )
               })}
-            </motion.div>
-
-            <motion.div variants={fade} className="mt-auto flex flex-col gap-3 pt-2">
-              <Button size="full" disabled={selected.size === 0} onClick={addSelected}>
-                Agregar {selected.size > 0 ? `(${selected.size})` : ''}
-              </Button>
-              <Button
-                size="full"
-                variant="outline"
-                onClick={goAccount}
-                aria-label="Omitir protocolo y configurarlo después (sin dosis que registrar todavía)"
-              >
-                Configurar mi protocolo después
-              </Button>
-              <p className="text-center text-[12px] leading-relaxed text-secondary-foreground">
-                Sin un protocolo no tendrás dosis que registrar todavía.
-              </p>
             </motion.div>
           </>
         ) : (
@@ -198,7 +183,7 @@ export function ProtocolSetup() {
                     key={p}
                     type="button"
                     onClick={() => setEditProduct(p)}
-                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-raised px-4 py-3 text-left hover:bg-white/5"
+                    className="flex items-center gap-3 rounded-xl border border-white/20 bg-card px-4 py-3 text-left hover:bg-white/5"
                   >
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
                     <span className="flex min-w-0 flex-1 flex-col">
@@ -219,15 +204,33 @@ export function ProtocolSetup() {
                 <Plus size={16} /> Agregar otro producto
               </button>
             </motion.div>
-
-            <motion.div variants={fade} className="mt-auto pt-2">
-              <Button size="full" onClick={goAccount}>
-                Continuar <ChevronRight size={16} />
-              </Button>
-            </motion.div>
           </>
         )}
       </motion.div>
+      </div>
+
+      {/* Footer FIJO — siempre visible, fuera del scroll (que en iOS puede fallar) → nunca te quedas atascado. */}
+      <div className="flex shrink-0 flex-col gap-2.5 border-t border-white/10 bg-void px-5 pt-3 pb-[max(16px,env(safe-area-inset-bottom))]">
+        {picker ? (
+          <>
+            <Button size="full" disabled={selected.size === 0} onClick={addSelected}>
+              Agregar {selected.size > 0 ? `(${selected.size})` : ''}
+            </Button>
+            <Button
+              size="full"
+              variant="outline"
+              onClick={goAccount}
+              aria-label="Omitir protocolo y configurarlo después (sin dosis que registrar todavía)"
+            >
+              Configurar mi protocolo después
+            </Button>
+          </>
+        ) : (
+          <Button size="full" onClick={goAccount}>
+            Continuar <ChevronRight size={16} />
+          </Button>
+        )}
+      </div>
 
       {/* Editor completo por producto (cadencia / días / recordatorio / titulación / stock) */}
       <ProtocoloEditSheet open={editProduct != null} onClose={() => setEditProduct(null)} product={editProduct} />

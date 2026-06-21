@@ -100,6 +100,12 @@
 
 /* Grid de precisión sutil (fondo de cockpit) — utilidad reutilizable */
 @layer utilities {
+  /* Scroll fiable en iOS PWA: momentum + contención del rebote. El contenedor debe ser un <div> plano
+     (no un elemento con transform/animación de framer-motion, que rompe el touch-scroll en WebKit). */
+  .ios-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
   .bg-precision-grid {
     background-color: var(--void);
     background-image:
