@@ -14,7 +14,7 @@ import { useState, useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Search, Check, Plus, Pencil, ChevronRight } from 'lucide-react'
 import { useApp } from '../../lib/store'
-import { PEPTIDES, CATEGORY_COLOR } from '../../lib/catalog'
+import { PEPTIDES, CATEGORY_COLOR, SUGGEST_BY_GOAL } from '../../lib/catalog'
 import { cadenceLabel } from '../../lib/cadence'
 import { Button } from '../ui/Button'
 import { ProtocoloEditSheet } from '../screens/ProtocoloEditSheet'
@@ -38,10 +38,20 @@ export function ProtocolSetup() {
   )
 
   const allNames = useMemo(() => Object.keys(PEPTIDES), [])
-  const suggested = useMemo(
-    () => allNames.filter((n) => goals.includes(PEPTIDES[n].cat)),
-    [allNames, goals],
-  )
+  // Sugeridos MULTI-SEGMENTO: un producto puede aparecer bajo varios objetivos (mapa SUGGEST_BY_GOAL).
+  // Orden = por objetivo elegido (curGoal primero) y, dentro de cada uno, por relevancia; dedup entre objetivos.
+  const suggested = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const g of goals) {
+      for (const n of SUGGEST_BY_GOAL[g] ?? []) {
+        if (PEPTIDES[n] && !seen.has(n)) { seen.add(n); out.push(n) }
+      }
+    }
+    // Fallback de compatibilidad: si ningún objetivo trae sugerencias, usa la categoría primaria.
+    if (out.length === 0) return allNames.filter((n) => goals.includes(PEPTIDES[n].cat))
+    return out
+  }, [allNames, goals])
 
   // Vista: picker (elegir productos) o lista (configurar lo elegido)
   const [picker, setPicker] = useState(tracked.length === 0)

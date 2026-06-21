@@ -33,6 +33,20 @@ export const PEPTIDES: Record<string, PeptideEntry> = {
   'PT-141':             { cat: 'Reproductivo', type: 'por-demanda' },
 }
 
+// Sugerencias de productos por objetivo en el ONBOARDING. Multi-segmento: un producto puede aparecer en
+// VARIOS objetivos (la categoría primaria PEPTIDES[n].cat sigue siendo la del badge/color). Orden = relevancia:
+// nativos del segmento primero, luego cruzados. 'Explorar' (objetivo "aún explorando") trae un set popular.
+export const SUGGEST_BY_GOAL: Record<string, string[]> = {
+  'Metabolismo':  ['Retatrutide', 'Tirzepatida', 'Semaglutida', 'Tesamorelin', '5-Amino-1MQ', 'SLU-PP-332', 'MOTS-c', 'NAD+', 'CJC 1295 (No DAC)', 'Ipamorelin'],
+  'Crecimiento':  ['CJC 1295 (No DAC)', 'Ipamorelin', 'Tesamorelin', '5-Amino-1MQ', 'SLU-PP-332', 'TB-500', 'MOTS-c'],
+  'Recuperación': ['BPC-157', 'TB-500', 'GHK-Cu', 'ARA 290', 'GLOW 70', 'KLOW 80', 'DSIP', 'Selank', 'SS-31', 'CJC 1295 (No DAC)', 'Ipamorelin'],
+  'Cognitivo':    ['Semax', 'Selank', 'DSIP', 'Oxytocin', 'NAD+', 'MOTS-c', 'SS-31'],
+  'Piel':         ['GLOW 70', 'KLOW 80', 'GHK-Cu', 'BPC-157', 'TB-500', 'L-Glutathione'],
+  'Anti-Aging':   ['MOTS-c', 'NAD+', 'SS-31', 'L-Glutathione', 'GHK-Cu', 'Tesamorelin', 'CJC 1295 (No DAC)', 'Ipamorelin', 'ARA 290', 'BPC-157', 'TB-500'],
+  'Reproductivo': ['Kisspeptin-10', 'PT-141', 'Oxytocin'],
+  'Explorar':     ['Retatrutide', 'BPC-157', 'NAD+', 'GLOW 70', 'MOTS-c', 'Ipamorelin'],
+}
+
 // Color de acento por categoría — del design system "Quiet Signal" (Stitch THEME, fuente de la verdad)
 export const CATEGORY_COLOR: Record<Category, string> = {
   'Metabolismo':  '#E85D3A',
