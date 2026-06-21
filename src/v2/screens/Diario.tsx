@@ -378,7 +378,7 @@ function EditLogSheet({
 
 // ── row de un registro con swipe-to-delete + tap-to-edit (R51 + R52) ─────────
 
-const SWIPE_THRESHOLD = -120
+const SWIPE_THRESHOLD = -72
 
 function TimelineRow({
   item,
@@ -845,7 +845,7 @@ export function Diario() {
     deleteTimerRef.current = setTimeout(() => {
       dispatch({ t: 'clearDeletedLogBuffer' })
       deleteTimerRef.current = null
-    }, 8200)
+    }, 5500)
   }, [dispatch])
 
   // Limpiar timer al desmontar

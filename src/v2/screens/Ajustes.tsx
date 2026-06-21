@@ -421,6 +421,15 @@ export function Ajustes({
             dispatch({ t: 'toast', msg: 'Archivo de respaldo inválido' })
             return
           }
+          // No reemplazar TODO con un respaldo vacío (estructura válida pero sin datos) → evita perder todo sin querer.
+          const hasData =
+            (Array.isArray(importedState.log) && importedState.log.length > 0) ||
+            Object.keys(importedState.protocols ?? {}).length > 0 ||
+            (Array.isArray(importedState.importedProducts) && importedState.importedProducts.length > 0)
+          if (!hasData) {
+            dispatch({ t: 'toast', msg: 'El respaldo está vacío — no se importó (tus datos siguen intactos)' })
+            return
+          }
           // #46: pedir confirmación antes de sobreescribir todos los datos
           const ok = window.confirm(
             'Esto reemplazará TODOS tus datos actuales. No se puede deshacer.',

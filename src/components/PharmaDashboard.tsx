@@ -466,7 +466,7 @@ export function PharmaDashboard() {
                         {
                           y: 25,
                           label: '25%',
-                          tooltip: 'En este punto queda el 25 % del pico estimado. Se usa como referencia educativa de ventana de re-dosificación.',
+                          tooltip: 'En este punto queda el 25 % del pico estimado. Es solo un dato educativo — la cadencia la defines tú o tu profesional de salud.',
                         },
                         {
                           y: 50,

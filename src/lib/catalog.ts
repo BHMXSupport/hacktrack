@@ -357,13 +357,13 @@ export const MOCK_BIOHACKMX_PURCHASES: BiohackmxPurchase[] = [
 // Objetivos (pantalla de selección) — SIN producto asociado (P0-4)
 export interface GoalOption { label: string; sub: string; cat: Category }
 export const GOALS: GoalOption[] = [
-  { label: 'Bajar de peso',       sub: 'Optimiza tu metabolismo y composición.',        cat: 'Metabolismo' },
-  { label: 'Ganar músculo',       sub: 'Crecimiento, fuerza y recuperación muscular.',   cat: 'Crecimiento' },
-  { label: 'Recuperarme mejor',   sub: 'Mejora tu sueño y reduce el estrés físico.',    cat: 'Recuperación' },
-  { label: 'Más energía y foco',  sub: 'Claridad mental y rendimiento sostenido.',      cat: 'Cognitivo' },
-  { label: 'Cuidar mi piel',      sub: 'Apoyo a la salud de la piel.',                  cat: 'Piel' },
-  { label: 'Longevidad',          sub: 'Prácticas para una vida más larga y saludable.', cat: 'Anti-Aging' },
-  { label: 'Salud reproductiva',  sub: 'Apoyo hormonal y bienestar íntimo.',            cat: 'Reproductivo' },
+  { label: 'Bajar de peso',       sub: 'Sigue peso, cintura y composición corporal.',   cat: 'Metabolismo' },
+  { label: 'Ganar músculo',       sub: 'Registra músculo, fuerza y recuperación.',      cat: 'Crecimiento' },
+  { label: 'Recuperarme mejor',   sub: 'Anota sueño, dolor y recuperación.',            cat: 'Recuperación' },
+  { label: 'Más energía y foco',  sub: 'Sigue energía, foco y estado de ánimo.',        cat: 'Cognitivo' },
+  { label: 'Cuidar mi piel',      sub: 'Registra hidratación, textura y firmeza.',      cat: 'Piel' },
+  { label: 'Longevidad',          sub: 'Sigue energía, recuperación y vitalidad.',      cat: 'Anti-Aging' },
+  { label: 'Salud reproductiva',  sub: 'Registra libido y bienestar íntimo.',          cat: 'Reproductivo' },
   { label: 'Aún estoy explorando', sub: 'Descubre qué se ajusta a ti.',                 cat: 'Explorar' },
 ]
 

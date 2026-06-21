@@ -20,6 +20,12 @@
     --secondary-foreground: #9AA7B8; /* texto secundario — 7:1 */
     --muted: #1B2740;
     --muted-foreground: #8A98B5;     /* texto terciario — 5.7:1 (piso AA, no bajar) */
+    /* Alias de tokens legados que usa MultiLineChart (no estaban definidos → ejes/etiquetas invisibles).
+       Referencian los tokens reales (theme-aware) para que el chart sea visible y con buen contraste. */
+    --ink-300: var(--muted-foreground);
+    --ink-400: var(--secondary-foreground);
+    --ink-700: var(--foreground);
+    --brand-500: #5FC9B8;
     --border: rgba(255,255,255,0.08);
     --input: #1B2740;
     --ring: #5FC9B8;

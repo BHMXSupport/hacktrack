@@ -67,14 +67,14 @@ function classifyInsight(text: string): InsightType {
     lower.includes('subió') ||
     lower.includes('déficit') ||
     lower.includes('racha') ||
-    lower.includes('meta')
+    lower.includes('meta') || lower.includes('variedad alta')
   )
     return 'logro'
   if (
     lower.includes('sin registro') ||
     lower.includes('cero') ||
     lower.includes('perdida') ||
-    lower.includes('alta') ||
+    lower.includes('variedad baja') ||
     lower.includes('elevado')
   )
     return 'alerta'

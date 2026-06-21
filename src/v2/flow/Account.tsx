@@ -154,7 +154,7 @@ export function Account() {
             ¡Casi listo!
           </h1>
           <p className="mt-2 text-[14px] text-secondary-foreground">
-            Tu cuenta es tu llave para entrar desde cualquier dispositivo; tus registros viven solo en este dispositivo.
+            Tus registros se guardan solo en este dispositivo. Tu perfil personaliza la experiencia; por ahora no se sincroniza entre dispositivos.
           </p>
         </motion.div>
 

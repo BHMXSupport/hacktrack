@@ -117,8 +117,7 @@ export function Forgot() {
             <Shield size={16} className="mt-0.5 shrink-0 text-teal" aria-hidden />
             <p className="text-[12px] leading-relaxed text-secondary-foreground">
               Tus <span className="text-foreground">registros se guardan en este dispositivo</span>, no en la nube. Recuperar la
-              contraseña restaura el acceso a tu cuenta, no borra ni recupera datos locales. ¿Olvidaste tu PIN? Puedes
-              restablecerlo desde Ajustes → Seguridad.
+              contraseña restaura el acceso a tu cuenta, no borra ni recupera datos locales.
             </p>
           </Glass>
         </motion.div>

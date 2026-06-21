@@ -138,9 +138,14 @@ export function ProtocolSetup() {
             </motion.div>
 
             {!query && suggested.length > 0 && (
-              <motion.p variants={fade} className="-mb-2 text-[12px] font-semibold uppercase tracking-wider text-secondary-foreground">
-                Sugeridos para tu objetivo
-              </motion.p>
+              <motion.div variants={fade} className="-mb-2 flex flex-col gap-1">
+                <p className="text-[12px] font-semibold uppercase tracking-wider text-secondary-foreground">
+                  Sugeridos para tu objetivo
+                </p>
+                <p className="text-[11px] leading-relaxed text-secondary-foreground">
+                  Solo para organizar tu seguimiento. No es recomendación médica ni de dosificación.
+                </p>
+              </motion.div>
             )}
 
             <motion.div variants={fade} className="flex flex-col gap-2">

@@ -553,7 +553,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 onClick={() => { setSaving(true); doLog(m.scheduledTs); onClose() }}
                 className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
-                <span className="text-[14px] font-semibold text-foreground">Me inyecté a las {schedHora}</span>
+                <span className="text-[14px] font-semibold text-foreground">Mi dosis fue a las {schedHora}</span>
                 <span className="text-[12px] text-muted-foreground">A la hora programada; solo lo registro hasta ahora. Se guarda a las {schedHora}.</span>
               </button>
               {/* Opción B — hoy fue a otra hora, deja el protocolo igual → guarda a la hora real del registro */}
@@ -562,7 +562,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 onClick={() => { setSaving(true); doLog(m.logTs); onClose() }}
                 className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
-                <span className="text-[14px] font-semibold text-foreground">Me inyecté a las {logHora} solo hoy</span>
+                <span className="text-[14px] font-semibold text-foreground">Mi dosis fue a las {logHora} solo hoy</span>
                 <span className="text-[12px] text-muted-foreground">Mi protocolo sigue igual; hoy fue a otra hora. Se guarda a las {logHora}.</span>
               </button>
               {/* Opción A — cambiar el recordatorio → guarda a la hora real y RUTEA a la pantalla (no lo cambia solo) */}
@@ -572,7 +572,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
                 <span className="text-[14px] font-semibold text-teal">Cambiar mi recordatorio a las {logHora}</span>
-                <span className="text-[12px] text-muted-foreground">Ahora me inyecto a esta hora. Se guarda a las {logHora} y te llevo a ajustar tu protocolo.</span>
+                <span className="text-[12px] text-muted-foreground">Ahora mi dosis es a esta hora. Se guarda a las {logHora} y te llevo a ajustar tu protocolo.</span>
               </button>
             </div>
             <button
@@ -769,7 +769,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             if (parseFloat(dose) <= mean * 5) return null
             return (
               <p className="text-warn text-[12px]" role="status" aria-live="polite">
-                Eso es bastante mas alto de lo habitual (~{mean % 1 === 0 ? mean : parseFloat(mean.toFixed(2))} {unit}). Seguro?
+                Eso es bastante más alto de lo habitual (~{mean % 1 === 0 ? mean : parseFloat(mean.toFixed(2))} {unit}). ¿Seguro?
               </p>
             )
           })()}
@@ -920,7 +920,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             Zona de inyección <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
           </p>
           <p className="text-[12px] text-muted-foreground">
-            Toca un área para recordar dónde te inyectaste (opcional)
+            Toca un área para recordar dónde la aplicaste (opcional)
           </p>
           {showHeavyMap ? (
             <InjectionMap selected={site} onSelect={setSite} />
