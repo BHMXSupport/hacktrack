@@ -18,6 +18,7 @@ import { useApp } from '../../lib/store'
 import {
   MEASURES_BY,
   CATEGORY_COLOR,
+  MEASURE_CATEGORY,
   MEDIDAS_ONLY_MEASURES,
 } from '../../lib/catalog'
 import { Button } from '../ui/Button'
@@ -167,9 +168,10 @@ export function MeasurePicker() {
                 style={
                   active
                     ? {
-                        background: `color-mix(in srgb, ${accentColor} 20%, rgba(30,41,59,0.8))`,
+                        // Más opacidad y tinte → el chip seleccionado se lee claramente sobre el cockpit.
+                        background: `color-mix(in srgb, ${accentColor} 32%, rgba(20,28,42,0.95))`,
                         color: accentColor,
-                        border: `1.5px solid color-mix(in srgb, ${accentColor} 50%, transparent)`,
+                        border: `2px solid color-mix(in srgb, ${accentColor} 65%, transparent)`,
                       }
                     : undefined
                 }
@@ -220,18 +222,23 @@ export function MeasurePicker() {
                 Seguirás
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {[...selected].map((m) => (
-                  <span
-                    key={m}
-                    className="rounded-full px-2.5 py-0.5 text-[12px] font-medium"
-                    style={{
-                      background: `color-mix(in srgb, ${accentColor} 12%, transparent)`,
-                      color: accentColor,
-                    }}
-                  >
-                    {m}
-                  </span>
-                ))}
+                {[...selected].map((m) => {
+                  // Cada chip con el color de SU categoría (Recuperación, Piel, …); fondo opaco + borde tintado.
+                  const color = CATEGORY_COLOR[MEASURE_CATEGORY[m]] ?? accentColor
+                  return (
+                    <span
+                      key={m}
+                      className="rounded-full border px-2.5 py-1 text-[12px] font-semibold"
+                      style={{
+                        background: `color-mix(in srgb, ${color} 22%, rgba(18,26,38,0.92))`,
+                        borderColor: `color-mix(in srgb, ${color} 55%, transparent)`,
+                        color: color,
+                      }}
+                    >
+                      {m}
+                    </span>
+                  )
+                })}
               </div>
             </div>
           </motion.div>

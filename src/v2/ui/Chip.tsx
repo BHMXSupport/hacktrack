@@ -13,8 +13,8 @@ export function Chip({
       aria-pressed={active}
       className={cn(
         'inline-flex h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold transition-colors',
-        // Inactivo: borde marcado + relleno visible + texto blanco → la pastilla NO se pierde sobre el fondo del cockpit.
-        active ? 'bg-teal text-primary-foreground' : 'border border-white/30 bg-white/[0.14] text-foreground hover:bg-white/20',
+        // Inactivo: borde marcado + relleno con opacidad suficiente + texto blanco → la pastilla NO se pierde sobre el cockpit.
+        active ? 'bg-teal text-primary-foreground' : 'border border-white/35 bg-white/[0.22] text-foreground hover:bg-white/30',
         className,
       )}
       {...props}

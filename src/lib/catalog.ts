@@ -90,6 +90,17 @@ export const MEASURES_BY: Record<string, string[]> = {
   'Explorar':     ['Peso', 'Energía', 'Sueño', 'Foco'],
 }
 
+// Categoría representativa de cada medida = primera categoría de MEASURES_BY que la incluye (Explorar
+// se excluye por ser genérica). Sirve para colorear chips de medidas por su "fase"/segmento (CATEGORY_COLOR).
+export const MEASURE_CATEGORY: Record<string, Category> = (() => {
+  const m: Record<string, Category> = {}
+  for (const [cat, list] of Object.entries(MEASURES_BY)) {
+    if (cat === 'Explorar') continue
+    for (const name of list) if (!m[name]) m[name] = cat as Category
+  }
+  return m
+})()
+
 // Escalas subjetivas: 1–100 (decisión de Jan). Medidas objetivas: num → perfil.
 export const MEASURE_META: Record<string, MeasureMeta> = {
   // objetivas (van al perfil; se capturan en "Cambio de medidas")
