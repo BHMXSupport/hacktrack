@@ -110,14 +110,14 @@ export function MeasurePicker() {
         <button
           aria-label="Atrás"
           onClick={handleBack}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
 
         {/* Barra de progreso — paso 3 de 4 */}
         <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-muted-foreground">Paso 3 de 4</span>
+          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 3 de 4</span>
           <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 3 de 4">
             <div className="h-full w-[75%] rounded-full bg-teal" />
           </div>
@@ -142,7 +142,7 @@ export function MeasurePicker() {
             Métricas para: {currentGoal}
           </span>
           {goals.length > 1 && (
-            <span className="ml-2 text-[12px] font-semibold text-muted-foreground">Objetivo {goalIndex + 1} de {goals.length}</span>
+            <span className="ml-2 text-[12px] font-semibold text-secondary-foreground">Objetivo {goalIndex + 1} de {goals.length}</span>
           )}
           <p className="mt-2 text-[14px] text-secondary-foreground">
             Elige las que más te interesan. Puedes cambiarlas después.
@@ -200,7 +200,7 @@ export function MeasurePicker() {
           <p
             role="status"
             aria-live="polite"
-            className="min-h-[20px] text-[13px] text-muted-foreground"
+            className="min-h-[20px] text-[13px] text-secondary-foreground"
           >
             {selected.size > 0
               ? `${selected.size} métrica${selected.size !== 1 ? 's' : ''} seleccionada${selected.size !== 1 ? 's' : ''}. Podrás ajustar esto más adelante.`
@@ -216,7 +216,7 @@ export function MeasurePicker() {
             transition={{ duration: 0.22 }}
           >
             <div className="rounded-xl border border-white/10 bg-raised/80 p-4 flex flex-col gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground">
                 Seguirás
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -239,7 +239,7 @@ export function MeasurePicker() {
 
         {/* Disclaimer */}
         <motion.div variants={fade}>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[11px] leading-relaxed text-secondary-foreground">
             Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
           </p>
         </motion.div>

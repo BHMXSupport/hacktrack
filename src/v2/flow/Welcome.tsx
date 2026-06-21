@@ -63,7 +63,7 @@ function StatRow({ icon, label, value, color }: StatRowProps) {
         {icon}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground">
           {label}
         </p>
         <p className="text-[14px] font-semibold text-foreground truncate">{value}</p>
@@ -181,14 +181,14 @@ export function Welcome() {
         {/* Copy */}
         <motion.div variants={itemFade} className="text-center">
           {name && (
-            <p className="mb-1 text-[15px] text-muted-foreground">
+            <p className="mb-1 text-[15px] text-secondary-foreground">
               Hola, {name}
             </p>
           )}
           <h1 className="text-[30px] font-bold leading-tight tracking-tight text-foreground">
             {hasProducts ? 'Tu protocolo está listo' : 'Tu espacio está listo'}
           </h1>
-          <p className="mt-2 text-[14px] text-muted-foreground max-w-[280px] mx-auto">
+          <p className="mt-2 text-[14px] text-secondary-foreground max-w-[280px] mx-auto">
             {hasProducts
               ? 'Empieza a registrar y observa tu progreso a lo largo del tiempo.'
               : 'Agrega tu primer producto para empezar a registrar.'}
@@ -207,10 +207,10 @@ export function Welcome() {
           <Button size="full" onClick={handleVerPlan}>
             {hasProducts ? 'Ver mi plan' : 'Agregar mi primer producto'}
           </Button>
-          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
             Tus registros se guardan en este dispositivo. Tu cuenta solo sirve para respaldo seguro.
           </p>
-          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
             Hacktrack es una herramienta de seguimiento personal.
             No reemplaza consejo médico.
           </p>

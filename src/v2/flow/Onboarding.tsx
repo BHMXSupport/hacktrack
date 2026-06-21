@@ -27,14 +27,14 @@ function IllustrationRitmo() {
     <Glass className="w-full max-w-[280px] mx-auto flex flex-col gap-3 p-4">
       {/* Encabezado */}
       {/* #20: etiqueta "Ejemplo" para que no parezca progreso real del usuario */}
-      <span className="self-start rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ejemplo</span>
+      <span className="self-start rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-secondary-foreground">Ejemplo</span>
       <div className="flex items-center gap-2">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal/15">
           <Clock size={16} className="text-teal" />
         </span>
         <div>
           <p className="text-[13px] font-bold text-foreground">Adherencia</p>
-          <p className="text-[11px] text-muted-foreground">Este mes · 22/30 días</p>
+          <p className="text-[11px] text-secondary-foreground">Este mes · 22/30 días</p>
         </div>
         <span className="ml-auto font-mono text-[18px] font-semibold text-teal tabular-nums">74%</span>
       </div>
@@ -43,7 +43,7 @@ function IllustrationRitmo() {
       <div className="flex gap-1.5">
         {dias.map((d, i) => (
           <div key={d} className="flex flex-1 flex-col items-center gap-1">
-            <span className="text-[9px] font-semibold text-muted-foreground">{d}</span>
+            <span className="text-[9px] font-semibold text-secondary-foreground">{d}</span>
             <div
               className={`aspect-square w-full rounded-sm ${weekDots[i] ? 'bg-teal' : 'bg-white/10'}`}
             />
@@ -244,7 +244,7 @@ export function Onboarding() {
         </button>
         <button
           onClick={toGoal}
-          className="inline-flex h-11 min-w-[44px] items-center justify-center rounded-md px-3 text-[14px] text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 min-w-[44px] items-center justify-center rounded-md px-3 text-[14px] text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           Saltar
         </button>

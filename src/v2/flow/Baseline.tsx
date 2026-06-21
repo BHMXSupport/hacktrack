@@ -59,7 +59,7 @@ function NumericField({
       <label htmlFor={id} className="flex items-center gap-1.5 text-[13px] font-semibold text-secondary-foreground">
         <Icon size={14} className="text-teal" aria-hidden="true" />
         {label}
-        {optional && <span className="ml-auto text-[11px] font-normal text-muted-foreground">opcional</span>}
+        {optional && <span className="ml-auto text-[11px] font-normal text-secondary-foreground">opcional</span>}
       </label>
       <div className="relative">
         <input
@@ -73,11 +73,11 @@ function NumericField({
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`h-14 w-full rounded-lg border bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 transition-colors ${error ? 'border-red-400/70 focus:border-red-400/70 focus:ring-red-400/20' : 'border-white/10 focus:border-teal/60 focus:ring-teal/20'}`}
+          className={`h-14 w-full rounded-lg border bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-secondary-foreground/70 focus:outline-none focus:ring-2 transition-colors ${error ? 'border-red-400/70 focus:border-red-400/70 focus:ring-red-400/20' : 'border-white/10 focus:border-teal/60 focus:ring-teal/20'}`}
         />
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground"
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-secondary-foreground"
         >
           {unit}
         </span>
@@ -168,14 +168,14 @@ export function Baseline() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-goal' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
 
         {/* Barra de progreso — paso 2 de 4 */}
         <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-muted-foreground">Paso 2 de 4</span>
+          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 2 de 4</span>
           <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={2} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 2 de 4">
             <div className="h-full w-[50%] rounded-full bg-teal" />
           </div>
@@ -195,7 +195,7 @@ export function Baseline() {
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
             Cuéntame sobre ti
           </h1>
-          <p className="mt-2 text-[14px] text-muted-foreground">
+          <p className="mt-2 text-[14px] text-secondary-foreground">
             Solo para personalizar tu experiencia. Puedes omitir cualquier campo.
           </p>
         </motion.div>
@@ -271,7 +271,7 @@ export function Baseline() {
 
         {/* Disclaimer */}
         <motion.div variants={fade}>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[11px] leading-relaxed text-secondary-foreground">
             Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
           </p>
         </motion.div>

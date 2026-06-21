@@ -100,7 +100,7 @@ export function Splash() {
         <BrandIcon />
         <div className="mt-5 flex flex-col items-center gap-2">
           <Wordmark />
-          <p className="text-[14px] text-muted-foreground">
+          <p className="text-[14px] text-secondary-foreground">
             tu progreso, en una sola pantalla
           </p>
         </div>
@@ -161,7 +161,7 @@ export function Splash() {
               hidden: { opacity: 0, y: 8 },
               show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0, 0, 0.2, 1] } },
             }}
-            className="text-[14px] text-muted-foreground"
+            className="text-[14px] text-secondary-foreground"
           >
             tu progreso, en una sola pantalla
           </motion.p>

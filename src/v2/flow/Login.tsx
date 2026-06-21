@@ -85,7 +85,7 @@ export function Login() {
 
   // Input class compartido
   const inputCls =
-    'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
+    'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-secondary-foreground/70 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
 
   function handleEmailBlur() {
     setEmailError(email.trim() !== '' && !EMAIL_RE.test(email.trim()))
@@ -126,7 +126,7 @@ export function Login() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-account' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
@@ -150,7 +150,7 @@ export function Login() {
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
             Inicia sesión
           </h1>
-          <p className="text-[14px] text-muted-foreground">Bienvenido de vuelta</p>
+          <p className="text-[14px] text-secondary-foreground">Bienvenido de vuelta</p>
         </motion.div>
 
         {/* Formulario */}
@@ -197,7 +197,7 @@ export function Login() {
                 type="button"
                 aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 onClick={() => setShowPw((v) => !v)}
-                className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-secondary-foreground hover:text-foreground"
               >
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -238,7 +238,7 @@ export function Login() {
         {/* Separador */}
         <motion.div variants={fade} className="flex items-center gap-4" aria-hidden="true">
           <div className="h-px flex-1 bg-white/8" />
-          <span className="text-[12px] text-muted-foreground">o</span>
+          <span className="text-[12px] text-secondary-foreground">o</span>
           <div className="h-px flex-1 bg-white/8" />
         </motion.div>
 
@@ -268,7 +268,7 @@ export function Login() {
             ))}
           </div>
           {/* Disclaimer */}
-          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
             Hacktrack es una herramienta de seguimiento personal.
             No reemplaza consejo médico profesional.
           </p>

@@ -32,7 +32,7 @@ export function Forgot() {
   const [sent, setSent] = useState(false)
 
   const inputCls =
-    'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
+    'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-secondary-foreground/70 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -54,7 +54,7 @@ export function Forgot() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-login' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
@@ -72,7 +72,7 @@ export function Forgot() {
             <KeyRound size={26} className="text-teal" aria-hidden="true" />
           </span>
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">Recuperar acceso</h1>
-          <p className="max-w-[300px] text-[14px] text-muted-foreground">
+          <p className="max-w-[300px] text-[14px] text-secondary-foreground">
             Te enviaremos un enlace para restablecer tu contraseña de cuenta.
           </p>
         </motion.div>

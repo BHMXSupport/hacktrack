@@ -74,12 +74,12 @@ export function ProtocolSetup() {
         <button
           aria-label="Atrás"
           onClick={() => (picker && tracked.length > 0 ? setPicker(false) : dispatch({ t: 'go', screen: 's-measures' }))}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground"
         >
           <ChevronLeft size={22} />
         </button>
         <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-muted-foreground">Paso 4 de 5</span>
+          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 4 de 5</span>
           <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={4} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 4 de 5">
             <div className="h-full w-[80%] rounded-full bg-teal" />
           </div>
@@ -95,7 +95,7 @@ export function ProtocolSetup() {
         style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
       >
         <motion.div variants={fade}>
-          <p className="mb-1 text-[12px] font-semibold text-muted-foreground">
+          <p className="mb-1 text-[12px] font-semibold text-secondary-foreground">
             Arma tu protocolo
             <span className="ml-2 text-teal">
               {picker ? '· 1/2 Elige productos' : '· 2/2 Configura cada uno'}
@@ -115,25 +115,25 @@ export function ProtocolSetup() {
           <>
             {/* Buscar */}
             <motion.div variants={fade} className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-foreground" aria-hidden />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar péptido…"
-                className="h-12 w-full rounded-lg border border-white/10 bg-raised pl-9 pr-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20"
+                className="h-12 w-full rounded-lg border border-white/10 bg-raised pl-9 pr-3 text-[15px] text-foreground placeholder:text-secondary-foreground focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20"
               />
             </motion.div>
 
             {!query && suggested.length > 0 && (
-              <motion.p variants={fade} className="-mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <motion.p variants={fade} className="-mb-2 text-[12px] font-semibold uppercase tracking-wider text-secondary-foreground">
                 Sugeridos para tu objetivo
               </motion.p>
             )}
 
             <motion.div variants={fade} className="flex flex-col gap-2">
               {results.length === 0 && (
-                <p className="py-6 text-center text-[14px] text-muted-foreground">Sin resultados. Prueba otro nombre.</p>
+                <p className="py-6 text-center text-[14px] text-secondary-foreground">Sin resultados. Prueba otro nombre.</p>
               )}
               {results.map((n) => {
                 const on = selected.has(n)
@@ -149,7 +149,7 @@ export function ProtocolSetup() {
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
                     <span className="flex flex-1 flex-col">
                       <span className="text-[15px] font-medium text-foreground">{n}</span>
-                      <span className="text-[12px] text-muted-foreground">{PEPTIDES[n].cat}</span>
+                      <span className="text-[12px] text-secondary-foreground">{PEPTIDES[n].cat}</span>
                     </span>
                     <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${on ? 'border-teal bg-teal text-primary-foreground' : 'border-white/20 text-transparent'}`}>
                       <Check size={14} strokeWidth={3} />
@@ -171,7 +171,7 @@ export function ProtocolSetup() {
               >
                 Configurar mi protocolo después
               </Button>
-              <p className="text-center text-[12px] leading-relaxed text-muted-foreground">
+              <p className="text-center text-[12px] leading-relaxed text-secondary-foreground">
                 Sin un protocolo no tendrás dosis que registrar todavía.
               </p>
             </motion.div>

@@ -83,7 +83,7 @@ export function Goal() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-onboarding' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
@@ -91,8 +91,8 @@ export function Goal() {
         {/* Barra de progreso — paso 1 de 4 */}
         <div className="flex-1 flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-muted-foreground">Paso 1 de 4</span>
-            <span className="text-[11px] text-muted-foreground">Configúralo en 2–3 min</span>
+            <span className="text-[11px] font-semibold text-secondary-foreground">Paso 1 de 4</span>
+            <span className="text-[11px] text-secondary-foreground">Configúralo en 2–3 min</span>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={1} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 1 de 4">
             <div className="h-full w-[25%] rounded-full bg-teal" />
@@ -116,9 +116,9 @@ export function Goal() {
         >
           ¿Qué quieres lograr?
         </motion.h1>
-        <motion.p variants={fade} className="mt-2 text-[14px] text-muted-foreground">
+        <motion.p variants={fade} className="mt-2 text-[14px] text-secondary-foreground">
           Elige tu enfoque principal para personalizar tu experiencia.{' '}
-          <span className="text-muted-foreground">(Elige hasta {MAX_GOALS})</span>
+          <span className="text-secondary-foreground">(Elige hasta {MAX_GOALS})</span>
         </motion.p>
       </motion.div>
 
@@ -174,7 +174,7 @@ export function Goal() {
                   {/* Texto */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground">{g.label}</p>
-                    <p className="text-[13px] text-muted-foreground">{g.sub}</p>
+                    <p className="text-[13px] text-secondary-foreground">{g.sub}</p>
                   </div>
 
                   {/* Check animado */}
@@ -214,7 +214,7 @@ export function Goal() {
         <p
           role="status"
           aria-live="polite"
-          className="min-h-[20px] text-[13px] text-muted-foreground"
+          className="min-h-[20px] text-[13px] text-secondary-foreground"
         >
           {selected.size > 0
             ? `${selected.size} objetivo${selected.size > 1 ? 's' : ''} elegido${selected.size > 1 ? 's' : ''}. Podrás ajustar esto más adelante.`
@@ -222,7 +222,7 @@ export function Goal() {
         </p>
 
         {/* Disclaimer de investigación */}
-        <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
           Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
         </p>
       </div>
