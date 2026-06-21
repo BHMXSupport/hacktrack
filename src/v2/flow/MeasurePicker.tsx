@@ -168,12 +168,18 @@ export function MeasurePicker() {
                 style={
                   active
                     ? {
-                        // Más opacidad y tinte → el chip seleccionado se lee claramente sobre el cockpit.
-                        background: `color-mix(in srgb, ${accentColor} 32%, rgba(20,28,42,0.95))`,
-                        color: accentColor,
-                        border: `2px solid color-mix(in srgb, ${accentColor} 65%, transparent)`,
+                        // SÓLIDO (sin color-mix ni alpha → opaco en cualquier iOS): relleno del color de la
+                        // categoría + texto oscuro, como el chip teal activo. Máximo contraste.
+                        background: accentColor,
+                        color: '#0b1014',
+                        border: `2px solid ${accentColor}`,
                       }
-                    : undefined
+                    : {
+                        // Inactivo: slate sólido opaco + borde y texto claros (no translúcido → no se transparenta).
+                        background: '#1b2430',
+                        color: '#E8EDF2',
+                        border: '1px solid rgba(255,255,255,0.30)',
+                      }
                 }
               >
                 {/* Checkmark animado */}
@@ -223,17 +229,14 @@ export function MeasurePicker() {
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {[...selected].map((m) => {
-                  // Cada chip con el color de SU categoría (Recuperación, Piel, …); fondo opaco + borde tintado.
+                  // Cada chip con el color SÓLIDO de su categoría (Recuperación, Piel, …) + texto oscuro.
+                  // Sin color-mix ni alpha → opaco y de alto contraste en cualquier iOS.
                   const color = CATEGORY_COLOR[MEASURE_CATEGORY[m]] ?? accentColor
                   return (
                     <span
                       key={m}
-                      className="rounded-full border px-2.5 py-1 text-[12px] font-semibold"
-                      style={{
-                        background: `color-mix(in srgb, ${color} 22%, rgba(18,26,38,0.92))`,
-                        borderColor: `color-mix(in srgb, ${color} 55%, transparent)`,
-                        color: color,
-                      }}
+                      className="rounded-full px-2.5 py-1 text-[12px] font-bold"
+                      style={{ background: color, color: '#0b1014' }}
                     >
                       {m}
                     </span>
