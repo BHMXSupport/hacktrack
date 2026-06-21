@@ -171,9 +171,9 @@ export function Baseline() {
 
         {/* Barra de progreso — paso 2 de 4 */}
         <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 2 de 4</span>
-          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={2} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 2 de 4">
-            <div className="h-full w-[50%] rounded-full bg-teal" />
+          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 2 de 5</span>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={2} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 2 de 5">
+            <div className="h-full w-[40%] rounded-full bg-teal" />
           </div>
         </div>
 

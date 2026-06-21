@@ -3,10 +3,10 @@
  *
  * Selección de objetivo(s) de onboarding (hasta 3 categorías).
  * NO precarga producto (P0-4).
- * Avanza a 's-account' vía dispatch setGoals + go.
+ * Avanza a 's-baseline' vía dispatch setGoals + go.
  *
  * ScreenId: 's-goal'
- * Dispatch: { t: 'setGoals', cats: Category[] }  →  { t: 'go', screen: 's-account' }
+ * Dispatch: { t: 'setGoals', cats: Category[] }  →  { t: 'go', screen: 's-baseline' }
  */
 import { useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
@@ -91,11 +91,11 @@ export function Goal() {
         {/* Barra de progreso — paso 1 de 4 */}
         <div className="flex-1 flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-secondary-foreground">Paso 1 de 4</span>
+            <span className="text-[11px] font-semibold text-secondary-foreground">Paso 1 de 5</span>
             <span className="text-[11px] text-secondary-foreground">Configúralo en 2–3 min</span>
           </div>
-          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={1} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 1 de 4">
-            <div className="h-full w-[25%] rounded-full bg-teal" />
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={1} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 1 de 5">
+            <div className="h-full w-[20%] rounded-full bg-teal" />
           </div>
         </div>
 

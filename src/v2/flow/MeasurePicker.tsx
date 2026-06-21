@@ -3,13 +3,13 @@
  *
  * Selector de métricas a seguir según el objetivo elegido.
  * Máximo 6 chips; pre-selecciona los 4 primeros.
- * Avanza con setMeasures → go 's-account'.
+ * Avanza con setMeasures → go 's-protocol'.
  * Atrás → 's-baseline'.
  *
  * ScreenId: 's-measures'
  * Dispatch:
  *   { t: 'setMeasures', measures: string[] }
- *   { t: 'go', screen: 's-account' }
+ *   { t: 'go', screen: 's-protocol' }
  */
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
@@ -118,9 +118,9 @@ export function MeasurePicker() {
 
         {/* Barra de progreso — paso 3 de 4 */}
         <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 3 de 4</span>
-          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={4} aria-label="Paso 3 de 4">
-            <div className="h-full w-[75%] rounded-full bg-teal" />
+          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 3 de 5</span>
+          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 3 de 5">
+            <div className="h-full w-[60%] rounded-full bg-teal" />
           </div>
         </div>
 

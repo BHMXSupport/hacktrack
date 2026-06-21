@@ -125,7 +125,7 @@ export function Login() {
       >
         <button
           aria-label="Atrás"
-          onClick={() => dispatch({ t: 'go', screen: 's-account' })}
+          onClick={() => dispatch({ t: 'go', screen: 's-onboarding' })}
           className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
