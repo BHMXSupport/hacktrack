@@ -40,10 +40,10 @@ export function NotifPermissionPrompt() {
       dispatch({ t: 'setSetting', key: 'weeklySummary', value: true })
       dispatch({ t: 'toast', msg: 'Recordatorios activados' })
       setOpen(false)
-    } else if (result === 'denied') {
-      setDenied(true) // iOS no vuelve a preguntar → cambia a instrucciones de Ajustes
     } else {
-      setOpen(false) // 'default' (cerró el aviso sin elegir) → se reintenta en la próxima apertura
+      // 'denied' o 'default' que NO mostró aviso: iOS solo pide UNA vez por instalación; si ya se cerró
+      // antes, queda en 'default' pero ya no re-aparece. En ambos casos → instrucciones de Ajustes.
+      setDenied(true)
     }
   }
 
@@ -54,17 +54,18 @@ export function NotifPermissionPrompt() {
       setOpen(false)
       return
     }
-    let ran = false
-    const once = (r: NotificationPermission) => { if (ran) return; ran = true; apply(r) }
+    if (notifPermission() === 'denied') { setDenied(true); return }
+    let p: Promise<NotificationPermission>
     try {
-      // PRIMER statement del gesto: la llamada al sistema, sin nada async antes (requisito de iOS).
-      const ret = Notification.requestPermission(once) // forma con callback (Safari antiguo)
-      setBusy(true)
-      // forma con promesa (navegadores modernos / iOS 16.4+)
-      Promise.resolve(ret).then((r) => { if (r) once(r) }).catch(() => once('denied'))
+      // Forma PURA de promesa, SIN argumento callback: el callback (deprecado) hace que iOS WebKit no
+      // muestre el aviso del sistema. Síncrono dentro del gesto (sin await previo) — requisito de iOS.
+      p = Notification.requestPermission()
     } catch {
-      once('denied')
+      apply('denied')
+      return
     }
+    setBusy(true)
+    Promise.resolve(p).then(apply).catch(() => apply('denied'))
   }
 
   return (
