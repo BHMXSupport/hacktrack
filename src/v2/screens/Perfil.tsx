@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   ShieldCheck, Download, Pencil, Trash2, ShieldOff, FileText, User, ChevronRight,
-  LogOut, Check, X as XIcon,
+  LogOut, Check, X as XIcon, Scale, Ruler, Percent, Activity, Gauge,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
@@ -856,6 +856,46 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                 )}
               </div>
             </div>
+          </section>
+
+          {/* ── Datos biométricos ─────────────────────────────────────────
+              Peso/Altura/%/IMC viven en el profile (los registra el onboarding y "Cambio de medidas").
+              Antes el perfil solo mostraba Nombre+Correo → parecían "no guardados". Aquí se ven y, al
+              tocarlos, se abre su registro (MedidaSheet) para actualizarlos manteniendo el historial. */}
+          <section>
+            <SectionLabel>Datos biométricos</SectionLabel>
+            <RowCard>
+              <Row
+                icon={<Scale size={18} />}
+                label="Peso"
+                sub={profile.peso != null ? `${profile.peso} kg` : 'Sin registrar — toca para agregar'}
+                onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: 'Peso' })}
+              />
+              <Row
+                icon={<Ruler size={18} />}
+                label="Altura"
+                sub={profile.est != null ? `${profile.est} cm` : 'Sin registrar — toca para agregar'}
+                onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: 'Altura' })}
+              />
+              <Row
+                icon={<Percent size={18} />}
+                label="% grasa"
+                sub={profile.grasa != null ? `${profile.grasa} %` : 'Sin registrar — toca para agregar'}
+                onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: '% grasa' })}
+              />
+              <Row
+                icon={<Activity size={18} />}
+                label="% músculo"
+                sub={profile.musculo != null ? `${profile.musculo} %` : 'Sin registrar — toca para agregar'}
+                onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: '% músculo' })}
+              />
+              <Row
+                icon={<Gauge size={18} />}
+                label="IMC"
+                sub={profile.bmi != null ? `${profile.bmi}` : 'Se calcula con peso y altura'}
+                chevron={false}
+              />
+            </RowCard>
           </section>
 
           {/* ── Privacidad y datos (ARCO) ────────────────────────────────── */}

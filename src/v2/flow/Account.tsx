@@ -92,6 +92,9 @@ export function Account() {
     if (!name.trim()) { setTried(true); return }
     if (!accepted) return
     dispatch({ t: 'setName', name: name.trim() })
+    // BUG FIX: el correo se capturaba pero nunca se guardaba en el perfil. Lo persistimos si es válido.
+    const mail = email.trim()
+    if (mail && EMAIL_RE.test(mail)) dispatch({ t: 'setProfileFields', patch: { email: mail } })
     dispatch({ t: 'finishOnboarding' })
   }
 
