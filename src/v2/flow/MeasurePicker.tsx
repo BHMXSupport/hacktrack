@@ -130,7 +130,7 @@ export function MeasurePicker() {
         initial={reduce ? false : 'hidden'}
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.05 } } }}
-        className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pt-2"
+        className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pt-2"
       >
         {/* Título */}
         <motion.div variants={fade}>

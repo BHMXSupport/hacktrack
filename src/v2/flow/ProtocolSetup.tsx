@@ -101,7 +101,7 @@ export function ProtocolSetup() {
         initial={reduce ? false : 'hidden'}
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.03 } } }}
-        className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pt-2"
+        className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-2"
         style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
       >
         <motion.div variants={fade}>

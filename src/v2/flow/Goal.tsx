@@ -127,7 +127,7 @@ export function Goal() {
         initial={reduce ? false : 'hidden'}
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.035 } } }}
-        className="flex flex-1 flex-col gap-3 overflow-y-auto px-4"
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4"
       >
         {GOALS.map((g) => {
           const color = CATEGORY_COLOR[g.cat] ?? '#5FC9B8'
