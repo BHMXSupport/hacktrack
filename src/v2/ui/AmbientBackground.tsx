@@ -12,7 +12,7 @@ import bgVideo from '../../assets/rebuild/bg-ambient.mp4'
 export function AmbientBackground() {
   const reduce = useReducedMotion()
   return (
-    <div aria-hidden className="ambient-bg pointer-events-none absolute inset-0 overflow-hidden">
+    <div aria-hidden className="ambient-bg pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       <img src={bgPoster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.32]" />
       {!reduce && <div className="ambient-drift absolute inset-0" />}
       {!reduce && (
