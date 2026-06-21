@@ -95,6 +95,9 @@ export function Account() {
     // BUG FIX: el correo se capturaba pero nunca se guardaba en el perfil. Lo persistimos si es válido.
     const mail = email.trim()
     if (mail && EMAIL_RE.test(mail)) dispatch({ t: 'setProfileFields', patch: { email: mail } })
+    // Consentimiento: se marca activo SOLO aquí, al aceptar el checkbox (antes venía pre-activado en initialState).
+    dispatch({ t: 'setSetting', key: 'consentActive', value: true })
+    dispatch({ t: 'setSetting', key: 'consentVersion', value: 'v1.0' })
     dispatch({ t: 'finishOnboarding' })
   }
 

@@ -20,6 +20,18 @@ export default defineConfig({
     __BUILD_SHA__: JSON.stringify(GIT_SHA),
     __BUILD_TIME__: JSON.stringify(BUILD_TIME),
   },
+  build: {
+    // Code-splitting básico: separa los vendors pesados del chunk principal (antes monolítico ~940KB)
+    // → cargan en paralelo y cachean por separado entre deploys. Sin cambio de comportamiento.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-motion': ['framer-motion'],
+          'vendor-react': ['react', 'react-dom'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

@@ -33,7 +33,7 @@ const UNITS: { value: DoseUnit; label: string }[] = [
 
 // Step adaptativo por unidad
 const UNIT_STEP: Record<DoseUnit, number> = {
-  mcg: 50,
+  mcg: 25,
   mg: 0.1,
   UI: 1,
   mL: 0.05,
@@ -551,6 +551,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               <button
                 type="button"
                 onClick={() => { setSaving(true); doLog(m.scheduledTs); onClose() }}
+                disabled={saving}
                 className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
                 <span className="text-[14px] font-semibold text-foreground">Mi dosis fue a las {schedHora}</span>
@@ -560,6 +561,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               <button
                 type="button"
                 onClick={() => { setSaving(true); doLog(m.logTs); onClose() }}
+                disabled={saving}
                 className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
                 <span className="text-[14px] font-semibold text-foreground">Mi dosis fue a las {logHora} solo hoy</span>
@@ -569,6 +571,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               <button
                 type="button"
                 onClick={() => { setSaving(true); doLog(m.logTs); dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: m.product }) }}
+                disabled={saving}
                 className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
                 <span className="text-[14px] font-semibold text-teal">Cambiar mi recordatorio a las {logHora}</span>

@@ -31,11 +31,11 @@ function NumField({ icon: Icon, label, id, placeholder, unit, value, onChange, e
       <div className="relative">
         <input
           id={id}
-          type="number"
+          type="text"
           inputMode="decimal"
           placeholder={placeholder}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => { const v = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(v)) onChange(v) }}
           aria-invalid={!!error}
           className={`h-14 w-full rounded-lg border bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-secondary-foreground/70 focus:outline-none focus:ring-2 transition-colors ${error ? 'border-red-400/70 focus:ring-red-400/20' : 'border-white/10 focus:border-teal/60 focus:ring-teal/20'}`}
         />

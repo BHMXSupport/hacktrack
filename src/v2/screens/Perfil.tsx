@@ -606,6 +606,13 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
   // ── borrar cuenta (Cancelación ARCO) ─────────────────────────────────────
   function handleDeleteAccount() {
+    // ARCO/Cancelación: arcoDelete resetea el estado, pero NO limpiaba las claves secundarias de localStorage
+    // (preferencias de unidad, vaso de agua, coach, último error, estado legado v1). Las borramos para no
+    // dejar residuos del usuario tras "borrar todos mis datos".
+    try {
+      ;['hacktrack:v1', 'hacktrack-glass-ml', 'hk_diario_coach', 'ht:lastError'].forEach((k) => localStorage.removeItem(k))
+      Object.keys(localStorage).filter((k) => k.startsWith('ht_unit_')).forEach((k) => localStorage.removeItem(k))
+    } catch { /* modo privado / sin acceso a localStorage */ }
     dispatch({ t: 'arcoDelete' })
     setShowDeleteConfirm(false)
     onClose()

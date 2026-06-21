@@ -114,7 +114,8 @@ export const initialState: AppState = {
     weeklySummary: true,
     emailNotices: false,
     consentVersion: 'v1.0',
-    consentActive: true,
+    // Consentimiento NO pre-activado: se marca true al crear cuenta (Account.handleCreate, tras aceptar el checkbox).
+    consentActive: false,
     premium: false,
   },
   lastInjectionSite: {},
@@ -1024,14 +1025,18 @@ export function reducer(s: AppState, a: Action): AppState {
       if (movedItem.type === 'medida' && oldTs != null && oldTs !== a.ts) {
         // acotar a la medida editada (no mover muestras de OTRA medida que comparta ts)
         const singleName = movedItem.n && s.history[movedItem.n] ? movedItem.n : null
+        const affected: string[] = []
         history = {}
         for (const k of Object.keys(s.history)) {
           if (singleName && k !== singleName) { history[k] = s.history[k]; continue }
-          history[k] = s.history[k].map((sm) => (sm.ts === oldTs ? { ...sm, ts: a.ts } : sm)).sort((x, y) => x.ts - y.ts)
+          let moved = false
+          history[k] = s.history[k].map((sm) => { if (sm.ts === oldTs) { moved = true; return { ...sm, ts: a.ts } } return sm }).sort((x, y) => x.ts - y.ts)
+          if (moved) affected.push(k)
         }
-        // mover la muestra puede cambiar cuál es la última-por-ts → recomputar measureValues/profile/bmi
-        if (singleName) {
-          const rebuilt = rebuildMeasureCaches(history, s.measureValues, s.profile, [singleName])
+        // mover la muestra puede cambiar cuál es la última-por-ts → recomputar measureValues/profile/bmi.
+        // Incluye el caso COMPUESTO 'Cambio de medidas' (no es clave de history, pero movió Peso/IMC/%grasa/%músculo que sí lo son).
+        if (affected.length) {
+          const rebuilt = rebuildMeasureCaches(history, s.measureValues, s.profile, affected)
           measureValues = rebuilt.measureValues
           profile = rebuilt.profile
         }

@@ -251,8 +251,11 @@ function EditLogSheet({
   function handleSave() {
     const numVal = value.trim() !== '' ? parseFloat(value) : null
 
-    // R51a: editar valor/unidad/nota vía editLog
-    if (item.type === 'dose' || item.type === 'medida') {
+    // R51a: editar valor/unidad/nota vía editLog. 'Cambio de medidas' es COMPUESTO (Peso+Altura+%grasa+
+    // %músculo+IMC en un solo registro): un único value no le corresponde → no se edita su valor aquí
+    // (se editaría desincronizando el perfil/history). Solo hora + nota; el resto se ajusta en Cambio de medidas.
+    const editableValue = item.type === 'dose' || (item.type === 'medida' && item.n !== 'Cambio de medidas')
+    if (editableValue) {
       dispatch({
         t: 'editLog',
         id: item.id,
@@ -263,7 +266,7 @@ function EditLogSheet({
         },
       })
     } else if (note.trim() !== (item.note ?? '')) {
-      // skip / otros: solo nota editable
+      // skip / compuesto / otros: solo nota editable
       dispatch({
         t: 'editLog',
         id: item.id,
@@ -284,7 +287,8 @@ function EditLogSheet({
     onClose()
   }
 
-  const canEdit = item.type === 'dose' || item.type === 'medida'
+  const isComposite = item.type === 'medida' && item.n === 'Cambio de medidas'
+  const canEdit = item.type === 'dose' || (item.type === 'medida' && !isComposite)
   const measureMeta = item.type === 'medida' ? MEASURE_META[item.n] : undefined
 
   return (
@@ -341,6 +345,12 @@ function EditLogSheet({
               )}
             </div>
           </div>
+        )}
+
+        {isComposite && (
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            Este registro agrupa varias medidas. Edita sus valores desde <span className="font-semibold text-teal">Inicio → Cambio de medidas</span>; aquí puedes ajustar la hora o la nota.
+          </p>
         )}
 
         {/* nota (siempre editable) */}
