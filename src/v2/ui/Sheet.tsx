@@ -104,7 +104,7 @@ export function Sheet({
             // pointer-events-auto SIEMPRE (también en entrada) → taps rápidos al botón cerrar funcionan;
             // el exit fija pointerEvents:'none' (anti-huérfano) y el panel no es full-screen, así que aunque
             // quedara vivo no bloquea toda la pantalla (el backdrop sí es full-screen y ese sí va a none).
-            className={`${moving ? 'sheet-solid' : 'glass'} pointer-events-auto relative z-10 max-h-[92vh] max-h-[92dvh] w-full max-w-[412px] overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform`}
+            className={`${moving ? 'sheet-solid' : 'glass'} pointer-events-auto relative z-10 max-h-[92vh] max-h-[92dvh] w-full max-w-[412px] overflow-x-hidden overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none will-change-transform`}
             initial={reduce ? { opacity: 0 } : { y: hideY }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: hideY, pointerEvents: 'none', transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
