@@ -78,7 +78,7 @@ export function ProtocolSetup() {
   const goAccount = () => dispatch({ t: 'go', screen: 's-account' })
 
   return (
-    <div className="flex h-full flex-col bg-void">
+    <div className="flex h-full flex-col">
       {/* App bar */}
       <header className="flex flex-shrink-0 items-center gap-4 px-4" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))', paddingBottom: 12 }}>
         <button
