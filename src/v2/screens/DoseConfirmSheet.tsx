@@ -427,19 +427,7 @@ export function DoseConfirmSheet({
           <motion.div key="step-effect" {...slideProps} className="flex flex-col gap-4">
 
             {/* Cabecera del paso: subtítulo + X cierre siempre visible */}
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {stepSubtitle}
-              </p>
-              <button
-                type="button"
-                aria-label="Omitir y cerrar"
-                onClick={onClose}
-                className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-raised text-muted-foreground active:scale-95"
-              >
-                <X size={15} />
-              </button>
-            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{stepSubtitle}</p>
 
             <p className="text-[14px] text-foreground">
               Dosis registrada.{' '}

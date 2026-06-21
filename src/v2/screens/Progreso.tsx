@@ -910,7 +910,7 @@ function AvancesTab() {
               {adh30.taken}
               <span className="text-[16px] text-muted-foreground"> / {adh30.due}</span>
             </p>
-            <p className="text-[12px] text-secondary-foreground">registradas</p>
+            <p className="text-[12px] text-secondary-foreground">tomadas de las programadas</p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span

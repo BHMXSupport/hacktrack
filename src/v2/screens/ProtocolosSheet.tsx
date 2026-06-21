@@ -83,7 +83,7 @@ function ProtocolCard({
             </span>
             {isCurrentActive && !p.archived && (
               <span className="rounded-full bg-teal/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal">
-                Activo
+                Principal
               </span>
             )}
             {p.archived && (

@@ -86,6 +86,7 @@ function IllustrationDatos() {
 
   return (
     <Glass className="w-full max-w-[280px] mx-auto flex flex-col gap-4 p-4">
+      <span className="self-start rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-secondary-foreground">Ejemplo</span>
       <div className="flex items-center gap-2">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal/15">
           <BarChart2 size={16} className="text-teal" />

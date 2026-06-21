@@ -583,7 +583,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             <button
               type="button"
               onClick={() => setTimeMismatch(null)}
-              className="mx-auto mt-1 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+              className="mx-auto mt-1 flex min-h-[44px] items-center justify-center px-4 text-[13px] font-medium text-muted-foreground hover:text-foreground"
             >
               Volver
             </button>
@@ -634,6 +634,8 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           <button
             type="button"
             onClick={() => setShowPicker((v) => !v)}
+            aria-expanded={showPicker}
+            aria-haspopup="listbox"
             className="flex min-h-[44px] items-center justify-between rounded-lg border border-white/10 bg-raised px-4 py-3 text-left active:scale-[.99]"
           >
             <span className="font-medium text-foreground">
@@ -907,7 +909,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                     </p>
                   ) : null}
 
-                  <p className="text-[11px] text-muted-foreground/60">
+                  <p className="text-[11px] text-muted-foreground">
                     Dato orientativo. No es consejo médico.
                   </p>
                 </div>
@@ -1126,7 +1128,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         <Button
           variant="primary"
           size="full"
-          disabled={saving || !(parseFloat(dose) > 0)}
+          disabled={saving || !product.trim() || !(parseFloat(dose) > 0)}
           onClick={() => {
             setTried(true)
             handleSave()
