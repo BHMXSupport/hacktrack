@@ -140,10 +140,6 @@ export function Baseline() {
     dispatch({ t: 'go', screen: 's-measures' })
   }
 
-  function handleSaltar() {
-    dispatch({ t: 'go', screen: 's-measures' })
-  }
-
   // IMC preview (solo si peso y est están rellenos y son válidos)
   const pesoN = parseFloat(peso)
   const estN = parseFloat(est)
@@ -276,7 +272,8 @@ export function Baseline() {
           </p>
         </motion.div>
 
-        {/* CTAs */}
+        {/* CTA — sin "usar valores recomendados": son datos personales (peso/altura/%). Los campos son
+            opcionales, así que Continuar procede aunque los dejes vacíos. */}
         <motion.div variants={fade} className="mt-auto flex flex-col gap-2">
           <Button
             size="full"
@@ -284,14 +281,6 @@ export function Baseline() {
             aria-label="Guardar mis datos biométricos y continuar"
           >
             Continuar
-          </Button>
-          <Button
-            size="full"
-            variant="outline"
-            onClick={handleSaltar}
-            aria-label="Usar valores recomendados y omitir biométricos por ahora"
-          >
-            Usar valores recomendados
           </Button>
         </motion.div>
       </motion.div>
