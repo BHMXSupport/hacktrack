@@ -646,7 +646,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
           {/* Error inline — producto no seleccionado */}
           {tried && !product.trim() && (
-            <p className="text-[12px] font-medium text-red-400" role="alert">
+            <p className="text-[12px] font-medium text-alert" role="alert">
               Selecciona un producto
             </p>
           )}
@@ -759,7 +759,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
           {/* Error inline — dosis vacía o cero */}
           {(tried || dose !== '') && !(parseFloat(dose) > 0) && (
-            <p className="text-[12px] font-medium text-red-400" role="alert">
+            <p className="text-[12px] font-medium text-alert" role="alert">
               Ingresa al menos 0.1 {unit}
             </p>
           )}

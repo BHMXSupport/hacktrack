@@ -271,13 +271,13 @@ export function MedidaSheet({
                 <Stepper
                   onDec={() => {
                     const cur = parseFloat(numStr) || 0
-                    const step = meta?.unit === 'kg' ? 0.1 : 1
+                    const step = meta?.unit === 'kg' ? 0.1 : (name === 'Cintura' || name === 'Altura' ? 0.5 : 1)
                     const next = Math.max(0, parseFloat((cur - step).toFixed(2)))
                     setNumStr(String(next))
                   }}
                   onInc={() => {
                     const cur = parseFloat(numStr) || 0
-                    const step = meta?.unit === 'kg' ? 0.1 : 1
+                    const step = meta?.unit === 'kg' ? 0.1 : (name === 'Cintura' || name === 'Altura' ? 0.5 : 1)
                     const next = parseFloat((cur + step).toFixed(2))
                     setNumStr(String(next))
                   }}
@@ -468,7 +468,7 @@ export function MedidaSheet({
                   initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="text-center text-[13px] font-semibold text-red-400"
+                  className="text-center text-[13px] font-semibold text-alert"
                 >
                   Valor fuera de rango — revisa el número ingresado
                 </motion.p>

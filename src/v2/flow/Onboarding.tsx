@@ -97,7 +97,7 @@ function IllustrationDatos() {
           <div className="flex items-center justify-between">
             <span className="text-[12px] text-secondary-foreground">{label}</span>
             <span className="font-mono text-[12px] font-bold tabular-nums" style={{ color }}>
-              {pct}
+              {pct}<span className="text-[10px] font-normal text-secondary-foreground">/100</span>
             </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/10">

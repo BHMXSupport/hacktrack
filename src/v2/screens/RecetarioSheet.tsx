@@ -72,7 +72,7 @@ function FavCard({ fav, onAdd, onDelete, onEdit }: FavCardProps) {
           type="button"
           aria-label={`Eliminar ${fav.label} de favoritos`}
           onClick={() => onDelete(fav.id)}
-          className="grid h-11 w-11 place-items-center rounded-full bg-white/6 text-muted-foreground active:scale-95 transition-transform hover:text-red-400"
+          className="grid h-11 w-11 place-items-center rounded-full bg-white/6 text-muted-foreground active:scale-95 transition-transform hover:text-alert"
         >
           <X size={16} />
         </button>

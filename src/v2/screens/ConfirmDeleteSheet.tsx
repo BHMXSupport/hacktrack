@@ -43,7 +43,7 @@ export function ConfirmDeleteSheet({
       title="Borrar registro"
     >
       {/* role=alertdialog indica contenido destructivo para lectores de pantalla */}
-      <div role="alertdialog" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-desc" className="flex flex-col gap-5">
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-desc" className="flex flex-col gap-5">
 
         {/* ── Advertencia ── */}
         <div className="flex gap-3 rounded-xl border border-alert/20 bg-alert/8 px-4 py-4">

@@ -164,7 +164,7 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
                     <Plus size={14} />
                   </button>
                 </div>
-                <button type="button" aria-label={`Quitar ${ing.name}`} onClick={() => removeRow(row.name)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-red-400">
+                <button type="button" aria-label={`Quitar ${ing.name}`} onClick={() => removeRow(row.name)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-alert">
                   <X size={16} />
                 </button>
               </div>

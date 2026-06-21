@@ -258,7 +258,7 @@ function MealRow({
           type="button"
           aria-label={`Borrar ${meal.label ?? 'comida'}`}
           onClick={() => onDelete(meal.id)}
-          className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-white/10 hover:text-red-400"
+          className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-white/10 hover:text-alert"
         >
           <Trash2 size={15} />
         </button>

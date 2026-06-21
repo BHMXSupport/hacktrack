@@ -165,7 +165,7 @@ function DeleteAccountDialog({
             onClick={onCancel}
           />
           <motion.div
-            role="alertdialog"
+            role="alertdialog" aria-modal="true"
             aria-label="Confirmar eliminación de cuenta"
             className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
@@ -238,7 +238,7 @@ function LogoutDialog({
             onClick={onCancel}
           />
           <motion.div
-            role="alertdialog"
+            role="alertdialog" aria-modal="true"
             aria-label="Confirmar cierre de sesión"
             className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}

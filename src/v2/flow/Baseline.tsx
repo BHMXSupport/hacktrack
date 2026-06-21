@@ -73,7 +73,7 @@ function NumericField({
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`h-14 w-full rounded-lg border bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-secondary-foreground/70 focus:outline-none focus:ring-2 transition-colors ${error ? 'border-red-400/70 focus:border-red-400/70 focus:ring-red-400/20' : 'border-white/10 focus:border-teal/60 focus:ring-teal/20'}`}
+          className={`h-14 w-full rounded-lg border bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-secondary-foreground/70 focus:outline-none focus:ring-2 transition-colors ${error ? 'border-alert/70 focus:border-alert/70 focus:ring-alert/20' : 'border-white/10 focus:border-teal/60 focus:ring-teal/20'}`}
         />
         <span
           aria-hidden="true"
@@ -83,7 +83,7 @@ function NumericField({
         </span>
       </div>
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-[12px] text-red-400">
+        <p id={`${id}-error`} role="alert" className="text-[12px] text-alert">
           {error}
         </p>
       )}
@@ -246,6 +246,7 @@ export function Baseline() {
             onChange={(v) => { setGrasa(v); setErrors((e) => ({ ...e, grasa: undefined })) }}
             error={errors.grasa}
           />
+          <p className="-mt-2 text-[11px] leading-relaxed text-secondary-foreground">¿No tienes báscula de bioimpedancia? Omítelo — puedes registrarlo después desde Cambio de medidas.</p>
         </motion.div>
 
         {/* IMC preview */}

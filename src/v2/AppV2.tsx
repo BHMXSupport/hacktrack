@@ -96,7 +96,7 @@ function Shell() {
 
       {/* R6 — ErrorBoundary por pestaña (un crash no tumba toda la app); key=tab → resetea al cambiar */}
       <ErrorBoundary key={tab} scope={tab} allowReset>
-        <div className="absolute inset-0 overflow-y-auto overflow-x-clip">
+        <div className="absolute inset-0 overflow-y-auto overflow-x-clip ios-scroll">
           {tab === 'inicio' && <Inicio onRegistrar={openReg} />}
           {tab === 'diario' && <Diario />}
           {tab === 'protocolo' && <Progreso />}
@@ -132,7 +132,7 @@ function Shell() {
 
       {/* Welcome — overlay full-screen tras finishOnboarding (justOnboarded), sobre s-app */}
       {state.justOnboarded && (
-        <div className="absolute inset-0 z-[90] overflow-y-auto bg-void">
+        <div className="absolute inset-0 z-[90] overflow-y-auto bg-void ios-scroll">
           <Welcome />
         </div>
       )}

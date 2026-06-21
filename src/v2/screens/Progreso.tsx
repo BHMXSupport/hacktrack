@@ -532,7 +532,7 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
               x={PAD_X}
               y={y - 3}
               fontSize={9}
-              fill="rgba(255,255,255,0.3)"
+              fill="var(--ink-400)"
               fontFamily="var(--font-mono, monospace)"
             >
               {Number.isInteger(v) ? v : v.toFixed(1)}
@@ -569,14 +569,14 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
       {/* Time axis labels */}
       {sorted.length >= 2 && (
         <>
-          <text x={PAD_X} y={H - 1} fontSize={9} fill="rgba(255,255,255,0.3)" fontFamily="var(--font-mono, monospace)">
+          <text x={PAD_X} y={H - 1} fontSize={9} fill="var(--ink-400)" fontFamily="var(--font-mono, monospace)">
             {fmtDate(sorted[0].ts, true)}
           </text>
           <text
             x={W - PAD_X}
             y={H - 1}
             fontSize={9}
-            fill="rgba(255,255,255,0.3)"
+            fill="var(--ink-400)"
             textAnchor="end"
             fontFamily="var(--font-mono, monospace)"
           >

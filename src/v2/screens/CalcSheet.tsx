@@ -214,7 +214,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                         size="sm"
                         aria-label={`Borrar ${rec.label}`}
                         onClick={() => dispatch({ t: 'deleteRecon', id: rec.id })}
-                        className="text-red-400"
+                        className="text-alert"
                       >
                         <X size={14} />
                       </Button>
@@ -400,7 +400,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
             </span>
 
             {r.overCapacity && (
-              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-red-400 mt-1">
+              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-alert mt-1">
                 <AlertTriangle size={14} aria-hidden className="shrink-0" />
                 No cabe en una {r.scale} U — prueba con un barril mayor.
               </p>

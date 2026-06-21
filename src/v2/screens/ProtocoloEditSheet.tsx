@@ -730,13 +730,13 @@ export function ProtocoloEditSheet({
                             setPhaseDose(i, e.target.value)
                             if (phaseDoseErrors[i]) setPhaseDoseErrors((err) => { const next = err.slice(); next[i] = false; return next })
                           }}
-                          className={`h-11 flex-1 rounded-xl border bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring ${phaseDoseErrors[i] ? 'border-red-500/60' : 'border-white/12'}`}
+                          className={`h-11 flex-1 rounded-xl border bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring ${phaseDoseErrors[i] ? 'border-alert/60' : 'border-white/12'}`}
                         />
                         {/* #38: unidad dinámica derivada de las dosis del log */}
                         <span className="shrink-0 text-[12px] text-muted-foreground">{doseUnit}</span>
                       </div>
                       {phaseDoseErrors[i] && (
-                        <p className="ml-[68px] text-[11px] text-red-400" role="alert">
+                        <p className="ml-[68px] text-[11px] text-alert" role="alert">
                           Ingresa un valor mayor a 0
                         </p>
                       )}

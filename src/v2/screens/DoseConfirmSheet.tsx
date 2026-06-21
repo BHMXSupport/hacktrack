@@ -304,7 +304,7 @@ export function DoseConfirmSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title="Registrar dosis"
+      title="Confirmar dosis"
     >
       <AnimatePresence mode="wait" initial={false}>
         {step === 'time' ? (
@@ -411,7 +411,7 @@ export function DoseConfirmSheet({
                     onClick={() => logWithTime(wheelTs)}
                   >
                     <span className="text-[16px]">
-                      Registrar a las{' '}
+                      Confirmar a las{' '}
                       {(() => {
                         const d = new Date(wheelTs)
                         return `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() >= 12 ? 'PM' : 'AM'}`

@@ -178,4 +178,4 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 input[type="range"]{-webkit-appearance:none;appearance:none;background:transparent}
 input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--brand-700);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
 input[type="range"]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--brand-700);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
-input[type="range"]:focus{outline:none}
+input[type="range"]:focus:not(:focus-visible){outline:none}
