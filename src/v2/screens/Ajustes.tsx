@@ -757,55 +757,68 @@ export function Ajustes({
                         transition={reduce ? { duration: 0.1 } : { duration: 0.22 }}
                         className="overflow-hidden"
                       >
-                        {/* Segundo recordatorio (R48) — solo para ciclo/cadaN */}
-                        {supportsSecondReminder && (
-                          <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
-                            <span className="text-[12px] text-muted-foreground">
-                              Segundo recordatorio — para reconstitución o seguimiento del ciclo
-                            </span>
-                            <div
-                              role="group"
-                              aria-label="Segundo recordatorio"
-                              className="flex overflow-hidden rounded-lg border border-white/10"
-                            >
-                              {([
-                                { key: null, label: 'Sin' },
-                                { key: 30, label: '30m' },
-                                { key: 60, label: '1h' },
-                                { key: 120, label: '2h' },
-                              ] as const).map(({ key, label }) => {
-                                const active = secondReminderMin === key
-                                return (
-                                  <button
-                                    key={String(key)}
-                                    type="button"
-                                    aria-pressed={active}
-                                    aria-label={
-                                      key === null
-                                        ? 'Sin segundo recordatorio'
-                                        : `Segundo recordatorio ${label} antes`
-                                    }
-                                    onClick={() =>
-                                      dispatch({
-                                        t: 'setSetting',
-                                        key: 'secondReminderMin',
-                                        value: key as unknown as string,
-                                      })
-                                    }
-                                    className={[
-                                      'flex-1 py-1.5 text-[12px] font-semibold font-mono tabular-nums transition-colors',
-                                      active
-                                        ? 'bg-teal text-primary-foreground'
-                                        : 'bg-transparent text-muted-foreground hover:bg-white/5',
-                                    ].join(' ')}
-                                  >
-                                    {label}
-                                  </button>
-                                )
-                              })}
-                            </div>
+                        {/* Pre-aviso antes de la dosis (R48). Antes se ocultaba por completo si la cadencia
+                            no era ciclo/cadaN → el usuario no entendía por qué faltaba el bloque. Ahora SIEMPRE
+                            se muestra; si no aplica, queda deshabilitado con una nota del porqué. */}
+                        <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
+                          <span className="text-[12px] text-muted-foreground">
+                            Pre-aviso antes de la dosis
+                          </span>
+                          <span className="-mt-1 text-[11px] text-muted-foreground/80">
+                            Recibe un aviso antes de la hora programada para tenerlo listo.
+                          </span>
+                          <div
+                            role="group"
+                            aria-label="Pre-aviso antes de la dosis"
+                            className={[
+                              'flex overflow-hidden rounded-lg border border-white/10',
+                              supportsSecondReminder ? '' : 'pointer-events-none opacity-40',
+                            ].join(' ')}
+                          >
+                            {([
+                              { key: null, label: 'Sin' },
+                              { key: 30, label: '30m' },
+                              { key: 60, label: '1h' },
+                              { key: 120, label: '2h' },
+                            ] as const).map(({ key, label }) => {
+                              const active = secondReminderMin === key
+                              const disp = key === null ? 'Sin' : `−${label}`
+                              return (
+                                <button
+                                  key={String(key)}
+                                  type="button"
+                                  disabled={!supportsSecondReminder}
+                                  aria-pressed={active}
+                                  aria-label={
+                                    key === null
+                                      ? 'Sin pre-aviso'
+                                      : `Pre-aviso ${label} antes de la dosis`
+                                  }
+                                  onClick={() =>
+                                    dispatch({
+                                      t: 'setSetting',
+                                      key: 'secondReminderMin',
+                                      value: key as unknown as string,
+                                    })
+                                  }
+                                  className={[
+                                    'flex-1 py-1.5 text-[12px] font-semibold font-mono tabular-nums transition-colors',
+                                    active
+                                      ? 'bg-teal text-primary-foreground'
+                                      : 'bg-transparent text-muted-foreground hover:bg-white/5',
+                                  ].join(' ')}
+                                >
+                                  {disp}
+                                </button>
+                              )
+                            })}
                           </div>
-                        )}
+                          {!supportsSecondReminder && (
+                            <span className="text-[11px] text-muted-foreground/70">
+                              Solo para protocolos de ciclo o cada N días.
+                            </span>
+                          )}
+                        </div>
 
                         {/* Aviso de rescate */}
                         <div className="flex flex-col gap-2 px-4 pb-3 pt-1">

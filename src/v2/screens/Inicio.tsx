@@ -8,7 +8,7 @@ import type { InjectionSite } from '../../lib/types'
 import { startOfDay } from '../../lib/cadence'
 import { doseToMg } from '../../lib/calc'
 import { CadenciaChip } from './ProtocoloEditSheet'
-import { upcomingDoses, protocolStreak, dayProducts, doseTakenOnProduct, doseSkippedOnProduct, pendingDoses } from '../../lib/calendar'
+import { upcomingDoses, protocolStreak, protocolStreakStart, dayProducts, doseTakenOnProduct, doseSkippedOnProduct, pendingDoses } from '../../lib/calendar'
 import { MEASURE_META } from '../../lib/catalog'
 
 // #107: sufijo de unidad para las KPI de medidas (scale → "/100", num → "kg"/"cm"/"%")
@@ -152,8 +152,18 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   }, [])
   const nowTs = now.getTime()
 
-  const next = useMemo(() => upcomingDoses(state, now, 1)[0] ?? null, [state, now])
+  // next = la dosis más próxima (mismo horizonte de 1 día que antes). sameTimeCount = cuántas tomas caen
+  // en el MISMO minuto (varios protocolos a las 08:00) → el hero ya no oculta las coincidentes. (#60)
+  const { next, sameTimeCount } = useMemo(() => {
+    const all = upcomingDoses(state, now, 1)
+    const anchor = all[0] ?? null
+    if (!anchor) return { next: null, sameTimeCount: 0 }
+    const t0 = anchor.date.getTime()
+    return { next: anchor, sameTimeCount: all.filter((u) => Math.abs(u.date.getTime() - t0) < 60_000).length }
+  }, [state, now])
   const streak = useMemo(() => protocolStreak(state, now), [state])
+  // Fecha de inicio de la racha → el chip explica "desde {fecha}" en vez de un número crudo. (#70)
+  const streakStart = useMemo(() => (streak > 0 ? protocolStreakStart(state, now) : null), [state, streak])
   const today = startOfDay(now)
 
   // #2/#3: una sola fuente de verdad (tallyDoses vía adherenceMonth) — respeta cadencia real
@@ -309,7 +319,14 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
             </p>
             {next ? (
               <>
-                <h2 className="mb-3 text-[20px] font-bold text-foreground">{next.product}</h2>
+                <h2 className="mb-3 flex flex-wrap items-center gap-2 text-[20px] font-bold text-foreground">
+                  {next.product}
+                  {sameTimeCount > 1 && (
+                    <span className="rounded-full bg-teal/15 px-2 py-0.5 text-[12px] font-semibold text-teal">
+                      +{sameTimeCount - 1} más a esta hora
+                    </span>
+                  )}
+                </h2>
                 <DataPlate className="inline-flex px-4 py-2.5">
                   <span className="font-mono text-readout font-light text-[var(--teal-bright)]">
                     {countdown(next.date, now)}
@@ -347,7 +364,11 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
               goal={100}
               unit="%"
               label="adherencia"
-              sub={streak > 0 ? `racha ${streak} d` : undefined}
+              sub={
+                streak > 0
+                  ? `racha ${streak} d${streakStart ? ` · desde ${streakStart.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}` : ''}`
+                  : undefined
+              }
               size={132}
               stroke={11}
             />

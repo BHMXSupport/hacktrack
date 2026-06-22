@@ -136,6 +136,27 @@ export function protocolStreak(s: AppState, today: Date, now: Date = new Date())
 }
 
 /**
+ * protocolStreakStart: fecha en que EMPEZÓ la racha actual (el día 'taken' más antiguo del tramo
+ * consecutivo, caminando hacia atrás con la misma lógica de corte que protocolStreak). null si no hay racha.
+ * Para que Inicio explique la racha ("desde {fecha}") en vez de mostrar un número crudo sin contexto.
+ */
+export function protocolStreakStart(s: AppState, today: Date, now: Date = new Date()): Date | null {
+  const tracked = trackedProtocols(s)
+  if (!tracked.length) return null
+  const earliest = Math.min(...tracked.map((t) => startOfDay(t.start).getTime()))
+  let start: Date | null = null
+  let d = startOfDay(today)
+  for (let i = 0; i < 365; i++) {
+    if (d.getTime() < earliest) break
+    const st = dayStatusEx(s, d, now)
+    if (st === 'taken') start = new Date(d)
+    else if (st === 'missed' && i !== 0) break
+    d = new Date(d.getTime() - 86400000)
+  }
+  return start
+}
+
+/**
  * weekAdherencePctLast8: adherencia por semana de las últimas 8 semanas completas (más reciente primero).
  * Retorna un array de 8 valores 0..100 (o null si no hubo dosis programadas esa semana).
  */

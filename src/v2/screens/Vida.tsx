@@ -136,8 +136,8 @@ function LegendChip({ product, color, currentMg, halfLifeH, isEstimatedOnly, isA
           )}
           {!hidden && isAccum && (
             <span
-              className="rounded-full border px-1.5 font-mono text-[9px] font-bold leading-4"
-              style={{ color: 'var(--warn)', borderColor: 'var(--warn)', background: 'transparent' }}
+              className="rounded-full border px-1.5 font-mono text-[10px] font-bold leading-4"
+              style={{ color: 'var(--warn)', borderColor: 'var(--warn)', background: 'color-mix(in srgb, var(--warn) 20%, transparent)' }}
             >
               ×2 acum.
             </span>
@@ -813,7 +813,7 @@ export function Vida() {
             <div className="flex flex-col gap-4">
               {/* Tss */}
               <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Tiempo a steady-state (Tss)
                 </p>
                 <div className="flex flex-col gap-1.5">
@@ -832,7 +832,7 @@ export function Vida() {
                     </div>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[10px] text-muted-foreground leading-snug">
+                <p className="mt-1.5 text-[12px] text-muted-foreground leading-snug">
                   ≈ 5 vidas medias con dosis repetidas a intervalo regular. Estimación educativa.
                 </p>
               </div>
@@ -840,7 +840,7 @@ export function Vida() {
               {/* AUC ratio */}
               {advancedMetrics.aucEntries.length >= 2 && (
                 <div>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Balance de exposición (ratio AUC)
                   </p>
                   <div className="flex flex-col gap-1.5">
@@ -869,7 +869,7 @@ export function Vida() {
                       )
                     })}
                   </div>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground leading-snug">
+                  <p className="mt-1.5 text-[12px] text-muted-foreground leading-snug">
                     Fracción del AUC total en esta ventana. No compara eficacia entre productos.
                   </p>
                 </div>
@@ -896,7 +896,7 @@ export function Vida() {
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="flex-1 text-[12px] text-muted-foreground">Regularidad</span>
                         <span
-                          className="rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                          className="rounded-full border px-2 py-0.5 text-[12px] font-bold"
                           style={{ color: p.cvLabel.color, borderColor: p.cvLabel.color }}
                         >
                           {p.cvLabel.label} · CV {p.cv.toFixed(0)}%
@@ -915,7 +915,7 @@ export function Vida() {
                     )}
                     {p.hint && (
                       <p
-                        className="text-[10px] text-muted-foreground leading-snug"
+                        className="text-[12px] text-muted-foreground leading-snug"
                         style={{ borderLeft: `2px solid ${p.color}`, paddingLeft: 8 }}
                       >
                         {p.hint}
@@ -927,7 +927,7 @@ export function Vida() {
               {/* Co-presencia */}
               {advancedMetrics.coPres.length > 0 && (
                 <div>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Solapamiento activo (co-presencia)
                   </p>
                   <div className="flex flex-col gap-1.5">
@@ -969,13 +969,13 @@ export function Vida() {
                       )
                     })}
                   </div>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground leading-snug">
+                  <p className="mt-1.5 text-[12px] text-muted-foreground leading-snug">
                     Horas con ambos productos ≥ 2 % del pico estimado. No implica interacción farmacológica.
                   </p>
                 </div>
               )}
 
-              <p className="text-[10px] text-muted-foreground leading-snug border-l-2 border-white/15 pl-3">
+              <p className="text-[12px] text-muted-foreground leading-snug border-l-2 border-white/15 pl-3">
                 Todas las métricas son estimaciones educativas basadas en modelos de primer orden y
                 vidas medias de literatura. No representan farmacocinética individual ni son consejo
                 médico.
