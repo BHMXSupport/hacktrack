@@ -511,6 +511,36 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     }
   }, [open])
 
+  // Restaurar el form parqueado al volver de la Calculadora. Corre DESPUÉS del reset (dep [open]) — que
+  // en open=true solo hace setSaving y retorna, así que no pisa esto — y ANTES del efecto draftDose, para
+  // que la dosis recién calculada ("copiar a mi registro") gane sobre la dosis vieja del borrador.
+  const registrarDraft = state.registrarDraft
+  useEffect(() => {
+    if (!open || !registrarDraft) return
+    setDose(registrarDraft.dose)
+    setUnit(normUnit(registrarDraft.unit))
+    setNota(registrarDraft.nota)
+    setShowNota(registrarDraft.showNota)
+    setEffect(registrarDraft.effect)
+    setCustomEffect(registrarDraft.customEffect)
+    setShowCustomEffect(registrarDraft.showCustomEffect)
+    setEffectIntensity(registrarDraft.effectIntensity)
+    setSite(registrarDraft.site)
+    setUseNow(registrarDraft.useNow)
+    setWheelTs(registrarDraft.wheelTs)
+    setShowTimePicker(registrarDraft.showTimePicker)
+    dispatch({ t: 'setRegistrarDraft', draft: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, registrarDraft])
+
+  // Descartar un borrador parqueado si la app vuelve al estado base (sin hoja) — p.ej. abrir la calc desde
+  // Registrar y cerrarla sin "copiar". El round-trip legítimo (registrar→calc→registrar) nunca pasa por null,
+  // así que esto no interfiere; evita rehidratar datos viejos en la próxima apertura de Registrar.
+  useEffect(() => {
+    if (state.sheet === null && state.registrarDraft) dispatch({ t: 'setRegistrarDraft', draft: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sheet])
+
   // #11/#18: precargar desde draftDose — "copiar a mi registro" de la calc (value/unit/recon)
   // o el sitio elegido en el mapa de inyección (site). Antes draftDose se escribía pero NADIE
   // lo consumía, así que ambas acciones no hacían nada. Se limpia tras aplicar.
@@ -941,7 +971,12 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         <button
           type="button"
           className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-teal/40 text-teal text-[13px] font-semibold active:scale-[.98] transition-transform"
-          onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}
+          onClick={() => {
+            // Parquear el form ANTES de ir a la calc: al cerrar (open=false) el reset borra estos campos,
+            // y draftDose solo restaura dosis/unidad/sitio. Sin esto se perdían nota/efecto/hora al volver.
+            dispatch({ t: 'setRegistrarDraft', draft: { dose, unit, nota, showNota, effect, customEffect, showCustomEffect, effectIntensity, site, useNow, wheelTs, showTimePicker } })
+            dispatch({ t: 'sheet', sheet: 'calc' })
+          }}
         >
           Calculadora de unidades
         </button>

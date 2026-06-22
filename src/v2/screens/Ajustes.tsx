@@ -331,10 +331,16 @@ export function Ajustes({
   open,
   onClose,
   onOpenPerfil,
+  onOpenProtocolos,
+  onOpenCalc,
+  onOpenImport,
 }: {
   open: boolean
   onClose: () => void
   onOpenPerfil?: () => void
+  onOpenProtocolos?: () => void
+  onOpenCalc?: () => void
+  onOpenImport?: () => void
 }) {
   const { state, dispatch } = useApp()
   const { settings, profile, protocol } = state
@@ -481,7 +487,7 @@ export function Ajustes({
             <RowCard>
               <button
                 type="button"
-                onClick={() => dispatch({ t: 'sheet', sheet: 'protocolos' })}
+                onClick={() => (onOpenProtocolos ? onOpenProtocolos() : dispatch({ t: 'sheet', sheet: 'protocolos' }))}
                 className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
                 aria-label="Mis protocolos"
               >
@@ -495,7 +501,7 @@ export function Ajustes({
               <div className="mx-4 h-px bg-white/[0.06]" />
               <button
                 type="button"
-                onClick={() => dispatch({ t: 'sheet', sheet: 'import' })}
+                onClick={() => (onOpenImport ? onOpenImport() : dispatch({ t: 'sheet', sheet: 'import' }))}
                 className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
                 aria-label="Importar protocolos"
               >
@@ -509,7 +515,7 @@ export function Ajustes({
               <div className="mx-4 h-px bg-white/[0.06]" />
               <button
                 type="button"
-                onClick={() => dispatch({ t: 'sheet', sheet: 'calc' })}
+                onClick={() => (onOpenCalc ? onOpenCalc() : dispatch({ t: 'sheet', sheet: 'calc' }))}
                 className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
                 aria-label="Calculadora de reconstitución"
               >

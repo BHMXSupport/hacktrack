@@ -1,8 +1,8 @@
-import { type ComponentType, type ReactNode } from 'react'
+import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
 import { Settings } from 'lucide-react'
 import { AppProviderV2 } from './lib/provider'
 import { useApp } from '../lib/store'
-import type { TabId } from '../lib/store'
+import type { TabId, SheetId } from '../lib/store'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { FloatingNav } from './ui/FloatingNav'
 import { AmbientBackground } from './ui/AmbientBackground'
@@ -73,6 +73,17 @@ function Shell() {
   const sheet = state.sheet
   const sheetArg = (state.sheetArg as string | undefined) ?? null
 
+  // Pila de sub-hojas: al abrir Perfil/Protocolos/Calc/Import DESDE Ajustes, cerrar (← / backdrop / Escape)
+  // debe volver a Ajustes, no caer a la app. returnTo recuerda a dónde regresar; se limpia si la hoja se
+  // cierra por otra vía (p.ej. dispatch directo a null).
+  const [returnTo, setReturnTo] = useState<SheetId | null>(null)
+  const closeSubSheet = () => {
+    if (returnTo) { dispatch({ t: 'sheet', sheet: returnTo }); setReturnTo(null) }
+    else closeSheet()
+  }
+  const openFromAjustes = (target: SheetId) => { setReturnTo('ajustes'); dispatch({ t: 'sheet', sheet: target }) }
+  useEffect(() => { if (!sheet) setReturnTo(null) }, [sheet])
+
   // Router de arranque
   const FlowScreen = FLOW[state.screen]
   if (FlowScreen && state.screen !== 's-app') {
@@ -118,13 +129,20 @@ function Shell() {
         onClose={closeSheet}
         initialView={sheet === 'crear-platillo' ? 'create' : 'list'}
       />
-      <Ajustes open={sheet === 'ajustes'} onClose={closeSheet} onOpenPerfil={() => dispatch({ t: 'sheet', sheet: 'perfil' })} />
-      <Perfil open={sheet === 'perfil'} onClose={closeSheet} />
-      <ProtocolosSheet open={sheet === 'protocolos'} onClose={closeSheet} />
+      <Ajustes
+        open={sheet === 'ajustes'}
+        onClose={closeSheet}
+        onOpenPerfil={() => openFromAjustes('perfil')}
+        onOpenProtocolos={() => openFromAjustes('protocolos')}
+        onOpenCalc={() => openFromAjustes('calc')}
+        onOpenImport={() => openFromAjustes('import')}
+      />
+      <Perfil open={sheet === 'perfil'} onClose={closeSubSheet} />
+      <ProtocolosSheet open={sheet === 'protocolos'} onClose={closeSubSheet} />
       <ProtocoloEditSheet open={sheet === 'protocolo-edit'} onClose={closeSheet} product={sheetArg} />
-      <CalcSheet open={sheet === 'calc'} onClose={closeSheet} />
+      <CalcSheet open={sheet === 'calc'} onClose={closeSubSheet} />
       <DoseConfirmSheet open={sheet === 'dose-confirm'} onClose={closeSheet} arg={sheetArg} />
-      <ImportSheet open={sheet === 'import'} onClose={closeSheet} />
+      <ImportSheet open={sheet === 'import'} onClose={closeSubSheet} />
       <PaywallSheet open={sheet === 'paywall'} onClose={closeSheet} />
 
       {/* Pide permiso de notificaciones al entrar si no está concedido (repite mientras esté en "no"). */}

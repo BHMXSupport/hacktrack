@@ -7,6 +7,7 @@ import type {
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
 import { bmiCalc } from './bmi'
+import { doseToMg } from './calc'
 
 export type ScreenId =
   | 's-splash' | 's-onboarding' | 's-goal' | 's-baseline' | 's-measures' | 's-protocol' | 's-account' | 's-login' | 's-forgot' | 's-welcome' | 's-import' | 's-app'
@@ -65,6 +66,7 @@ export interface AppState {
 
   // ── Nuevos campos (aditivos, retrocompatibles) ──────────────────────────────
   calcDraft: { vialStr: string; aguaStr: string; dosisStr: string; unit: string; plumaMode?: boolean; clicMgStr?: string } | null  // estado efímero de la calculadora (#73: incluye modo pluma)
+  registrarDraft: { dose: string; unit: string; nota: string; showNota: boolean; effect: string | undefined; customEffect: string; showCustomEffect: boolean; effectIntensity: number; site: InjectionSite | null; useNow: boolean; wheelTs: number | null; showTimePicker: boolean } | null  // form de RegistrarSheet parqueado al ir a la Calculadora → se restaura al volver (no perder nota/efecto/hora/sitio)
   savedRecons: SavedRecon[]                       // reconstituciones guardadas por el usuario
   measureGoals: Record<string, number>            // meta por medida (p.ej. { 'Peso': 75 })
   measureReminders: Record<string, number>        // recordatorio de medida: intervalDays por nombre
@@ -126,6 +128,7 @@ export const initialState: AppState = {
   toastUndoId: null,
   deletedLogBuffer: null,
   calcDraft: null,
+  registrarDraft: null,
   savedRecons: [],
   measureGoals: {},
   measureReminders: {},
@@ -194,6 +197,7 @@ export type Action =
   // ── Nuevas acciones (aditivas) ─────────────────────────────────────────────
   | { t: 'editLog'; id: string; patch: { value?: number | null; unit?: string | null; doseMg?: number | null; note?: string | null } }
   | { t: 'setCalcDraft'; draft: AppState['calcDraft'] }
+  | { t: 'setRegistrarDraft'; draft: AppState['registrarDraft'] }
   | { t: 'saveRecon'; entry: Omit<SavedRecon, 'id'> }
   | { t: 'deleteRecon'; id: string }
   | { t: 'setMeasureGoal'; name: string; value: number | null }
@@ -1142,6 +1146,20 @@ export function reducer(s: AppState, a: Action): AppState {
             const u = (a.patch.unit !== undefined ? a.patch.unit : it.unit) ?? ''
             patched.u = (it.product ?? '') + (v != null ? ` · ${v} ${u}` : '')
             if (it.product && v != null) updatedProductDoses = { ...updatedProductDoses, [it.product]: { value: v, unit: u } }
+            // Recalcular doseMg al editar valor/unidad (antes quedaba stale → vialStock y barra de presencia PK
+            // se desfasaban). Aplica el delta a vialStock.usedMg. doseToMg null (UI/mL sin recon) → conserva el
+            // doseMg anterior. GUARD a.patch.doseMg === undefined: si el caller YA mandó doseMg (p.ej. DayDetail
+            // v1), la rama de arriba ya ajustó usedMg+doseMg → no recalculamos aquí (evita doble-conteo).
+            if (it.product && v != null && a.patch.doseMg === undefined) {
+              const recon = s.productRecon[it.product]
+              const newDoseMg = doseToMg(v, u, recon?.vialMg, recon?.aguaMl) ?? it.doseMg
+              patched.doseMg = newDoseMg
+              const delta = (newDoseMg ?? 0) - (it.doseMg ?? 0)
+              const proto = updatedProtocols[it.product]
+              if (proto?.vialStock && delta !== 0) {
+                updatedProtocols = { ...updatedProtocols, [it.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg + delta) } } }
+              }
+            }
           }
           // MEDIDA: reconstruir 'u' + marcar para reconciliar history/measureValues/profile fuera del map
           if (it.type === 'medida' && a.patch.value != null && it.n) {
@@ -1168,6 +1186,9 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'setCalcDraft':
       return { ...s, calcDraft: a.draft }
+
+    case 'setRegistrarDraft':
+      return { ...s, registrarDraft: a.draft }
 
     // saveRecon: agrega o fusiona (por label) una reconstitución guardada
     case 'saveRecon': {
