@@ -79,6 +79,8 @@ export interface PharmaSeries {
   peakMg: number      // pico de mg en todo el historial (para normalizar)
   aucMgH: number      // exposición acumulada en la ventana = ∫ mg dt (mg·h) — estimación teórica
   isEstimatedOnly: boolean // sin PK humana publicada (p.ej. SLU-PP-332) → curva punteada + "~"
+  isTooShort: boolean // t½ ultracorta (<30 min) → casi sin presencia visible en 24 h: la curva se ve plana
+                      // (no es bug de render). Vida muestra un badge aclaratorio. (#63)
 }
 
 export interface PharmaData {
@@ -276,17 +278,23 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
     let auc = 0
     for (let i = 1; i < ts.length; i++) auc += ((rawByT[i - 1] + rawByT[i]) / 2) * (ts[i] - ts[i - 1])
 
+    const currentMg = amountAt(r.doses, r.product, r.halfMs, now)
     series.push({
       product: r.product,
       color,
       halfLifeH: r.halfLifeH,
       points,
       markers,
-      currentMg: amountAt(r.doses, r.product, r.halfMs, now),
+      currentMg,
       peakMg,
       aucMgH: auc / 3_600_000,
       // #9: punteada + "~" también cuando algún registro carece de reconstitución (mg aproximado).
       isEstimatedOnly: NO_HUMAN_PK_DATA.has(r.product) || r.doses.some((d) => d.approx),
+      // #63: t½ ultracorta (<30 min) y presencia AHORA <5% del pico → la curva se ve plana (ya eliminado).
+      // Usamos currentMg (amountAt en `now`), NO el máx muestreado: es determinista (no depende del
+      // alineamiento de muestras) y no contradice una dosis recién puesta (ahí currentMg sigue alto). peakMg>0
+      // garantizado por el guard de arriba. Marca para que Vida explique que no es un glitch de render.
+      isTooShort: r.halfLifeH < 0.5 && currentMg < peakMg * 0.05,
     })
   }
 

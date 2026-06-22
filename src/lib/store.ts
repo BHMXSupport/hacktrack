@@ -901,7 +901,10 @@ export function reducer(s: AppState, a: Action): AppState {
         measureValues: mv,
         profile,
         logged: true,
-        sheet: null,
+        // NO cerramos la hoja aquí: CambioMedidasSheet controla su propio cierre para alcanzar a mostrar el
+        // delta vs. el registro anterior (~1.8s) antes de cerrar, igual que MedidaSheet. Único caller que abre
+        // hoja vía esta acción = CambioMedidasSheet (v2); Baseline la usa en el flow (sheet ya null → no-op) y
+        // sheets/Medidas.tsx (v1) es código muerto. (#62)
         toast: 'Medidas actualizadas',
         toastUndoId: null,
       }

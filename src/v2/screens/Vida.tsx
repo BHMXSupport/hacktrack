@@ -94,11 +94,12 @@ interface LegendChipProps {
   halfLifeH: number
   isEstimatedOnly: boolean
   isAccum: boolean
+  isTooShort: boolean
   hidden: boolean
   onToggle: () => void
 }
 
-function LegendChip({ product, color, currentMg, halfLifeH, isEstimatedOnly, isAccum, hidden, onToggle }: LegendChipProps) {
+function LegendChip({ product, color, currentMg, halfLifeH, isEstimatedOnly, isAccum, isTooShort, hidden, onToggle }: LegendChipProps) {
   const displayName = isEstimatedOnly ? `~${product}` : product
   return (
     <motion.button
@@ -125,14 +126,22 @@ function LegendChip({ product, color, currentMg, halfLifeH, isEstimatedOnly, isA
           {fmtApproxMg(currentMg)}
         </span>
       </span>
-      {/* Línea 2: t½ + estimación + acumulación */}
-      {(halfLifeH > 0 || isEstimatedOnly || (!hidden && isAccum)) && (
+      {/* Línea 2: t½ + estimación + acumulación + t½ ultracorta */}
+      {(halfLifeH > 0 || isEstimatedOnly || (!hidden && isAccum) || (!hidden && isTooShort)) && (
         <span className="flex flex-wrap items-center gap-1.5 pl-[18px]">
           {halfLifeH > 0 && (
             <span className="font-mono text-[11px] text-muted-foreground">{formatHalfLife(halfLifeH)}</span>
           )}
           {isEstimatedOnly && (
             <span className="text-[11px] text-muted-foreground">estimación</span>
+          )}
+          {!hidden && isTooShort && (
+            <span
+              className="rounded-full border border-white/20 px-1.5 text-[10px] font-medium leading-4 text-muted-foreground"
+              title="Vida media muy corta: se elimina casi por completo en menos de 1 h, por eso la curva casi no se ve en 24 h."
+            >
+              ≈0 en 24 h
+            </span>
           )}
           {!hidden && isAccum && (
             <span
@@ -773,6 +782,7 @@ export function Vida() {
                 halfLifeH={s.halfLifeH}
                 isEstimatedOnly={s.isEstimatedOnly}
                 isAccum={accumProducts.has(s.product)}
+                isTooShort={s.isTooShort}
                 hidden={hidden.has(s.product)}
                 onToggle={() => toggle(s.product)}
               />

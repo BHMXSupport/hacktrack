@@ -54,6 +54,7 @@ export function CambioMedidasSheet({ open, onClose }: { open: boolean; onClose: 
   const [grasa, setGrasa] = useState('')
   const [musculo, setMusculo] = useState('')
   const [errs, setErrs] = useState<Record<string, string | undefined>>({})
+  const [savedDelta, setSavedDelta] = useState<string | null>(null) // feedback "−1.5 kg · IMC 25.3" tras guardar (#62)
 
   // Al abrir, pre-llena con los valores actuales (registras el cambio desde lo último).
   useEffect(() => {
@@ -63,6 +64,7 @@ export function CambioMedidasSheet({ open, onClose }: { open: boolean; onClose: 
     setGrasa(p.grasa != null ? String(p.grasa) : '')
     setMusculo(p.musculo != null ? String(p.musculo) : '')
     setErrs({})
+    setSavedDelta(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -82,7 +84,27 @@ export function CambioMedidasSheet({ open, onClose }: { open: boolean; onClose: 
     if (grasa.trim()) values.grasa = parseFloat(grasa)
     if (musculo.trim()) values.musculo = parseFloat(musculo)
     if (Object.keys(values).length === 0) { onClose(); return }
-    dispatch({ t: 'saveMedidas', values }) // agrega registro al diario + historial; cierra el sheet
+
+    // Delta vs. el registro anterior (capturar el perfil PREVIO antes de despachar). El reducer ya no cierra
+    // la hoja (#62) → la cerramos aquí tras mostrar el feedback ~1.8s, igual que MedidaSheet.
+    const fmt = (d: number, unit: string) => `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(Math.abs(d) % 1 === 0 ? 0 : 1)}${unit}`
+    const fieldParts: string[] = []
+    if (values.peso != null && p.peso != null && values.peso !== p.peso) fieldParts.push(fmt(values.peso - p.peso, ' kg'))
+    if (values.grasa != null && p.grasa != null && values.grasa !== p.grasa) fieldParts.push(fmt(values.grasa - p.grasa, '% grasa'))
+    if (values.musculo != null && p.musculo != null && values.musculo !== p.musculo) fieldParts.push(fmt(values.musculo - p.musculo, '% músc.'))
+    const hadPrev = p.peso != null || p.grasa != null || p.musculo != null
+    const delta = fieldParts.length ? [...fieldParts, imc ? `IMC ${imc}` : ''].filter(Boolean).join(' · ') : ''
+
+    dispatch({ t: 'saveMedidas', values }) // agrega registro al diario + historial
+    if (delta) {
+      setSavedDelta(delta)
+      setTimeout(() => { setSavedDelta(null); onClose() }, 1800)
+    } else if (!hadPrev) {
+      setSavedDelta('Primer registro · punto de partida')
+      setTimeout(() => { setSavedDelta(null); onClose() }, 1800)
+    } else {
+      onClose()
+    }
   }
 
   return (
@@ -98,7 +120,10 @@ export function CambioMedidasSheet({ open, onClose }: { open: boolean; onClose: 
         {imc && (
           <p className="text-[13px] text-secondary-foreground">IMC estimado: <span className="font-semibold text-foreground">{imc}</span></p>
         )}
-        <Button size="full" onClick={guardar}>Guardar registro</Button>
+        {savedDelta && (
+          <p className="text-center text-[13px] font-semibold text-teal" role="status" aria-live="polite">{savedDelta}</p>
+        )}
+        <Button size="full" onClick={guardar} disabled={savedDelta != null}>Guardar registro</Button>
       </div>
     </Sheet>
   )
