@@ -11,9 +11,12 @@ import {
 import { Sheet } from '../ui/Sheet'
 import { Switch } from '../ui/Switch'
 import { backendEnabled } from '../../lib/backend/config'
+import { getSession } from '../../lib/backend/auth'
+import { pullRemote } from '../../lib/backend/sync'
 import { Button } from '../ui/Button'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { useApp } from '../../lib/store'
+import type { AppState } from '../../lib/store'
 import { requestNotif, notifPermission, notifSupported } from '../../lib/notifications'
 import type { ThemeMode, UnitSystem } from '../../lib/types'
 
@@ -350,6 +353,20 @@ export function Ajustes({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showAdvancedReminders, setShowAdvancedReminders] = useState(false)
+  const [restoreState, setRestoreState] = useState<'idle' | 'confirm' | 'busy'>('idle')
+
+  // Restaurar desde la nube: trae el blob remoto y REEMPLAZA el estado local (vía loadRemoteState → hydrate).
+  // Explícito + confirmado (no auto-merge) para no clobberear cambios locales sin querer. Solo con backend.
+  async function handleRestore() {
+    const sess = await getSession()
+    if (!sess) { dispatch({ t: 'toast', msg: 'Inicia sesión para restaurar' }); setRestoreState('idle'); return }
+    setRestoreState('busy')
+    const remote = await pullRemote(sess.userId)
+    setRestoreState('idle')
+    if (!remote) { dispatch({ t: 'toast', msg: 'No hay respaldo en la nube todavía' }); return }
+    dispatch({ t: 'loadRemoteState', state: remote.data as Partial<AppState> })
+    dispatch({ t: 'toast', msg: 'Restaurado desde la nube' })
+  }
   const [showAliasSheet, setShowAliasSheet] = useState(false)
   const fileImportRef = useRef<HTMLInputElement>(null)
   const reduce = useReducedMotion()
@@ -686,6 +703,26 @@ export function Ajustes({
                     onChange={(next) => dispatch({ t: 'setSetting', key: 'cloudSync', value: next })}
                   />
                 </Row>
+                <div className="mx-4 h-px bg-white/[0.06]" />
+                {restoreState === 'confirm' ? (
+                  <div className="flex items-center gap-2 px-4 py-2.5">
+                    <span className="flex-1 text-[12px] text-muted-foreground">Reemplazará lo de este dispositivo con tu respaldo.</span>
+                    <button type="button" onClick={() => setRestoreState('idle')} className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-foreground">Cancelar</button>
+                    <button type="button" onClick={handleRestore} className="rounded-lg bg-teal px-3 py-1.5 text-[12px] font-semibold text-primary-foreground">Reemplazar</button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={restoreState === 'busy'}
+                    onClick={() => setRestoreState('confirm')}
+                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left disabled:opacity-50"
+                    aria-label="Restaurar desde la nube"
+                  >
+                    <Download size={18} className="shrink-0 rotate-180 text-teal" />
+                    <span className="flex-1 text-[14px] font-medium text-foreground">{restoreState === 'busy' ? 'Restaurando…' : 'Restaurar de la nube'}</span>
+                    <ChevronRight size={16} className="text-muted-foreground" />
+                  </button>
+                )}
               </RowCard>
             </section>
           )}

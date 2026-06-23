@@ -199,6 +199,7 @@ export type Action =
   | { t: 'editLog'; id: string; patch: { value?: number | null; unit?: string | null; doseMg?: number | null; note?: string | null } }
   | { t: 'setCalcDraft'; draft: AppState['calcDraft'] }
   | { t: 'setRegistrarDraft'; draft: AppState['registrarDraft'] }
+  | { t: 'loadRemoteState'; state: Partial<AppState> } // restaurar desde la nube (Supabase): reemplaza el estado local por el blob remoto, vía hydrate (misma ruta segura que la carga inicial)
   | { t: 'saveRecon'; entry: Omit<SavedRecon, 'id'> }
   | { t: 'deleteRecon'; id: string }
   | { t: 'setMeasureGoal'; name: string; value: number | null }
@@ -1193,6 +1194,22 @@ export function reducer(s: AppState, a: Action): AppState {
 
     case 'setRegistrarDraft':
       return { ...s, registrarDraft: a.draft }
+
+    case 'loadRemoteState': {
+      // Restaurar desde la nube: fusiona el blob remoto sobre los defaults y rehidrata (misma ruta que
+      // loadState del provider → tan seguro como la carga inicial). Conserva 'hoy' y descarta lo efímero.
+      const merged = {
+        ...initialState,
+        ...a.state,
+        sheet: null,
+        sheetArg: null,
+        toast: null,
+        toastUndoId: null,
+        deletedLogBuffer: null,
+        todayTs: s.todayTs,
+      } as AppState
+      return hydrate(merged)
+    }
 
     // saveRecon: agrega o fusiona (por label) una reconstitución guardada
     case 'saveRecon': {

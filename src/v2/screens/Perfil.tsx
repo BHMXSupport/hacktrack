@@ -350,6 +350,16 @@ function AvisoPrivacidad({
                 arts. 22–28): puedes Acceder, Rectificar, Cancelar u Oponerte al tratamiento de tus
                 datos en cualquier momento desde esta misma pantalla.
               </p>
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
+                <a
+                  href={`${import.meta.env.BASE_URL}aviso-privacidad.html`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-teal underline underline-offset-2"
+                >
+                  Leer el Aviso de Privacidad completo
+                </a>{' '}(LFPDPPP).
+              </p>
               <p className="text-[12px] font-semibold text-teal">
                 Versión {CURRENT_CONSENT_VERSION} · En vigor desde 2024
               </p>
