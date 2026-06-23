@@ -13,6 +13,8 @@ import { useState, useId } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, KeyRound, Shield, Check } from 'lucide-react'
 import { useApp } from '../../lib/store'
+import { backendEnabled } from '../../lib/backend/config'
+import { resetPassword } from '../../lib/backend/auth'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
 
@@ -34,10 +36,13 @@ export function Forgot() {
   const inputCls =
     'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-secondary-foreground/70 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!EMAIL_RE.test(email.trim())) { setError(true); return }
     setError(false)
+    // Con backend: envía el enlace real de reseteo. Sin backend: igual que hoy (mensaje, sin emisor).
+    // El mensaje es neutro ("si el correo existe") para no revelar qué correos están registrados.
+    if (backendEnabled) await resetPassword(email.trim())
     setSent(true)
     dispatch({ t: 'toast', msg: 'Si el correo existe, te enviamos un enlace' })
   }

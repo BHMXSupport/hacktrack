@@ -16,7 +16,12 @@ import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Eye, EyeOff, Shield, User } from 'lucide-react'
 import { useApp } from '../../lib/store'
+import { backendEnabled } from '../../lib/backend/config'
+import { signUp } from '../../lib/backend/auth'
 import { Button } from '../ui/Button'
+
+// Aviso de Privacidad servido como página estática dentro de la PWA → URL real, enlazable (Epic E).
+const PRIVACY_URL = `${import.meta.env.BASE_URL}aviso-privacidad.html`
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -85,15 +90,26 @@ export function Account() {
     if (emailError && EMAIL_RE.test(e.target.value.trim())) setEmailError(false)
   }
 
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const canCreate = name.trim() !== '' && accepted
 
-  function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setTried(true); return }
     if (!accepted) return
+    const mail = email.trim()
+    if (backendEnabled) {
+      // Cuenta real: correo + contraseña obligatorios; maneja errores (correo en uso, etc.).
+      if (!EMAIL_RE.test(mail)) { setEmailError(true); return }
+      if (password.length < 6) { setAuthError('La contraseña debe tener al menos 6 caracteres.'); return }
+      setSubmitting(true); setAuthError(null)
+      const res = await signUp(mail, password)
+      setSubmitting(false)
+      if (!res.ok) { setAuthError(res.error); return }
+    }
     dispatch({ t: 'setName', name: name.trim() })
     // BUG FIX: el correo se capturaba pero nunca se guardaba en el perfil. Lo persistimos si es válido.
-    const mail = email.trim()
     if (mail && EMAIL_RE.test(mail)) dispatch({ t: 'setProfileFields', patch: { email: mail } })
     // Consentimiento: se marca activo SOLO aquí, al aceptar el checkbox (antes venía pre-activado en initialState).
     dispatch({ t: 'setSetting', key: 'consentActive', value: true })
@@ -295,19 +311,31 @@ export function Account() {
             />
             <label htmlFor="ht-privacy" className="block cursor-pointer text-[13px] leading-relaxed text-foreground">
               He leído y acepto el{' '}
-              <span className="font-semibold text-teal underline underline-offset-2">Aviso de Privacidad</span>.
+              <a
+                href={PRIVACY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="font-semibold text-teal underline underline-offset-2"
+              >
+                Aviso de Privacidad
+              </a>.
               Tu historial se guarda solo en tu dispositivo.
             </label>
           </div>
 
           {/* CTA crear */}
+          {authError && (
+            <p role="alert" className="-mb-1 text-center text-[13px] text-alert">{authError}</p>
+          )}
           <Button
             type="submit"
             size="full"
-            disabled={!canCreate}
-            aria-disabled={!canCreate}
+            disabled={!canCreate || submitting}
+            aria-disabled={!canCreate || submitting}
+            aria-busy={submitting}
           >
-            Crear cuenta
+            {submitting ? 'Creando…' : 'Crear cuenta'}
           </Button>
         </motion.form>
 

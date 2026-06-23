@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
 import { Switch } from '../ui/Switch'
+import { backendEnabled } from '../../lib/backend/config'
 import { Button } from '../ui/Button'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { useApp } from '../../lib/store'
@@ -618,9 +619,76 @@ export function Ajustes({
             </p>
           </section>
 
-          {/* ── SEGURIDAD (R48) ───────────────────────────────────────────── */}
-          {/* TODO(handoff): implementar PIN local (hash) o por backend — ver Auth & Backend Handoff */}
-          {/* El toggle de PIN está oculto hasta que la pantalla de validación de PIN esté implementada */}
+          {/* ── SEGURIDAD ─────────────────────────────────────────────────── */}
+          <section>
+            <SectionLabel>Seguridad</SectionLabel>
+            <RowCard>
+              <Row className="px-4">
+                <ShieldCheck size={18} className={settings.pinEnabled ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">Bloqueo con PIN</span>
+                  <span className="text-[12px] text-muted-foreground">
+                    {settings.pinEnabled ? 'Se pide al abrir la app' : 'Pide un PIN de 4 dígitos al abrir'}
+                  </span>
+                </span>
+                <Switch
+                  checked={settings.pinEnabled}
+                  label="Activar bloqueo con PIN"
+                  onChange={(next) => {
+                    if (next) {
+                      // El PIN se activa al CONFIRMARLO en el setup, no al togglear (evita quedar bloqueado sin PIN).
+                      dispatch({ t: 'sheet', sheet: 'pin-setup' })
+                    } else {
+                      dispatch({ t: 'setSetting', key: 'pinEnabled', value: false })
+                      dispatch({ t: 'setSetting', key: 'pinHash', value: null })
+                      dispatch({ t: 'toast', msg: 'PIN desactivado' })
+                    }
+                  }}
+                />
+              </Row>
+              {settings.pinEnabled && (
+                <>
+                  <div className="mx-4 h-px bg-white/[0.06]" />
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ t: 'sheet', sheet: 'pin-setup' })}
+                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
+                    aria-label="Cambiar PIN"
+                  >
+                    <Tag size={18} className="shrink-0 text-teal" />
+                    <span className="flex-1 text-[14px] font-medium text-foreground">Cambiar PIN</span>
+                    <ChevronRight size={16} className="text-muted-foreground" />
+                  </button>
+                </>
+              )}
+            </RowCard>
+            <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-muted-foreground">
+              Bloqueo casual de privacidad (no cifrado). Si olvidas el PIN tendrás que borrar los datos del dispositivo para entrar — aún no hay recuperación en la nube.
+            </p>
+          </section>
+
+          {/* ── NUBE (solo visible si hay backend configurado; en el beta local-first no aparece) ── */}
+          {backendEnabled && (
+            <section>
+              <SectionLabel>Nube</SectionLabel>
+              <RowCard>
+                <Row className="px-4">
+                  <Download size={18} className={settings.cloudSync ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-[14px] font-medium text-foreground">Respaldo en la nube</span>
+                    <span className="text-[12px] text-muted-foreground">
+                      {settings.cloudSync ? 'Tu historial se respalda en tu cuenta' : 'Opcional — requiere iniciar sesión'}
+                    </span>
+                  </span>
+                  <Switch
+                    checked={!!settings.cloudSync}
+                    label="Activar respaldo en la nube"
+                    onChange={(next) => dispatch({ t: 'setSetting', key: 'cloudSync', value: next })}
+                  />
+                </Row>
+              </RowCard>
+            </section>
+          )}
 
           {/* ── RECORDATORIOS ────────────────────────────────────────────── */}
           <section>

@@ -16,6 +16,8 @@ import { useState, useId } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Eye, EyeOff, Droplet, Shield } from 'lucide-react'
 import { useApp } from '../../lib/store'
+import { backendEnabled } from '../../lib/backend/config'
+import { signIn } from '../../lib/backend/auth'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
 
@@ -96,16 +98,23 @@ export function Login() {
     if (emailError && EMAIL_RE.test(e.target.value.trim())) setEmailError(false)
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (loading) return
     if (!EMAIL_RE.test(email.trim())) { setEmailError(true); return }
     setLoginError(false)
     setLoading(true)
-    // Mock: 600ms delay → éxito
+    if (backendEnabled) {
+      // Auth real contra Supabase: verifica credenciales; la rama de error YA corre (antes nunca).
+      const res = await signIn(email.trim(), password)
+      setLoading(false)
+      if (!res.ok) { setLoginError(true); return }
+      dispatch({ t: 'finishOnboarding' })
+      return
+    }
+    // Sin backend (beta): mock 600ms → éxito, conserva el comportamiento actual.
     window.setTimeout(() => {
       setLoading(false)
-      // Aquí: si auth fallara → setLoginError(true); return
       dispatch({ t: 'finishOnboarding' })
     }, 600)
   }

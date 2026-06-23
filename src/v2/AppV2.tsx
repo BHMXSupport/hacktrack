@@ -7,6 +7,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 import { FloatingNav } from './ui/FloatingNav'
 import { AmbientBackground } from './ui/AmbientBackground'
 import { LaunchSequence } from './ui/LaunchSequence'
+import { PinGate } from './ui/PinGate'
 import { InstallGate } from './ui/InstallGate'
 import { shouldShowInstallGate } from '../lib/install'
 import { Toast } from './ui/Toast'
@@ -30,6 +31,7 @@ import { CalcSheet } from './screens/CalcSheet'
 import { DoseConfirmSheet } from './screens/DoseConfirmSheet'
 import { ImportSheet } from './screens/ImportSheet'
 import { PaywallSheet } from './screens/PaywallSheet'
+import { PinSetupSheet } from './screens/PinSetupSheet'
 import { Splash } from './flow/Splash'
 import { Onboarding } from './flow/Onboarding'
 import { Goal } from './flow/Goal'
@@ -83,6 +85,10 @@ function Shell() {
   }
   const openFromAjustes = (target: SheetId) => { setReturnTo('ajustes'); dispatch({ t: 'sheet', sheet: target }) }
   useEffect(() => { if (!sheet) setReturnTo(null) }, [sheet])
+
+  // PIN de bloqueo: si está activo, se pide al abrir/recargar (unlocked es por-sesión, arranca en false).
+  const [unlocked, setUnlocked] = useState(false)
+  const needsPin = state.settings.pinEnabled && !!state.settings.pinHash && !unlocked
 
   // Router de arranque
   const FlowScreen = FLOW[state.screen]
@@ -144,6 +150,7 @@ function Shell() {
       <DoseConfirmSheet open={sheet === 'dose-confirm'} onClose={closeSheet} arg={sheetArg} />
       <ImportSheet open={sheet === 'import'} onClose={closeSubSheet} />
       <PaywallSheet open={sheet === 'paywall'} onClose={closeSheet} />
+      <PinSetupSheet open={sheet === 'pin-setup'} onClose={closeSheet} />
 
       {/* Pide permiso de notificaciones al entrar si no está concedido (repite mientras esté en "no"). */}
       <NotifPermissionPrompt />
@@ -154,6 +161,9 @@ function Shell() {
           <Welcome />
         </div>
       )}
+
+      {/* PIN de bloqueo (z-95): el splash (z-100) lo cubre y, al desmontarse, queda el PIN sobre la app. */}
+      {needsPin && <PinGate onUnlock={() => setUnlocked(true)} />}
     </Frame>
   )
 }

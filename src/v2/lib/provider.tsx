@@ -4,6 +4,7 @@ import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
 import { upcomingDoses, doseTakenOnProduct, phaseForDate, weekAdherencePctLast8, protocolStreak } from '../../lib/calendar'
 import { registerSW, scheduleSwReminder, schedulePreReminder, scheduleDailySummary, scheduleWeeklySummary, scheduleRescue, scheduleMeasureReminder, notifPermission, setNotifClickHandler } from '../../lib/notifications'
+import { useCloudSync } from '../../lib/backend/useCloudSync'
 
 // Provider del rebuild: reusa el reducer/estado del app original (lib/store).
 const KEY = 'hacktrack:v2'
@@ -49,6 +50,9 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
   // Ref al estado VIVO — para callbacks diferidos (p.ej. el rescate evalúa "¿ya registró?" al vencer).
   const stateRef = useRef(state)
   stateRef.current = state
+
+  // Backend opt-in (auth/sync/push). NO-OP sin credenciales VITE_SUPABASE_* → el beta no cambia.
+  useCloudSync(state)
 
   // R1 — persistencia en localStorage (excluye estado efímero)
   useEffect(() => {

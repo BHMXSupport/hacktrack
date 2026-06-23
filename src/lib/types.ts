@@ -194,6 +194,7 @@ export interface UserSettings {
   darkMode: boolean
   themeMode?: ThemeMode       // 'auto' = oscuro 18–7 h | 'light' | 'dark' | undefined → usa darkMode (compat)
   remindersEnabled: boolean   // recordatorios locales de toma (Notification API)
+  cloudSync?: boolean         // backend opt-in: respaldar/sincronizar el estado en la nube (Supabase). Default off.
   /** Ventana de rescate (min) tras el recordatorio principal. 0 = desactivado.
    *  Si el usuario no registra dentro de esta ventana se dispara un segundo aviso. */
   rescueWindowMin?: 0 | 15 | 30 | 60

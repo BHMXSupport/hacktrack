@@ -19,6 +19,7 @@ export type SheetId =
   | 'medida-detail'  // item 146: detalle de KPI con historial + botón Registrar
   | 'protocolos'     // rebuild v2: listado/gestión de protocolos (ProtocolosSheet)
   | 'import'         // rebuild v2: asistente de importación de productos (ImportSheet)
+  | 'pin-setup'      // backend handoff: crear/cambiar el PIN de bloqueo (PinSetupSheet)
 
 export interface AppState {
   todayTs: number
