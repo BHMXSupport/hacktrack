@@ -436,7 +436,7 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                   <button
                     type="button"
                     onClick={() => {
-                      dispatch({ t: 'setDraftDose', draft: { ts: p.date.getTime() } })
+                      dispatch({ t: 'setDraftDose', draft: { ts: p.date.getTime(), overdue: true } })
                       dispatch({ t: 'setActiveProduct', product: p.product })
                       dispatch({ t: 'sheet', sheet: 'registrar', arg: p.product })
                     }}

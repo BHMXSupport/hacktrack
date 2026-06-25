@@ -6,7 +6,7 @@
 // R22: selector de hora (v2 time-input) en vez de Date.now().
 //       Unidades: 'mg' | 'mcg' | 'UI' | 'mL'  (clics == UI → no se registra por separado)
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Shield, Clock, ChevronDown, ChevronUp, Sparkles, Loader2 } from 'lucide-react'
+import { Shield, Clock, ChevronDown, ChevronUp, Sparkles, Loader2, Check } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 import { PEPTIDES, EFFECT_OPTIONS } from '../../lib/catalog'
@@ -411,6 +411,13 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
   // Diálogo STOP cuando el registro está a >1h de la hora programada del protocolo (bug del calendario).
   const [timeMismatch, setTimeMismatch] = useState<{ logTs: number; scheduledTs: number; product: string } | null>(null)
+  // Dosis ATRASADA (overdue): al registrarla preguntamos si fue como estaba programado (su día) o hubo un
+  // cambio (hoy), con opción de ir a ajustar el protocolo. overdueScheduledTs = ts del día programado.
+  const [overdueScheduledTs, setOverdueScheduledTs] = useState<number | null>(null)
+  const [dateChoice, setDateChoice] = useState<{ scheduledTs: number; product: string } | null>(null)
+  // Paso 2 (tras elegir "otro día"): la dosis YA quedó registrada en el día real; AQUÍ se ofrece, por separado,
+  // ajustar el protocolo. Va en pantalla aparte para no romper el flujo ni perder el día real (corrección de Jan).
+  const [protocolAdjustPrompt, setProtocolAdjustPrompt] = useState<{ product: string } | null>(null)
   // Producto NUEVO sin protocolo: tras registrar la dosis preguntamos si quiere empezar un protocolo.
   // NUNCA auto-creamos el protocolo: o lo inicia él (lo ruteamos a la sección) o queda como dosis standalone.
   const [newProductPrompt, setNewProductPrompt] = useState<{ product: string } | null>(null)
@@ -469,6 +476,13 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       return // el prompt decide: empezar protocolo (rutea) o dejarlo como dosis única (cierra)
     }
 
+    // Dosis ATRASADA: antes de guardar, preguntar si fue como estaba programado (su día) o hubo un cambio
+    // (hoy), con opción de ir a ajustar el protocolo. No asumir el día en silencio.
+    if (overdueScheduledTs != null && hasProto) {
+      setDateChoice({ scheduledTs: overdueScheduledTs, product: finalProduct })
+      return // espera la elección del usuario
+    }
+
     // Producto con protocolo: si el registro está a >1h de la hora programada → STOP con 3 opciones.
     if (hasProto) {
       const scheduledTs = dueTime(state, new Date(logTs), finalProduct).getTime()
@@ -483,7 +497,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     onClose()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    saving, product, dose, unit, site, useNow, wheelTs,
+    saving, product, dose, unit, site, useNow, wheelTs, overdueScheduledTs,
     vialMg, aguaMl, nota, effect, customEffect, showCustomEffect, effectIntensity,
     state.protocols, dispatch, onClose,
   ])
@@ -512,6 +526,9 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
       setWheelTs(null)
       setShowTimePicker(false)
       setTimeMismatch(null)
+      setOverdueScheduledTs(null)
+      setDateChoice(null)
+      setProtocolAdjustPrompt(null)
       setNewProductPrompt(null)
     }
   }, [open])
@@ -561,6 +578,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     }
     if (draftDose.site) setSite(draftDose.site)
     if (draftDose.ts != null) { setUseNow(false); setWheelTs(draftDose.ts) } // #72: backfill de fecha desde Diario
+    if (draftDose.overdue && draftDose.ts != null) setOverdueScheduledTs(draftDose.ts) // dosis atrasada → preguntar día al guardar
     dispatch({ t: 'setDraftDose', draft: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draftDose])
@@ -568,7 +586,81 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Sheet open={open} onClose={onClose} title="Registrar dosis">
-      {timeMismatch ? (() => {
+      {protocolAdjustPrompt ? (
+        // PASO 2 — la dosis YA quedó registrada en el día real (hoy). Aquí, por separado, ofrecemos ajustar el
+        // protocolo. Separado del paso 1 para no romper el flujo ni perder el día real (corrección de Jan).
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 rounded-xl border border-teal/25 bg-teal/[0.07] p-3.5">
+            <Check size={18} className="mt-0.5 shrink-0 text-teal" aria-hidden />
+            <p className="text-[13px] leading-relaxed text-secondary-foreground">
+              Registré tu <span className="font-semibold text-foreground">{protocolAdjustPrompt.product}</span> de hoy.
+              Como fue en un día distinto al programado, ¿cambió tu horario?
+            </p>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <button
+              type="button"
+              autoFocus
+              onClick={() => { const p = protocolAdjustPrompt.product; setProtocolAdjustPrompt(null); dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: p }) }}
+              className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
+            >
+              <span className="text-[14px] font-semibold text-teal">Sí, ajustar mi protocolo</span>
+              <span className="text-[12px] text-muted-foreground">Abre tu protocolo para actualizar días/hora. Tu registro de hoy ya quedó guardado.</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setProtocolAdjustPrompt(null); onClose() }}
+              className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+            >
+              <span className="text-[14px] font-semibold text-foreground">No, mi protocolo sigue igual</span>
+              <span className="text-[12px] text-muted-foreground">Solo fue distinto hoy.</span>
+            </button>
+          </div>
+        </div>
+      ) : dateChoice ? (() => {
+        const sch = new Date(dateChoice.scheduledTs)
+        const fechaProg = sch.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+        // "Hoy" conserva la HORA programada pero con el día de hoy (el usuario se la puso hoy, no en su día).
+        const td = new Date(); td.setHours(sch.getHours(), sch.getMinutes(), 0, 0)
+        const todayTs = td.getTime()
+        const fechaHoy = td.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+        const m = dateChoice
+        return (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3 rounded-xl border border-warn/25 bg-warn/[0.07] p-3.5">
+              <Clock size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+              <p className="text-[13px] leading-relaxed text-secondary-foreground">
+                Tu <span className="font-semibold text-foreground">{m.product}</span> estaba programado para el{' '}
+                <span className="font-semibold capitalize text-foreground">{fechaProg}</span>. ¿Cuándo te la pusiste?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {/* Como estaba programado → guarda en su día y cierra (nada cambió) */}
+              <button
+                type="button"
+                autoFocus
+                disabled={saving}
+                onClick={() => { setSaving(true); doLog(m.scheduledTs); onClose() }}
+                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+              >
+                <span className="text-[14px] font-semibold capitalize text-foreground">El {fechaProg}, como estaba programado</span>
+                <span className="text-[12px] text-muted-foreground">Se guarda en su día programado.</span>
+              </button>
+              {/* Hubo un cambio: me la puse hoy → REGISTRA HOY (día real conocido) y pasa al paso 2 (ajustar protocolo) */}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => { setSaving(true); doLog(todayTs); setDateChoice(null); setProtocolAdjustPrompt({ product: m.product }) }}
+                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+              >
+                <span className="text-[14px] font-semibold capitalize text-foreground">Hoy ({fechaHoy}) — hubo un cambio</span>
+                <span className="text-[12px] text-muted-foreground">Lo registro hoy; luego te pregunto si ajustar tu protocolo.</span>
+              </button>
+              <button type="button" onClick={() => setDateChoice(null)} className="self-center px-4 py-2 text-[13px] text-muted-foreground">Cancelar</button>
+            </div>
+          </div>
+        )
+      })() : timeMismatch ? (() => {
         const schedHora = new Date(timeMismatch.scheduledTs).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
         const logHora = new Date(timeMismatch.logTs).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
         const m = timeMismatch

@@ -59,7 +59,7 @@ export interface AppState {
 
   logged: boolean              // pasó el primer registro (P1-5 / P1-7)
   scale: SyringeScale          // escala de jeringa de la calculadora (P0-6)
-  draftDose: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; ts?: number } | null  // precarga de RegistrarSheet: calc (value/unit/recon), sitio del mapa (site) o fecha de backfill desde Diario (ts)
+  draftDose: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; ts?: number; overdue?: boolean } | null  // precarga de RegistrarSheet: calc (value/unit/recon), sitio del mapa (site), fecha de backfill (ts) o marca de dosis ATRASADA (overdue → pregunta "¿programado o cambio?")
   toast: string | null
   toastUndoId: string | null   // id del log a deshacer desde el toast (ej. dosis recién registrada)
   // buffer para deshacer borrado: el item + las muestras de history removidas (para restaurarlas en undo)
@@ -186,7 +186,7 @@ export type Action =
   | { t: 'setReminderTime'; time: string; product?: string }  // sin product → protocolo activo
   | { t: 'setRescueWindow'; minutes: 0 | 15 | 30 | 60 }  // item 168: ventana de rescate de notificación
   | { t: 'setScale'; scale: SyringeScale }
-  | { t: 'setDraftDose'; draft: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; ts?: number } | null }
+  | { t: 'setDraftDose'; draft: { value?: number; unit?: string; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; ts?: number; overdue?: boolean } | null }
   | { t: 'arcoDelete' }                                               // P0-5
   | { t: 'reset' }                                                    // P1-7
   | { t: 'replaceState'; state: Partial<AppState> }                  // restaurar respaldo completo
