@@ -29,6 +29,8 @@ import {
 import { SectionHero } from '../ui/SectionHero'
 import { HEROES } from '../lib/heroes'
 import { useApp, adherence, isoKey } from '../../lib/store'
+import { weekAdherencePct } from '../../lib/calendar'
+import { startOfDay } from '../../lib/cadence'
 import {
   avgKcal,
   kcalSeries,
@@ -596,24 +598,14 @@ export function Semana() {
   const adh = adherence(state, 7)
   const hasProtocol = Object.values(state.protocols).some((p) => !p.archived)
 
+  // Adherencia de la semana PREVIA — MISMA fuente que `adherence`/`tallyDoses` (cadencia-aware). Antes era un
+  // cálculo a mano que sumaba `due++` por cada protocolo CADA día ignorando la cadencia (contaba días de
+  // descanso como debidos) → divergía del % de la semana en curso. Ahora usa weekAdherencePct (vía tallyDoses).
   const adhPrevOnly = useMemo(() => {
-    let taken = 0, due = 0
-    const now = new Date(state.todayTs)
-    const activeProtocols = Object.values(state.protocols).filter((p) => !p.archived)
-    for (let i = 7; i < 14; i++) {
-      const d = new Date(now)
-      d.setDate(now.getDate() - i)
-      const k = isoKey(d.getTime())
-      const g = state.log.find((x) => x.dateKey === k)
-      for (const proto of activeProtocols) {
-        if (d.getTime() >= proto.startDate) {
-          due++
-          if (g?.items.some((it) => it.type === 'dose' && it.product === proto.product)) taken++
-        }
-      }
-    }
-    return due > 0 ? Math.round((taken / due) * 100) : null
-  }, [state.todayTs, state.log, state.protocols])
+    const today = startOfDay(new Date(state.todayTs))
+    const days = Array.from({ length: 7 }, (_, i) => new Date(today.getTime() - (13 - i) * DAY)) // días -13..-7
+    return weekAdherencePct(state, days, new Date())
+  }, [state])
 
   const adhDelta =
     adh && adhPrevOnly != null ? adh.pct - adhPrevOnly : null

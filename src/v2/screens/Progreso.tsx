@@ -28,6 +28,7 @@ import {
   type DayStateEx,
 } from '../../lib/calendar'
 import { buildIcs, downloadIcs } from '../../lib/calendar'
+import { dayModel } from '../../lib/dayModel'
 import { MEASURE_META } from '../../lib/catalog'
 import type { MeasureSample } from '../../lib/types'
 import { Glass } from '../ui/Glass'
@@ -190,28 +191,23 @@ function CalendarioTab() {
 
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth])
 
-  const dayStates = useMemo(() => {
+  // FUENTE ÚNICA: color (scheduleStatus, cadencia-only → racha/adherencia intactas) y el punto de "evento
+  // registrado" (hasVisibleEvent) salen del MISMO dayModel por día → calendario y detalle no se contradicen.
+  // `standaloneDays` ahora marca CUALQUIER día con dosis registrada (también off-cadencia de producto
+  // trackeado), no solo productos sin protocolo. El punto solo se pinta si el día no tiene ya color de estado.
+  const { dayStates, standaloneDays } = useMemo(() => {
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
-    const result: Record<string, DayStateEx> = {}
+    const states: Record<string, DayStateEx> = {}
+    const eventDays = new Set<string>()
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(viewYear, viewMonth, d)
       const key = `${viewYear}-${viewMonth}-${d}`
-      result[key] = dayStatusEx(state, date, now)
+      const dm = dayModel(state, date, now)
+      states[key] = dm.scheduleStatus
+      if (dm.hasVisibleEvent) eventDays.add(key)
     }
-    return result
+    return { dayStates: states, standaloneDays: eventDays }
   }, [state, viewYear, viewMonth, now])
-
-  // Días con una dosis STANDALONE (producto sin protocolo) — para marcarlos en el calendario (uso único).
-  const standaloneDays = useMemo(() => {
-    const set = new Set<string>()
-    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(viewYear, viewMonth, d)
-      const has = loggedItemsForDay(state, date).some((it) => it.type === 'dose' && it.product && !state.protocols[it.product])
-      if (has) set.add(`${viewYear}-${viewMonth}-${d}`)
-    }
-    return set
-  }, [state, viewYear, viewMonth])
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
@@ -338,19 +334,10 @@ function CalendarioTab() {
 
       {/* Detalle del día tocado: qué toca inyectar ese día y a qué hora (por producto) */}
       {selectedDay && (() => {
-        const protoProducts = dayProducts(state, selectedDay)
-        // COHERENCIA: el detalle debe mostrar CUALQUIER dosis registrada ese día, no solo las programadas por
-        // cadencia. Antes, una dosis de un producto CON protocolo en un día no-programado quedaba invisible
-        // (no estaba en protoProducts y el filtro standalone exige !protocolo) → el día salía "con dosis" en el
-        // color pero el detalle decía "Sin dosis programadas". Ahora unimos: programados ∪ registrados ese día.
-        const loggedProducts = [...new Set(
-          loggedItemsForDay(state, selectedDay)
-            .filter((it) => it.type === 'dose' && it.product)
-            .map((it) => it.product as string),
-        )]
-        const standalone = loggedProducts.filter((p) => !state.protocols[p] && !protoProducts.includes(p)) // uso único (sin protocolo)
-        const orphanLogged = loggedProducts.filter((p) => state.protocols[p] && !protoProducts.includes(p))  // tomada off-cadencia (con protocolo)
-        const products = [...protoProducts, ...orphanLogged, ...standalone]
+        // FUENTE ÚNICA: el detalle deriva del MISMO dayModel que el color del calendario → programados ∪ dosis
+        // registradas ese día (incluida off-cadencia de producto trackeado). Imposible que color y detalle se
+        // contradigan: comparten el objeto. dm.visibleProducts/dm.events ya traen el orden y los flags.
+        const dm = dayModel(state, selectedDay, now)
         const nowMs = now.getTime() // mismo instante vivo que el color del calendario (coherencia color↔detalle)
         const fecha = selectedDay.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
         return (
@@ -367,17 +354,18 @@ function CalendarioTab() {
                   <X size={16} />
                 </button>
               </div>
-              {products.length === 0 ? (
+              {dm.visibleProducts.length === 0 ? (
                 <p className="text-[13px] text-muted-foreground">Sin dosis programadas este día.</p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {products.map((p) => {
-                    const dueT = dueTime(state, selectedDay, p)
-                    const taken = doseTakenOnProduct(state, selectedDay, p)
-                    const skipped = doseSkippedOnProduct(state, selectedDay, p)
+                  {dm.events.map((e) => {
+                    const p = e.product
+                    const dueT = e.due
+                    const taken = e.taken
+                    const skipped = e.skipped
                     // Para una dosis TOMADA, mostrar la hora REAL a la que se registró (ts del log),
                     // no la hora programada del protocolo. Solo las pendientes muestran "Inyectar a las {programada}".
-                    const realTs = taken ? loggedDoseTs(state, selectedDay, p) : null
+                    const realTs = e.takenTs
                     const hora = (realTs != null ? new Date(realTs) : dueT)
                       .toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
                     const isStandalone = !state.protocols[p] // dosis de uso único (sin protocolo)
