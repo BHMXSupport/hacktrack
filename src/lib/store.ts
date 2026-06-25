@@ -713,6 +713,21 @@ export function reducer(s: AppState, a: Action): AppState {
           return s // duplicado por doble-tap → no registrar de nuevo
         }
       }
+      // Backstop anti-duplicado del MISMO DÍA: si ya existe una dosis IDÉNTICA (mismo producto+valor+unidad)
+      // en el día de esta toma, no la dupliques y AVISA (no silencioso). La cadencia es 1/día por producto, así
+      // que una segunda dosis idéntica el mismo día casi siempre es un re-registro accidental (p.ej. por dos
+      // rutas distintas). Retorna ANTES de incrementar vialStock → no descuenta el vial dos veces. Una corrección
+      // legítima usa otro valor (no se bloquea) o el editor del Diario.
+      {
+        const dayKey = isoKey(nowMsDup)
+        const dayGroup = s.log.find((g) => g.dateKey === dayKey)
+        if (dayGroup?.items.some((it) =>
+          it.type === 'dose' && it.product === a.product &&
+          it.value === (a.value ?? null) && it.unit === a.unit,
+        )) {
+          return { ...s, toast: `Ya hay una dosis de ${a.product} registrada ese día` }
+        }
+      }
       const rawNote = a.note?.trim().slice(0, 200)   // nota opcional (#29: 200, alineado con el input)
       const item: LogItem = {
         id: genId(),

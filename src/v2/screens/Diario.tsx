@@ -807,8 +807,9 @@ export function Diario() {
     return info
   }, [pf, state.protocols, state.todayTs])
 
-  // presencia farmacológica
-  const presenceData = useMemo(() => presenceNow(state, state.todayTs), [state])
+  // presencia farmacológica — instante VIVO (adhNow, tick 30 s), no la medianoche (state.todayTs). Antes
+  // divergía de Vida (que usa now real): para péptidos de t½ corta la presencia a las 00:00 ≠ la de la tarde.
+  const presenceData = useMemo(() => presenceNow(state, adhNow), [state, adhNow])
 
   // timeline con gaps
   const timelineEntries = useMemo(() => {

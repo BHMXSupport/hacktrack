@@ -171,7 +171,14 @@ function DayCell({
 function CalendarioTab() {
   const { state } = useApp()
   const reduce = useReducedMotion()
-  const now = useMemo(() => new Date(), [])
+  // Reloj vivo (tick 30 s) — IGUAL que Inicio/Diario/Vida. Antes era un `useMemo(()=>new Date(),[])` capturado
+  // al montar → el color de las celdas (vía dayStatusEx) quedaba rancio cruzando medianoche/la hora de una toma,
+  // discrepando del detalle del día que usa Date.now() fresco. Ahora ambos derivan del mismo instante vivo.
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
   const today = useMemo(() => startOfDay(now), [now])
 
   const [viewYear, setViewYear] = useState(today.getFullYear())
@@ -332,14 +339,19 @@ function CalendarioTab() {
       {/* Detalle del día tocado: qué toca inyectar ese día y a qué hora (por producto) */}
       {selectedDay && (() => {
         const protoProducts = dayProducts(state, selectedDay)
-        // Dosis STANDALONE: registradas ese día para un producto SIN protocolo (uso único). También aparecen aquí.
-        const standalone = [...new Set(
+        // COHERENCIA: el detalle debe mostrar CUALQUIER dosis registrada ese día, no solo las programadas por
+        // cadencia. Antes, una dosis de un producto CON protocolo en un día no-programado quedaba invisible
+        // (no estaba en protoProducts y el filtro standalone exige !protocolo) → el día salía "con dosis" en el
+        // color pero el detalle decía "Sin dosis programadas". Ahora unimos: programados ∪ registrados ese día.
+        const loggedProducts = [...new Set(
           loggedItemsForDay(state, selectedDay)
             .filter((it) => it.type === 'dose' && it.product)
             .map((it) => it.product as string),
-        )].filter((p) => !state.protocols[p] && !protoProducts.includes(p))
-        const products = [...protoProducts, ...standalone]
-        const nowMs = Date.now()
+        )]
+        const standalone = loggedProducts.filter((p) => !state.protocols[p] && !protoProducts.includes(p)) // uso único (sin protocolo)
+        const orphanLogged = loggedProducts.filter((p) => state.protocols[p] && !protoProducts.includes(p))  // tomada off-cadencia (con protocolo)
+        const products = [...protoProducts, ...orphanLogged, ...standalone]
+        const nowMs = now.getTime() // mismo instante vivo que el color del calendario (coherencia color↔detalle)
         const fecha = selectedDay.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
         return (
           <motion.div variants={reduce ? {} : fade}>

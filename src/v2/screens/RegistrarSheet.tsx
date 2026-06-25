@@ -138,13 +138,16 @@ function WheelCol({
 
 function TimeWheelV2({
   onChange,
+  baseTs,
 }: {
   onChange: (ts: number | null) => void  // null = "Ahora"
+  baseTs?: number | null                 // día base a preservar (backfill de dosis atrasada). Sin él → hoy.
 }) {
-  const now = new Date()
-  const h24 = now.getHours()
+  // Inicializa los wheels desde baseTs (p.ej. el día atrasado precargado) o desde ahora.
+  const base = baseTs != null ? new Date(baseTs) : new Date()
+  const h24 = base.getHours()
   const [hi, setHi] = useState(((h24 % 12) || 12) - 1)
-  const [mi, setMi] = useState(Math.round(now.getMinutes() / 5) % 12)
+  const [mi, setMi] = useState(Math.round(base.getMinutes() / 5) % 12)
   const [ai, setAi] = useState(h24 >= 12 ? 1 : 0)
   const first = useRef(true)
 
@@ -155,7 +158,9 @@ function TimeWheelV2({
     const h = HOURS[hi]
     let hour = h % 12
     if (ai === 1) hour += 12
-    const d = new Date()
+    // BUG FIX (coherencia de fecha): preservar el DÍA de baseTs (la dosis atrasada) y solo cambiar HH:MM.
+    // Antes `new Date()` reanclaba al día de HOY al girar → una dosis atrasada se grababa hoy.
+    const d = baseTs != null ? new Date(baseTs) : new Date()
     d.setHours(hour, MINS5[mi], 0, 0)
     onChange(d.getTime())
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1032,6 +1037,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 style={{ overflow: 'hidden' }}
               >
                 <TimeWheelV2
+                  baseTs={wheelTs ?? undefined}
                   onChange={(ts) => {
                     setWheelTs(ts)
                   }}
