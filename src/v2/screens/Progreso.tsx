@@ -3,11 +3,10 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   ChevronLeft,
   ChevronRight,
-  Circle,
   CheckCircle2,
   XCircle,
-  MinusCircle,
   Ban,
+  Clock,
   Calendar,
   TrendingUp,
   FileText,
@@ -112,7 +111,10 @@ function DayCell({
 
   let bg = ''
   let textCls = 'text-muted-foreground'
-  let dotColor = ''
+  // Marcador del día = MISMO ícono (y color) que la leyenda → forma + color, accesible. Antes era un punto de
+  // color liso que NO coincidía con los íconos de la leyenda (reporte de Jan).
+  let MarkIcon: typeof CheckCircle2 | null = null
+  let markCls = ''
 
   if (isToday) {
     bg = 'ring-1 ring-[var(--teal)] bg-[var(--teal)]/15'
@@ -122,31 +124,27 @@ function DayCell({
   if (eff === 'taken') {
     bg = 'bg-teal/20'
     textCls = 'text-teal font-semibold'
-    dotColor = 'bg-teal'
+    MarkIcon = CheckCircle2; markCls = 'text-teal'
   } else if (eff === 'missed') {
     bg = 'bg-alert/15'
     textCls = 'text-alert font-medium'
-    dotColor = 'bg-alert'
+    MarkIcon = XCircle; markCls = 'text-alert'
   } else if (eff === 'scheduled') {
     bg = isToday ? bg : 'bg-warn/10'
     textCls = isToday ? textCls : 'text-warn font-medium'
-    dotColor = 'bg-warn'
-  } else if (eff === 'rest') {
-    textCls = 'text-muted-foreground'
+    MarkIcon = Clock; markCls = 'text-warn'
   } else if (eff === 'skipped') {
     bg = 'bg-purple-500/10'
     textCls = 'text-purple-300 font-medium'
-    dotColor = 'bg-purple-400'
+    MarkIcon = Ban; markCls = 'text-purple-300'
+  } else if (eff === 'rest') {
+    textCls = 'text-muted-foreground'
   }
 
-  if (isToday && eff !== 'taken') {
-    dotColor = 'bg-teal'
-  }
-
-  // Dosis standalone (uso único, sin protocolo): si el día no tiene estado de protocolo, márcalo con punto teal.
-  if (standalone && !dotColor) {
+  // Dosis registrada off-cadencia / uso único en un día sin estado de protocolo → "Con dosis" (mismo ícono).
+  if (!MarkIcon && standalone) {
     if (!isToday) bg = bg || 'bg-teal/10'
-    dotColor = 'bg-teal'
+    MarkIcon = CheckCircle2; markCls = 'text-teal'
   }
 
   return (
@@ -159,8 +157,8 @@ function DayCell({
         aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : eff === 'skipped' ? ', dosis saltada' : ''}. Toca para ver el detalle del día.`}
       >
         <span className={`text-[13px] leading-none ${textCls}`}>{label}</span>
-        {dotColor && (
-          <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${dotColor}`} aria-hidden />
+        {MarkIcon && (
+          <MarkIcon size={11} strokeWidth={2.5} className={`mt-0.5 ${markCls}`} aria-hidden />
         )}
       </button>
     </div>
@@ -400,11 +398,10 @@ function CalendarioTab() {
       <Glass className="flex flex-col gap-2 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Leyenda</p>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <LegendItem color="bg-teal" icon={<CheckCircle2 size={15} className="text-teal" />} label="Con dosis" />
-          <LegendItem color="bg-alert" icon={<XCircle size={15} className="text-alert" />} label="Omitida" />
-          <LegendItem color="bg-purple-400" icon={<Ban size={15} className="text-purple-300" />} label="Saltada" />
-          <LegendItem color="bg-teal/60" icon={<MinusCircle size={15} className="text-[#5FC9B8]/60" />} label="Día libre" />
-          <LegendItem color="bg-muted-foreground/40" icon={<Circle size={15} className="text-muted-foreground/40" />} label="Sin protocolo" />
+          <LegendItem color="bg-teal" icon={<CheckCircle2 size={15} strokeWidth={2.5} className="text-teal" />} label="Con dosis" />
+          <LegendItem color="bg-warn" icon={<Clock size={15} strokeWidth={2.5} className="text-warn" />} label="Programada" />
+          <LegendItem color="bg-alert" icon={<XCircle size={15} strokeWidth={2.5} className="text-alert" />} label="Omitida" />
+          <LegendItem color="bg-purple-400" icon={<Ban size={15} strokeWidth={2.5} className="text-purple-300" />} label="Saltada" />
           <LegendItem
             color="bg-teal/60"
             icon={<span className="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-[var(--teal)]" />}
