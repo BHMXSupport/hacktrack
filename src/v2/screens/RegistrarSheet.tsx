@@ -646,11 +646,13 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 <span className="text-[14px] font-semibold capitalize text-foreground">El {fechaProg}, como estaba programado</span>
                 <span className="text-[12px] text-muted-foreground">Se guarda en su día programado.</span>
               </button>
-              {/* Hubo un cambio: me la puse hoy → REGISTRA HOY (día real conocido) y pasa al paso 2 (ajustar protocolo) */}
+              {/* Hubo un cambio: me la puse hoy → REGISTRA HOY (día real) + marca la ocurrencia programada
+                  atrasada como RESUELTA (skip silencioso) para que deje de aparecer como pendiente/fallada en
+                  Inicio (bug: antes el día programado seguía sin toma ni skip → seguía en pendingDoses). Pasa al paso 2. */}
               <button
                 type="button"
                 disabled={saving}
-                onClick={() => { setSaving(true); doLog(todayTs); setDateChoice(null); setProtocolAdjustPrompt({ product: m.product }) }}
+                onClick={() => { setSaving(true); doLog(todayTs); dispatch({ t: 'logSkip', product: m.product, ts: m.scheduledTs, keepSheet: true }); setDateChoice(null); setProtocolAdjustPrompt({ product: m.product }) }}
                 className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
                 <span className="text-[14px] font-semibold capitalize text-foreground">Hoy ({fechaHoy}) — hubo un cambio</span>
