@@ -177,7 +177,7 @@ export type Action =
   | { t: 'setLogEffect'; id: string; effect: string; effectIntensity?: number } // loop 139: guarda efecto post-dosis en un item ya registrado
   | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
-  | { t: 'logSkip'; product: string; ts?: number; keepSheet?: boolean } // dosis intencional saltada (no penaliza adherencia). keepSheet: parte de un flujo mayor → no cierra ni toastea
+  | { t: 'logSkip'; product: string; ts?: number; keepSheet?: boolean; late?: boolean } // dosis saltada (no penaliza adherencia). keepSheet: flujo mayor → no cierra ni toastea. late: marca la ocurrencia como "tomada tarde" (la dosis real va en otro día)
   | { t: 'deleteLog'; id: string }                                    // P1-1
   | { t: 'setSetting'; key: keyof UserSettings; value: boolean | string | number | null }
   | { t: 'setThemeMode'; mode: ThemeMode }                              // modo de tema: auto | light | dark
@@ -817,6 +817,7 @@ export function reducer(s: AppState, a: Action): AppState {
         type: 'skip',
         ts: now.getTime(),
         product: a.product,
+        ...(a.late ? { late: true } : {}), // "tomada tarde": la dosis real se registró en otro día (hoy)
       }
       // keepSheet: el skip es parte de un flujo mayor (p.ej. al registrar una dosis atrasada "hoy" se marca
       // la ocurrencia programada como resuelta para que deje de aparecer como pendiente) → no cerrar ni toastear.

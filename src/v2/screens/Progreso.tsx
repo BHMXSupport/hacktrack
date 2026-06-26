@@ -7,6 +7,7 @@ import {
   XCircle,
   Ban,
   Clock,
+  History,
   Calendar,
   TrendingUp,
   FileText,
@@ -89,6 +90,7 @@ function DayCell({
   isToday,
   isSelected,
   standalone,
+  lateResolved,
   onSelect,
 }: {
   date: Date | null
@@ -96,6 +98,7 @@ function DayCell({
   isToday: boolean
   isSelected?: boolean
   standalone?: boolean
+  lateResolved?: boolean
   onSelect?: (d: Date) => void
 }) {
   if (!date) return <div role="gridcell" className="h-11" aria-hidden />
@@ -134,9 +137,16 @@ function DayCell({
     textCls = isToday ? textCls : 'text-warn font-medium'
     MarkIcon = Clock; markCls = 'text-warn'
   } else if (eff === 'skipped') {
-    bg = 'bg-purple-500/10'
-    textCls = 'text-purple-300 font-medium'
-    MarkIcon = Ban; markCls = 'text-purple-300'
+    if (lateResolved) {
+      // "Tomada tarde": la dosis real se registró otro día; esta ocurrencia se cumplió tarde (neutral, no saltada).
+      bg = 'bg-teal/12'
+      textCls = 'text-teal font-medium'
+      MarkIcon = History; markCls = 'text-teal'
+    } else {
+      bg = 'bg-purple-500/10'
+      textCls = 'text-purple-300 font-medium'
+      MarkIcon = Ban; markCls = 'text-purple-300'
+    }
   } else if (eff === 'rest') {
     textCls = 'text-muted-foreground'
   }
@@ -193,18 +203,20 @@ function CalendarioTab() {
   // registrado" (hasVisibleEvent) salen del MISMO dayModel por día → calendario y detalle no se contradicen.
   // `standaloneDays` ahora marca CUALQUIER día con dosis registrada (también off-cadencia de producto
   // trackeado), no solo productos sin protocolo. El punto solo se pinta si el día no tiene ya color de estado.
-  const { dayStates, standaloneDays } = useMemo(() => {
+  const { dayStates, standaloneDays, lateDays } = useMemo(() => {
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
     const states: Record<string, DayStateEx> = {}
     const eventDays = new Set<string>()
+    const lateSet = new Set<string>()
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(viewYear, viewMonth, d)
       const key = `${viewYear}-${viewMonth}-${d}`
       const dm = dayModel(state, date, now)
       states[key] = dm.scheduleStatus
       if (dm.hasVisibleEvent) eventDays.add(key)
+      if (dm.hasLateResolved) lateSet.add(key)
     }
-    return { dayStates: states, standaloneDays: eventDays }
+    return { dayStates: states, standaloneDays: eventDays, lateDays: lateSet }
   }, [state, viewYear, viewMonth, now])
 
   function prevMonth() {
@@ -320,6 +332,7 @@ function CalendarioTab() {
                       isToday={isToday}
                       isSelected={isSelected}
                       standalone={stateKey ? standaloneDays.has(stateKey) : false}
+                      lateResolved={stateKey ? lateDays.has(stateKey) : false}
                       onSelect={setSelectedDay}
                     />
                   )
@@ -372,7 +385,9 @@ function CalendarioTab() {
                       : taken
                       ? { label: 'Tomada', cls: 'text-teal bg-teal/12', dot: 'bg-teal' }
                       : skipped
-                        ? { label: 'Saltada', cls: 'text-purple-300 bg-purple-500/12', dot: 'bg-purple-400' }
+                        ? (e.lateResolved
+                            ? { label: 'Tomada tarde', cls: 'text-teal bg-teal/12', dot: 'bg-teal' }
+                            : { label: 'Saltada', cls: 'text-purple-300 bg-purple-500/12', dot: 'bg-purple-400' })
                         : dueT.getTime() < nowMs
                           ? { label: 'Omitida', cls: 'text-alert bg-alert/12', dot: 'bg-alert' }
                           : { label: 'Programada', cls: 'text-warn bg-warn/12', dot: 'bg-warn' }
@@ -381,7 +396,7 @@ function CalendarioTab() {
                         <span className={`h-2 w-2 shrink-0 rounded-full ${st.dot}`} aria-hidden />
                         <div className="flex min-w-0 flex-1 flex-col">
                           <span className="truncate text-[13px] font-medium text-foreground">{p}</span>
-                          <span className="font-mono text-[11px] text-muted-foreground">{realTs != null ? `Registrada a las ${hora}` : `Inyectar a las ${hora}`}</span>
+                          <span className="font-mono text-[11px] text-muted-foreground">{realTs != null ? `Registrada a las ${hora}` : e.lateResolved ? 'Registrada en otra fecha' : `Inyectar a las ${hora}`}</span>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
                       </div>
@@ -402,6 +417,7 @@ function CalendarioTab() {
           <LegendItem color="bg-warn" icon={<Clock size={15} strokeWidth={2.5} className="text-warn" />} label="Programada" />
           <LegendItem color="bg-alert" icon={<XCircle size={15} strokeWidth={2.5} className="text-alert" />} label="Omitida" />
           <LegendItem color="bg-purple-400" icon={<Ban size={15} strokeWidth={2.5} className="text-purple-300" />} label="Saltada" />
+          <LegendItem color="bg-teal" icon={<History size={15} strokeWidth={2.5} className="text-teal" />} label="Tomada tarde" />
           <LegendItem
             color="bg-teal/60"
             icon={<span className="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-[var(--teal)]" />}

@@ -125,6 +125,7 @@ export interface LogItem {
   product?: string // producto de la dosis (para adherencia por producto)
   doseMg?: number  // dosis en mg CANÓNICOS (convertida desde UI/mL con la reconstitución) — para vida media/presencia
   site?: InjectionSite // sitio de inyección elegido por el usuario (loop 140)
+  late?: boolean   // (solo type='skip') marca la ocurrencia programada como TOMADA TARDE — la dosis real se registró en otro día (hoy). Neutral para adherencia; se muestra "Tomada tarde", no "Saltada".
   note?: string    // nota libre del usuario (≤120 chars) — dato observacional, no consejo médico (loop 138)
   effect?: string  // efecto/síntoma auto-observado post-dosis (dato personal del usuario, no claim de eficacia) (loop 139)
   effectIntensity?: number  // intensidad 0–100 del efecto auto-observado (opcional; se muestra en Diario / última toma)

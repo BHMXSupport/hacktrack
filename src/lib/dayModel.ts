@@ -28,6 +28,7 @@ export interface DayProductEvent {
   taken: boolean            // hay un item type:'dose' de este producto este día (LOG)
   skipped: boolean          // hay un item type:'skip' intencional este día (LOG)
   offCadence: boolean       // taken && tiene protocolo && NO estaba programado ese día (evento, no obligación)
+  lateResolved: boolean     // skip con late=true → "Tomada tarde" (la dosis real se registró en otro día/hoy)
   takenTs: number | null    // ts REAL del log (hora a mostrar para tomadas), o null
   due: Date                 // hora programada del día para ese producto (reminderTime propio)
 }
@@ -42,6 +43,7 @@ export interface DayModel {
   events: DayProductEvent[]     // una entrada por producto en visibleProducts, con todos los flags
   scheduleStatus: DayStateEx    // IDÉNTICO a dayStatusEx (scheduled-only) — color del calendario, NO se modifica
   hasVisibleEvent: boolean      // ¿hubo alguna dosis/skip real ese día? (señal de evento, separada de la adherencia)
+  hasLateResolved: boolean      // ¿hay una ocurrencia marcada "tomada tarde" ese día? (skip con late) → ícono propio
 }
 
 export function dayModel(s: AppState, date: Date, now: Date): DayModel {
@@ -49,6 +51,7 @@ export function dayModel(s: AppState, date: Date, now: Date): DayModel {
   const items = loggedItemsForDay(s, date)
   const takenProducts = [...new Set(items.filter((it) => it.type === 'dose' && it.product).map((it) => it.product as string))]
   const skippedProducts = [...new Set(items.filter((it) => it.type === 'skip' && it.product).map((it) => it.product as string))]
+  const lateProducts = [...new Set(items.filter((it) => it.type === 'skip' && it.late && it.product).map((it) => it.product as string))]
   const loggedProducts = [...new Set([...takenProducts, ...skippedProducts])]
 
   const isOff = (p: string) => takenProducts.includes(p) && !!s.protocols[p] && !scheduledProducts.includes(p)
@@ -68,6 +71,7 @@ export function dayModel(s: AppState, date: Date, now: Date): DayModel {
       taken,
       skipped,
       offCadence: isOff(product),
+      lateResolved: lateProducts.includes(product),
       takenTs: taken ? loggedDoseTs(s, date, product) : null,
       due: dueTime(s, date, product),
     }
@@ -84,5 +88,6 @@ export function dayModel(s: AppState, date: Date, now: Date): DayModel {
     // scheduleStatus se computa con la MISMA función de hoy (cadencia-only) → racha/adherencia intactas.
     scheduleStatus: dayStatusEx(s, date, now),
     hasVisibleEvent: loggedProducts.length > 0,
+    hasLateResolved: lateProducts.length > 0,
   }
 }
