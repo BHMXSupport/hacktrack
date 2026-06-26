@@ -46,9 +46,10 @@ export const BEATS_W: Beat[] = [
   { key: 'caos', dur: 219, kind: 'caos', vo: 'promo/d-caos.wav', headline: 'El caos de antes', sub: '5 apps y las notas del celu…' },
   { key: 'reveal', dur: 66, kind: 'reveal', screen: 'promo/screen-inicio.png', vo: 'promo/d-reveal.wav', headline: 'Hacktrack' },
   { key: 'glp', dur: 165, kind: 'hero-glp', screen: 'promo/screen-calendario.png', vo: 'promo/d-glp.wav', label: 'TU GLP-1', headline: 'Tu GLP-1, ordenado', sub: 'te recuerda + lleva tu racha' },
-  { key: 'nutri', dur: 138, kind: 'hero-nutri', video: 'promo/clip-comida.mp4', vo: 'promo/d-nutri.wav', label: 'NUTRICIÓN', headline: 'Calorías, macros y agua', pills: ['kcal', 'proteína', 'ayuno', 'agua'], dir: 1 },
+  { key: 'nutri', dur: 138, kind: 'hero-nutri', video: 'promo/clip-comida.mp4', vo: 'promo/d-nutri.wav', label: 'NUTRICIÓN', headline: 'Calorías, macros y agua', sub: 'todo junto', dir: 1 },
   { key: 'bien', dur: 126, kind: 'phone', screen: 'promo/screen-medida.png', vo: 'promo/d-bien.wav', label: 'BIENESTAR', headline: 'Cómo te sientes', pills: ['sueño', 'energía', 'peso', 'ánimo'], dir: -1 },
-  { key: 'priv', dur: 120, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-priv.wav', label: 'PRIVADO', headline: 'Tus datos son tuyos', sub: 'en tu teléfono · sin cuenta', dir: 1 },
+  { key: 'vida', dur: 162, kind: 'phone', screen: 'promo/screen-vida.png', vo: 'promo/d-vida.wav', label: 'LA CIENCIA', headline: 'Tu cuerpo, hora a hora', sub: 'cuánto sigue activo cada compuesto', dir: 1 },
+  { key: 'priv', dur: 120, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-priv.wav', label: 'PRIVADO', headline: 'Tus datos son tuyos', sub: 'en tu teléfono · sin cuenta', dir: -1 },
   { key: 'cta', dur: 138, kind: 'close', vo: 'promo/d-cta.wav', headline: 'Hacktrack', sub: 'Tu salud, en una sola pantalla' },
 ]
 export const PROMO_W_TOTAL = BEATS_W.reduce((a, b) => a + b.dur, 0)
@@ -90,7 +91,7 @@ const Background: React.FC = () => {
 }
 
 // ── Teléfono: tilt-3D + glare + slide-in lateral ──
-const Phone: React.FC<{ enter: number; float: number; dir?: number; children: React.ReactNode; top?: number; width?: number }> = ({ enter, float, dir = 0, children, top = 560, width = 500 }) => {
+const Phone: React.FC<{ enter: number; float: number; dir?: number; children: React.ReactNode; top?: number; width?: number }> = ({ enter, float, dir = 0, children, top = 452, width = 624 }) => {
   const frame = useCurrentFrame()
   const tx = interpolate(enter, [0, 1], [dir * 150, 0])
   const ty = interpolate(enter, [0, 1], [40, 0]) + float
@@ -239,13 +240,14 @@ const HeroGlp: React.FC<{ b: Beat; enter: number }> = ({ b, enter }) => {
   return (
     <AbsoluteFill>
       <KineticCaption b={b} />
-      <div style={{ position: 'absolute', top: 470, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
-        <HeroRing pct={90} enter={enter} />
+      <div style={{ position: 'absolute', top: 372, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 44 }}>
+        <HeroRing pct={90} enter={enter} size={216} />
+        <div style={{ textAlign: 'left', transform: `translateY(${float}px)`, opacity: interpolate(enter, [0.3, 1], [0, 1], { extrapolateLeft: 'clamp' }) }}>
+          <div style={{ fontFamily: SANS, fontSize: 96, fontWeight: 800, color: FG, lineHeight: 1 }}>🔥{streak}</div>
+          <div style={{ fontFamily: SANS, fontSize: 34, fontWeight: 600, color: MUTED, marginTop: 6 }}>días de racha</div>
+        </div>
       </div>
-      <div style={{ position: 'absolute', top: 800, left: 0, right: 0, textAlign: 'center', transform: `translateY(${float}px)`, opacity: interpolate(enter, [0.3, 1], [0, 1], { extrapolateLeft: 'clamp' }) }}>
-        <span style={{ fontFamily: SANS, fontSize: 64, fontWeight: 800, color: FG }}>🔥 {streak} <span style={{ color: MUTED, fontSize: 38, fontWeight: 600 }}>días de racha</span></span>
-      </div>
-      <Phone enter={enter} float={float} dir={b.dir} top={1010} width={420}><Screen src={b.screen!} /></Phone>
+      <Phone enter={enter} float={float} dir={b.dir} top={648} width={548}><Screen src={b.screen!} /></Phone>
     </AbsoluteFill>
   )
 }
@@ -259,23 +261,23 @@ const HeroNutri: React.FC<{ b: Beat; enter: number }> = ({ b, enter }) => {
   return (
     <AbsoluteFill>
       <KineticCaption b={b} />
-      <div style={{ position: 'absolute', top: 470, left: 0, right: 0, textAlign: 'center' }}>
-        <span style={{ fontFamily: MONO, fontSize: 96, fontWeight: 700, color: TEAL_BRIGHT }}>{kcal.toLocaleString('es-MX')}</span>
-        <span style={{ fontFamily: MONO, fontSize: 34, color: MUTED, marginLeft: 10 }}>kcal</span>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 24 }}>
+      <div style={{ position: 'absolute', top: 388, left: 0, right: 0, textAlign: 'center' }}>
+        <span style={{ fontFamily: MONO, fontSize: 100, fontWeight: 700, color: TEAL_BRIGHT }}>{kcal.toLocaleString('es-MX')}</span>
+        <span style={{ fontFamily: MONO, fontSize: 36, color: MUTED, marginLeft: 10 }}>kcal</span>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 22 }}>
           {macros.map((m, i) => {
             const w = interpolate(enter, [0.2, 1], [0, 1], { extrapolateLeft: 'clamp' })
             return (
-              <div key={m.l} style={{ width: 190 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: 20, color: MUTED, marginBottom: 6 }}><span>{m.l}</span><span style={{ color: FG }}>{Math.round(m.v * w)}g</span></div>
-                <div style={{ height: 10, borderRadius: 6, background: 'rgba(255,255,255,0.08)' }}><div style={{ width: `${w * (50 + i * 18)}%`, height: '100%', borderRadius: 6, background: m.c }} /></div>
+              <div key={m.l} style={{ width: 200 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: 21, color: MUTED, marginBottom: 6 }}><span>{m.l}</span><span style={{ color: FG }}>{Math.round(m.v * w)}g</span></div>
+                <div style={{ height: 11, borderRadius: 6, background: 'rgba(255,255,255,0.08)' }}><div style={{ width: `${w * (50 + i * 18)}%`, height: '100%', borderRadius: 6, background: m.c }} /></div>
               </div>
             )
           })}
         </div>
       </div>
-      <Phone enter={enter} float={float} dir={b.dir} top={1010} width={420}>
-        <OffthreadVideo src={staticFile(b.video!)} trimBefore={16} muted style={{ width: '100%', display: 'block' }} />
+      <Phone enter={enter} float={float} dir={b.dir} top={648} width={548}>
+        <OffthreadVideo src={staticFile(b.video!)} trimBefore={2} muted style={{ width: '100%', display: 'block' }} />
       </Phone>
     </AbsoluteFill>
   )
