@@ -42,15 +42,15 @@ type Beat = {
 }
 
 export const BEATS_W: Beat[] = [
-  { key: 'hook', dur: 234, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-hook.wav', headline: 'Todo en una sola app', pills: ['GLP-1', 'calorías', 'macros', 'sueño', 'peso', '+20'], dir: -1 },
-  { key: 'caos', dur: 240, kind: 'caos', vo: 'promo/d-caos.wav', headline: 'El caos de antes', sub: '5 apps y las notas del celu…' },
-  { key: 'reveal', dur: 66, kind: 'reveal', screen: 'promo/screen-inicio.png', vo: 'promo/d-reveal.wav', headline: 'Hacktrack' },
-  { key: 'glp', dur: 171, kind: 'hero-glp', screen: 'promo/screen-calendario.png', vo: 'promo/d-glp.wav', label: 'TU GLP-1', headline: 'Tu GLP-1, ordenado', sub: 'te recuerda + lleva tu racha' },
-  { key: 'nutri', dur: 147, kind: 'hero-nutri', video: 'promo/clip-comida.mp4', vo: 'promo/d-nutri.wav', label: 'NUTRICIÓN', headline: 'Calorías, macros y agua', sub: 'todo junto', dir: 1 },
-  { key: 'bien', dur: 132, kind: 'phone', screen: 'promo/screen-medida.png', vo: 'promo/d-bien.wav', label: 'BIENESTAR', headline: 'Cómo te sientes', pills: ['sueño', 'energía', 'peso', 'ánimo'], dir: -1 },
-  { key: 'vida', dur: 180, kind: 'phone', screen: 'promo/screen-vida.png', vo: 'promo/d-vida.wav', label: 'LA CIENCIA', headline: 'Tu cuerpo, hora a hora', sub: 'cuánto sigue activo cada compuesto', dir: 1 },
+  { key: 'hook', dur: 222, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-hook.wav', headline: 'Todo en una sola app', pills: ['GLP-1', 'calorías', 'macros', 'sueño', 'peso', '+20'], dir: -1 },
+  { key: 'caos', dur: 252, kind: 'caos', vo: 'promo/d-caos.wav', headline: 'El caos de antes', sub: '5 apps y las notas del celu…' },
+  { key: 'reveal', dur: 72, kind: 'reveal', screen: 'promo/screen-inicio.png', vo: 'promo/d-reveal.wav', headline: 'Hacktrack' },
+  { key: 'glp', dur: 204, kind: 'hero-glp', screen: 'promo/screen-calendario.png', vo: 'promo/d-glp.wav', label: 'TU GLP-1', headline: 'Tu GLP-1, ordenado', sub: 'te recuerda + lleva tu racha' },
+  { key: 'nutri', dur: 150, kind: 'hero-nutri', video: 'promo/clip-comida.mp4', vo: 'promo/d-nutri.wav', label: 'NUTRICIÓN', headline: 'Calorías, macros y agua', sub: 'todo junto', dir: 1 },
+  { key: 'bien', dur: 156, kind: 'phone', screen: 'promo/screen-medida.png', vo: 'promo/d-bien.wav', label: 'BIENESTAR', headline: 'Cómo te sientes', pills: ['sueño', 'energía', 'peso', 'ánimo'], dir: -1 },
+  { key: 'vida', dur: 186, kind: 'phone', screen: 'promo/screen-vida.png', vo: 'promo/d-vida.wav', label: 'LA CIENCIA', headline: 'Tu cuerpo, hora a hora', sub: 'cuánto sigue activo cada compuesto', dir: 1 },
   { key: 'priv', dur: 138, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-priv.wav', label: 'PRIVADO', headline: 'Tus datos son tuyos', sub: 'en tu teléfono · sin cuenta', dir: -1 },
-  { key: 'cta', dur: 150, kind: 'close', vo: 'promo/d-cta.wav', headline: 'Hacktrack', sub: 'Tu salud, en una sola pantalla' },
+  { key: 'cta', dur: 159, kind: 'close', vo: 'promo/d-cta.wav', headline: 'Hacktrack', sub: 'Tu salud, en una sola pantalla' },
 ]
 export const PROMO_W_TOTAL = BEATS_W.reduce((a, b) => a + b.dur, 0)
 const startOf = (i: number) => BEATS_W.slice(0, i).reduce((a, x) => a + x.dur, 0)
@@ -339,7 +339,7 @@ export const PromoWellness: React.FC = () => {
     <AbsoluteFill>
       <Background />
       {/* música de fondo (colchón ambiental, bajo en la mezcla) */}
-      <Audio src={staticFile('promo/music.wav')} volume={0.16} />
+      <Audio src={staticFile('promo/music.wav')} volume={0.4} />
       {BEATS_W.map((b, i) => {
         const start = startOf(i)
         return (
@@ -347,12 +347,12 @@ export const PromoWellness: React.FC = () => {
             <BeatView b={b} />
             <Audio src={staticFile(b.vo)} />
             {/* whoosh en cada transición de beat */}
-            <Audio src={staticFile('promo/whoosh.wav')} volume={0.35} />
+            <Audio src={staticFile('promo/whoosh.wav')} volume={0.6} />
           </Sequence>
         )
       })}
       {/* ding en el reveal */}
-      <Sequence from={startOf(2) + 4} durationInFrames={30}><Audio src={staticFile('promo/ding.wav')} volume={0.4} /></Sequence>
+      <Sequence from={startOf(2) + 4} durationInFrames={30}><Audio src={staticFile('promo/ding.wav')} volume={0.75} /></Sequence>
       <ProgressBar />
     </AbsoluteFill>
   )
