@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import {
-  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp, SkipForward, AlertTriangle, Ruler,
+  Shield, Droplet, ChevronRight, Check, Clock, X, ChevronDown, ChevronUp, SkipForward, AlertTriangle, Ruler, Flame,
 } from 'lucide-react'
 import { useApp, nextInjectionSite, doseForProduct, adherenceMonth } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
@@ -373,9 +373,17 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
               unit="%"
               label="adherencia"
               sub={
-                streak > 0
-                  ? `racha ${streak} d${streakStart ? ` · desde ${streakStart.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}` : ''}`
-                  : undefined
+                streak > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-teal/25 bg-teal/10 px-3 py-1 text-[11px] font-medium text-teal shadow-[0_0_0_3px_rgba(95,201,184,0.04)]">
+                    <Flame size={12} className="shrink-0" />
+                    racha {streak} d
+                    {streakStart ? (
+                      <span className="text-muted-foreground">
+                        · desde {streakStart.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : undefined
               }
               size={132}
               stroke={11}
