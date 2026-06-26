@@ -43,14 +43,14 @@ type Beat = {
 
 export const BEATS_W: Beat[] = [
   { key: 'hook', dur: 234, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-hook.wav', headline: 'Todo en una sola app', pills: ['GLP-1', 'calorías', 'macros', 'sueño', 'peso', '+20'], dir: -1 },
-  { key: 'caos', dur: 219, kind: 'caos', vo: 'promo/d-caos.wav', headline: 'El caos de antes', sub: '5 apps y las notas del celu…' },
+  { key: 'caos', dur: 240, kind: 'caos', vo: 'promo/d-caos.wav', headline: 'El caos de antes', sub: '5 apps y las notas del celu…' },
   { key: 'reveal', dur: 66, kind: 'reveal', screen: 'promo/screen-inicio.png', vo: 'promo/d-reveal.wav', headline: 'Hacktrack' },
-  { key: 'glp', dur: 165, kind: 'hero-glp', screen: 'promo/screen-calendario.png', vo: 'promo/d-glp.wav', label: 'TU GLP-1', headline: 'Tu GLP-1, ordenado', sub: 'te recuerda + lleva tu racha' },
-  { key: 'nutri', dur: 138, kind: 'hero-nutri', video: 'promo/clip-comida.mp4', vo: 'promo/d-nutri.wav', label: 'NUTRICIÓN', headline: 'Calorías, macros y agua', sub: 'todo junto', dir: 1 },
-  { key: 'bien', dur: 126, kind: 'phone', screen: 'promo/screen-medida.png', vo: 'promo/d-bien.wav', label: 'BIENESTAR', headline: 'Cómo te sientes', pills: ['sueño', 'energía', 'peso', 'ánimo'], dir: -1 },
-  { key: 'vida', dur: 162, kind: 'phone', screen: 'promo/screen-vida.png', vo: 'promo/d-vida.wav', label: 'LA CIENCIA', headline: 'Tu cuerpo, hora a hora', sub: 'cuánto sigue activo cada compuesto', dir: 1 },
-  { key: 'priv', dur: 120, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-priv.wav', label: 'PRIVADO', headline: 'Tus datos son tuyos', sub: 'en tu teléfono · sin cuenta', dir: -1 },
-  { key: 'cta', dur: 138, kind: 'close', vo: 'promo/d-cta.wav', headline: 'Hacktrack', sub: 'Tu salud, en una sola pantalla' },
+  { key: 'glp', dur: 171, kind: 'hero-glp', screen: 'promo/screen-calendario.png', vo: 'promo/d-glp.wav', label: 'TU GLP-1', headline: 'Tu GLP-1, ordenado', sub: 'te recuerda + lleva tu racha' },
+  { key: 'nutri', dur: 147, kind: 'hero-nutri', video: 'promo/clip-comida.mp4', vo: 'promo/d-nutri.wav', label: 'NUTRICIÓN', headline: 'Calorías, macros y agua', sub: 'todo junto', dir: 1 },
+  { key: 'bien', dur: 132, kind: 'phone', screen: 'promo/screen-medida.png', vo: 'promo/d-bien.wav', label: 'BIENESTAR', headline: 'Cómo te sientes', pills: ['sueño', 'energía', 'peso', 'ánimo'], dir: -1 },
+  { key: 'vida', dur: 180, kind: 'phone', screen: 'promo/screen-vida.png', vo: 'promo/d-vida.wav', label: 'LA CIENCIA', headline: 'Tu cuerpo, hora a hora', sub: 'cuánto sigue activo cada compuesto', dir: 1 },
+  { key: 'priv', dur: 138, kind: 'phone', screen: 'promo/screen-inicio.png', vo: 'promo/d-priv.wav', label: 'PRIVADO', headline: 'Tus datos son tuyos', sub: 'en tu teléfono · sin cuenta', dir: -1 },
+  { key: 'cta', dur: 150, kind: 'close', vo: 'promo/d-cta.wav', headline: 'Hacktrack', sub: 'Tu salud, en una sola pantalla' },
 ]
 export const PROMO_W_TOTAL = BEATS_W.reduce((a, b) => a + b.dur, 0)
 const startOf = (i: number) => BEATS_W.slice(0, i).reduce((a, x) => a + x.dur, 0)
