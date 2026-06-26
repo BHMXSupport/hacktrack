@@ -170,6 +170,14 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   // (semanal/cadaN/ciclo/por-uso) y solo cuenta dosis VENCIDAS en el denominador. null = nada que medir.
   const adh = useMemo(() => adherenceMonth(state, now), [state])
 
+  // ¿el usuario YA registró alguna dosis? (cualquiera: programada, off-cadencia, tarde) → si la adherencia
+  // aún no tiene nada PROGRAMADO que medir (due=0), igual reconocemos que "ya hiciste algo" en vez de seguir
+  // diciendo "marca tu primera dosis" (incoherencia: registró dosis y la tarjeta decía que no había empezado).
+  const dosesLogged = useMemo(
+    () => state.log.reduce((n, g) => n + g.items.filter((it) => it.type === 'dose').length, 0),
+    [state.log]
+  )
+
   // Dosis de hoy con estado tomada/saltada/pendiente
   const todayDoses = useMemo(
     () =>
@@ -379,6 +387,20 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                 <span className="text-muted-foreground"> / {adh.due}</span>
               </p>
               <p className="text-[13px] text-secondary-foreground">dosis tomadas de las programadas</p>
+            </div>
+          </Glass>
+        ) : dosesLogged > 0 ? (
+          <Glass className="flex items-center gap-4">
+            <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-teal/12 text-teal">
+              <Check size={22} strokeWidth={2.5} />
+            </span>
+            <div className="flex-1">
+              <p className="text-[15px] font-semibold text-foreground">
+                {dosesLogged} {dosesLogged === 1 ? 'dosis registrada' : 'dosis registradas'}
+              </p>
+              <p className="mt-0.5 text-[13px] text-secondary-foreground">
+                Ya están en tu calendario y diario. Tu % de adherencia aparece en cuanto venza una toma programada de tu protocolo.
+              </p>
             </div>
           </Glass>
         ) : (

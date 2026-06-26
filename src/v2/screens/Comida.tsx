@@ -753,11 +753,11 @@ export function Comida() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state.lastMealTs],
   )
-  const FASTING_THRESHOLD_H = 4  // mostrar banner a partir de 4 h
-  const showFastBanner =
-    fastMins != null &&
-    fastMins >= FASTING_THRESHOLD_H * 60 &&
-    state.fastStartTs == null  // no mostrar si el ayuno ya está activo
+  const FASTING_THRESHOLD_H = 4  // a partir de aquí el nudge es proactivo ("ya llevas X sin comer")
+  const noFastActive = state.fastStartTs == null
+  // El ayuno se inicia JUSTO al terminar de comer, así que la opción debe estar SIEMPRE disponible (no solo
+  // tras 4 h sin comer). A las ≥4 h subimos a un nudge prominente; antes, una entrada discreta pero presente.
+  const fastNudge = noFastActive && fastMins != null && fastMins >= FASTING_THRESHOLD_H * 60
 
   // ── Toast undo inline (para meal) ─────────────────────────────────────────
   // Inyectamos el botón de undo en el toast del store temporalmente.
@@ -813,35 +813,51 @@ export function Comida() {
         />
       </motion.div>
 
-      {/* ── R38: Banner de ventana de ayuno ────────────────────────────────── */}
+      {/* ── R38: Iniciar ayuno — SIEMPRE disponible si no hay ayuno activo ───── */}
       <AnimatePresence>
-        {showFastBanner && fastMins != null && (
+        {noFastActive && (
           <motion.div
-            key="fast-banner"
+            key="fast-start"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="flex items-center gap-3 rounded-lg border border-teal/25 bg-teal/8 px-4 py-3">
-              <Timer size={18} className="shrink-0 text-teal" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold text-foreground">
-                  {fastingLabel(fastMins)}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Ventana de ayuno activa — solo referencial.
-                </p>
+            {fastNudge && fastMins != null ? (
+              // Nudge prominente: ya llevas un rato sin comer
+              <div className="flex items-center gap-3 rounded-lg border border-teal/25 bg-teal/8 px-4 py-3">
+                <Timer size={18} className="shrink-0 text-teal" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">
+                    {fastingLabel(fastMins)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    ¿Marcar el inicio de tu ventana de ayuno?
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-teal"
+                  onClick={() => dispatch({ t: 'startFast' })}
+                >
+                  Iniciar ayuno
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0 text-teal"
+            ) : (
+              // Entrada discreta: disponible siempre (p. ej. justo después de comer)
+              <button
+                type="button"
                 onClick={() => dispatch({ t: 'startFast' })}
+                className="flex w-full items-center gap-3 rounded-lg border border-teal/20 bg-teal/[0.06] px-4 py-2.5 text-left transition active:scale-[0.99]"
               >
-                Iniciar ayuno
-              </Button>
-            </div>
+                <Timer size={16} className="shrink-0 text-teal" />
+                <span className="flex-1 text-[13px] font-medium text-foreground">
+                  Iniciar ventana de ayuno
+                </span>
+                <span className="shrink-0 text-[12px] font-semibold text-teal">Iniciar</span>
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
