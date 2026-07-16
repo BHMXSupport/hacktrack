@@ -11,12 +11,11 @@
 //      setTimeout(windowMin * 60_000) y, al vencer, si hasRegistered() devuelve false,
 //      llama a showReminder con el copy de rescate.
 //
-// ── Push real via SW (item 401) ──────────────────────────────────────────────
-// registerSW(): registra sw.js que escucha mensajes 'SHOW_NOTIF' desde la app.
-// scheduleSwReminder(): programa un recordatorio via postMessage al SW activo.
-// Funciona con la pantalla apagada si el SW está instalado (Chrome Android, Edge).
-// iOS Safari: SW activo pero push sin VAPID server → sólo funciona mientras la app
-// está en foreground; para push real desde servidor se requiere VAPID + backend.
+// ── Recordatorios via SW (item 401) ──────────────────────────────────────────
+// El SW real (src/sw.ts, registrado por virtual:pwa-register en provider.tsx) escucha mensajes
+// 'SCHEDULE_NOTIF'. Es entrega best-effort (el SO mata SWs ociosos): el setTimeout del hilo
+// principal sigue siendo el camino primario con la app abierta. Con la app CERRADA solo entrega
+// el push real del servidor (VAPID + push-scheduler — fase cloud).
 //
 // ── Recordatorios de medida periódica (item 404) ─────────────────────────────
 // scheduleMeasureReminder(name, intervalDays, lastTs): programa un recordatorio
@@ -58,13 +57,15 @@ export async function showReminder(
   if (!notifSupported() || Notification.permission !== 'granted') return
   const tag = opts?.tag ?? 'hacktrack-reminder'
   try {
+    // Icono relativo a BASE_URL: con '/pwa-192.png' absoluto daba 404 bajo /hacktrack/ en gh-pages.
+    const icon = `${import.meta.env.BASE_URL}pwa-192.png`
     const reg = await navigator.serviceWorker?.getRegistration()
     if (reg) {
       // Con SW real, el click lo maneja notificationclick (lee data.tag). data viaja también al push del backend.
-      await reg.showNotification(title, { body, icon: '/pwa-192.png', badge: '/pwa-192.png', tag, data: { tag } } as NotificationOptions)
+      await reg.showNotification(title, { body, icon, badge: icon, tag, data: { tag } } as NotificationOptions)
     } else {
       // App abierta sin SW (caso real en iOS PWA): onclick en el hilo principal → enfoca la app y enruta por tag.
-      const n = new Notification(title, { body, icon: '/pwa-192.png', tag, data: { tag } } as NotificationOptions)
+      const n = new Notification(title, { body, icon, tag, data: { tag } } as NotificationOptions)
       n.onclick = () => {
         try { window.focus() } catch { /* noop */ }
         n.close()
@@ -80,18 +81,14 @@ export async function showReminder(
 let _swReg: ServiceWorkerRegistration | null = null
 
 /**
- * Registra el SW (/sw.js). Guarda la referencia para postMessage.
- * Llámalo una vez al montar la app (App.tsx).
- * No-op si el navegador no soporta SW.
+ * Obtiene la registración del SW para postMessage. El REGISTRO real lo hace virtual:pwa-register
+ * (provider.tsx) — registrar aquí también crearía una segunda ruta de registro sin lógica de
+ * recarga en controllerchange. No-op si el navegador no soporta SW.
  */
 export async function registerSW(): Promise<void> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
   try {
-    // BUG FIX: el SW vive en BASE_URL (/hacktrack/sw.js en prod), no en '/sw.js' → antes el register
-    // daba 404 en prod. Usamos getRegistration (el plugin PWA ya lo registró en el scope correcto)
-    // y, si no, registramos en la ruta correcta.
-    _swReg = (await navigator.serviceWorker.getRegistration())
-      ?? (await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`))
+    _swReg = (await navigator.serviceWorker.getRegistration()) ?? null
   } catch {
     /* SW no disponible (localhost sin HTTPS, Firefox private, etc.) */
   }
@@ -99,10 +96,9 @@ export async function registerSW(): Promise<void> {
 
 /**
  * Programa UNA notificación local. CLAVE: siempre usa setTimeout en el hilo principal (que SÍ dispara
- * con la app ABIERTA) Y además postMessage al SW por si en el futuro hay un SW/push que lo entregue con
- * la app cerrada. Mismo `tag` → si ambos llegaran, el navegador muestra solo una (no duplica).
- * Antes solo posteaba al SW (que es un stub self-destroy y lo ignora) → no disparaba ni con app abierta.
- * Limitación: con la app CERRADA en iOS PWA no llega sin servidor de push (web push / VAPID) — pendiente backend.
+ * con la app ABIERTA) Y además postMessage al SW (src/sw.ts), que es best-effort: el SO puede matar el
+ * SW ocioso antes de que venza su timer. Mismo `tag` → si ambos llegaran, el navegador muestra solo una.
+ * Limitación: con la app CERRADA no llega sin servidor de push (web push / VAPID) — fase cloud.
  */
 export async function scheduleNotif(title: string, body: string, delayMs: number, tag: string): Promise<void> {
   if (delayMs <= 0 || delayMs > 24 * 60 * 60_000) return // solo hasta 24 h adelante

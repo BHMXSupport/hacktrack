@@ -8,3 +8,6 @@ out
 
 # assets generados del promo (regenerables; no deben ir al build/deploy)
 public/promo/
+.secrets/
+.env
+dist-e2e/

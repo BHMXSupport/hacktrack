@@ -14,6 +14,7 @@ import { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Sparkles, BarChart2, Leaf } from 'lucide-react'
 import { useApp } from '../../lib/store'
+import { backendEnabled } from '../../lib/backend/config'
 import { CATEGORY_COLOR } from '../../lib/catalog'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
@@ -208,7 +209,9 @@ export function Welcome() {
             {hasProducts ? 'Ver mi plan' : 'Agregar mi primer producto'}
           </Button>
           <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
-            Tus registros se guardan en este dispositivo. Tu cuenta solo sirve para respaldo seguro.
+            {backendEnabled
+              ? 'Tus registros se guardan en este dispositivo. Tu cuenta te permite activar el respaldo opcional en la nube.'
+              : 'Tus registros se guardan en este dispositivo. La sincronización en la nube llega pronto.'}
           </p>
           <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
             Hacktrack es una herramienta de seguimiento personal.

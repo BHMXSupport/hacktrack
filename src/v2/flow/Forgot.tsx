@@ -1,7 +1,9 @@
 /**
  * Forgot.tsx — v2 flow
  *
- * Recuperación de acceso. Como los datos son LOCALES al dispositivo, lo explicamos claro:
+ * Recuperación de acceso. Solo con backend existe un emisor de correos: sin backend
+ * NO se promete ningún enlace — se muestra que la función aún no está disponible.
+ * Como los datos son LOCALES al dispositivo, lo explicamos claro:
  * recuperamos el acceso a la cuenta (sync), no los datos del dispositivo.
  *
  * ScreenId: 's-forgot'
@@ -38,11 +40,11 @@ export function Forgot() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!backendEnabled) return
     if (!EMAIL_RE.test(email.trim())) { setError(true); return }
     setError(false)
-    // Con backend: envía el enlace real de reseteo. Sin backend: igual que hoy (mensaje, sin emisor).
     // El mensaje es neutro ("si el correo existe") para no revelar qué correos están registrados.
-    if (backendEnabled) await resetPassword(email.trim())
+    await resetPassword(email.trim())
     setSent(true)
     dispatch({ t: 'toast', msg: 'Si el correo existe, te enviamos un enlace' })
   }
@@ -78,11 +80,28 @@ export function Forgot() {
           </span>
           <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">Recuperar acceso</h1>
           <p className="max-w-[300px] text-[14px] text-secondary-foreground">
-            Te enviaremos un enlace para restablecer tu contraseña de cuenta.
+            {backendEnabled
+              ? 'Te enviaremos un enlace para restablecer tu contraseña de cuenta.'
+              : 'Esta función aún no está disponible en la beta.'}
           </p>
         </motion.div>
 
-        {sent ? (
+        {!backendEnabled ? (
+          <motion.div variants={fade}>
+            <Glass className="flex flex-col items-center gap-3 p-6 text-center">
+              <span className="inline-flex items-center rounded-full border border-teal/25 bg-teal/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal">
+                Próximamente
+              </span>
+              <p className="text-[15px] font-semibold text-foreground">
+                La recuperación por correo llega con la nube
+              </p>
+              <p className="text-[13px] leading-relaxed text-secondary-foreground">
+                Tu cuenta es local por ahora — la sincronización llega pronto. No hay
+                contraseña de nube que restablecer: entra directo desde iniciar sesión.
+              </p>
+            </Glass>
+          </motion.div>
+        ) : sent ? (
           <motion.div variants={fade}>
             <Glass className="flex flex-col items-center gap-3 p-6 text-center">
               <span className="grid h-12 w-12 place-items-center rounded-full bg-teal/12 text-teal">
@@ -121,8 +140,10 @@ export function Forgot() {
           <Glass className="flex items-start gap-3 p-4">
             <Shield size={16} className="mt-0.5 shrink-0 text-teal" aria-hidden />
             <p className="text-[12px] leading-relaxed text-secondary-foreground">
-              Tus <span className="text-foreground">registros se guardan en este dispositivo</span>, no en la nube. Recuperar la
-              contraseña restaura el acceso a tu cuenta, no borra ni recupera datos locales.
+              Tus <span className="text-foreground">registros se guardan en este dispositivo</span>, no en la nube.
+              {backendEnabled
+                ? ' Recuperar la contraseña restaura el acceso a tu cuenta, no borra ni recupera datos locales.'
+                : ' Nada de esto afecta tus datos locales.'}
             </p>
           </Glass>
         </motion.div>

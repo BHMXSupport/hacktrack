@@ -3,12 +3,15 @@ import { AppContext, reducer, initialState, hydrate } from '../../lib/store'
 import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
 import { upcomingDoses, doseTakenOnProduct, phaseForDate, weekAdherencePctLast8, protocolStreak } from '../../lib/calendar'
-import { registerSW, scheduleSwReminder, schedulePreReminder, scheduleDailySummary, scheduleWeeklySummary, scheduleRescue, scheduleMeasureReminder, notifPermission, setNotifClickHandler } from '../../lib/notifications'
+import { registerSW as swRegRef, scheduleSwReminder, schedulePreReminder, scheduleDailySummary, scheduleWeeklySummary, scheduleRescue, scheduleMeasureReminder, notifPermission, setNotifClickHandler } from '../../lib/notifications'
+import { registerSW as registerPwaSW } from 'virtual:pwa-register'
 import { useCloudSync } from '../../lib/backend/useCloudSync'
 
 // Provider del rebuild: reusa el reducer/estado del app original (lib/store).
 const KEY = 'hacktrack:v2'
 const LEGACY = 'hacktrack:v1'
+
+let _pwaRegistered = false
 
 function loadState(): AppState {
   const fresh = { ...initialState, todayTs: startOfDay(new Date()).getTime() } as AppState
@@ -95,10 +98,15 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // #3 — registrar el Service Worker para entregar recordatorios con la pantalla apagada (Android/Edge).
-  // Sin esto, todos los recordatorios eran decorativos (el rebuild nunca registraba el SW ni programaba avisos).
+  // #3 — registrar el Service Worker real via virtual:pwa-register (autoUpdate): recarga la página en
+  // controllerchange — sin eso, un cliente abierto pediría chunks viejos ya purgados del precache.
+  // swRegRef() solo cachea la registración para los postMessage de notifications.ts.
   useEffect(() => {
-    void registerSW()
+    if (!_pwaRegistered) {
+      _pwaRegistered = true // guard: StrictMode monta doble en dev
+      registerPwaSW({ immediate: true })
+    }
+    void swRegRef()
   }, [])
 
   // Al PICAR un recordatorio → abre la hoja del destino que ibas a registrar (no solo trae la app al frente).

@@ -10,7 +10,17 @@ import {
 import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
 import { useApp } from '../../lib/store'
+import { signOut } from '../../lib/backend/auth'
 import { CURRENT_CONSENT_VERSION } from './Ajustes'
+
+// URL real del Aviso de Privacidad completo (página estática dentro de la PWA)
+const PRIVACY_URL = `${import.meta.env.BASE_URL}aviso-privacidad.html`
+
+// Resumen de cambios de la versión vigente del aviso — ACTUALIZAR en cada bump de
+// CURRENT_CONSENT_VERSION: el diálogo de re-consentimiento lo muestra antes de "Acepto".
+const CONSENT_VERSION_SUMMARY =
+  'Local-first: tus datos viven en tu dispositivo; el respaldo en la nube es opcional. ' +
+  'Derechos ARCO ejercitables desde la app o por correo.'
 
 // ── helpers de descarga ────────────────────────────────────────────────────────
 function triggerDownload(content: string, filename: string, mime: string) {
@@ -278,6 +288,88 @@ function LogoutDialog({
   )
 }
 
+// ── re-consentimiento (#82): mostrar el aviso ANTES de aceptar ────────────────
+// LFPDPPP: el usuario debe poder revisar qué cambió y el aviso completo antes del
+// "Acepto" explícito — nunca aceptar con un solo tap sobre el banner.
+function ConsentUpdateDialog({
+  open,
+  onAccept,
+  onCancel,
+}: {
+  open: boolean
+  onAccept: () => void
+  onCancel: () => void
+}) {
+  const reduce = useReducedMotion()
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <div className="pointer-events-none fixed inset-0 z-[10000] flex items-end">
+          <motion.div
+            className="pointer-events-auto absolute inset-0 bg-black/60"
+            style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
+            onClick={onCancel}
+          />
+          <motion.div
+            role="alertdialog" aria-modal="true"
+            aria-label="Aviso de privacidad actualizado — revisar y aceptar"
+            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            initial={reduce ? { opacity: 0 } : { y: '100%' }}
+            animate={reduce ? { opacity: 1 } : { y: 0 }}
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
+            transition={
+              reduce
+                ? { duration: 0.15 }
+                : { type: 'spring', stiffness: 280, damping: 32, mass: 1 }
+            }
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mb-1 flex items-center gap-2">
+              <FileText size={18} className="text-warn" />
+              <h3 className="text-[17px] font-bold text-foreground">
+                Revisa el Aviso de Privacidad
+              </h3>
+            </div>
+            {/* Se abre tanto por cambio de versión (#82) como para re-aceptar tras revocar */}
+            <p className="mb-3 text-[13px] leading-relaxed text-muted-foreground">
+              La versión vigente es la {CURRENT_CONSENT_VERSION}. Revísala antes de aceptar —
+              aceptar registra tu consentimiento con esa versión y la fecha de hoy.
+            </p>
+            <div className="mb-3 rounded-xl bg-raised px-4 py-3">
+              <p className="text-[12px] font-semibold text-foreground">Qué dice esta versión</p>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+                {CONSENT_VERSION_SUMMARY}
+              </p>
+            </div>
+            <a
+              href={PRIVACY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-4 inline-flex min-h-[44px] items-center text-[13px] font-semibold text-teal underline underline-offset-2"
+            >
+              Leer el Aviso de Privacidad completo
+            </a>
+            <div className="flex flex-col gap-2">
+              <Button variant="primary" size="full" onClick={onAccept}>
+                Acepto
+              </Button>
+              <Button variant="ghost" size="full" onClick={onCancel}>
+                Ahora no
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
+}
+
 // ── aviso de privacidad (acordeón inline dentro del sheet) ───────────────────
 function AvisoPrivacidad({
   open,
@@ -326,9 +418,10 @@ function AvisoPrivacidad({
               <p className="text-[13px] font-semibold text-foreground">
                 Aviso de privacidad simplificado
               </p>
+              {/* Mantener responsable, versión y fecha en sincronía con public/aviso-privacidad.html */}
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">Responsable:</span> Hacktrack —
-                aplicación de seguimiento personal para investigación y uso personal.
+                <span className="font-semibold text-foreground">Responsable:</span> Hacktrack
+                (razón social por definir — borrador en revisión legal).
               </p>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
                 <span className="font-semibold text-foreground">Datos que recopilamos:</span> nombre,
@@ -341,9 +434,9 @@ function AvisoPrivacidad({
                 ni se comparten con terceros.
               </p>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">Almacenamiento:</span> todos tus
-                datos residen en tu dispositivo (localStorage). Nunca se envían a servidores
-                externos.
+                <span className="font-semibold text-foreground">Almacenamiento:</span> local-first —
+                tus datos residen en tu dispositivo (localStorage). No se envían a ningún servidor,
+                salvo que actives el respaldo opcional en la nube (cifrado en tránsito).
               </p>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
                 <span className="font-semibold text-foreground">Derechos ARCO</span> (LFPDPPP
@@ -352,7 +445,7 @@ function AvisoPrivacidad({
               </p>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
                 <a
-                  href={`${import.meta.env.BASE_URL}aviso-privacidad.html`}
+                  href={PRIVACY_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-semibold text-teal underline underline-offset-2"
@@ -361,7 +454,7 @@ function AvisoPrivacidad({
                 </a>{' '}(LFPDPPP).
               </p>
               <p className="text-[12px] font-semibold text-teal">
-                Versión {CURRENT_CONSENT_VERSION} · En vigor desde 2024
+                Versión {CURRENT_CONSENT_VERSION} · Última actualización: junio de 2026
               </p>
             </div>
           </motion.div>
@@ -375,12 +468,16 @@ function AvisoPrivacidad({
 function RevocacionDialog({
   open,
   localOnly,
+  consentActive,
   onSetLocalOnly,
+  onRevoke,
   onCancel,
 }: {
   open: boolean
   localOnly: boolean
+  consentActive: boolean
   onSetLocalOnly: (v: boolean) => void
+  onRevoke: () => void
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
@@ -418,11 +515,11 @@ function RevocacionDialog({
                 Gestionar consentimiento (Oposición)
               </h3>
             </div>
-            {/* Interino honesto: localOnly se guarda en estado pero no hay sync que bloquear todavía */}
             <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
-              Ejerces tu derecho de Oposición (LFPDPPP art. 27). Tus datos ya viven solo en este
-              dispositivo; no se sincronizan a ningún servidor. Puedes eliminar todos tus datos con
-              el botón Cancelar cuenta.
+              Ejerces tus derechos de Oposición y revocación del consentimiento (LFPDPPP arts. 8 y
+              27). Al revocar: se desactiva el respaldo en la nube (si estuviera activo) y tu
+              consentimiento queda registrado como revocado. Tus datos permanecen en este
+              dispositivo hasta que tú los borres con «Eliminar mis datos».
             </p>
 
             {/* Toggle modo solo local */}
@@ -458,9 +555,27 @@ function RevocacionDialog({
               </button>
             </div>
 
-            <Button variant="ghost" size="full" onClick={onCancel}>
-              Cerrar
-            </Button>
+            {/* Revocación real: consentActive → false (nada de botones sin efecto) */}
+            <div className="flex flex-col gap-2">
+              {consentActive ? (
+                <Button
+                  variant="primary"
+                  size="full"
+                  className="bg-alert text-white shadow-none"
+                  onClick={onRevoke}
+                >
+                  Revocar consentimiento
+                </Button>
+              ) : (
+                <p className="text-center text-[12px] text-muted-foreground">
+                  Consentimiento revocado. Puedes volver a aceptarlo desde «Estado de
+                  consentimiento».
+                </p>
+              )}
+              <Button variant="ghost" size="full" onClick={onCancel}>
+                Cerrar
+              </Button>
+            </div>
           </motion.div>
         </div>
       )}
@@ -479,6 +594,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
   const [showMoreArco, setShowMoreArco] = useState(false)
   const [showAvisoPrivacidad, setShowAvisoPrivacidad] = useState(false)
   const [showRevocacion, setShowRevocacion] = useState(false)
+  const [showConsentUpdate, setShowConsentUpdate] = useState(false)
 
   // ── nombre editable inline (R46) ──────────────────────────────────────────
   const [nameEditing, setNameEditing] = useState(false)
@@ -620,7 +736,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
     // (preferencias de unidad, vaso de agua, coach, último error, estado legado v1). Las borramos para no
     // dejar residuos del usuario tras "borrar todos mis datos".
     try {
-      ;['hacktrack:v1', 'hacktrack-glass-ml', 'hk_diario_coach', 'ht:lastError'].forEach((k) => localStorage.removeItem(k))
+      ;['hacktrack:v1', 'hacktrack-glass-ml', 'hk_diario_coach', 'ht:lastError', 'ht:consentAcceptedAt'].forEach((k) => localStorage.removeItem(k))
       Object.keys(localStorage).filter((k) => k.startsWith('ht_unit_')).forEach((k) => localStorage.removeItem(k))
     } catch { /* modo privado / sin acceso a localStorage */ }
     dispatch({ t: 'arcoDelete' })
@@ -629,17 +745,31 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
   }
 
   // ── cerrar sesión (R50) ───────────────────────────────────────────────────
-  function handleLogout() {
+  async function handleLogout() {
+    // Cierra también la sesión de Supabase si el backend está activo (no-op sin backend).
+    try { await signOut() } catch { /* sin red: la sesión local se cierra igual */ }
     dispatch({ t: 'go', screen: 's-login' })
     setShowLogoutConfirm(false)
     onClose()
   }
 
-  // ── aceptar re-consentimiento ─────────────────────────────────────────────
+  // ── aceptar re-consentimiento (#82: solo tras VER el aviso en el diálogo) ──
   function handleAcceptConsent() {
     dispatch({ t: 'setSetting', key: 'consentVersion', value: CURRENT_CONSENT_VERSION })
     dispatch({ t: 'setSetting', key: 'consentActive', value: true })
+    // Marca de tiempo de aceptación (LFPDPPP): fuera del estado porque UserSettings no tiene la clave.
+    try { localStorage.setItem('ht:consentAcceptedAt', String(Date.now())) } catch { /* modo privado */ }
+    setShowConsentUpdate(false)
     dispatch({ t: 'toast', msg: 'Consentimiento actualizado.' })
+  }
+
+  // ── revocar consentimiento (ARCO) ─────────────────────────────────────────
+  function handleRevokeConsent() {
+    dispatch({ t: 'setSetting', key: 'consentActive', value: false })
+    // Detiene el respaldo en la nube si estuviera activo; los datos locales no se tocan.
+    dispatch({ t: 'setSetting', key: 'cloudSync', value: false })
+    setShowRevocacion(false)
+    dispatch({ t: 'toast', msg: 'Consentimiento revocado. Tus datos siguen en este dispositivo.' })
   }
 
   return (
@@ -656,13 +786,13 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2 }}
-                onClick={handleAcceptConsent}
+                onClick={() => setShowConsentUpdate(true)}
                 className="flex w-full items-center gap-2 rounded-xl bg-warn/20 px-4 py-3 text-left"
                 aria-label="Aviso de privacidad actualizado — toca para revisar y aceptar"
               >
                 <ShieldCheck size={16} className="shrink-0 text-warn" />
                 <span className="text-[13px] font-semibold text-warn">
-                  Aviso de privacidad actualizado — toca para aceptar
+                  Aviso de privacidad actualizado — toca para revisar
                 </span>
               </motion.button>
             )}
@@ -919,7 +1049,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
           <section>
             <SectionLabel>Privacidad y derechos ARCO</SectionLabel>
             <RowCard>
-              {/* Estado de consentimiento */}
+              {/* Estado de consentimiento — revisar el aviso antes de aceptar (#82) */}
               <Row
                 icon={<ShieldCheck size={18} />}
                 label={
@@ -929,8 +1059,12 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                 }
                 sub={consentLabel}
                 labelClass={needsReConsent ? 'text-warn' : 'text-foreground'}
-                onClick={needsReConsent ? handleAcceptConsent : undefined}
-                chevron={needsReConsent}
+                onClick={
+                  needsReConsent || !settings.consentActive
+                    ? () => setShowConsentUpdate(true)
+                    : undefined
+                }
+                chevron={needsReConsent || !settings.consentActive}
               />
 
               {/* Acceso — descargar JSON */}
@@ -1010,9 +1144,9 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                       icon={<ShieldOff size={18} />}
                       label="Oposición / revocar consentimiento"
                       sub={
-                        state.localOnly
-                          ? 'Modo solo local activo'
-                          : 'Activar modo solo local'
+                        settings.consentActive
+                          ? 'Revocar consentimiento · modo solo local'
+                          : 'Consentimiento revocado'
                       }
                       onClick={() => setShowRevocacion(true)}
                     />
@@ -1037,8 +1171,9 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
               <div>
                 <p className="text-[13px] font-semibold text-foreground">Almacenamiento local</p>
                 <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
-                  Todos tus datos viven en tu dispositivo (localStorage). No se envían a servidores
-                  externos. Puedes exportarlos o eliminarlos en cualquier momento.
+                  Tus datos viven en tu dispositivo (localStorage) y no se envían a ningún servidor,
+                  salvo que actives el respaldo opcional en la nube. Puedes exportarlos o
+                  eliminarlos en cualquier momento.
                 </p>
               </div>
             </div>
@@ -1088,8 +1223,17 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
       <RevocacionDialog
         open={showRevocacion}
         localOnly={state.localOnly}
+        consentActive={!!settings.consentActive}
         onSetLocalOnly={(v) => dispatch({ t: 'setLocalOnly', value: v })}
+        onRevoke={handleRevokeConsent}
         onCancel={() => setShowRevocacion(false)}
+      />
+
+      {/* Re-consentimiento (#82): aviso visible + "Acepto" explícito */}
+      <ConsentUpdateDialog
+        open={showConsentUpdate}
+        onAccept={handleAcceptConsent}
+        onCancel={() => setShowConsentUpdate(false)}
       />
     </>
   )

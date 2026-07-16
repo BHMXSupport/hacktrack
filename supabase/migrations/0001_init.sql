@@ -18,6 +18,12 @@ create policy "user_state self-access" on public.user_state
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- GRANTs de tabla: RLS solo FILTRA filas; sin el permiso base de tabla Postgres responde
+-- "permission denied" (403) a todo, incluso a las filas propias. `anon` queda sin permisos a propósito.
+grant usage on schema public to authenticated, service_role;
+grant select, insert, update, delete on table public.user_state to authenticated;
+grant select, insert, update, delete on table public.user_state to service_role;
+
 -- ── push_subscriptions: suscripciones Web Push (una por endpoint) ──
 create table if not exists public.push_subscriptions (
   endpoint   text primary key,
@@ -34,6 +40,9 @@ create policy "push self-access" on public.push_subscriptions
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+grant select, insert, update, delete on table public.push_subscriptions to authenticated;
+grant select, insert, update, delete on table public.push_subscriptions to service_role;
 
 create index if not exists push_subscriptions_user_idx on public.push_subscriptions(user_id);
 

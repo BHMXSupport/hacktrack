@@ -6,13 +6,28 @@ import { Button } from './Button'
 import { notifSupported, notifPermission } from '../../lib/notifications'
 
 // Prompt de permiso de notificaciones — aparece al ENTRAR a la app si el permiso NO está concedido.
-// Repite en cada apertura mientras esté en "no"; desaparece en cuanto se concede ("sí").
+// Acelerador conservador: máximo UNA vez por sesión (sessionStorage) y con descarte PERSISTENTE
+// ("No volver a preguntar", localStorage) — antes re-aparecía como modal bloqueante en CADA apertura
+// hasta conceder, para siempre. Desaparece en cuanto se concede ("sí").
 //
 // iOS PWA — dos sutilezas que rompían el aviso del sistema:
 //  1) requestPermission() DEBE llamarse SÍNCRONAMENTE dentro del gesto (sin await previo) o WebKit lo
 //     ignora en silencio. Por eso aquí es el PRIMER statement del onClick (no pasa por un helper async).
 //  2) Si el usuario ya NEGÓ el permiso, iOS NO vuelve a mostrar el aviso del sistema nunca más → solo se
 //     activa desde Ajustes del teléfono. En ese estado mostramos instrucciones en vez de un botón inútil.
+
+// localStorage y no UserSettings: sobrevive a "borrar datos de la app" solo si borran el sitio entero,
+// y no arrastra una migración de esquema. Para reactivarlo desde Ajustes: remover esta clave.
+export const NOTIF_PROMPT_DISMISSED_KEY = 'hacktrack:notifPromptDismissed'
+const SESSION_SHOWN_KEY = 'hacktrack:notifPromptShownSession'
+
+function safeGet(store: 'local' | 'session', key: string): string | null {
+  try { return (store === 'local' ? localStorage : sessionStorage).getItem(key) } catch { return null }
+}
+function safeSet(store: 'local' | 'session', key: string, value: string): void {
+  try { (store === 'local' ? localStorage : sessionStorage).setItem(key, value) } catch { /* modo privado */ }
+}
+
 export function NotifPermissionPrompt() {
   const { state, dispatch } = useApp()
   const [open, setOpen] = useState(false)
@@ -25,9 +40,14 @@ export function NotifPermissionPrompt() {
     if (state.justOnboarded) return            // no encimar sobre la bienvenida
     if (!notifSupported()) return               // navegador sin Notification API
     if (notifPermission() === 'granted') return // ya está en "sí" → nunca pedir
+    if (safeGet('local', NOTIF_PROMPT_DISMISSED_KEY) === '1') return // "No volver a preguntar"
+    if (safeGet('session', SESSION_SHOWN_KEY) === '1') return        // ya se mostró en esta sesión
     askedThisMount.current = true
     setDenied(notifPermission() === 'denied')   // si ya está bloqueado, mostramos instrucciones de Ajustes
-    const t = window.setTimeout(() => setOpen(true), 900) // deja respirar al primer render
+    const t = window.setTimeout(() => {
+      safeSet('session', SESSION_SHOWN_KEY, '1')
+      setOpen(true)
+    }, 900) // deja respirar al primer render
     return () => window.clearTimeout(t)
   }, [state.justOnboarded])
 
@@ -101,11 +121,28 @@ export function NotifPermissionPrompt() {
             </Button>
           )}
           <button
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              // Bloqueado: las instrucciones ya se mostraron una vez; repetirlas en cada apertura
+              // era el modal bloqueante eterno. Si activa el permiso en el teléfono, este prompt
+              // deja de aplicar solo (granted); si no, se reactiva desde Ajustes.
+              if (denied) safeSet('local', NOTIF_PROMPT_DISMISSED_KEY, '1')
+              setOpen(false)
+            }}
             className="py-2 text-[13px] font-medium text-muted-foreground active:opacity-70"
           >
             {denied ? 'Entendido' : 'Ahora no'}
           </button>
+          {!denied && (
+            <button
+              onClick={() => {
+                safeSet('local', NOTIF_PROMPT_DISMISSED_KEY, '1')
+                setOpen(false)
+              }}
+              className="py-1 text-[12px] font-medium text-muted-foreground/70 active:opacity-70"
+            >
+              No volver a preguntar
+            </button>
+          )}
         </div>
       </div>
     </Sheet>

@@ -1,7 +1,9 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'node:child_process'
+import { readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
 // Base de despliegue: '/' en dev/local; '/hacktrack/' para GitHub Pages (subpath).
 // Se activa con BASE_PATH=/hacktrack/ npm run build (no afecta el dev server).
@@ -9,9 +11,58 @@ const BASE = process.env.BASE_PATH || '/'
 
 // Sello de build (hash corto de git + fecha) → visible en Ajustes para DIAGNOSTICAR caché:
 // si el usuario ve un hash viejo, está cargando un bundle viejo (no es bug de la app).
-let GIT_SHA = 'dev'
-try { GIT_SHA = execSync('git rev-parse --short HEAD').toString().trim() } catch { /* sin git */ }
+// HACKTRACK_SHA fuerza el sello sin commit — lo usa la suite de verificación del SW para
+// producir dos builds distinguibles (test de actualización).
+let GIT_SHA = process.env.HACKTRACK_SHA || 'dev'
+if (!process.env.HACKTRACK_SHA) {
+  try { GIT_SHA = execSync('git rev-parse --short HEAD').toString().trim() } catch { /* sin git */ }
+}
 const BUILD_TIME = new Date().toISOString()
+
+// ── Contrato de precache (SW real, strategies: 'injectManifest') ───────────────────────────────
+// mp4/webp DEBEN precachearse: si no, el JS cacheado apunta a media con hash viejo que ya no
+// existe tras un redeploy → 404 / "?" en heroes (causa del outage original). Versionan con el SW.
+// promo/ queda fuera: assets de marketing (~34MB) ajenos al app shell.
+const PRECACHE_GLOBS = ['**/*.{js,css,html,svg,png,webp,mp4,woff2}']
+const PRECACHE_IGNORES = ['promo/**']
+const PRECACHE_CAP_BYTES = 3 * 1024 * 1024
+
+// Guardia anti-regresión: un asset que supere el tope saldría del precache EN SILENCIO y reviviría
+// la clase de bug de media desincronizada. Preferimos que el build truene a un deploy degradado.
+function precacheCapGuard(): Plugin {
+  let outDir = 'dist'
+  const matchesGlob = /\.(?:js|css|html|svg|png|webp|mp4|woff2)$/
+  return {
+    name: 'hacktrack:precache-cap-guard',
+    apply: 'build',
+    configResolved(config) {
+      outDir = join(config.root, config.build.outDir)
+    },
+    closeBundle() {
+      const offenders: string[] = []
+      let entries: import('node:fs').Dirent[]
+      try {
+        entries = readdirSync(outDir, { recursive: true, withFileTypes: true })
+      } catch { return /* sin dist (build cancelado) */ }
+      for (const e of entries) {
+        if (!e.isFile()) continue
+        const abs = join(e.parentPath, e.name)
+        const rel = relative(outDir, abs).split('\\').join('/')
+        if (rel.startsWith('promo/')) continue // espejo de PRECACHE_IGNORES
+        if (!matchesGlob.test(rel)) continue
+        const size = statSync(abs).size
+        if (size > PRECACHE_CAP_BYTES) offenders.push(`${rel} (${(size / 1024 / 1024).toFixed(2)} MB)`)
+      }
+      if (offenders.length) {
+        throw new Error(
+          `[hacktrack] Assets sobre el tope de precache (${PRECACHE_CAP_BYTES / 1024 / 1024} MB) — ` +
+          `quedarían FUERA del precache y desincronizarían JS/media:\n  - ${offenders.join('\n  - ')}\n` +
+          'Comprime el asset o muévelo fuera del app shell (p.ej. promo/).',
+        )
+      }
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -36,11 +87,20 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // PREVIEW: SW autodestructivo — desregistra SWs viejos y limpia caches al cargar.
-      // Evita que un SW cacheado sirva JS viejo que apunta a assets (videos) con hash ya borrado
-      // tras cada redeploy (causa del preloader/fondo que "no se movían" y de los "?"). Reactivar
-      // PWA real (offline/install) al promover a producción.
-      selfDestroying: true,
+      // SW real (promovido desde el stub selfDestroying): src/sw.ts compilado por el plugin.
+      // Rollback probado: restaurar selfDestroying:true y redesplegar — el stub desregistra y
+      // limpia caches en cada carga (mismo mecanismo que ya salvó el outage original).
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: PRECACHE_GLOBS,
+        globIgnores: PRECACHE_IGNORES,
+        maximumFileSizeToCacheInBytes: PRECACHE_CAP_BYTES,
+        // El registro en prod es type:'classic' → el bundle del SW no puede llevar `export`;
+        // esto los omite del output sin perderlos en el fuente (los usa la suite de tests).
+        rollupOptions: { preserveEntrySignatures: false },
+      },
       includeAssets: ['favicon-64.png', 'apple-touch-icon-180.png'],
       manifest: {
         name: 'Hacktrack',
@@ -88,7 +148,8 @@ export default defineConfig({
         ],
         // ── Web Share Target (item 314) ───────────────────────────────────────
         // Permite que otras apps compartan texto/URL directamente a Hacktrack.
-        // El SW captura la petición POST y la redirige a /?action=microlog&text=...
+        // method GET → el navegador navega solo a ?action=microlog&text=...;
+        // NO pasa por el SW (el fetch handler no participa en el share).
         share_target: {
           action: `${BASE}?action=microlog`,
           method: 'GET',
@@ -99,22 +160,8 @@ export default defineConfig({
           },
         },
       },
-      workbox: {
-        // Incluye mp4/webp: si no se precachean, el JS cacheado apunta a media con hash viejo
-        // que ya no existe tras un redeploy → 404 / "?" en heroes. Versionados con el SW + limpieza.
-        globPatterns: ['**/*.{js,css,html,svg,png,webp,mp4,woff2}'],
-        cleanupOutdatedCaches: true,
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        runtimeCaching: [
-          { urlPattern: /^https:\/\/fonts\.googleapis\.com\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'google-fonts-css' } },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
-            handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts-webfonts', expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 } },
-          },
-        ],
-      },
       devOptions: { enabled: false },
     }),
+    precacheCapGuard(),
   ],
 })

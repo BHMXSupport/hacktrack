@@ -10,8 +10,9 @@ import { subscribePush } from './push'
 //   (1) rastrea la sesión de Supabase (login/logout),
 //   (2) si hay push configurado + recordatorios, suscribe el dispositivo a Web Push,
 //   (3) si cloudSync está activo y hay sesión, SUBE (debounced) el blob de estado como respaldo.
-// El PULL/restore/merge (traer la nube y fusionar con lo local) se finaliza/prueba CON keys — ver
-// SETUP-BACKEND.md §Sync. Aquí dejamos el respaldo (push), que no toca el estado local (seguro de soltar).
+// El PULL/restore vive fuera de este hook: pullRemote (sync.ts) + acción 'loadRemoteState' (store.ts),
+// disparado por el botón "Restaurar de la nube" en Ajustes (reemplazo explícito confirmado, no auto-merge).
+// Este hook solo sube; no toca el estado local.
 export function useCloudSync(state: AppState) {
   const sessionRef = useRef<SessionInfo>(null)
   const timer = useRef<number | undefined>(undefined)

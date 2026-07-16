@@ -2,6 +2,8 @@
  * Account.tsx — v2 flow
  *
  * Crea cuenta (nombre obligatorio + correo opcional). Cuenta OBLIGATORIA (sin opción "sin cuenta").
+ * Sin backend la cuenta es LOCAL: no hay contraseña que verificar, así que no se muestra
+ * el campo ni el medidor de fortaleza (nada debe parecer una verificación real).
  * "Crear cuenta" → dispatch setName + finishOnboarding (va a 's-app').
  * "Ya tengo cuenta" → dispatch go 's-login'.
  *
@@ -18,6 +20,7 @@ import { ChevronLeft, Eye, EyeOff, Shield, User } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { backendEnabled } from '../../lib/backend/config'
 import { signUp } from '../../lib/backend/auth'
+import { CURRENT_CONSENT_VERSION } from '../screens/Ajustes'
 import { Button } from '../ui/Button'
 
 // Aviso de Privacidad servido como página estática dentro de la PWA → URL real, enlazable (Epic E).
@@ -113,7 +116,9 @@ export function Account() {
     if (mail && EMAIL_RE.test(mail)) dispatch({ t: 'setProfileFields', patch: { email: mail } })
     // Consentimiento: se marca activo SOLO aquí, al aceptar el checkbox (antes venía pre-activado en initialState).
     dispatch({ t: 'setSetting', key: 'consentActive', value: true })
-    dispatch({ t: 'setSetting', key: 'consentVersion', value: 'v1.0' })
+    dispatch({ t: 'setSetting', key: 'consentVersion', value: CURRENT_CONSENT_VERSION })
+    // Marca de tiempo de aceptación (LFPDPPP): fuera del estado porque UserSettings no tiene la clave.
+    try { localStorage.setItem('ht:consentAcceptedAt', String(Date.now())) } catch { /* modo privado */ }
     dispatch({ t: 'finishOnboarding' })
   }
 
@@ -173,7 +178,9 @@ export function Account() {
             ¡Casi listo!
           </h1>
           <p className="mt-2 text-[14px] text-secondary-foreground">
-            Tus registros se guardan solo en este dispositivo. Tu perfil personaliza la experiencia; por ahora no se sincroniza entre dispositivos.
+            {backendEnabled
+              ? 'Tus registros se guardan en tu dispositivo. Con tu cuenta puedes activar el respaldo opcional en la nube.'
+              : 'Tus registros se guardan solo en este dispositivo. Tu cuenta es local por ahora — la sincronización llega pronto.'}
           </p>
         </motion.div>
 
@@ -219,7 +226,8 @@ export function Account() {
           {/* Correo */}
           <Field
             id="ht-email"
-            label="Correo electrónico"
+            label={backendEnabled ? 'Correo electrónico' : 'Correo electrónico (opcional)'}
+            required={backendEnabled}
             error={emailError ? 'Ingresa un correo electrónico válido.' : undefined}
             errorId="ht-email-error"
           >
@@ -237,45 +245,54 @@ export function Account() {
             />
           </Field>
 
-          {/* Contraseña */}
-          <Field id="ht-password" label="Contraseña">
-            <div className="relative">
-              <input
-                id="ht-password"
-                type={showPw ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputCls + ' pr-12'}
-              />
-              <button
-                type="button"
-                aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                onClick={() => setShowPw((v) => !v)}
-                className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-secondary-foreground hover:text-foreground"
-              >
-                {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-            {/* Indicador de fortaleza */}
-            {password && (
-              <div className="flex items-center gap-2 mt-1">
-                <div className="flex gap-1">
-                  {[1, 2, 3].map((n) => (
-                    <div
-                      key={n}
-                      className="h-1 w-8 rounded-full transition-colors duration-200"
-                      style={{ background: n <= pwScore ? pwColor : 'rgba(255,255,255,0.1)' }}
-                    />
-                  ))}
-                </div>
-                <span className="text-[11px] font-medium" style={{ color: pwColor }}>
-                  {pwLabel}
-                </span>
+          {/* Contraseña — solo con backend real; sin backend nada la verifica y mostrarla sería teatro */}
+          {backendEnabled ? (
+            <Field id="ht-password" label="Contraseña" required>
+              <div className="relative">
+                <input
+                  id="ht-password"
+                  type={showPw ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputCls + ' pr-12'}
+                />
+                <button
+                  type="button"
+                  aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-secondary-foreground hover:text-foreground"
+                >
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
-            )}
-          </Field>
+              {/* Indicador de fortaleza */}
+              {password && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map((n) => (
+                      <div
+                        key={n}
+                        className="h-1 w-8 rounded-full transition-colors duration-200"
+                        style={{ background: n <= pwScore ? pwColor : 'rgba(255,255,255,0.1)' }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-medium" style={{ color: pwColor }}>
+                    {pwLabel}
+                  </span>
+                </div>
+              )}
+            </Field>
+          ) : (
+            <p className="flex items-center gap-2 text-[12px] leading-relaxed text-secondary-foreground">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-teal/25 bg-teal/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal">
+                Próximamente
+              </span>
+              Cuenta en la nube con contraseña y respaldo.
+            </p>
+          )}
 
           {/* Trust badges — visibles antes del consentimiento */}
           <div className="flex flex-wrap gap-2">

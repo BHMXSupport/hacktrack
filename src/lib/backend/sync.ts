@@ -5,16 +5,103 @@
 import { backendEnabled } from './config'
 import { getSupabase } from './supabase'
 
-export type RemoteState = { data: Record<string, unknown>; updatedAt: number } | null
+// ── Estado de sincronización (para que Ajustes muestre el estado REAL, no un mock) ──
+// `lastSyncAt` persiste en localStorage FUERA del blob sincronizado: nunca viaja a la nube,
+// así una restauración no puede importar un "última copia" viejo de otro dispositivo.
+const LAST_SYNC_KEY = 'hacktrack:lastCloudSyncAt'
+const SYNC_STATUS_EVT = 'hacktrack:sync-status'
 
-/** Trae el estado remoto del usuario (o null si no hay fila / sin backend). */
-export async function pullRemote(userId: string): Promise<RemoteState> {
-  if (!backendEnabled) return null
+export type SyncStatus = { lastSyncAt: number | null; lastPushFailed: boolean }
+
+let lastPushFailed = false
+
+export function getSyncStatus(): SyncStatus {
+  let lastSyncAt: number | null = null
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(LAST_SYNC_KEY) : null
+    if (raw) {
+      const n = Number(raw)
+      if (Number.isFinite(n) && n > 0) lastSyncAt = n
+    }
+  } catch { /* localStorage bloqueado (modo privado) → sin fecha, no es fatal */ }
+  return { lastSyncAt, lastPushFailed }
+}
+
+/** Suscríbete a cambios del estado de sync (push exitoso/fallido, restore). Devuelve unsubscribe. */
+export function onSyncStatusChange(cb: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
+  window.addEventListener(SYNC_STATUS_EVT, cb)
+  return () => window.removeEventListener(SYNC_STATUS_EVT, cb)
+}
+
+function emitSyncStatus() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SYNC_STATUS_EVT))
+}
+
+/** Marca "última copia = ahora". También la llama Ajustes tras restaurar (el estado local == nube). */
+export function markCloudSyncedNow(): void {
+  try { window.localStorage.setItem(LAST_SYNC_KEY, String(Date.now())) } catch { /* ver arriba */ }
+  lastPushFailed = false
+  emitSyncStatus()
+}
+
+function markPushFailed(): void {
+  lastPushFailed = true
+  emitSyncStatus()
+}
+
+// ── Errores → es-MX (toasts honestos, sin jerga de Postgres) ──
+function mapSyncError(msg: string): string {
+  const m = (msg || '').toLowerCase()
+  if (m.includes('permission denied') || m.includes('row-level security') || m.includes('jwt')) {
+    return 'Sin permiso para acceder a tu respaldo. Cierra sesión y vuelve a entrar.'
+  }
+  if (m.includes('network') || m.includes('fetch') || m.includes('failed to')) {
+    return 'Sin conexión. Revisa tu internet e inténtalo otra vez.'
+  }
+  return 'No se pudo acceder al respaldo. Inténtalo de nuevo.'
+}
+
+// ── Pull ──
+// Resultado discriminado: error ≠ "no hay respaldo". Un fallo de red/permiso NUNCA debe
+// mostrarse como "no tienes respaldo" (mensaje falso que asusta o hace perder datos).
+export type PullResult =
+  | { ok: true; empty: false; data: Record<string, unknown>; updatedAt: number }
+  | { ok: true; empty: true }
+  | { ok: false; error: string }
+
+/** Trae el estado remoto del usuario. Distingue: hay datos / no hay fila / falló la lectura. */
+export async function pullRemote(userId: string): Promise<PullResult> {
+  if (!backendEnabled) return { ok: false, error: 'La nube no está configurada en esta versión.' }
   const sb = await getSupabase()
-  if (!sb) return null
-  const { data, error } = await sb.from('user_state').select('data, updated_at').eq('user_id', userId).maybeSingle()
-  if (error || !data) return null
-  return { data: (data.data as Record<string, unknown>) ?? {}, updatedAt: new Date(data.updated_at as string).getTime() }
+  if (!sb) return { ok: false, error: 'La nube no está disponible ahora. Inténtalo de nuevo.' }
+  try {
+    const { data, error } = await sb.from('user_state').select('data, updated_at').eq('user_id', userId).maybeSingle()
+    if (error) return { ok: false, error: mapSyncError(error.message) }
+    if (!data) return { ok: true, empty: true }
+    return {
+      ok: true,
+      empty: false,
+      data: (data.data as Record<string, unknown>) ?? {},
+      updatedAt: new Date(data.updated_at as string).getTime(),
+    }
+  } catch (e) {
+    return { ok: false, error: mapSyncError(e instanceof Error ? e.message : String(e)) }
+  }
+}
+
+// ── Push ──
+// El PIN es del DISPOSITIVO por definición de producto: pinHash/pinEnabled jamás suben a la nube
+// (un hash SHA-256 de 4 dígitos se revierte en milisegundos con acceso a la BD). Se filtra aquí,
+// en el único punto de salida, para que ningún caller pueda subirlo por accidente.
+function stripDeviceOnlyFields(blob: Record<string, unknown>): Record<string, unknown> {
+  const settings = blob.settings
+  if (settings && typeof settings === 'object' && !Array.isArray(settings)) {
+    const { pinHash, pinEnabled, ...rest } = settings as Record<string, unknown>
+    void pinHash; void pinEnabled
+    return { ...blob, settings: rest }
+  }
+  return blob
 }
 
 /** Sube (upsert) el estado local del usuario, marcando updated_at = ahora. Devuelve ok. */
@@ -22,10 +109,21 @@ export async function pushRemote(userId: string, blob: Record<string, unknown>):
   if (!backendEnabled) return false
   const sb = await getSupabase()
   if (!sb) return false
-  const { error } = await sb.from('user_state').upsert(
-    { user_id: userId, data: blob, updated_at: new Date().toISOString() },
-    { onConflict: 'user_id' },
-  )
-  if (error) { console.error('[sync] pushRemote:', error.message); return false }
-  return true
+  try {
+    const { error } = await sb.from('user_state').upsert(
+      { user_id: userId, data: stripDeviceOnlyFields(blob), updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' },
+    )
+    if (error) {
+      console.error('[sync] pushRemote:', error.message)
+      markPushFailed()
+      return false
+    }
+    markCloudSyncedNow()
+    return true
+  } catch (e) {
+    console.error('[sync] pushRemote:', e)
+    markPushFailed()
+    return false
+  }
 }

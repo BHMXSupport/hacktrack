@@ -1,20 +1,22 @@
 /**
  * Login.tsx — v2 flow
  *
- * Inicio de sesión mock (email + contraseña). Simula delay de 600ms.
+ * Con backend (backendEnabled): email + contraseña reales contra Supabase; muestra
+ * el error específico de auth.ts. Sin backend: NO se finge verificación de
+ * credenciales — la cuenta es local, se entra directo y la nube se marca
+ * "Próximamente" (sin campo de contraseña ni "¿Olvidaste tu contraseña?").
  * Éxito → finishOnboarding + go 's-app'.
- * "¿Olvidaste tu contraseña?" → go 's-forgot'.
  * "Crear cuenta" → go 's-goal' (pasa por TODO el onboarding, igual que un usuario nuevo; no salta a s-account).
  *
  * ScreenId: 's-login'
  * Dispatch:
  *   { t: 'finishOnboarding' }        — auth ok, marca justOnboarded, screen→'s-app'
- *   { t: 'go', screen: 's-forgot' }  — recuperar contraseña
+ *   { t: 'go', screen: 's-forgot' }  — recuperar contraseña (solo con backend)
  *   { t: 'go', screen: 's-goal' }    — crear cuenta nueva → arranca el onboarding desde el objetivo
  */
 import { useState, useId } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ChevronLeft, Eye, EyeOff, Droplet, Shield } from 'lucide-react'
+import { ChevronLeft, Eye, EyeOff, Droplet, Shield, CloudOff } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { backendEnabled } from '../../lib/backend/config'
 import { signIn } from '../../lib/backend/auth'
@@ -82,7 +84,7 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [emailError, setEmailError] = useState(false)
-  const [loginError, setLoginError] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   // Input class compartido
@@ -102,21 +104,13 @@ export function Login() {
     e.preventDefault()
     if (loading) return
     if (!EMAIL_RE.test(email.trim())) { setEmailError(true); return }
-    setLoginError(false)
+    setLoginError(null)
     setLoading(true)
-    if (backendEnabled) {
-      // Auth real contra Supabase: verifica credenciales; la rama de error YA corre (antes nunca).
-      const res = await signIn(email.trim(), password)
-      setLoading(false)
-      if (!res.ok) { setLoginError(true); return }
-      dispatch({ t: 'finishOnboarding' })
-      return
-    }
-    // Sin backend (beta): mock 600ms → éxito, conserva el comportamiento actual.
-    window.setTimeout(() => {
-      setLoading(false)
-      dispatch({ t: 'finishOnboarding' })
-    }, 600)
+    // Auth real contra Supabase; el mensaje específico de mapAuthError llega a la UI.
+    const res = await signIn(email.trim(), password)
+    setLoading(false)
+    if (!res.ok) { setLoginError(res.error); return }
+    dispatch({ t: 'finishOnboarding' })
   }
 
   return (
@@ -162,7 +156,30 @@ export function Login() {
           <p className="text-[14px] text-secondary-foreground">Bienvenido de vuelta</p>
         </motion.div>
 
-        {/* Formulario */}
+        {/* Sin backend: la cuenta es local — no se finge verificación de credenciales */}
+        {!backendEnabled && (
+          <motion.div variants={fade} className="flex flex-col gap-4">
+            <Glass className="flex items-start gap-3 p-4">
+              <CloudOff size={18} className="mt-0.5 shrink-0 text-teal" aria-hidden="true" />
+              <div className="flex flex-col gap-1">
+                <span className="inline-flex w-fit items-center rounded-full border border-teal/25 bg-teal/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal">
+                  Próximamente
+                </span>
+                <p className="text-[14px] font-semibold text-foreground">Cuenta en la nube</p>
+                <p className="text-[13px] leading-relaxed text-secondary-foreground">
+                  Tu cuenta es local por ahora — la sincronización llega pronto.
+                  Entra directo a tus datos guardados en este dispositivo.
+                </p>
+              </div>
+            </Glass>
+            <Button size="full" onClick={() => dispatch({ t: 'finishOnboarding' })}>
+              Entrar
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Formulario (solo con backend real) */}
+        {backendEnabled && (
         <motion.form
           variants={fade}
           onSubmit={handleSubmit}
@@ -222,11 +239,11 @@ export function Login() {
             ¿Olvidaste tu contraseña?
           </button>
 
-          {/* Error de login */}
+          {/* Error de login — mensaje específico de mapAuthError */}
           {loginError && (
             <Glass className="py-3 px-4">
               <p role="alert" className="text-[13px] text-alert text-center">
-                No pudimos iniciar sesión. Verifica tus datos e intenta de nuevo.
+                {loginError}
               </p>
             </Glass>
           )}
@@ -243,6 +260,7 @@ export function Login() {
             {loading ? 'Entrando…' : 'Iniciar sesión'}
           </Button>
         </motion.form>
+        )}
 
         {/* Separador */}
         <motion.div variants={fade} className="flex items-center gap-4" aria-hidden="true">

@@ -11,8 +11,8 @@ import {
 import { Sheet } from '../ui/Sheet'
 import { Switch } from '../ui/Switch'
 import { backendEnabled } from '../../lib/backend/config'
-import { getSession } from '../../lib/backend/auth'
-import { pullRemote } from '../../lib/backend/sync'
+import { getSession, signOut } from '../../lib/backend/auth'
+import { pullRemote, getSyncStatus, onSyncStatusChange, markCloudSyncedNow } from '../../lib/backend/sync'
 import { Button } from '../ui/Button'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { useApp } from '../../lib/store'
@@ -34,6 +34,11 @@ function permLabel(p: ReturnType<typeof notifPermission>): string {
   if (p === 'denied') return 'Bloqueadas en el sistema'
   if (p === 'unsupported') return 'No compatibles con este navegador'
   return 'Sin permiso'
+}
+
+// ── helper: fecha/hora legible de la última copia en la nube ──────────────────
+function formatSyncTime(ts: number): string {
+  return new Date(ts).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 // ── fila genérica: tap target ≥44px garantizado ──────────────────────────────
@@ -355,16 +360,29 @@ export function Ajustes({
   const [showAdvancedReminders, setShowAdvancedReminders] = useState(false)
   const [restoreState, setRestoreState] = useState<'idle' | 'confirm' | 'busy'>('idle')
 
+  // Estado real de la copia en la nube (última subida exitosa / fallo pendiente).
+  const [syncStatus, setSyncStatus] = useState(() => getSyncStatus())
+  useEffect(() => onSyncStatusChange(() => setSyncStatus(getSyncStatus())), [])
+
   // Restaurar desde la nube: trae el blob remoto y REEMPLAZA el estado local (vía loadRemoteState → hydrate).
   // Explícito + confirmado (no auto-merge) para no clobberear cambios locales sin querer. Solo con backend.
+  // "Sin respaldo" solo se muestra cuando de verdad no hay fila; un error de red/permiso da su propio mensaje.
   async function handleRestore() {
     const sess = await getSession()
     if (!sess) { dispatch({ t: 'toast', msg: 'Inicia sesión para restaurar' }); setRestoreState('idle'); return }
     setRestoreState('busy')
     const remote = await pullRemote(sess.userId)
     setRestoreState('idle')
-    if (!remote) { dispatch({ t: 'toast', msg: 'No hay respaldo en la nube todavía' }); return }
-    dispatch({ t: 'loadRemoteState', state: remote.data as Partial<AppState> })
+    if (!remote.ok) { dispatch({ t: 'toast', msg: remote.error }); return }
+    if (remote.empty) { dispatch({ t: 'toast', msg: 'No hay respaldo en la nube todavía' }); return }
+    // El PIN es del dispositivo: el estado local de PIN sobrevive a la restauración (los blobs
+    // nuevos ya no lo incluyen, pero un respaldo viejo podría traer el PIN de otro dispositivo).
+    const incoming = remote.data as Partial<AppState>
+    const withLocalPin: Partial<AppState> = incoming.settings
+      ? { ...incoming, settings: { ...incoming.settings, pinEnabled: settings.pinEnabled, pinHash: settings.pinHash ?? null } }
+      : incoming
+    dispatch({ t: 'loadRemoteState', state: withLocalPin })
+    markCloudSyncedNow()
     dispatch({ t: 'toast', msg: 'Restaurado desde la nube' })
   }
   const [showAliasSheet, setShowAliasSheet] = useState(false)
@@ -419,6 +437,9 @@ export function Ajustes({
   }
 
   function handleLogout() {
+    // Cierra también la sesión de Supabase; si no, persiste en localStorage y el respaldo
+    // seguiría subiendo a la cuenta "cerrada" (y el siguiente usuario del dispositivo la hereda).
+    void signOut()
     dispatch({ t: 'go', screen: 's-login' })
     setShowLogoutConfirm(false)
     onClose()
@@ -693,8 +714,19 @@ export function Ajustes({
                   <Download size={18} className={settings.cloudSync ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
                   <span className="flex flex-1 flex-col">
                     <span className="text-[14px] font-medium text-foreground">Respaldo en la nube</span>
-                    <span className="text-[12px] text-muted-foreground">
-                      {settings.cloudSync ? 'Tu historial se respalda en tu cuenta' : 'Opcional — requiere iniciar sesión'}
+                    <span
+                      className={[
+                        'text-[12px]',
+                        settings.cloudSync && syncStatus.lastPushFailed ? 'text-alert' : 'text-muted-foreground',
+                      ].join(' ')}
+                    >
+                      {!settings.cloudSync
+                        ? 'Opcional — requiere iniciar sesión'
+                        : syncStatus.lastPushFailed
+                          ? 'No se pudo respaldar el último cambio — se reintenta con el siguiente'
+                          : syncStatus.lastSyncAt
+                            ? `Última copia: ${formatSyncTime(syncStatus.lastSyncAt)}`
+                            : 'Tu historial se respalda en tu cuenta'}
                     </span>
                   </span>
                   <Switch
