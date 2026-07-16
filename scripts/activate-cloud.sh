@@ -40,6 +40,8 @@ set -euo pipefail
 PROD_URL="https://bhmxsupport.github.io/hacktrack/"
 VAPID_SUBJECT="mailto:soporte@biohackmx.com.mx"
 PROJECT_NAME="${PROJECT_NAME:-hacktrack}"
+# Región AWS del proyecto — us-east-1 es la de menor latencia típica desde CDMX.
+REGION="${SUPABASE_REGION:-us-east-1}"
 REGION="${SUPABASE_REGION:-us-east-1}"
 API="https://api.supabase.com/v1"
 
@@ -105,7 +107,7 @@ if [ -z "$REF" ]; then
     fi
   fi
   DB_PASS="${SUPABASE_DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)}"
-  info "Creando proyecto '$PROJECT_NAME' en $REGION…"
+  info "Creando proyecto '$PROJECT_NAME' en ${REGION}…"
   # La password entra a jq por ENV (env.DB_PASS), no por --arg: los argv son visibles en ps.
   REF="$(mapi POST /projects "$(DB_PASS="$DB_PASS" jq -n --arg n "$PROJECT_NAME" --arg o "$SUPABASE_ORG_ID" --arg r "$REGION" \
         '{name:$n, organization_id:$o, region:$r, db_pass:env.DB_PASS}')" | jq -r '.id')"
