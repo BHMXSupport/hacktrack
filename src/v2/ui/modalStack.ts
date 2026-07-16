@@ -25,6 +25,12 @@ export function pushModal(close: CloseFn): void {
   stack.push(close)
 }
 
+// Profundidad actual de la pila — la usa el botón back nativo de Android
+// (src/lib/native/backButton.ts) para decidir: cerrar el modal del tope o minimizar la app.
+export function modalStackDepth(): number {
+  return stack.length
+}
+
 export function popModal(close: CloseFn): void {
   if (typeof document === 'undefined') return
   const i = stack.lastIndexOf(close)

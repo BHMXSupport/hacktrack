@@ -4,6 +4,8 @@ import type { AppState } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
 import { upcomingDoses, doseTakenOnProduct, phaseForDate, weekAdherencePctLast8, protocolStreak } from '../../lib/calendar'
 import { registerSW as swRegRef, scheduleSwReminder, schedulePreReminder, scheduleDailySummary, scheduleWeeklySummary, scheduleRescue, scheduleMeasureReminder, notifPermission, setNotifClickHandler } from '../../lib/notifications'
+import { setNativeNotifTapHandler } from '../../lib/native/notifications'
+import { rachaLabel } from '../../lib/buildFlags'
 import { registerSW as registerPwaSW } from 'virtual:pwa-register'
 import { useCloudSync } from '../../lib/backend/useCloudSync'
 
@@ -55,7 +57,8 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
   stateRef.current = state
 
   // Backend opt-in (auth/sync/push). NO-OP sin credenciales VITE_SUPABASE_* → el beta no cambia.
-  useCloudSync(state)
+  // dispatch: un ciclo de sync puede TRAER novedades remotas (merge por registro) → 'applyMerged'.
+  useCloudSync(state, dispatch)
 
   // R1 — persistencia en localStorage (excluye estado efímero)
   useEffect(() => {
@@ -125,6 +128,8 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
       else if (goto === 'tab:semana') dispatch({ t: 'tab', tab: 'semana' })
     }
     setNotifClickHandler(routeTag)
+    // Nativo (Capacitor): taps de LocalNotifications (incl. cold-start bufferizado) rutean igual.
+    setNativeNotifTapHandler(routeTag)
     const onMsg = (e: MessageEvent) => {
       const d = e.data as { type?: string; goto?: string } | null
       if (d?.type === 'NOTIF_GOTO' && typeof d.goto === 'string') routeGoto(d.goto)
@@ -140,6 +145,7 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
     } catch { /* sin URL/searchParams */ }
     return () => {
       setNotifClickHandler(null)
+      setNativeNotifTapHandler(null)
       navigator.serviceWorker?.removeEventListener('message', onMsg)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,8 +202,9 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
         const weeks = weekAdherencePctLast8(state, startOfDay(now))
         const pct = weeks.length ? weeks[weeks.length - 1] : null
         const streak = protocolStreak(state, startOfDay(now), now)
+        // rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio.
         const body = pct != null
-          ? `Cumpliste ${pct}% de tus tomas y llevas ${streak} día${streak === 1 ? '' : 's'} de racha. Mira tu progreso.`
+          ? `Cumpliste ${pct}% de tus tomas y llevas ${streak} día${streak === 1 ? '' : 's'} de ${rachaLabel()}. Mira tu progreso.`
           : 'Empieza la semana con tu seguimiento. Ábrela y revisa tu progreso.'
         void scheduleWeeklySummary(body, wdelay)
       }

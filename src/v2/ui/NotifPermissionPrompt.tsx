@@ -4,6 +4,7 @@ import { useApp } from '../../lib/store'
 import { Sheet } from './Sheet'
 import { Button } from './Button'
 import { notifSupported, notifPermission } from '../../lib/notifications'
+import { rachaLabel } from '../../lib/buildFlags'
 
 // Prompt de permiso de notificaciones — aparece al ENTRAR a la app si el permiso NO está concedido.
 // Acelerador conservador: máximo UNA vez por sesión (sessionStorage) y con descarte PERSISTENTE
@@ -98,7 +99,8 @@ export function NotifPermissionPrompt() {
           <p className="text-[14px] leading-relaxed text-muted-foreground">
             {denied
               ? 'Las notificaciones están bloqueadas para Hacktrack. Tu teléfono ya no muestra el aviso automático, así que actívalas a mano en los ajustes.'
-              : 'Te avisamos a la hora de cada toma, con un resumen de tu día y de tu semana, para que no se te pase ninguna y conserves tu racha. Puedes ajustarlos o apagarlos cuando quieras en Ajustes.'}
+              // rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio
+              : `Te avisamos a la hora de cada toma, con un resumen de tu día y de tu semana, para que no se te pase ninguna y conserves tu ${rachaLabel()}. Puedes ajustarlos o apagarlos cuando quieras en Ajustes.`}
           </p>
         </div>
 

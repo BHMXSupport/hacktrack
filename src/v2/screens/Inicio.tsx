@@ -10,6 +10,7 @@ import { doseToMg } from '../../lib/calc'
 import { CadenciaChip } from './ProtocoloEditSheet'
 import { upcomingDoses, protocolStreak, protocolStreakStart, dayProducts, doseTakenOnProduct, doseSkippedOnProduct, pendingDoses } from '../../lib/calendar'
 import { MEASURE_META } from '../../lib/catalog'
+import { rachaLabel } from '../../lib/buildFlags'
 
 // #107: sufijo de unidad para las KPI de medidas (scale → "/100", num → "kg"/"cm"/"%")
 function measureSuffix(name: string): string {
@@ -379,7 +380,8 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
                 streak > 0 ? (
                   <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-teal/25 bg-teal/10 px-3 py-1 text-[11px] font-medium text-teal shadow-[0_0_0_3px_rgba(95,201,184,0.04)]">
                     <Flame size={12} className="shrink-0" />
-                    racha {streak} d
+                    {/* rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio */}
+                    {rachaLabel()} {streak} d
                     {streakStart ? (
                       <span className="text-muted-foreground">
                         · desde {streakStart.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}

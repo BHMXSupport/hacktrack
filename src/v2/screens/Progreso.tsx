@@ -31,6 +31,7 @@ import {
 import { buildIcs, downloadIcs } from '../../lib/calendar'
 import { dayModel } from '../../lib/dayModel'
 import { MEASURE_META } from '../../lib/catalog'
+import { rachaLabel } from '../../lib/buildFlags'
 import type { MeasureSample } from '../../lib/types'
 import { Glass } from '../ui/Glass'
 import { DataPlate } from '../ui/DataPlate'
@@ -873,7 +874,8 @@ function AvancesTab() {
       >
         <TrendingUp size={32} className="text-muted-foreground/40" />
         <p className="text-[14px] font-medium text-secondary-foreground">Sin datos de avance aún</p>
-        <p className="text-[13px] text-muted-foreground">Registra dosis para ver tu adherencia y racha aquí.</p>
+        {/* rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio */}
+        <p className="text-[13px] text-muted-foreground">Registra dosis para ver tu adherencia y {rachaLabel()} aquí.</p>
       </motion.div>
     )
   }
@@ -906,7 +908,7 @@ function AvancesTab() {
               value={streak}
               goal={Math.max(streak, 7)}
               unit=""
-              label="Racha"
+              label={rachaLabel('Racha')}
               sub={streak < 7 ? `Meta: 7 días` : `${streak} días`}
               size={120}
               stroke={10}

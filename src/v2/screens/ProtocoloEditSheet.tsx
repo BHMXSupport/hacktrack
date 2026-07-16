@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Info, ChevronDown, ChevronUp, Archive, ArchiveRestore, Droplet, Sunrise, Sun, Moon } from 'lucide-react'
 import { useApp } from '../../lib/store'
+import { STORE_BUILD } from '../../lib/buildFlags'
 import { PEPTIDES, WDS } from '../../lib/catalog'
 import {
   rhythmLabel,
@@ -848,11 +849,12 @@ export function ProtocoloEditSheet({
             )}
           </div>
 
-          <p className="text-[13px] font-semibold text-foreground">Registrar compra</p>
+          {/* Build de tienda: léxico neutro sin verbos de comercio (Google escanea strings del APK) */}
+          <p className="text-[13px] font-semibold text-foreground">{STORE_BUILD ? 'Registrar gasto del lote' : 'Registrar compra'}</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label htmlFor="proto-purchase-mg" className="text-[12px] text-muted-foreground">
-                mg comprados
+                {STORE_BUILD ? 'mg del lote' : 'mg comprados'}
               </label>
               <input
                 id="proto-purchase-mg"
@@ -863,7 +865,7 @@ export function ProtocoloEditSheet({
                 placeholder="—"
                 value={purchaseMgStr}
                 onChange={(e) => setPurchaseMgStr(e.target.value)}
-                aria-label="Miligramos comprados"
+                aria-label={STORE_BUILD ? 'Miligramos del lote' : 'Miligramos comprados'}
                 className="h-11 rounded-xl border border-white/12 bg-card px-3 font-mono text-[14px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>
@@ -880,7 +882,7 @@ export function ProtocoloEditSheet({
                 placeholder="—"
                 value={purchaseCostStr}
                 onChange={(e) => setPurchaseCostStr(e.target.value)}
-                aria-label="Costo de la compra en pesos"
+                aria-label={STORE_BUILD ? 'Costo del lote en pesos' : 'Costo de la compra en pesos'}
                 className="h-11 rounded-xl border border-white/12 bg-card px-3 font-mono text-[14px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>

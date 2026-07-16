@@ -1,4 +1,4 @@
-import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
+import { type ComponentType, type ReactNode, Suspense, lazy, useEffect, useState } from 'react'
 import { Settings } from 'lucide-react'
 import { AppProviderV2 } from './lib/provider'
 import { useApp } from '../lib/store'
@@ -29,7 +29,6 @@ import { ProtocolosSheet } from './screens/ProtocolosSheet'
 import { ProtocoloEditSheet } from './screens/ProtocoloEditSheet'
 import { CalcSheet } from './screens/CalcSheet'
 import { DoseConfirmSheet } from './screens/DoseConfirmSheet'
-import { ImportSheet } from './screens/ImportSheet'
 import { PaywallSheet } from './screens/PaywallSheet'
 import { PinSetupSheet } from './screens/PinSetupSheet'
 import { Splash } from './flow/Splash'
@@ -42,6 +41,15 @@ import { Account } from './flow/Account'
 import { Login } from './flow/Login'
 import { Forgot } from './flow/Forgot'
 import { Welcome } from './flow/Welcome'
+import { STORE_BUILD } from '../lib/buildFlags'
+
+// Exclusión en COMPILACIÓN (Apple 1.4.3): la integración de importación de compras del
+// partner NO existe en binarios de tienda. El import() dinámico vive dentro de una rama
+// muerta cuando STORE_BUILD=true → Rollup ni siquiera emite el chunk de ImportSheet
+// (lo demuestra scripts/store-gate.mjs). En la PWA se carga lazy y el flujo no cambia.
+const ImportSheet = STORE_BUILD
+  ? null
+  : lazy(() => import('./screens/ImportSheet').then((m) => ({ default: m.ImportSheet })))
 
 // Flujo de arranque: splash → onboarding → goal → baseline → measures → account → s-app.
 // Login es alterno (desde Account "ya tengo cuenta"). s-forgot = pantalla real de recuperación.
@@ -151,7 +159,11 @@ function Shell() {
       <ProtocoloEditSheet open={sheet === 'protocolo-edit'} onClose={closeSheet} product={sheetArg} />
       <CalcSheet open={sheet === 'calc'} onClose={closeSubSheet} />
       <DoseConfirmSheet open={sheet === 'dose-confirm'} onClose={closeSheet} arg={sheetArg} />
-      <ImportSheet open={sheet === 'import'} onClose={closeSubSheet} />
+      {!STORE_BUILD && ImportSheet && (
+        <Suspense fallback={null}>
+          <ImportSheet open={sheet === 'import'} onClose={closeSubSheet} />
+        </Suspense>
+      )}
       <PaywallSheet open={sheet === 'paywall'} onClose={closeSheet} />
       <PinSetupSheet open={sheet === 'pin-setup'} onClose={closeSheet} />
 
@@ -175,7 +187,9 @@ export function AppV2() {
   // Gate de instalación: en móvil, si NO corre como app instalada (standalone), no deja pasar y
   // muestra cómo agregarla a la pantalla de inicio. (Escritorio pasa: ahí no hay "instalar PWA" claro
   // y se evita dejar sin acceso a revisores/colaboradores en Chrome de escritorio.)
-  if (shouldShowInstallGate()) return <InstallGate />
+  // En builds de tienda NO existe: la app ya llega instalada (el WebView de Capacitor no es
+  // display-mode standalone → el gate bloquearía el binario) y su copy menciona "sin tienda".
+  if (!STORE_BUILD && shouldShowInstallGate()) return <InstallGate />
   return (
     <AppProviderV2>
       <Shell />

@@ -22,6 +22,9 @@
 // GENÉRICO (sin nombrar la medida — privacidad) calculando cuándo vence el intervalo desde el último
 // registro. Si nunca se registró o ya venció, agenda el intervalo completo desde ahora (nunca al instante).
 
+import { rachaLabel } from './buildFlags'
+import { scheduleNativeNotif } from './native/notifications'
+
 export function notifSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window
 }
@@ -101,6 +104,9 @@ export async function registerSW(): Promise<void> {
  * Limitación: con la app CERRADA no llega sin servidor de push (web push / VAPID) — fase cloud.
  */
 export async function scheduleNotif(title: string, body: string, delayMs: number, tag: string): Promise<void> {
+  // Nativo (Capacitor): LocalNotifications entrega con la app CERRADA y sin tope de 24 h —
+  // si el OS agendó, no hace falta el camino web. En web es no-op (false) y seguimos abajo.
+  if (delayMs > 0 && (await scheduleNativeNotif(title, body, delayMs, tag))) return
   if (delayMs <= 0 || delayMs > 24 * 60 * 60_000) return // solo hasta 24 h adelante
   try {
     const reg = _swReg ?? (await navigator.serviceWorker?.getRegistration()) ?? null
@@ -119,7 +125,8 @@ export async function scheduleNotif(title: string, body: string, delayMs: number
  */
 export async function scheduleSwReminder(product: string, delayMs: number): Promise<void> {
   // Título SIN "Hacktrack" (iOS ya muestra "de Hacktrack" debajo). Copy que invita a abrir + engancha con la racha.
-  await scheduleNotif(`Hora de tu ${product}`, 'Márcalo en un toque y conserva tu racha.', delayMs, `hacktrack-dose-${product}`)
+  // rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio.
+  await scheduleNotif(`Hora de tu ${product}`, `Márcalo en un toque y conserva tu ${rachaLabel()}.`, delayMs, `hacktrack-dose-${product}`)
 }
 
 /** Pre-aviso "se acerca" N minutos antes de la dosis (distinto del recordatorio a la hora exacta). */
@@ -148,7 +155,8 @@ export function scheduleRescue(product: string, delayMs: number, hasRegistered: 
     if (hasRegistered()) return // ya lo registró → no molestar
     void showReminder(
       `¿Registraste tu ${product}?`,
-      'Aún no lo veo hoy. Ábrelo y márcalo para no romper tu racha.',
+      // rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio.
+      `Aún no lo veo hoy. Ábrelo y márcalo para no romper tu ${rachaLabel()}.`,
       { tag: `hacktrack-rescue-${product}` },
     )
   }, delayMs)

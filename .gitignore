@@ -11,3 +11,5 @@ public/promo/
 .secrets/
 .env
 dist-e2e/
+dist-store/
+dist-store-cap/

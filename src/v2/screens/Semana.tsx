@@ -32,6 +32,7 @@ import { useApp, adherence, isoKey } from '../../lib/store'
 import { weekAdherencePct } from '../../lib/calendar'
 import { startOfDay } from '../../lib/cadence'
 import { addDays } from '../../lib/dates'
+import { rachaLabel } from '../../lib/buildFlags'
 import {
   avgKcal,
   kcalSeries,
@@ -720,7 +721,8 @@ export function Semana() {
 
   // ── Compartir (Web Share API) ─────────────────────────────────────────────
   const handleShare = useCallback(async () => {
-    const text = `Racha integral de ${streak} ${streak === 1 ? 'día' : 'días'} · ${adh ? adh.pct + '%' : '—'} adherencia · ${avg7 != null ? avg7 + ' kcal/día' : '—'} — vía Hacktrack`
+    // rachaLabel: en tienda dice "Racha integral de registro" (Apple 1.4.3); PWA sin cambio
+    const text = `${rachaLabel('Racha integral')} de ${streak} ${streak === 1 ? 'día' : 'días'} · ${adh ? adh.pct + '%' : '—'} adherencia · ${avg7 != null ? avg7 + ' kcal/día' : '—'} — vía Hacktrack`
     try {
       if (navigator.share && navigator.canShare?.({ title: 'Mi semana en Hacktrack', text })) {
         await navigator.share({ title: 'Mi semana en Hacktrack', text })
@@ -779,7 +781,7 @@ export function Semana() {
           goal={100}
           unit=""
           label="semana"
-          sub={streak > 0 ? `racha integral ${streak}d` : undefined}
+          sub={streak > 0 ? `${rachaLabel('racha integral')} ${streak}d` : undefined}
           size={88}
           stroke={8}
         />
@@ -942,14 +944,14 @@ export function Semana() {
       <motion.div variants={itemVars}>
         <div className="rounded-lg border border-white/8 bg-raised p-4">
           <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">
-            Racha integral (dosis + comida + agua)
+            {rachaLabel('Racha integral')} (dosis + comida + agua)
           </p>
           <div className="flex items-baseline gap-2 mb-3">
             <span className="font-mono text-[30px] font-bold tabular-nums text-[var(--teal-bright)] leading-none">
               {sd.streak}
             </span>
             <span className="text-[13px] text-muted-foreground">
-              {sd.streak === 1 ? 'día' : 'días'} de racha integral
+              {sd.streak === 1 ? 'día' : 'días'} de {rachaLabel('racha integral')}
             </span>
           </div>
           <div className="flex flex-wrap gap-2 mb-3">

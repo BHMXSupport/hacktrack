@@ -26,6 +26,7 @@ import {
 } from '../../lib/calendar'
 import { presenceNow } from '../../lib/pharma'
 import { PEPTIDES, CATEGORY_COLOR, MON, WD, MEASURE_META } from '../../lib/catalog'
+import { rachaLabel } from '../../lib/buildFlags'
 import type { LogItem, RangeFilter, AdverseSeverity } from '../../lib/types'
 import { Glass } from '../ui/Glass'
 import { Chip } from '../ui/Chip'
@@ -1072,7 +1073,8 @@ export function Diario() {
           {currentStreak > 0 && (
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold border ${currentStreak >= 7 ? 'text-ok bg-ok/10 border-ok/20' : 'text-warn bg-warn/10 border-warn/20'}`}>
               <Flame size={12} />
-              Racha {currentStreak} día{currentStreak !== 1 ? 's' : ''}
+              {/* rachaLabel: en tienda dice "Racha de registro" (Apple 1.4.3); PWA sin cambio */}
+              {rachaLabel('Racha')} {currentStreak} día{currentStreak !== 1 ? 's' : ''}
             </span>
           )}
           {periodAdherence !== null && (

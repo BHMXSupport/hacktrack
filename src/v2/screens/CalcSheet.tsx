@@ -10,7 +10,19 @@ import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
 import { DataPlate } from '../ui/DataPlate'
 import { Chip } from '../ui/Chip'
+import { useModalStack } from '../ui/modalStack'
+import { STORE_BUILD } from '../../lib/buildFlags'
 import type { SyringeScale } from '../../lib/types'
+
+// ── Interstitial de tienda (solo STORE_BUILD) ─────────────────────────────────
+// Aviso de uso-de-investigación UNA vez por sesión, ANTES del primer uso de la
+// calculadora. sessionStorage (no UserSettings): es por-sesión por diseño y no
+// arrastra migración de esquema. En la PWA este bloque es código muerto (se elimina).
+const CALC_ACK_SESSION_KEY = 'hacktrack:calcAckSession'
+function calcAckPending(): boolean {
+  if (!STORE_BUILD) return false
+  try { return sessionStorage.getItem(CALC_ACK_SESSION_KEY) !== '1' } catch { return true /* modo privado: mostrar */ }
+}
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -82,6 +94,16 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
   const [showSaved, setShowSaved] = useState(false)
   const [showSaveForm, setShowSaveForm] = useState(false)
   const [saveLabel, setSaveLabel] = useState('')
+
+  // Interstitial de tienda: pendiente hasta "Entendido" (una vez por sesión).
+  const [ackPending, setAckPending] = useState(calcAckPending)
+  const acknowledge = () => {
+    try { sessionStorage.setItem(CALC_ACK_SESSION_KEY, '1') } catch { /* modo privado */ }
+    setAckPending(false)
+  }
+  // En la pila modal DESPUÉS del Sheet (efecto del padre corre tras el del hijo) →
+  // Escape descarta el interstitial (equivale a "Entendido"), no la hoja completa.
+  useModalStack(open && STORE_BUILD && ackPending, acknowledge)
 
   // Precargar reconstitución recordada del producto activo (item 322)
   useEffect(() => {
@@ -182,6 +204,19 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
 
   return (
     <Sheet open={open} onClose={onClose} title="Calculadora de reconstitución">
+      {STORE_BUILD && ackPending ? (
+        /* Interstitial de tienda: sustituye el contenido hasta "Entendido" — la calculadora
+           no se usa sin ver el aviso. En la PWA esta rama es código muerto (eliminada). */
+        <div className="flex flex-col gap-5 py-2">
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
+            Esta calculadora solo hace aritmética (reconstitución/conversión) con los datos que tú
+            ingresas. No recomienda ni sugiere dosis.
+          </p>
+          <Button variant="primary" size="full" onClick={acknowledge}>
+            Entendido
+          </Button>
+        </div>
+      ) : (
       <div className="flex flex-col gap-5">
 
         {/* Descripción */}
@@ -462,6 +497,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
         </p>
 
       </div>
+      )}
     </Sheet>
   )
 }
