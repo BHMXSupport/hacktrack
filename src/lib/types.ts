@@ -60,6 +60,7 @@ export interface Profile {
 export interface MeasureSample {
   ts: number
   value: number
+  m?: number   // mtime de sync (última edición); ausente → cae a ts (registros legados)
 }
 
 // Alimentación: comida registrada (kcal + macros opcionales) y comida favorita (1-tap)
@@ -74,6 +75,7 @@ export interface Meal {
   portion?: number      // multiplicador usado (1, 1.5…)
   favId?: string        // favorito de origen (para aprendizaje)
   note?: string | null  // nota opcional de la comida
+  m?: number            // mtime de sync (última edición); ausente → cae a ts (comidas legadas)
 }
 export interface FoodFav {
   id: string
@@ -85,6 +87,16 @@ export interface FoodFav {
   usoCount: number
   hourBucket?: Record<string, number> // uso por franja horaria (predicción)
   defaultMultiplier?: number           // porción aprendida
+  m?: number                           // mtime de sync; ausente → 0 (legado)
+}
+
+// Día de nutrición ('YYYY-MM-DD' → hidratación + comidas). El mtime `m` del DÍA marca el bucket
+// tocado; cada COMIDA lleva además su propio `m` — el merge las fusiona POR ID ESTABLE (Meal.id),
+// con LWW por comida y lápidas (tombstones.meals). El agua se fusiona con max().
+export interface NutritionDay {
+  water: number   // mililitros del día
+  meals: Meal[]
+  m?: number      // mtime de sync del bucket; ausente → 0 (legado)
 }
 
 export type LogItemType = 'dose' | 'medida' | 'none' | 'skip' | 'efecto-adverso' | 'ayuno'
@@ -100,6 +112,7 @@ export interface SavedRecon {
   vialMg: number
   aguaMl: number
   createdAt: number
+  m?: number   // mtime de sync; ausente → 0 (legado)
 }
 
 export type RangeFilter = 7 | 30 | 90 | 'all'
@@ -133,6 +146,7 @@ export interface LogItem {
   unit?: string | null         // unidad del value (p.ej. 'h', 'mg')
   severity?: AdverseSeverity   // severidad de efecto adverso (solo type='efecto-adverso')
   photoUrl?: string | null     // URL de foto adjunta (opcional)
+  m?: number                   // mtime de sync (última edición); ausente → cae a ts (registros legados)
 }
 
 export interface LogGroup {
@@ -173,6 +187,7 @@ export interface UserProtocol {
   archived?: boolean                // protocolo archivado (oculto del flujo activo, conservado en historial)
   archivedAt?: number | null        // epoch ms en que se archivó
   cadenceConfirmed?: boolean        // el usuario ya confirmó/ajustó la cadencia sugerida del catálogo (oculta el banner)
+  m?: number                        // mtime de sync (última edición); ausente → 0 (legado)
 }
 
 // ── Reconstitución de vial con fecha de mezcla (loop 166/167) ────────────────
@@ -219,3 +234,28 @@ export interface UserSettings {
 
 export type Sexo = 'H' | 'M'
 export type Actividad = 'sedentario' | 'ligero' | 'moderado' | 'activo' | 'muy-activo'
+
+// ── Metadatos de sincronización (merge por registro, Opción C) ────────────────
+// mtimes a nivel de UNIDAD LWW (las que no tienen mtime por registro): 'profile' | 'settings'
+// (incluye scale) | 'goals' (curGoal/secondaryGoals/selectedMeasures/kpiOrder/macroGoals/kcalGoal) |
+// 'activeProduct' | 'fastStartTs' | y los mapas por clave ('measureGoals', 'measureReminders',
+// 'productAliases', 'productDoses', 'productRecon', 'lastInjectionSite', 'dayNotes'), cuyo mtime
+// de mapa resuelve conflictos de VALOR en claves presentes en ambos lados.
+export interface SyncMeta {
+  units: Record<string, number>
+}
+
+// Lápidas de borrado (id/clave → epoch ms del borrado). Sin lápida, un registro borrado en un
+// dispositivo resucitaría al fusionar con otro que aún lo tiene. Se recolectan (GC) al fusionar
+// cuando son más viejas que el corte que pasa el caller (90 días).
+// `meals`: por Meal.id (borrado de comidas). `mapKeys`: borrados de clave en mapas por-clave,
+// con clave compuesta `${mapa}:${clave}` (p.ej. 'measureGoals:Peso', 'productAliases:BPC 157') —
+// sin ella, mergePlainMap une claves y una clave borrada resucitaría desde el otro lado.
+export interface Tombstones {
+  logItems: Record<string, number>
+  protocols: Record<string, number>
+  savedRecons: Record<string, number>
+  foodLibrary: Record<string, number>
+  meals: Record<string, number>
+  mapKeys: Record<string, number>
+}

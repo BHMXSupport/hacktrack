@@ -91,7 +91,8 @@ describe('editLogTime — reagrupa por dateKey y reubica el history de medidas',
     const s1 = dispatch(mkState(), { t: 'saveMeasure', name: 'Peso', value: 80, ts: ts(2026, 6, 9, 10, 0) })
     const id = findItem(s1, (it) => it.type === 'medida' && it.n === 'Peso').id
     const s2 = reducer(s1, { t: 'editLogTime', id, ts: ts(2026, 6, 3, 10, 0) })
-    expect(s2.history['Peso']).toEqual([{ ts: ts(2026, 6, 3, 10, 0), value: 80 }])
+    // sync Opción C (merge por registro): las muestras editadas ahora estampan `m` (mtime real de la edición)
+    expect(s2.history['Peso']).toEqual([{ ts: ts(2026, 6, 3, 10, 0), value: 80, m: expect.any(Number) }])
     expect(s2.log[0].dateKey).toBe('2026-06-03')
   })
 
@@ -121,7 +122,8 @@ describe('saveMeasure — coalesce de 60 s (incluye cruce de medianoche) + modo 
     expect(s2.log[0].items).toHaveLength(1)
     expect(s2.log[0].items[0].id).toBe(id)
     expect(s2.log[0].items[0].ts).toBe(T0 + 30_000)
-    expect(s2.history['Peso']).toEqual([{ ts: T0 + 30_000, value: 81 }])
+    // sync Opción C: las muestras creadas/actualizadas por el reducer estampan `m` (mtime de sync)
+    expect(s2.history['Peso']).toEqual([{ ts: T0 + 30_000, value: 81, m: expect.any(Number) }])
     expect(s2.measureValues['Peso']).toBe(81)
   })
 
@@ -146,7 +148,8 @@ describe('saveMeasure — coalesce de 60 s (incluye cruce de medianoche) + modo 
     expect(s2.log[0].dateKey).toBe('2026-06-10')
     expect(s2.log[0].items).toHaveLength(1)
     expect(s2.log[0].items[0].id).toBe(id) // mismo registro, movido de día
-    expect(s2.history['Peso']).toEqual([{ ts: ts(2026, 6, 10, 0, 0, 10), value: 81 }])
+    // sync Opción C: la muestra coalescida estampa `m`
+    expect(s2.history['Peso']).toEqual([{ ts: ts(2026, 6, 10, 0, 0, 10), value: 81, m: expect.any(Number) }])
     expect(s2.measureValues['Peso']).toBe(81)
   })
 
@@ -159,7 +162,8 @@ describe('saveMeasure — coalesce de 60 s (incluye cruce de medianoche) + modo 
       { t: 'saveMeasure', name: 'Sodio diario', delta: 200, ts: T0 + 2_000 }, // 2º tap, sin re-render
     )
     expect(s.measureValues['Sodio diario']).toBe(400)
-    expect(s.history['Sodio diario']).toEqual([{ ts: T0 + 2_000, value: 400 }])
+    // sync Opción C: la muestra acumulada estampa `m`
+    expect(s.history['Sodio diario']).toEqual([{ ts: T0 + 2_000, value: 400, m: expect.any(Number) }])
     expect(s.log[0].items).toHaveLength(1)
   })
 
@@ -178,9 +182,10 @@ describe('saveMeasure — coalesce de 60 s (incluye cruce de medianoche) + modo 
     )
     expect(s.log).toHaveLength(2)
     expect(s.log.map((g) => g.dateKey)).toEqual(['2026-06-10', '2026-06-09'])
+    // sync Opción C: cada muestra estampa `m` (mtime de sync)
     expect(s.history['Sodio diario']).toEqual([
-      { ts: ts(2026, 6, 9, 23, 59, 30), value: 2200 },
-      { ts: ts(2026, 6, 10, 0, 0, 10), value: 200 },
+      { ts: ts(2026, 6, 9, 23, 59, 30), value: 2200, m: expect.any(Number) },
+      { ts: ts(2026, 6, 10, 0, 0, 10), value: 200, m: expect.any(Number) },
     ])
   })
 
@@ -403,6 +408,163 @@ describe('arcoDelete — Cancelación: reset total con mensaje honesto', () => {
     expect(s2.settings.consentActive).toBe(false)
     expect(s2.screen).toBe('s-onboarding')
     expect(s2.toast).toBe('Tus datos fueron borrados.')
+  })
+})
+
+// ── sync Opción C: estampado de mtimes (m) + lápidas de borrado (merge por registro) ──────────
+describe('sync — estampado de m y lápidas en el reducer', () => {
+  const M0 = ts(2026, 6, 10, 12, 0)
+
+  it('logDose estampa m con el RELOJ real (no el ts backfilleado), re-estampa el protocolo (vialStock) y marca las unidades de mapa', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(d(2026, 6, 10, 12, 0))
+      const s = dispatch(stateWithVial(), doseAction(P, ts(2026, 6, 8, 9, 0), 0.25, 'mg', { doseMg: 0.25, recon: { vialMg: 10, aguaMl: 2 }, site: 'abdomen-izq' }))
+      const it0 = findItem(s, (x) => x.type === 'dose')
+      expect(it0.ts).toBe(ts(2026, 6, 8, 9, 0)) // la hora elegida (backfill)…
+      expect(it0.m).toBe(M0)                    // …pero el mtime de sync es el momento real del registro
+      expect(s.protocols[P].m).toBe(M0)         // el vial cambió → el protocolo es una edición nueva
+      expect(s.syncMeta?.units).toMatchObject({ productDoses: M0, productRecon: M0, lastInjectionSite: M0 })
+    } finally { vi.useRealTimers() }
+  })
+
+  it('deleteLog escribe lápida; undoDeleteLog la LIMPIA y re-estampa m (revivir > lápida, aunque ya se haya sincronizado)', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(d(2026, 6, 10, 12, 0))
+      const s1 = dispatch(stateWithVial(), doseAction(P, ts(2026, 6, 10, 9, 0), 0.25, 'mg', { doseMg: 0.25 }))
+      const id = s1.log[0].items[0].id
+      vi.setSystemTime(d(2026, 6, 10, 12, 5))
+      const s2 = reducer(s1, { t: 'deleteLog', id })
+      expect(s2.tombstones?.logItems[id]).toBe(ts(2026, 6, 10, 12, 5))
+      vi.setSystemTime(d(2026, 6, 10, 12, 10))
+      const s3 = reducer(s2, { t: 'undoDeleteLog' })
+      expect(s3.tombstones?.logItems[id]).toBeUndefined()
+      expect(findItem(s3, (x) => x.id === id).m).toBe(ts(2026, 6, 10, 12, 10))
+    } finally { vi.useRealTimers() }
+  })
+
+  it('archivar un protocolo es EDICIÓN (m nuevo, sin lápida); deleteProduct sí deja lápida + estampa los mapas limpiados', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(d(2026, 6, 10, 12, 0))
+      const s1 = reducer(stateWithVial(), { t: 'archiveProtocol', product: P })
+      expect(s1.protocols[P].archived).toBe(true)
+      expect(s1.protocols[P].m).toBe(M0)
+      expect(s1.tombstones?.protocols[P]).toBeUndefined()
+      const s2 = reducer(stateWithVial(), { t: 'deleteProduct', product: P })
+      expect(s2.protocols[P]).toBeUndefined()
+      expect(s2.tombstones?.protocols[P]).toBe(M0)
+      expect(s2.syncMeta?.units).toMatchObject({ productDoses: M0, productRecon: M0, lastInjectionSite: M0, productAliases: M0 })
+      // lápidas mapKeys de las claves por-producto limpiadas: sin ellas, el residuo resucita al fusionar
+      expect(s2.tombstones?.mapKeys).toMatchObject({
+        [`productDoses:${P}`]: M0, [`productRecon:${P}`]: M0, [`lastInjectionSite:${P}`]: M0, [`productAliases:${P}`]: M0,
+      })
+    } finally { vi.useRealTimers() }
+  })
+
+  it('addMeal/addFavMeal/editMeal/copyYesterday estampan m POR COMIDA; delMeal deja lápida de comida', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(d(2026, 6, 10, 12, 0))
+      const base = mkState({
+        nutrition: { '2026-06-09': { water: 0, meals: [{ id: 'm0', kcal: 400, ts: ts(2026, 6, 9, 14, 0), portion: 1, label: 'Pollo' }] } },
+        foodLibrary: [{ id: 'fav1', label: 'Avena', kcal: 200, usoCount: 1, defaultMultiplier: 1, hourBucket: {} }],
+      })
+      const s1 = dispatch(base, { t: 'addMeal', kcal: 300, ts: ts(2026, 6, 10, 9, 0) })
+      expect(s1.nutrition['2026-06-10'].meals[0].m).toBe(M0)
+      const s2 = reducer(s1, { t: 'addFavMeal', id: 'fav1', ts: ts(2026, 6, 10, 10, 0) })
+      expect(s2.nutrition['2026-06-10'].meals[0].m).toBe(M0)
+      // copyYesterday: cada copia es comida NUEVA (id propio) con m estampado
+      const s3 = reducer(s2, { t: 'copyYesterday' })
+      const copied = s3.nutrition['2026-06-10'].meals[0]
+      expect(copied.label).toBe('Pollo')
+      expect(copied.id).not.toBe('m0')
+      expect(copied.m).toBe(M0)
+      // editMeal re-estampa el m de la comida editada (así la edición gana el merge por id)
+      const s4 = reducer(s3, { t: 'editMeal', id: 'm0', patch: { label: 'Pollo asado' } })
+      expect(s4.nutrition['2026-06-09'].meals[0]).toMatchObject({ id: 'm0', label: 'Pollo asado', m: M0 })
+      // delMeal: la comida muere CON lápida (sin ella, el merge por id la resucitaría)
+      const s5 = reducer(s4, { t: 'delMeal', id: 'm0' })
+      expect(s5.nutrition['2026-06-09'].meals).toHaveLength(0)
+      expect(s5.tombstones?.meals['m0']).toBe(M0)
+    } finally { vi.useRealTimers() }
+  })
+
+  it('setMeasureGoal/setMeasureReminder/setProductAlias con null dejan lápida mapKeys; el re-set la limpia', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(d(2026, 6, 10, 12, 0))
+      const s1 = dispatch(
+        mkState(),
+        { t: 'setMeasureGoal', name: 'Peso', value: 75 },
+        { t: 'setMeasureReminder', name: 'Peso', intervalDays: 7 },
+        { t: 'setProductAlias', product: P, alias: 'Ipa' },
+      )
+      expect(s1.tombstones?.mapKeys ?? {}).toEqual({}) // set inicial: sin lápidas
+      const s2 = dispatch(
+        s1,
+        { t: 'setMeasureGoal', name: 'Peso', value: null },
+        { t: 'setMeasureReminder', name: 'Peso', intervalDays: null },
+        { t: 'setProductAlias', product: P, alias: null },
+      )
+      expect(s2.measureGoals['Peso']).toBeUndefined()
+      expect(s2.tombstones?.mapKeys).toMatchObject({
+        'measureGoals:Peso': M0, 'measureReminders:Peso': M0, [`productAliases:${P}`]: M0,
+      })
+      const s3 = reducer(s2, { t: 'setMeasureGoal', name: 'Peso', value: 80 })
+      expect(s3.measureGoals['Peso']).toBe(80)
+      expect(s3.tombstones?.mapKeys['measureGoals:Peso']).toBeUndefined() // revivida: lápida limpia
+      expect(s3.tombstones?.mapKeys[`productAliases:${P}`]).toBe(M0)      // las demás siguen
+    } finally { vi.useRealTimers() }
+  })
+
+  it('delFav/deleteRecon dejan lápida; setters de mapas y settings estampan su unidad', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(d(2026, 6, 10, 12, 0))
+      const base = mkState({
+        foodLibrary: [{ id: 'f1', label: 'Avena', kcal: 200, usoCount: 1 }],
+        savedRecons: [{ id: 'r1', label: '10mg/2ml', vialMg: 10, aguaMl: 2, createdAt: ts(2026, 6, 1) }],
+      })
+      const s1 = dispatch(base, { t: 'delFav', id: 'f1' }, { t: 'deleteRecon', id: 'r1' })
+      expect(s1.tombstones?.foodLibrary['f1']).toBe(M0)
+      expect(s1.tombstones?.savedRecons['r1']).toBe(M0)
+      const s2 = dispatch(
+        mkState(),
+        { t: 'setMeasureGoal', name: 'Peso', value: 75 },
+        { t: 'setDayNote', dateKey: '2026-06-10', text: 'nota' },
+        { t: 'setSetting', key: 'premium', value: true },
+        { t: 'setName', name: 'Jan' },
+        { t: 'setKcalGoal', value: 2200 },
+      )
+      expect(s2.syncMeta?.units).toMatchObject({ measureGoals: M0, dayNotes: M0, settings: M0, profile: M0, goals: M0 })
+    } finally { vi.useRealTimers() }
+  })
+
+  it("tocar campos SOLO-de-dispositivo (pin/consent/cloudSync) NO vuelve 'más nueva' la unidad settings", () => {
+    const s = dispatch(
+      mkState(),
+      { t: 'setSetting', key: 'pinEnabled', value: true },
+      { t: 'setSetting', key: 'cloudSync', value: true },
+      { t: 'setSetting', key: 'consentActive', value: true },
+    )
+    expect(s.syncMeta?.units?.['settings']).toBeUndefined()
+  })
+
+  it('los buckets de nutrición estampan m de DÍA (solo el bucket tocado) al agregar/borrar comidas y agua', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(d(2026, 6, 10, 12, 0))
+      const base = mkState({
+        nutrition: { '2026-06-09': { water: 500, meals: [{ id: 'm0', kcal: 400, ts: ts(2026, 6, 9, 14, 0), portion: 1 }] } },
+      })
+      const s1 = dispatch(base, { t: 'addMeal', kcal: 300, ts: ts(2026, 6, 10, 9, 0) }, { t: 'water', delta: 250 })
+      expect(s1.nutrition['2026-06-10'].m).toBe(M0)
+      expect(s1.nutrition['2026-06-09'].m).toBeUndefined() // el día de ayer no se tocó
+      const s2 = reducer(s1, { t: 'delMeal', id: 'm0' })
+      expect(s2.nutrition['2026-06-09'].m).toBe(M0) // ahora sí: perdió una comida
+    } finally { vi.useRealTimers() }
   })
 })
 

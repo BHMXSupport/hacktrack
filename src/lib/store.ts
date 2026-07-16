@@ -2,7 +2,7 @@
 import { createContext, useContext } from 'react'
 import type {
   Category, LogGroup, LogItem, Profile, UserCadence, UserProtocol, UserSettings, SyringeScale, MeasureSample, Meal, FoodFav, InjectionSite, ThemeMode, ProductReconEntry,
-  SavedRecon, AdverseSeverity,
+  SavedRecon, AdverseSeverity, NutritionDay, SyncMeta, Tombstones,
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
@@ -53,7 +53,7 @@ export interface AppState {
   kpiOrder?: string[]                         // n=146: orden y selección de KPIs mostrados (hasta 4)
   productDoses: Record<string, { value: number; unit: string }>  // dosis recordada por producto (para "hecho hoy")
   productRecon: Record<string, ProductReconEntry> // reconstitución recordada por producto (UI/mL → mg); incluye reconDate opcional
-  nutrition: Record<string, { water: number; meals: Meal[] }>        // por dateKey: hidratación + comidas
+  nutrition: Record<string, NutritionDay>                            // por dateKey: hidratación + comidas (+ mtime de sync del día)
   foodLibrary: FoodFav[]                                              // comidas frecuentes (registro 1-tap)
   macroGoals: { protein: number; carbs: number; fat: number } | null // metas de macros que define el usuario
   kcalGoal: number | null                                            // meta calórica diaria
@@ -81,6 +81,10 @@ export interface AppState {
   showFirstDoseCelebration: boolean               // dispara la animación de primera dosis
   achievements: string[]                          // ids de logros desbloqueados
   dayNotes: Record<string, string>                // nota diaria por dateKey 'YYYY-MM-DD'
+
+  // ── Metadatos de sync (merge por registro) — opcionales: estados legados no los traen ────────
+  syncMeta?: SyncMeta        // mtimes por unidad LWW (profile, settings, goals, mapas por clave…)
+  tombstones?: Tombstones    // lápidas de borrado por id/clave (log items, protocolos, recons, favoritos)
 }
 
 export const initialState: AppState = {
@@ -207,7 +211,8 @@ export type Action =
   | { t: 'editLog'; id: string; patch: { value?: number | null; unit?: string | null; doseMg?: number | null; note?: string | null; severity?: AdverseSeverity | null } }
   | { t: 'setCalcDraft'; draft: AppState['calcDraft'] }
   | { t: 'setRegistrarDraft'; draft: AppState['registrarDraft'] }
-  | { t: 'loadRemoteState'; state: Partial<AppState> } // restaurar desde la nube (Supabase): reemplaza el estado local por el blob remoto, vía hydrate (misma ruta segura que la carga inicial)
+  | { t: 'loadRemoteState'; state: Partial<AppState> } // restaurar desde la nube (Supabase): reemplaza el estado local por el blob remoto, vía hydrate (misma ruta segura que la carga inicial) — ruta "Reemplazar todo"
+  | { t: 'applyMerged'; merged: SyncPayload } // aplica el resultado del merge por registro (lib/merge.ts) sobre el estado local, conservando lo device-local
   | { t: 'saveRecon'; entry: Omit<SavedRecon, 'id'> }
   | { t: 'deleteRecon'; id: string }
   | { t: 'setMeasureGoal'; name: string; value: number | null }
@@ -227,6 +232,37 @@ export type Action =
 // ── helpers ────────────────────────────────────────────────────────────────────
 let _seq = 0
 const genId = () => `it_${Date.now().toString(36)}_${_seq++}`
+
+// ── helpers de metadatos de sync (merge por registro) ─────────────────────────
+// El mtime `m` se estampa con el RELOJ REAL (Date.now()), nunca con a.ts: una dosis backfilleada
+// al martes se EDITÓ hoy — es "hoy" lo que decide qué versión gana el merge entre dispositivos.
+export const emptyTombstones = (): Tombstones => ({ logItems: {}, protocols: {}, savedRecons: {}, foodLibrary: {}, meals: {}, mapKeys: {} })
+
+// syncMeta.units[unit] = now para cada unidad tocada — solo en ramas que SÍ cambian estado
+// (los no-op del reducer devuelven `s` intacto y no deben estampar nada).
+function stampUnits(s: AppState, now: number, ...units: string[]): SyncMeta {
+  const cur = s.syncMeta ?? { units: {} }
+  const next = { ...cur.units }
+  for (const u of units) next[u] = now
+  return { ...cur, units: next }
+}
+
+// escribe una lápida de borrado (kind, id) = now — recibe Tombstones (o undefined) para poder
+// encadenar varias lápidas en una misma acción (p.ej. deleteProduct: protocolo + claves de mapas).
+// `?? {}` en el bucket: estados persistidos ANTES de agregar meals/mapKeys no traen esos buckets.
+function addTombstone(t: Tombstones | undefined, kind: keyof Tombstones, id: string, now: number): Tombstones {
+  const cur = t ?? emptyTombstones()
+  return { ...emptyTombstones(), ...cur, [kind]: { ...(cur[kind] ?? {}), [id]: now } }
+}
+
+// limpia una lápida (el registro revivió: deshacer un borrado / re-set de una clave de mapa)
+function clearTombstone(t: Tombstones | undefined, kind: keyof Tombstones, id: string): Tombstones | undefined {
+  const cur = t
+  if (!cur || !(id in (cur[kind] ?? {}))) return cur
+  const rest = { ...cur[kind] }
+  delete rest[id]
+  return { ...cur, [kind]: rest }
+}
 
 // loop 140: rotación fija de sitios de inyección
 const INJECTION_ROTATION: InjectionSite[] = [
@@ -301,7 +337,7 @@ export function mealSlot(ts: number): string {
   return 'antojo nocturno'
 }
 
-const HISTORY_CAP = 365
+export const HISTORY_CAP = 365 // exportado: merge.ts aplica el MISMO tope al fusionar series
 
 function prependToLog(log: LogGroup[], item: LogItem): LogGroup[] {
   const key = isoKey(item.ts)
@@ -318,11 +354,12 @@ function prependToLog(log: LogGroup[], item: LogItem): LogGroup[] {
 
 function pushHistory(
   hist: Record<string, MeasureSample[]>,
-  entries: { name: string; value: number; ts: number }[],
+  entries: { name: string; value: number; ts: number; m?: number }[],
 ): Record<string, MeasureSample[]> {
   const next = { ...hist }
   for (const e of entries) {
-    const arr = [...(next[e.name] ?? []), { ts: e.ts, value: e.value }].sort((a, b) => a.ts - b.ts)
+    // m: mtime de sync (momento REAL de la edición); el ts puede ser backfilleado
+    const arr = [...(next[e.name] ?? []), { ts: e.ts, value: e.value, ...(e.m != null ? { m: e.m } : {}) }].sort((a, b) => a.ts - b.ts)
     next[e.name] = arr.length > HISTORY_CAP ? arr.slice(arr.length - HISTORY_CAP) : arr
   }
   return next
@@ -501,6 +538,84 @@ export function importHasData(st: Partial<AppState>): boolean {
   )
 }
 
+// ── Sincronización por registro (Opción C): payload de sync + aplicación del merge ────────────
+
+// Claves de AppState que NUNCA viajan a la nube (estado de UI / de dispositivo). Fuente ÚNICA:
+// prepareSyncPayload las excluye en runtime y el test de exclusión exige que TODA clave de
+// AppState esté clasificada (synced / never-synced / caché) — un campo nuevo sin clasificar
+// rompe tsc y el test: la decisión de sincronizarlo o no es consciente, nunca por accidente.
+export const NEVER_SYNCED_KEYS = [
+  'todayTs', 'screen', 'tab', 'sheet', 'sheetArg', 'toast', 'toastUndoId', 'draftDose',
+  'calcDraft', 'registrarDraft', 'deletedLogBuffer', 'justOnboarded', 'coachmarksSeen',
+  'returnTo', 'progresoView', 'logged', 'showFirstDoseCelebration', 'localOnly',
+] as const
+
+// Cachés derivadas: no viajan; se recomputan al aplicar el merge (hydrate/syncActive + rebuildMeasureCaches)
+export const CACHE_KEYS = ['protocol', 'importedProducts', 'measureValues'] as const
+
+// Campos de settings SOLO-de-dispositivo: el PIN jamás sube (un hash de 4 dígitos se revierte en ms
+// con acceso a la BD) y consent/cloudSync son decisiones de ESTA instalación, no de la cuenta.
+export const DEVICE_SETTINGS_KEYS = ['pinEnabled', 'pinHash', 'consentVersion', 'consentActive', 'cloudSync'] as const
+
+export type SyncedSettings = Omit<UserSettings, (typeof DEVICE_SETTINGS_KEYS)[number]>
+
+// El payload que viaja/merjea: AppState sin lo nunca-sincronizado ni cachés, con settings depurado.
+// syncMeta/tombstones son opcionales en el TIPO (payloads legados no los traen); prepareSyncPayload
+// SIEMPRE los emite y merge.ts tolera su ausencia con defaults.
+export type SyncPayload = Omit<AppState, (typeof NEVER_SYNCED_KEYS)[number] | (typeof CACHE_KEYS)[number] | 'settings'> & {
+  settings: SyncedSettings
+}
+
+/** Construye el payload de sync desde el estado (PURO, sin Date.now()): excluye todas las claves
+ *  nunca-sincronizadas y las cachés, depura settings y garantiza syncMeta/tombstones presentes. */
+export function prepareSyncPayload(s: AppState): SyncPayload {
+  const clone: Record<string, unknown> = { ...s }
+  for (const k of [...NEVER_SYNCED_KEYS, ...CACHE_KEYS]) delete clone[k]
+  const settings: Record<string, unknown> = { ...s.settings }
+  for (const k of DEVICE_SETTINGS_KEYS) delete settings[k]
+  clone.settings = settings
+  clone.syncMeta = s.syncMeta ?? { units: {} }
+  clone.tombstones = s.tombstones ?? emptyTombstones()
+  return clone as unknown as SyncPayload
+}
+
+/** Aplica un payload FUSIONADO (resultado de mergeStates) sobre el estado local. Conserva TODO lo
+ *  device-local (UI efímera, todayTs, PIN/consent/cloudSync/localOnly) y recomputa las cachés:
+ *  protocol/importedProducts vía hydrate→syncActive y measureValues/campos-espejo del perfil/bmi
+ *  desde el history fusionado (la serie es la fuente de verdad). PURO — la acción 'applyMerged'
+ *  lo envuelve para despacharlo. La ruta "Reemplazar todo" sigue siendo 'loadRemoteState'. */
+export function applyMerged(s: AppState, merged: SyncPayload): AppState {
+  // settings: lo sincronizado pisa lo local, pero los campos del DISPOSITIVO se conservan siempre
+  const settings: UserSettings = {
+    ...s.settings,
+    ...merged.settings,
+    pinEnabled: s.settings.pinEnabled,
+    pinHash: s.settings.pinHash,
+    consentVersion: s.settings.consentVersion,
+    consentActive: s.settings.consentActive,
+    cloudSync: s.settings.cloudSync,
+  }
+  // Las cachés locales se ANULAN antes de hidratar: si el merge dejó protocols vacío (el otro
+  // dispositivo borró el último producto), la migración legado de hydrate lo resucitaría desde
+  // el caché stale `protocol`/`importedProducts`. El payload fusionado es la única verdad.
+  const base: AppState = { ...s, ...merged, settings, protocol: null, importedProducts: [] }
+  // hydrate: migraciones idempotentes + resync de cachés protocol/importedProducts (syncActive)
+  const hydrated = hydrate(base)
+  // measureValues + campos espejo del perfil + bmi: recomputados desde el history fusionado.
+  // Solo medidas CON serie — 'Altura' no tiene history (vive en profile.est) y reconstruirla
+  // desde una serie vacía la borraría; se re-espeja desde el perfil fusionado.
+  const rebuilt = rebuildMeasureCaches(hydrated.history, hydrated.measureValues, hydrated.profile, Object.keys(hydrated.history))
+  const measureValues = { ...rebuilt.measureValues }
+  if (rebuilt.profile.est != null) measureValues['Altura'] = rebuilt.profile.est
+  return {
+    ...hydrated,
+    measureValues,
+    profile: rebuilt.profile,
+    logged: hydrated.log.length > 0,
+    lastMealTs: latestMealTs(hydrated.nutrition), // derivado de la verdad fusionada, no del máximo sincronizado
+  }
+}
+
 // ── reducer ──────────────────────────────────────────────────────────────────
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.t) {
@@ -519,15 +634,16 @@ export function reducer(s: AppState, a: Action): AppState {
         ...s,
         curGoal: a.cat,
         selectedMeasures: [...(MEASURES_BY[a.cat] ?? MEASURES_BY.Explorar)],
+        syncMeta: stampUnits(s, Date.now(), 'goals'),
       }
 
     case 'setGoals': {
       const [primary, ...rest] = a.cats
       const measures = [...new Set(a.cats.flatMap((c) => MEASURES_BY[c] ?? MEASURES_BY.Explorar))]
-      return { ...s, curGoal: primary ?? s.curGoal, secondaryGoals: rest, selectedMeasures: measures }
+      return { ...s, curGoal: primary ?? s.curGoal, secondaryGoals: rest, selectedMeasures: measures, syncMeta: stampUnits(s, Date.now(), 'goals') }
     }
     case 'setMeasures':
-      return { ...s, selectedMeasures: a.measures }
+      return { ...s, selectedMeasures: a.measures, syncMeta: stampUnits(s, Date.now(), 'goals') }
     case 'setBaseline': {
       // El baseline del onboarding ahora CONECTA con los KPIs/medidas: escribe measureValues + history
       // (igual que saveMedidas) además del profile, para que Peso/Altura/IMC ya aparezcan en las cards de
@@ -535,21 +651,22 @@ export function reducer(s: AppState, a: Action): AppState {
       const p = { ...s.profile }
       const mv = { ...s.measureValues }
       const now = Date.now()
-      const samples: { name: string; value: number; ts: number }[] = []
-      if (a.peso != null) { p.peso = a.peso; mv['Peso'] = a.peso; samples.push({ name: 'Peso', value: a.peso, ts: now }) }
+      const samples: { name: string; value: number; ts: number; m?: number }[] = []
+      if (a.peso != null) { p.peso = a.peso; mv['Peso'] = a.peso; samples.push({ name: 'Peso', value: a.peso, ts: now, m: now }) }
       if (a.est != null) { p.est = a.est; mv['Altura'] = a.est }
       if (a.metaPesoKg != null) p.metaPesoKg = a.metaPesoKg
       const peso = p.peso, est = p.est // consts locales → TS estrecha el null antes de bmiCalc
       if (peso != null && est != null) {
         const bmi = bmiCalc(peso, est) // puede ser null si los datos no son válidos
         p.bmi = bmi
-        if (bmi != null) { mv['IMC'] = bmi; samples.push({ name: 'IMC', value: bmi, ts: now }) }
+        if (bmi != null) { mv['IMC'] = bmi; samples.push({ name: 'IMC', value: bmi, ts: now, m: now }) }
       }
       return {
         ...s,
         profile: p,
         measureValues: mv,
         history: samples.length ? pushHistory(s.history, samples) : s.history,
+        syncMeta: stampUnits(s, now, 'profile'),
       }
     }
     case 'setLocalOnly':
@@ -571,22 +688,24 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'setProtocol': {
       // crea el protocolo del producto si no existe y lo deja como activo
       const existing = s.protocols[a.product]
-      const fp = existing ?? freshProtocol(a.product, s.todayTs)
+      const mNow = Date.now()
+      const fp = existing ?? (() => { const f = freshProtocol(a.product, s.todayTs); return f ? { ...f, m: mNow } : null })()
       if (!fp) return s
-      return syncActive({ ...s, protocols: { ...s.protocols, [a.product]: fp }, activeProduct: a.product })
+      return syncActive({ ...s, protocols: { ...s.protocols, [a.product]: fp }, activeProduct: a.product, syncMeta: stampUnits(s, mNow, 'activeProduct') })
     }
 
     case 'setActiveProduct':
-      return s.protocols[a.product] ? syncActive({ ...s, activeProduct: a.product }) : s
+      return s.protocols[a.product] ? syncActive({ ...s, activeProduct: a.product, syncMeta: stampUnits(s, Date.now(), 'activeProduct') }) : s
 
     case 'setProgresoView':
       return { ...s, progresoView: a.view }
 
     case 'water': {
       // clave del día del RELOJ (no todayTs, que puede rezagarse tras medianoche): el vaso cae en el día real
-      const k = isoKey(Date.now())
+      const mNow = Date.now()
+      const k = isoKey(mNow)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
-      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, water: Math.max(0, cur.water + a.delta) } } }
+      return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, water: Math.max(0, cur.water + a.delta), m: mNow } } }
     }
     case 'addMeal': {
       if (!(a.kcal > 0)) return s
@@ -594,9 +713,11 @@ export function reducer(s: AppState, a: Action): AppState {
       const mealTs = a.ts ?? Date.now()
       const k = isoKey(mealTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
+      const mNow = Date.now()
+      // m por comida: el merge fusiona comidas POR ID con LWW — sin m propio, una edición no sabría ganar
       const meal: Meal = {
         id: genId(), kcal: Math.round(a.kcal), ts: mealTs,
-        protein: a.protein ?? null, carbs: a.carbs ?? null, fat: a.fat ?? null, label: a.label?.trim() || null, portion: 1,
+        protein: a.protein ?? null, carbs: a.carbs ?? null, fat: a.fat ?? null, label: a.label?.trim() || null, portion: 1, m: mNow,
       }
       const slot = mealSlot(meal.ts)
       // guardar como favorito (fusiona por etiqueta) si se pidió + aprende la franja horaria
@@ -604,12 +725,12 @@ export function reducer(s: AppState, a: Action): AppState {
       if (a.fav && meal.label) {
         const i = foodLibrary.findIndex((f) => f.label.toLowerCase() === meal.label!.toLowerCase())
         if (i >= 0) {
-          foodLibrary = foodLibrary.map((f, j) => (j === i ? { ...f, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: f.usoCount + 1, hourBucket: { ...(f.hourBucket ?? {}), [slot]: (f.hourBucket?.[slot] ?? 0) + 1 } } : f))
+          foodLibrary = foodLibrary.map((f, j) => (j === i ? { ...f, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: f.usoCount + 1, hourBucket: { ...(f.hourBucket ?? {}), [slot]: (f.hourBucket?.[slot] ?? 0) + 1 }, m: mNow } : f))
         } else {
-          foodLibrary = [{ id: genId(), label: meal.label, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: 1, hourBucket: { [slot]: 1 }, defaultMultiplier: 1 }, ...foodLibrary]
+          foodLibrary = [{ id: genId(), label: meal.label, kcal: meal.kcal, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, usoCount: 1, hourBucket: { [slot]: 1 }, defaultMultiplier: 1, m: mNow }, ...foodLibrary]
         }
       }
-      const nutAdd = { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }
+      const nutAdd = { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals], m: mNow } }
       return { ...s, nutrition: nutAdd, foodLibrary, lastMealTs: latestMealTs(nutAdd) }
     }
     case 'addFavMeal': {
@@ -621,17 +742,18 @@ export function reducer(s: AppState, a: Action): AppState {
       const mealTs = a.ts ?? Date.now()
       const k = isoKey(mealTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
+      const mNow = Date.now()
       const meal: Meal = {
         id: genId(), kcal: Math.round(fav.kcal * por), ts: mealTs,
         protein: sc(fav.protein), carbs: sc(fav.carbs), fat: sc(fav.fat),
-        label: por !== 1 ? `${fav.label} ×${por}` : fav.label, portion: por, favId: fav.id,
+        label: por !== 1 ? `${fav.label} ×${por}` : fav.label, portion: por, favId: fav.id, m: mNow,
       }
       const slot = mealSlot(meal.ts)
       // aprende: cuenta uso, franja horaria y porción por defecto
       const foodLibrary = s.foodLibrary.map((f) => (f.id === a.id
-        ? { ...f, usoCount: f.usoCount + 1, hourBucket: { ...(f.hourBucket ?? {}), [slot]: (f.hourBucket?.[slot] ?? 0) + 1 }, defaultMultiplier: por }
+        ? { ...f, usoCount: f.usoCount + 1, hourBucket: { ...(f.hourBucket ?? {}), [slot]: (f.hourBucket?.[slot] ?? 0) + 1 }, defaultMultiplier: por, m: mNow }
         : f))
-      const nutFav = { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals] } }
+      const nutFav = { ...s.nutrition, [k]: { ...cur, meals: [meal, ...cur.meals], m: mNow } }
       return { ...s, nutrition: nutFav, foodLibrary, lastMealTs: latestMealTs(nutFav) }
     }
     case 'copyYesterday': {
@@ -641,49 +763,70 @@ export function reducer(s: AppState, a: Action): AppState {
       const y = s.nutrition[isoKey(addDays(anchor, -1).getTime())]
       if (!y || y.meals.length === 0) return s
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
-      // conserva la hora del día de cada comida de ayer, trasladada a hoy (mantiene su franja)
+      // conserva la hora del día de cada comida de ayer, trasladada a hoy (mantiene su franja);
+      // cada copia es una comida NUEVA (id y m propios) — el merge por id no la confunde con la de ayer
       const copied: Meal[] = y.meals.map((m) => {
         const o = new Date(m.ts)
         const d = new Date(anchor); d.setHours(o.getHours(), o.getMinutes(), o.getSeconds(), 0)
-        return { ...m, id: genId(), ts: d.getTime() }
+        return { ...m, id: genId(), ts: d.getTime(), m: anchor }
       })
-      const nutCopy = { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals] } }
+      const nutCopy = { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals], m: anchor } }
       return { ...s, nutrition: nutCopy, lastMealTs: latestMealTs(nutCopy) }
     }
     case 'delMeal': {
+      const mNow = Date.now()
       const nutrition: AppState['nutrition'] = {}
-      for (const [k, v] of Object.entries(s.nutrition)) nutrition[k] = { ...v, meals: v.meals.filter((m) => m.id !== a.id) }
+      let deleted = false
+      // el mtime del día solo se estampa en el bucket que SÍ perdió la comida
+      for (const [k, v] of Object.entries(s.nutrition)) {
+        const meals = v.meals.filter((m) => m.id !== a.id)
+        if (meals.length !== v.meals.length) { deleted = true; nutrition[k] = { ...v, meals, m: mNow } }
+        else nutrition[k] = v
+      }
+      // lápida de la comida: sin ella, el merge por id la resucitaría desde el otro dispositivo
       // recomputar lastMealTs: si se borró la última comida, el chip de ayuno debe dejar de mentir
-      return { ...s, nutrition, lastMealTs: latestMealTs(nutrition) }
+      return {
+        ...s, nutrition, lastMealTs: latestMealTs(nutrition),
+        tombstones: deleted ? addTombstone(s.tombstones, 'meals', a.id, mNow) : s.tombstones,
+      }
     }
     case 'editMeal': {
+      const mNow = Date.now()
       const nutrition: AppState['nutrition'] = {}
+      // el mtime del día solo se estampa en el bucket cuya comida se editó; la comida editada
+      // re-estampa su m propio — así la edición gana el merge por id (aunque cambie el label)
       for (const [k, v] of Object.entries(s.nutrition)) {
-        nutrition[k] = { ...v, meals: v.meals.map((m) => (m.id === a.id ? { ...m, ...a.patch } : m)) }
+        const touched = v.meals.some((m) => m.id === a.id)
+        nutrition[k] = touched
+          ? { ...v, meals: v.meals.map((m) => (m.id === a.id ? { ...m, ...a.patch, m: mNow } : m)), m: mNow }
+          : v
       }
       // editar la hora de una comida puede cambiar cuál es la más reciente
       return { ...s, nutrition, lastMealTs: latestMealTs(nutrition) }
     }
     case 'delFav':
-      return { ...s, foodLibrary: s.foodLibrary.filter((f) => f.id !== a.id) }
+      // lápida de borrado: sin ella, el favorito resucitaría al fusionar con otro dispositivo
+      return { ...s, foodLibrary: s.foodLibrary.filter((f) => f.id !== a.id), tombstones: addTombstone(s.tombstones, 'foodLibrary', a.id, Date.now()) }
     case 'editFav':
-      return { ...s, foodLibrary: s.foodLibrary.map((f) => (f.id === a.id ? { ...f, ...a.patch } : f)) }
+      return { ...s, foodLibrary: s.foodLibrary.map((f) => (f.id === a.id ? { ...f, ...a.patch, m: Date.now() } : f)) }
     case 'createFav': {
       if (!a.fav.label?.trim() || !(a.fav.kcal > 0)) return s
+      const mNow = Date.now()
       // fusiona por etiqueta si ya existe
       const i = s.foodLibrary.findIndex((f) => f.label.toLowerCase() === a.fav.label.trim().toLowerCase())
-      const entry: FoodFav = { id: genId(), usoCount: 0, defaultMultiplier: 1, hourBucket: {}, ...a.fav, label: a.fav.label.trim() }
-      if (i >= 0) return { ...s, foodLibrary: s.foodLibrary.map((f, j) => (j === i ? { ...f, ...a.fav, label: a.fav.label.trim() } : f)) }
+      const entry: FoodFav = { id: genId(), usoCount: 0, defaultMultiplier: 1, hourBucket: {}, ...a.fav, label: a.fav.label.trim(), m: mNow }
+      if (i >= 0) return { ...s, foodLibrary: s.foodLibrary.map((f, j) => (j === i ? { ...f, ...a.fav, label: a.fav.label.trim(), m: mNow } : f)) }
       return { ...s, foodLibrary: [entry, ...s.foodLibrary] }
     }
     case 'setMacroGoals':
-      return { ...s, macroGoals: a.goals }
+      return { ...s, macroGoals: a.goals, syncMeta: stampUnits(s, Date.now(), 'goals') }
     case 'setKcalGoal':
-      return { ...s, kcalGoal: a.value && a.value > 0 ? Math.round(a.value) : null }
+      return { ...s, kcalGoal: a.value && a.value > 0 ? Math.round(a.value) : null, syncMeta: stampUnits(s, Date.now(), 'goals') }
 
     case 'deleteProduct': {
       // quita el producto del seguimiento. NO toca s.log → los registros pasados se conservan.
       if (!s.protocols[a.product]) return s
+      const mNow = Date.now()
       const protocols = { ...s.protocols }
       delete protocols[a.product]
       // Limpiar cachés por-producto (si no, al re-agregarlo precarga recon/sitio/dosis viejos y el alias
@@ -692,36 +835,47 @@ export function reducer(s: AppState, a: Action): AppState {
       const productRecon = { ...s.productRecon }; delete productRecon[a.product]
       const lastInjectionSite = { ...s.lastInjectionSite }; delete lastInjectionSite[a.product]
       const productAliases = { ...s.productAliases }; delete productAliases[a.product]
-      return syncActive({ ...s, protocols, productDoses, productRecon, lastInjectionSite, productAliases })
+      // lápida del protocolo (borrado real, no archivado) + lápidas mapKeys de las claves limpiadas
+      // (sin ellas, el residuo por-producto resucitaría al fusionar) + mtime de los mapas limpiados
+      let tombstones = addTombstone(s.tombstones, 'protocols', a.product, mNow)
+      for (const mapa of ['productDoses', 'productRecon', 'lastInjectionSite', 'productAliases'] as const) {
+        tombstones = addTombstone(tombstones, 'mapKeys', `${mapa}:${a.product}`, mNow)
+      }
+      return syncActive({
+        ...s, protocols, productDoses, productRecon, lastInjectionSite, productAliases,
+        tombstones,
+        syncMeta: stampUnits(s, mNow, 'productDoses', 'productRecon', 'lastInjectionSite', 'productAliases'),
+      })
     }
 
     // P0-3: la cadencia editada por el usuario es la fuente de verdad (protocolo activo)
     case 'setCadence':
       return s.activeProduct && s.protocols[s.activeProduct]
-        ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], cadence: a.cadence } } })
+        ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], cadence: a.cadence, m: Date.now() } } })
         : s
 
     // tunear el protocolo en foco de edición (cadencia, fases, fechas, etc.)
     case 'updateProtocol':
       return s.activeProduct && s.protocols[s.activeProduct]
-        ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], ...a.patch } } })
+        ? syncActive({ ...s, protocols: { ...s.protocols, [s.activeProduct]: { ...s.protocols[s.activeProduct], ...a.patch, m: Date.now() } } })
         : s
 
     // tunear un producto específico (p.ej. navegar fases de titulación de ESE producto)
     case 'updateProtocolFor':
       return s.protocols[a.product]
-        ? syncActive({ ...s, protocols: { ...s.protocols, [a.product]: { ...s.protocols[a.product], ...a.patch } } })
+        ? syncActive({ ...s, protocols: { ...s.protocols, [a.product]: { ...s.protocols[a.product], ...a.patch, m: Date.now() } } })
         : s
 
     case 'importProducts': {
       // fusiona (no reemplaza) — crea un protocolo por cada producto nuevo del catálogo
+      const mNow = Date.now()
       const protocols = { ...s.protocols }
       const recognized = a.names.filter((n) => n in PEPTIDES)
       const unknown = a.names.filter((n) => !(n in PEPTIDES))
       for (const name of recognized) {
         if (!protocols[name]) {
           const fp = freshProtocol(name, s.todayTs)
-          if (fp) protocols[name] = fp
+          if (fp) protocols[name] = { ...fp, m: mNow }
         }
       }
       const activeProduct = s.activeProduct ?? Object.keys(protocols)[0] ?? null
@@ -729,7 +883,9 @@ export function reducer(s: AppState, a: Action): AppState {
       const toast = unknown.length
         ? `No se reconocieron del catálogo: ${unknown.join(', ')}`
         : s.toast
-      return syncActive({ ...s, protocols, activeProduct, toast })
+      // solo estampa 'activeProduct' si de verdad cambió (era null y ahora hay uno)
+      const syncMeta = activeProduct !== s.activeProduct ? stampUnits(s, mNow, 'activeProduct') : s.syncMeta
+      return syncActive({ ...s, protocols, activeProduct, toast, syncMeta })
     }
 
     // P0-1: la dosis tecleada ENTRA al diario; activa dashboard; suma racha. Respeta la hora elegida.
@@ -764,6 +920,7 @@ export function reducer(s: AppState, a: Action): AppState {
         }
       }
       const rawNote = a.note?.trim().slice(0, 200)   // nota opcional (#29: 200, alineado con el input)
+      const mNow = Date.now() // mtime de sync: el momento REAL del registro, no el ts (que puede ser backfill)
       const item: LogItem = {
         id: genId(),
         t: fmtTime(now),
@@ -773,6 +930,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ic: 'dose',
         type: 'dose',
         ts: now.getTime(),
+        m: mNow,
         product: a.product,
         value: a.value ?? null, // valor/unidad crudos: el editor los pre-llena y editLog reconstruye 'u'
         unit: a.unit,
@@ -797,15 +955,21 @@ export function reducer(s: AppState, a: Action): AppState {
           vialStock = { ...vialStock, usedMg: vialStock.usedMg + (a.doseMg ?? 0) }
         }
         if (vialStock && vialStock !== proto.vialStock) {
-          updatedProtocols = { ...s.protocols, [a.product]: { ...proto, vialStock } }
+          updatedProtocols = { ...s.protocols, [a.product]: { ...proto, vialStock, m: mNow } }
         }
       }
+      // unidades de mapa tocadas por esta dosis (para el merge por clave entre dispositivos)
+      const touchedUnits: string[] = []
+      if (a.value != null) touchedUnits.push('productDoses')
+      if (a.recon) touchedUnits.push('productRecon')
+      if (a.site) touchedUnits.push('lastInjectionSite')
       // Primera dosis: activar celebración
       const wasLogged = s.logged
       return syncActive({
         ...s,
         log: prependToLog(s.log, item),
         protocols: updatedProtocols,
+        syncMeta: touchedUnits.length ? stampUnits(s, mNow, ...touchedUnits) : s.syncMeta,
         // recuerda la dosis tecleada por producto (alimenta "tus dosis de hoy")
         productDoses: a.value != null ? { ...s.productDoses, [a.product]: { value: a.value, unit: a.unit } } : s.productDoses,
         // recuerda la reconstitución del producto (para pre-llenar y para "hecho hoy" en UI/mL).
@@ -834,7 +998,7 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'setLogEffect': {
       const log = s.log.map((g) => ({
         ...g,
-        items: g.items.map((it) => (it.id === a.id ? { ...it, effect: a.effect, ...(a.effectIntensity != null ? { effectIntensity: a.effectIntensity } : {}) } : it)),
+        items: g.items.map((it) => (it.id === a.id ? { ...it, effect: a.effect, ...(a.effectIntensity != null ? { effectIntensity: a.effectIntensity } : {}), m: Date.now() } : it)),
       }))
       return { ...s, log }
     }
@@ -851,6 +1015,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ic: 'skip',
         type: 'skip',
         ts: now.getTime(),
+        m: Date.now(),
         product: a.product,
         ...(a.late ? { late: true } : {}), // "tomada tarde": la dosis real se registró en otro día (hoy)
       }
@@ -908,11 +1073,12 @@ export function reducer(s: AppState, a: Action): AppState {
         )
         if (ii !== -1) target = { gi, ii }
       }
+      const mNow = Date.now() // mtime de sync: momento real de la edición (nowMs puede ser backfill)
       const coalesced = target != null
       let finalLog: LogGroup[]
       if (target) {
         const group = s.log[target.gi]
-        const updated: LogItem = { ...group.items[target.ii], u: uStr, t: fmtTime(now), ts: nowMs }
+        const updated: LogItem = { ...group.items[target.ii], u: uStr, t: fmtTime(now), ts: nowMs, m: mNow }
         if (group.dateKey === nowKey) {
           const { gi, ii } = target
           finalLog = s.log.map((g, i) => (i === gi ? { ...g, items: g.items.map((it, j) => (j === ii ? updated : it)) } : g))
@@ -925,21 +1091,25 @@ export function reducer(s: AppState, a: Action): AppState {
           finalLog = prependToLog(without, updated)
         }
       } else {
-        finalLog = prependToLog(s.log, { id: genId(), t: fmtTime(now), n: a.name, u: uStr, cat: ic.cat, ic: ic.icon, type: 'medida', ts: nowMs })
+        finalLog = prependToLog(s.log, { id: genId(), t: fmtTime(now), n: a.name, u: uStr, cat: ic.cat, ic: ic.icon, type: 'medida', ts: nowMs, m: mNow })
       }
 
-      // history: reemplaza la última muestra reciente (<60 s) o agrega una nueva
+      // history: reemplaza la última muestra reciente (<60 s) o agrega una nueva.
+      // Limitación conocida (cross-device, aceptada): el coalesce CAMBIA el ts de la muestra; si la
+      // versión anterior YA se sincronizó, el merge (unión por (medida, ts)) conserva ambas — queda
+      // una muestra "fantasma" intermedia en el otro dispositivo. Coste acotado (ventana de 60 s) y
+      // sin pérdida de datos; arreglarlo exigiría identidad estable por muestra en todo el history.
       let history = s.history
       if (coalesced) {
         const series = (s.history[a.name] ?? []).slice()
         if (series.length && nowMs - series[series.length - 1].ts < COALESCE_MS) {
-          series[series.length - 1] = { ts: nowMs, value }
+          series[series.length - 1] = { ts: nowMs, value, m: mNow }
         } else {
-          series.push({ ts: nowMs, value })
+          series.push({ ts: nowMs, value, m: mNow })
         }
         history = { ...s.history, [a.name]: series }
       } else {
-        history = pushHistory(s.history, [{ name: a.name, value, ts: nowMs }])
+        history = pushHistory(s.history, [{ name: a.name, value, ts: nowMs, m: mNow }])
       }
 
       const meta = MEASURE_META[a.name]
@@ -954,6 +1124,8 @@ export function reducer(s: AppState, a: Action): AppState {
         measureValues: { ...s.measureValues, [a.name]: value },
         history,
         profile,
+        // el perfil solo cambió si la medida espeja un campo de perfil (peso/est/grasa/músculo)
+        syncMeta: meta?.prof ? stampUnits(s, mNow, 'profile') : s.syncMeta,
         logged: true,
         sheet: null,
         toast: 'Medida registrada',
@@ -967,14 +1139,15 @@ export function reducer(s: AppState, a: Action): AppState {
       const profile = { ...s.profile, ...a.values }
       if (profile.peso != null && profile.est != null) profile.bmi = bmiCalc(profile.peso, profile.est)
       const ts = now.getTime()
-      const samples: { name: string; value: number; ts: number }[] = []
+      const mNow = Date.now() // mtime de sync (el ts puede ser backfill)
+      const samples: { name: string; value: number; ts: number; m?: number }[] = []
       const mv: Record<string, number> = { ...s.measureValues }
-      if (a.values.peso != null) { samples.push({ name: 'Peso', value: a.values.peso, ts }); mv['Peso'] = a.values.peso }
+      if (a.values.peso != null) { samples.push({ name: 'Peso', value: a.values.peso, ts, m: mNow }); mv['Peso'] = a.values.peso }
       // Altura: estática (no cambia) → NO se graba como medida con timeline; vive en el perfil (est) para BMI/TDEE.
       if (a.values.est != null) { mv['Altura'] = a.values.est }
-      if (a.values.grasa != null) { samples.push({ name: '% grasa', value: a.values.grasa, ts }); mv['% grasa'] = a.values.grasa }
-      if (a.values.musculo != null) { samples.push({ name: '% músculo', value: a.values.musculo, ts }); mv['% músculo'] = a.values.musculo }
-      if (profile.bmi != null) { samples.push({ name: 'IMC', value: profile.bmi, ts }); mv['IMC'] = profile.bmi }
+      if (a.values.grasa != null) { samples.push({ name: '% grasa', value: a.values.grasa, ts, m: mNow }); mv['% grasa'] = a.values.grasa }
+      if (a.values.musculo != null) { samples.push({ name: '% músculo', value: a.values.musculo, ts, m: mNow }); mv['% músculo'] = a.values.musculo }
+      if (profile.bmi != null) { samples.push({ name: 'IMC', value: profile.bmi, ts, m: mNow }); mv['IMC'] = profile.bmi }
 
       const parts: string[] = []
       if (a.values.peso != null) parts.push(`${a.values.peso} kg`)
@@ -984,7 +1157,7 @@ export function reducer(s: AppState, a: Action): AppState {
 
       const item: LogItem = {
         id: genId(), t: fmtTime(now), n: 'Cambio de medidas', u: parts.join(' · ') || 'actualizado',
-        cat: '#1B8A7D', ic: 'medidas', type: 'medida', ts,
+        cat: '#1B8A7D', ic: 'medidas', type: 'medida', ts, m: mNow,
       }
       return {
         ...s,
@@ -992,6 +1165,7 @@ export function reducer(s: AppState, a: Action): AppState {
         history: pushHistory(s.history, samples),
         measureValues: mv,
         profile,
+        syncMeta: stampUnits(s, mNow, 'profile'),
         logged: true,
         // NO cerramos la hoja aquí: CambioMedidasSheet controla su propio cierre para alcanzar a mostrar el
         // delta vs. el registro anterior (~1.8s) antes de cerrar, igual que MedidaSheet. Único caller que abre
@@ -1004,6 +1178,7 @@ export function reducer(s: AppState, a: Action): AppState {
 
     // P1-1: borrar un registro de verdad + reconciliar history/measureValues
     case 'deleteLog': {
+      const mNow = Date.now()
       let deleted: LogItem | undefined
       for (const g of s.log) { const it = g.items.find((i) => i.id === a.id); if (it) { deleted = it; break } }
       const log = s.log
@@ -1038,7 +1213,7 @@ export function reducer(s: AppState, a: Action): AppState {
         // devolver al vial los mg que esta dosis había consumido (usedMg solo crecía → "queda X mg" mentía)
         const proto = s.protocols[deleted.product]
         if (proto?.vialStock) {
-          protocols = { ...s.protocols, [deleted.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg - (deleted.doseMg ?? 0)) } } }
+          protocols = { ...s.protocols, [deleted.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg - (deleted.doseMg ?? 0)) }, m: mNow } }
         }
       }
       return {
@@ -1048,6 +1223,8 @@ export function reducer(s: AppState, a: Action): AppState {
         measureValues,
         profile,
         protocols,
+        // lápida: sin ella, el item borrado resucitaría al fusionar con otro dispositivo que aún lo tiene
+        tombstones: deleted ? addTombstone(s.tombstones, 'logItems', deleted.id, mNow) : s.tombstones,
         logged: log.length > 0,
         sheet: null,
         deletedLogBuffer: deleted ? { item: deleted, samples: removedSamples } : null,
@@ -1059,7 +1236,10 @@ export function reducer(s: AppState, a: Action): AppState {
     // loop 77/137: deshacer el borrado (re-inserta el item + restaura muestras/stock de vial)
     case 'undoDeleteLog': {
       if (!s.deletedLogBuffer) return s
-      const { item, samples } = s.deletedLogBuffer
+      const mNow = Date.now()
+      const { item: buffered, samples } = s.deletedLogBuffer
+      // revivir = edición más nueva que la lápida: re-estampa m (para ganarle a una lápida ya sincronizada)
+      const item: LogItem = { ...buffered, m: mNow }
       const log = prependToLog(s.log, item)
       let history = s.history
       let measureValues = s.measureValues
@@ -1077,7 +1257,7 @@ export function reducer(s: AppState, a: Action): AppState {
       } else if (item.type === 'dose' && (item.doseMg ?? 0) > 0 && item.product) {
         const proto = s.protocols[item.product]
         if (proto?.vialStock) {
-          protocols = { ...s.protocols, [item.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: proto.vialStock.usedMg + (item.doseMg ?? 0) } } }
+          protocols = { ...s.protocols, [item.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: proto.vialStock.usedMg + (item.doseMg ?? 0) }, m: mNow } }
         }
       }
       return {
@@ -1087,6 +1267,8 @@ export function reducer(s: AppState, a: Action): AppState {
         measureValues,
         profile,
         protocols,
+        // deshacer LIMPIA la lápida — si quedara, el merge re-mataría el item recién revivido
+        tombstones: clearTombstone(s.tombstones, 'logItems', item.id),
         logged: true,
         deletedLogBuffer: null,
         toast: null,
@@ -1101,6 +1283,7 @@ export function reducer(s: AppState, a: Action): AppState {
     // loop 77: editar la hora de un registro existente
     case 'editLogTime': {
       const now = new Date(a.ts)
+      const mNow = Date.now() // mtime de sync: momento real de la edición (a.ts es la hora elegida)
       // Eliminar de su grupo actual
       let movedItem: LogItem | undefined
       let oldTs: number | undefined
@@ -1108,7 +1291,7 @@ export function reducer(s: AppState, a: Action): AppState {
         const it = g.items.find((i) => i.id === a.id)
         if (it) {
           oldTs = it.ts
-          movedItem = { ...it, ts: a.ts, t: fmtTime(now) }
+          movedItem = { ...it, ts: a.ts, t: fmtTime(now), m: mNow }
           return { ...g, items: g.items.filter((i) => i.id !== a.id) }
         }
         return g
@@ -1129,7 +1312,7 @@ export function reducer(s: AppState, a: Action): AppState {
         for (const k of Object.keys(s.history)) {
           if (singleName && k !== singleName) { history[k] = s.history[k]; continue }
           let moved = false
-          history[k] = s.history[k].map((sm) => { if (sm.ts === oldTs) { moved = true; return { ...sm, ts: a.ts } } return sm }).sort((x, y) => x.ts - y.ts)
+          history[k] = s.history[k].map((sm) => { if (sm.ts === oldTs) { moved = true; return { ...sm, ts: a.ts, m: mNow } } return sm }).sort((x, y) => x.ts - y.ts)
           if (moved) affected.push(k)
         }
         // mover la muestra puede cambiar cuál es la última-por-ts → recomputar measureValues/profile/bmi.
@@ -1143,22 +1326,26 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, log, history, measureValues, profile }
     }
 
-    case 'setSetting':
+    case 'setSetting': {
       // Simetría con setLocalOnly: optar por el respaldo en la nube desactiva el modo solo local
       // (la decisión explícita más reciente gana; nunca quedan ambos activos con la UI mintiendo).
       if (a.key === 'cloudSync' && a.value === true) {
         return { ...s, localOnly: false, settings: { ...s.settings, cloudSync: true } }
       }
-      return { ...s, settings: { ...s.settings, [a.key]: a.value } }
+      // los campos SOLO-de-dispositivo no viajan en el payload → tocarlos no debe volver "más nueva"
+      // la unidad 'settings' local (pisaría cambios reales del otro dispositivo en el merge)
+      const deviceOnly = a.key === 'pinEnabled' || a.key === 'pinHash' || a.key === 'cloudSync' || a.key === 'consentActive' || a.key === 'consentVersion'
+      return { ...s, settings: { ...s.settings, [a.key]: a.value }, syncMeta: deviceOnly ? s.syncMeta : stampUnits(s, Date.now(), 'settings') }
+    }
     case 'setThemeMode': {
       // 'light'/'dark' derivan darkMode para compat con código que aún lee settings.darkMode
       const darkMode = a.mode === 'dark' ? true : a.mode === 'light' ? false : s.settings.darkMode
-      return { ...s, settings: { ...s.settings, themeMode: a.mode, darkMode } }
+      return { ...s, settings: { ...s.settings, themeMode: a.mode, darkMode }, syncMeta: stampUnits(s, Date.now(), 'settings') }
     }
     case 'setName':
-      return { ...s, profile: { ...s.profile, name: a.name.trim() || null } }
+      return { ...s, profile: { ...s.profile, name: a.name.trim() || null }, syncMeta: stampUnits(s, Date.now(), 'profile') }
     case 'setProfileFields':
-      return { ...s, profile: { ...s.profile, ...a.patch } }
+      return { ...s, profile: { ...s.profile, ...a.patch }, syncMeta: stampUnits(s, Date.now(), 'profile') }
     case 'setReminderTime': {
       // #F3: actualiza SOLO el protocolo activo (el que muestra Ajustes), no todos. Antes homogeneizaba
       // todos → pisaba las horas per-producto fijadas en ProtocoloEditSheet. La hora per-producto es la
@@ -1166,13 +1353,14 @@ export function reducer(s: AppState, a: Action): AppState {
       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)) return s
       const target = a.product ?? s.activeProduct
       if (!target || !s.protocols[target]) return s
-      return syncActive({ ...s, protocols: { ...s.protocols, [target]: { ...s.protocols[target], reminderTime: a.time } } })
+      return syncActive({ ...s, protocols: { ...s.protocols, [target]: { ...s.protocols[target], reminderTime: a.time, m: Date.now() } } })
     }
     case 'setRescueWindow':
-      return { ...s, settings: { ...s.settings, rescueWindowMin: a.minutes } }
+      return { ...s, settings: { ...s.settings, rescueWindowMin: a.minutes }, syncMeta: stampUnits(s, Date.now(), 'settings') }
 
     case 'setScale':
-      return { ...s, scale: a.scale }
+      // scale viaja junto con la unidad 'settings' en el merge (es un ajuste de usuario fuera del objeto settings)
+      return { ...s, scale: a.scale, syncMeta: stampUnits(s, Date.now(), 'settings') }
     case 'setDraftDose':
       return { ...s, draftDose: a.draft }
 
@@ -1212,20 +1400,21 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, toast: a.msg, toastUndoId: null } // un toast normal no trae acción de deshacer
 
     case 'setKpiOrder':
-      return { ...s, kpiOrder: a.order.slice(0, 4) }
+      return { ...s, kpiOrder: a.order.slice(0, 4), syncMeta: stampUnits(s, Date.now(), 'goals') }
 
     // ── Nuevas acciones ────────────────────────────────────────────────────────
 
     // editLog: muta un LogItem existente por id sin cambiar id/ts.
     // Si es una dosis y value!=null, también actualiza productDoses[product].
     case 'editLog': {
+      const mNow = Date.now()
       let updatedProductDoses = s.productDoses
       let updatedProtocols = s.protocols
       const log = s.log.map((g) => ({
         ...g,
         items: g.items.map((it) => {
           if (it.id !== a.id) return it
-          const patched: LogItem = { ...it }
+          const patched: LogItem = { ...it, m: mNow }
           if (a.patch.value !== undefined) patched.value = a.patch.value
           if (a.patch.unit !== undefined) patched.unit = a.patch.unit
           if (a.patch.doseMg !== undefined) {
@@ -1235,7 +1424,7 @@ export function reducer(s: AppState, a: Action): AppState {
               const delta = (a.patch.doseMg ?? 0) - (it.doseMg ?? 0)
               const proto = updatedProtocols[it.product]
               if (proto?.vialStock && delta !== 0) {
-                updatedProtocols = { ...updatedProtocols, [it.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg + delta) } } }
+                updatedProtocols = { ...updatedProtocols, [it.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg + delta) }, m: mNow } }
               }
             }
           }
@@ -1262,7 +1451,7 @@ export function reducer(s: AppState, a: Action): AppState {
               const delta = (newDoseMg ?? 0) - (it.doseMg ?? 0)
               const proto = updatedProtocols[it.product]
               if (proto?.vialStock && delta !== 0) {
-                updatedProtocols = { ...updatedProtocols, [it.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg + delta) } } }
+                updatedProtocols = { ...updatedProtocols, [it.product]: { ...proto, vialStock: { ...proto.vialStock, usedMg: Math.max(0, proto.vialStock.usedMg + delta) }, m: mNow } }
               }
             }
           }
@@ -1281,12 +1470,16 @@ export function reducer(s: AppState, a: Action): AppState {
       const editedItem = a.patch.value != null ? s.log.flatMap((g) => g.items).find((it) => it.id === a.id) : undefined
       if (editedItem && editedItem.type === 'medida' && editedItem.n && a.patch.value != null && s.history[editedItem.n]) {
         const name = editedItem.n, oldTs = editedItem.ts, newValue = a.patch.value
-        history = { ...s.history, [name]: s.history[name].map((sm) => (sm.ts === oldTs ? { ...sm, value: newValue } : sm)) }
+        // m: la edición del valor es lo que decide el conflicto (name, ts) entre dispositivos
+        history = { ...s.history, [name]: s.history[name].map((sm) => (sm.ts === oldTs ? { ...sm, value: newValue, m: mNow } : sm)) }
         const rebuilt = rebuildMeasureCaches(history, s.measureValues, s.profile, [name])
         measureValues = rebuilt.measureValues
         profile = rebuilt.profile
       }
-      return { ...s, log, productDoses: updatedProductDoses, protocols: updatedProtocols, history, measureValues, profile }
+      return {
+        ...s, log, productDoses: updatedProductDoses, protocols: updatedProtocols, history, measureValues, profile,
+        syncMeta: updatedProductDoses !== s.productDoses ? stampUnits(s, mNow, 'productDoses') : s.syncMeta,
+      }
     }
 
     case 'setCalcDraft':
@@ -1318,10 +1511,14 @@ export function reducer(s: AppState, a: Action): AppState {
       return hydrate(merged)
     }
 
+    // merge por registro (Opción C): aplica el estado fusionado — SILENCIOSO (el sync de fondo no toastea)
+    case 'applyMerged':
+      return applyMerged(s, a.merged)
+
     // saveRecon: agrega o fusiona (por label) una reconstitución guardada
     case 'saveRecon': {
       const idx = s.savedRecons.findIndex((r) => r.label.toLowerCase() === a.entry.label.toLowerCase())
-      const entry: SavedRecon = { id: idx >= 0 ? s.savedRecons[idx].id : genId(), ...a.entry }
+      const entry: SavedRecon = { id: idx >= 0 ? s.savedRecons[idx].id : genId(), ...a.entry, m: Date.now() }
       const savedRecons = idx >= 0
         ? s.savedRecons.map((r, i) => (i === idx ? entry : r))
         : [...s.savedRecons, entry]
@@ -1329,35 +1526,61 @@ export function reducer(s: AppState, a: Action): AppState {
     }
 
     case 'deleteRecon':
-      return { ...s, savedRecons: s.savedRecons.filter((r) => r.id !== a.id) }
+      // lápida: sin ella, la reconstitución borrada resucitaría al fusionar con otro dispositivo
+      return { ...s, savedRecons: s.savedRecons.filter((r) => r.id !== a.id), tombstones: addTombstone(s.tombstones, 'savedRecons', a.id, Date.now()) }
 
-    // setMeasureGoal: establece o elimina la meta de una medida
+    // setMeasureGoal: establece o elimina la meta de una medida. Eliminar deja lápida mapKeys
+    // (sin ella, la unión de claves del merge la resucitaría); re-establecer la limpia.
     case 'setMeasureGoal': {
       const measureGoals = { ...s.measureGoals }
-      if (a.value == null) delete measureGoals[a.name]
-      else measureGoals[a.name] = a.value
-      return { ...s, measureGoals }
+      const mNow = Date.now()
+      let tombstones = s.tombstones
+      if (a.value == null) {
+        delete measureGoals[a.name]
+        tombstones = addTombstone(tombstones, 'mapKeys', `measureGoals:${a.name}`, mNow)
+      } else {
+        measureGoals[a.name] = a.value
+        tombstones = clearTombstone(tombstones, 'mapKeys', `measureGoals:${a.name}`)
+      }
+      return { ...s, measureGoals, tombstones, syncMeta: stampUnits(s, mNow, 'measureGoals') }
     }
 
-    // setMeasureReminder: establece o elimina el recordatorio de una medida (intervalo en días)
+    // setMeasureReminder: establece o elimina el recordatorio de una medida (intervalo en días);
+    // misma disciplina de lápida mapKeys que setMeasureGoal
     case 'setMeasureReminder': {
       const measureReminders = { ...s.measureReminders }
-      if (a.intervalDays == null) delete measureReminders[a.name]
-      else measureReminders[a.name] = a.intervalDays
-      return { ...s, measureReminders }
+      const mNow = Date.now()
+      let tombstones = s.tombstones
+      if (a.intervalDays == null) {
+        delete measureReminders[a.name]
+        tombstones = addTombstone(tombstones, 'mapKeys', `measureReminders:${a.name}`, mNow)
+      } else {
+        measureReminders[a.name] = a.intervalDays
+        tombstones = clearTombstone(tombstones, 'mapKeys', `measureReminders:${a.name}`)
+      }
+      return { ...s, measureReminders, tombstones, syncMeta: stampUnits(s, mNow, 'measureReminders') }
     }
 
-    // setProductAlias: alias personalizado por producto; null = elimina el alias
+    // setProductAlias: alias personalizado por producto; null = elimina el alias (con lápida mapKeys)
     case 'setProductAlias': {
       const productAliases = { ...s.productAliases }
-      if (a.alias == null) delete productAliases[a.product]
-      else productAliases[a.product] = a.alias
-      return { ...s, productAliases }
+      const mNow = Date.now()
+      let tombstones = s.tombstones
+      if (a.alias == null) {
+        delete productAliases[a.product]
+        tombstones = addTombstone(tombstones, 'mapKeys', `productAliases:${a.product}`, mNow)
+      } else {
+        productAliases[a.product] = a.alias
+        tombstones = clearTombstone(tombstones, 'mapKeys', `productAliases:${a.product}`)
+      }
+      return { ...s, productAliases, tombstones, syncMeta: stampUnits(s, mNow, 'productAliases') }
     }
 
     // startFast: inicia un ayuno marcando el timestamp actual
-    case 'startFast':
-      return { ...s, fastStartTs: Date.now() }
+    case 'startFast': {
+      const mNow = Date.now()
+      return { ...s, fastStartTs: mNow, syncMeta: stampUnits(s, mNow, 'fastStartTs') }
+    }
 
     // endFast: inserta un LogItem type:'ayuno' con la duración en horas y limpia fastStartTs
     case 'endFast': {
@@ -1373,6 +1596,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ic: 'ayuno',
         type: 'ayuno',
         ts: now.getTime(),
+        m: now.getTime(),
         value: durH,
         unit: 'h',
       }
@@ -1380,6 +1604,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ...s,
         log: prependToLog(s.log, item),
         fastStartTs: null,
+        syncMeta: stampUnits(s, now.getTime(), 'fastStartTs'),
         toast: `Ayuno de ${durH} h registrado`,
         toastUndoId: item.id,
       }
@@ -1398,6 +1623,7 @@ export function reducer(s: AppState, a: Action): AppState {
           [a.product]: {
             ...proto,
             vialStock: { totalMg: a.totalMg, usedMg: 0, openedAt: a.openedAt ?? Date.now() },
+            m: Date.now(),
           },
         },
       })
@@ -1416,6 +1642,7 @@ export function reducer(s: AppState, a: Action): AppState {
             purchasedMg: a.purchasedMg,
             purchasedAt: a.purchasedAt,
             ...(a.cost != null ? { purchaseCost: a.cost } : {}),
+            m: Date.now(),
           },
         },
       })
@@ -1433,6 +1660,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ic: 'efecto-adverso',
         type: 'efecto-adverso',
         ts: now.getTime(),
+        m: Date.now(),
         severity: a.severity,
         ...(a.product ? { product: a.product } : {}),
         // #103: la descripción ya vive en `u`; no duplicarla en `note` (el Diario la mostraba dos veces)
@@ -1446,12 +1674,14 @@ export function reducer(s: AppState, a: Action): AppState {
     }
 
     // archiveProtocol / reactivateProtocol: oculta o restaura un protocolo del flujo activo
+    // archivar es una EDICIÓN normal del protocolo (m nuevo), NUNCA una lápida: el historial se conserva
     case 'archiveProtocol': {
       const proto = s.protocols[a.product]
       if (!proto) return s
+      const mNow = Date.now()
       return syncActive({
         ...s,
-        protocols: { ...s.protocols, [a.product]: { ...proto, archived: true, archivedAt: Date.now() } },
+        protocols: { ...s.protocols, [a.product]: { ...proto, archived: true, archivedAt: mNow, m: mNow } },
       })
     }
     case 'reactivateProtocol': {
@@ -1459,7 +1689,7 @@ export function reducer(s: AppState, a: Action): AppState {
       if (!proto) return s
       return syncActive({
         ...s,
-        protocols: { ...s.protocols, [a.product]: { ...proto, archived: false, archivedAt: null } },
+        protocols: { ...s.protocols, [a.product]: { ...proto, archived: false, archivedAt: null, m: Date.now() } },
       })
     }
 
@@ -1471,7 +1701,7 @@ export function reducer(s: AppState, a: Action): AppState {
       return s.achievements.includes(a.id) ? s : { ...s, achievements: [...s.achievements, a.id] }
 
     case 'setDayNote':
-      return { ...s, dayNotes: { ...s.dayNotes, [a.dateKey]: a.text } }
+      return { ...s, dayNotes: { ...s.dayNotes, [a.dateKey]: a.text }, syncMeta: stampUnits(s, Date.now(), 'dayNotes') }
 
     default:
       return s

@@ -3,10 +3,14 @@
 -- Auth lo provee Supabase Auth (tabla auth.users). Aquí van solo los datos de la app, todo con RLS:
 -- cada usuario SOLO puede ver/escribir sus propias filas.
 
--- ── user_state: respaldo/sincronización del estado local (blob JSONB, last-write-wins por updated_at) ──
+-- ── user_state: respaldo/sincronización del estado por usuario ──
+-- `rev` es el contador de versión para el push CAS (compare-and-swap): el cliente lee (data, rev),
+-- fusiona por registro (src/lib/merge.ts) y hace UPDATE ... WHERE rev = <rev leído> SET rev = rev+1.
+-- 0 filas afectadas = otro dispositivo escribió en medio → re-pull + re-merge + reintento.
 create table if not exists public.user_state (
   user_id    uuid primary key references auth.users(id) on delete cascade,
   data       jsonb not null default '{}'::jsonb,
+  rev        bigint not null default 0,
   updated_at timestamptz not null default now()
 );
 

@@ -14,13 +14,16 @@ import { NOTIF_PROMPT_DISMISSED_KEY } from '../ui/NotifPermissionPrompt'
 import { Switch } from '../ui/Switch'
 import { backendEnabled } from '../../lib/backend/config'
 import { getSession, signOut } from '../../lib/backend/auth'
-import { pullRemote, deleteRemote, getSyncStatus, onSyncStatusChange, markCloudSyncedNow, clearSyncStatus } from '../../lib/backend/sync'
+import { pullRemote, deleteRemote, getSyncStatus, onSyncStatusChange, markCloudSyncedNow, clearSyncStatus, countMergeChanges } from '../../lib/backend/sync'
 import { unsubscribePush } from '../../lib/backend/push'
 import { Button } from '../ui/Button'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
-import { useApp, sanitizeImport, importHasData } from '../../lib/store'
-import type { AppState } from '../../lib/store'
+import { useApp, sanitizeImport, importHasData, prepareSyncPayload } from '../../lib/store'
+import type { AppState, SyncPayload } from '../../lib/store'
+import { mergeStates, TOMBSTONE_TTL_MS } from '../../lib/merge'
 import { requestNotif, notifPermission, notifSupported } from '../../lib/notifications'
+import { requestNativeNotifPermission } from '../../lib/native/notifications'
+import { IMPORT_ENTRY_ENABLED } from '../../lib/buildFlags'
 import type { ThemeMode, UnitSystem } from '../../lib/types'
 
 // ── constante de versión de consentimiento (misma que la v1 original) ──────────
@@ -245,6 +248,76 @@ function LogoutConfirmDialog({
   )
 }
 
+// ── sub-sheet de confirmación de "Reemplazar todo con la nube" (destructivo) ──
+// "Restaurar de la nube" ya NO reemplaza (combina por registro, sin pérdida); esta ruta es la única
+// destructiva que queda y por eso exige confirmación explícita en la pila de modales.
+function ReplaceCloudConfirmDialog({
+  open,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const reduce = useReducedMotion()
+  // En la pila de modales: Escape cierra este diálogo (tope), no el Sheet de abajo.
+  useModalStack(open, onCancel)
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <div className="pointer-events-none fixed inset-0 z-[10000] flex items-end">
+          <motion.div
+            className="pointer-events-auto absolute inset-0 bg-black/60"
+            style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
+            onClick={onCancel}
+          />
+          <motion.div
+            role="alertdialog" aria-modal="true"
+            aria-label="Confirmar reemplazo con la copia de la nube"
+            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            initial={reduce ? { opacity: 0 } : { y: '100%' }}
+            animate={reduce ? { opacity: 1 } : { y: 0 }}
+            exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
+            transition={
+              reduce
+                ? { duration: 0.15 }
+                : { type: 'spring', stiffness: 280, damping: 32, mass: 1 }
+            }
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <h3 className="mb-1 text-[18px] font-bold text-foreground">¿Reemplazar todo con la nube?</h3>
+            <p className="mb-5 text-[13px] leading-relaxed text-muted-foreground">
+              Esto descartará lo que solo exista en este dispositivo y dejará exactamente la copia de la
+              nube. Tu PIN, tu consentimiento y el modo solo local no cambian. No se puede deshacer. Si
+              solo quieres traer lo que falta, usa «Restaurar de la nube» — esa combina sin borrar nada.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="primary"
+                size="full"
+                className="bg-alert text-white shadow-none"
+                onClick={onConfirm}
+              >
+                Sí, reemplazar todo
+              </Button>
+              <Button variant="ghost" size="full" onClick={onCancel}>
+                Cancelar
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
+}
+
 // ── sub-sheet de alias de productos (R48) ────────────────────────────────────
 function AliasSheet({
   open,
@@ -398,14 +471,17 @@ export function Ajustes({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showAdvancedReminders, setShowAdvancedReminders] = useState(false)
-  const [restoreState, setRestoreState] = useState<'idle' | 'confirm' | 'busy'>('idle')
+  const [restoreState, setRestoreState] = useState<'idle' | 'busy'>('idle')
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false)
+  const [replaceBusy, setReplaceBusy] = useState(false)
 
   // Estado real de la copia en la nube (última subida exitosa / fallo pendiente).
   const [syncStatus, setSyncStatus] = useState(() => getSyncStatus())
   useEffect(() => onSyncStatusChange(() => setSyncStatus(getSyncStatus())), [])
 
-  // Restaurar desde la nube: trae el blob remoto y REEMPLAZA el estado local (vía loadRemoteState → hydrate).
-  // Explícito + confirmado (no auto-merge) para no clobberear cambios locales sin querer. Solo con backend.
+  // Restaurar desde la nube = pull → MERGE por registro → aplicar (Opción C). NO destructivo: combina
+  // el respaldo con lo local sin perder la versión más nueva de ningún registro (leyes de lib/merge.ts),
+  // por eso ya no exige confirmación. Los mensajes son honestos: dicen qué pasó de verdad.
   // "Sin respaldo" solo se muestra cuando de verdad no hay fila; un error de red/permiso da su propio mensaje.
   async function handleRestore() {
     const sess = await getSession()
@@ -415,16 +491,53 @@ export function Ajustes({
     setRestoreState('idle')
     if (!remote.ok) { dispatch({ t: 'toast', msg: remote.error }); return }
     if (remote.empty) { dispatch({ t: 'toast', msg: 'No hay respaldo en la nube todavía' }); return }
+    // El blob remoto se SANEA antes de fusionar (mergeStates tolera colecciones ausentes pero no
+    // valida items corruptos; sanitizeImport es esa validación). El payload local sale de
+    // prepareSyncPayload — la ÚNICA fuente de exclusión de lo device-local.
+    const remoteClean = sanitizeImport(remote.data as Partial<AppState>).state as unknown as SyncPayload
+    const local = prepareSyncPayload(state)
+    const { merged, changedVsLocal, changedVsRemote } = mergeStates(local, remoteClean, Date.now() - TOMBSTONE_TTL_MS)
+    if (!changedVsLocal) {
+      // Nada nuevo para este dispositivo. Si tampoco hay nada que subir, local == nube → sello honesto.
+      if (!changedVsRemote) {
+        markCloudSyncedNow()
+        dispatch({ t: 'toast', msg: 'Ya estás al día con la nube' })
+      } else {
+        dispatch({ t: 'toast', msg: 'Tu respaldo no trae nada nuevo — este dispositivo va adelante' })
+      }
+      return
+    }
+    // applyMerged conserva lo device-local (PIN, consentimiento, cloudSync, localOnly, UI efímera)
+    // y recomputa cachés — las decisiones de ESTA instalación nunca vienen de la nube (LFPDPPP).
+    const n = countMergeChanges(local, merged)
+    dispatch({ t: 'applyMerged', merged })
+    // "Última copia" solo cuando local == nube tras aplicar; si quedó algo por subir, lo estampa
+    // el ciclo de sync (useCloudSync) cuando el push CAS lo consiga de verdad.
+    if (!changedVsRemote) markCloudSyncedNow()
+    dispatch({ t: 'toast', msg: `Combinado con tu respaldo — ${n} cambio${n === 1 ? '' : 's'} aplicado${n === 1 ? '' : 's'}` })
+  }
+
+  // Reemplazar TODO con la nube: la semántica destructiva de siempre (pull → reemplazo vía
+  // loadRemoteState → hydrate), detrás de un diálogo de confirmación en la pila de modales.
+  async function handleReplaceAll() {
+    setShowReplaceConfirm(false)
+    const sess = await getSession()
+    if (!sess) { dispatch({ t: 'toast', msg: 'Inicia sesión para restaurar' }); return }
+    setReplaceBusy(true)
+    const remote = await pullRemote(sess.userId)
+    setReplaceBusy(false)
+    if (!remote.ok) { dispatch({ t: 'toast', msg: remote.error }); return }
+    if (remote.empty) { dispatch({ t: 'toast', msg: 'No hay respaldo en la nube todavía' }); return }
     const incoming = remote.data as Partial<AppState>
     // ÚNICO predicado de resultado, el MISMO que usa el reducer: sanitizeImport + importHasData
-    // sobre el blob SANEADO. (El pre-check crudo de antes divergía: un blob cuyas entradas se
-    // descartan TODAS al sanear pasaba aquí, el reducer lo rechazaba, y el toast mentía éxito.)
+    // sobre el blob SANEADO. (Un pre-check crudo divergiría: un blob cuyas entradas se descartan
+    // TODAS al sanear pasaría aquí, el reducer lo rechazaría, y el toast mentiría éxito.)
     if (!importHasData(sanitizeImport(incoming).state)) {
       dispatch({ t: 'toast', msg: 'El respaldo en la nube está vacío — no se restauró (tus datos siguen intactos)' })
       return
     }
     // Decisiones del DISPOSITIVO — PIN, consentimiento (activo + versión), respaldo en la nube y
-    // modo solo local — sobreviven a la restauración: un respaldo viejo no puede reactivar un
+    // modo solo local — sobreviven al reemplazo: un respaldo viejo no puede reactivar un
     // consentimiento revocado ni re-encender las subidas (LFPDPPP: re-consentir es un acto explícito).
     const withDeviceLocal: Partial<AppState> = {
       ...incoming,
@@ -495,7 +608,9 @@ export function Ajustes({
       dispatch({ t: 'toast', msg: 'Tu navegador no admite notificaciones.' })
       return
     }
-    const result = await requestNotif()
+    // Nativo (Capacitor): el permiso del OS se pide por LocalNotifications; en web es no-op (false).
+    const nativeGranted = await requestNativeNotifPermission()
+    const result = nativeGranted ? 'granted' : await requestNotif()
     if (result === 'granted') {
       dispatch({ t: 'setSetting', key: 'remindersEnabled', value: true })
     } else {
@@ -616,20 +731,24 @@ export function Ajustes({
                 </span>
                 <Chevron />
               </button>
-              <div className="mx-4 h-px bg-white/[0.06]" />
-              <button
-                type="button"
-                onClick={() => (onOpenImport ? onOpenImport() : dispatch({ t: 'sheet', sheet: 'import' }))}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
-                aria-label="Importar protocolos"
-              >
-                <Download size={18} className="shrink-0 text-teal" />
-                <span className="flex flex-1 flex-col">
-                  <span className="text-[15px] font-medium text-foreground">Importar protocolos</span>
-                  <span className="text-[12px] text-muted-foreground">Agrega productos a tu seguimiento</span>
-                </span>
-                <Chevron />
-              </button>
+              {IMPORT_ENTRY_ENABLED && (
+                <>
+                  <div className="mx-4 h-px bg-white/[0.06]" />
+                  <button
+                    type="button"
+                    onClick={() => (onOpenImport ? onOpenImport() : dispatch({ t: 'sheet', sheet: 'import' }))}
+                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
+                    aria-label="Importar protocolos"
+                  >
+                    <Download size={18} className="shrink-0 text-teal" />
+                    <span className="flex flex-1 flex-col">
+                      <span className="text-[15px] font-medium text-foreground">Importar protocolos</span>
+                      <span className="text-[12px] text-muted-foreground">Agrega productos a tu seguimiento</span>
+                    </span>
+                    <Chevron />
+                  </button>
+                </>
+              )}
               <div className="mx-4 h-px bg-white/[0.06]" />
               <button
                 type="button"
@@ -792,7 +911,7 @@ export function Ajustes({
                 <Row className="px-4">
                   <Download size={18} className={settings.cloudSync ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
                   <span className="flex flex-1 flex-col">
-                    <span className="text-[14px] font-medium text-foreground">Respaldo en la nube</span>
+                    <span className="text-[14px] font-medium text-foreground">Respaldo y sincronización</span>
                     <span
                       className={[
                         'text-[12px]',
@@ -802,38 +921,50 @@ export function Ajustes({
                       {!settings.cloudSync
                         ? 'Opcional — requiere iniciar sesión'
                         : syncStatus.lastPushFailed
-                          ? 'No se pudo respaldar el último cambio — se reintenta con el siguiente'
+                          ? 'No se pudo sincronizar el último cambio — se reintenta con el siguiente'
                           : syncStatus.lastSyncAt
-                            ? `Última copia: ${formatSyncTime(syncStatus.lastSyncAt)}`
-                            : 'Tu historial se respalda en tu cuenta'}
+                            ? `Última sincronización: ${formatSyncTime(syncStatus.lastSyncAt)}`
+                            : 'Tus datos se respaldan y sincronizan entre tus dispositivos'}
                     </span>
                   </span>
                   <Switch
                     checked={!!settings.cloudSync}
-                    label="Activar respaldo en la nube"
+                    label="Activar respaldo y sincronización"
                     onChange={(next) => dispatch({ t: 'setSetting', key: 'cloudSync', value: next })}
                   />
                 </Row>
                 <div className="mx-4 h-px bg-white/[0.06]" />
-                {restoreState === 'confirm' ? (
-                  <div className="flex items-center gap-2 px-4 py-2.5">
-                    <span className="flex-1 text-[12px] text-muted-foreground">Reemplazará lo de este dispositivo con tu respaldo.</span>
-                    <button type="button" onClick={() => setRestoreState('idle')} className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-foreground">Cancelar</button>
-                    <button type="button" onClick={handleRestore} className="rounded-lg bg-teal px-3 py-1.5 text-[12px] font-semibold text-primary-foreground">Reemplazar</button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={restoreState === 'busy'}
-                    onClick={() => setRestoreState('confirm')}
-                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left disabled:opacity-50"
-                    aria-label="Restaurar desde la nube"
-                  >
-                    <Download size={18} className="shrink-0 rotate-180 text-teal" />
-                    <span className="flex-1 text-[14px] font-medium text-foreground">{restoreState === 'busy' ? 'Restaurando…' : 'Restaurar de la nube'}</span>
-                    <ChevronRight size={16} className="text-muted-foreground" />
-                  </button>
-                )}
+                {/* Combinar (no destructivo): pull → merge por registro → aplicar. Sin confirmación
+                    porque no puede perder datos (leyes de lib/merge.ts). */}
+                <button
+                  type="button"
+                  disabled={restoreState === 'busy'}
+                  onClick={handleRestore}
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left disabled:opacity-50"
+                  aria-label="Restaurar desde la nube (combina con lo de este dispositivo)"
+                >
+                  <Download size={18} className="shrink-0 rotate-180 text-teal" />
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-[14px] font-medium text-foreground">{restoreState === 'busy' ? 'Restaurando…' : 'Restaurar de la nube'}</span>
+                    <span className="text-[12px] text-muted-foreground">Combina tu respaldo con este dispositivo — no borra nada</span>
+                  </span>
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                </button>
+                <div className="mx-4 h-px bg-white/[0.06]" />
+                {/* Reemplazo destructivo: exige confirmación (diálogo en la pila de modales). */}
+                <button
+                  type="button"
+                  disabled={replaceBusy}
+                  onClick={() => setShowReplaceConfirm(true)}
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left disabled:opacity-50"
+                  aria-label="Reemplazar todo con la copia de la nube"
+                >
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-[14px] font-medium text-alert">{replaceBusy ? 'Reemplazando…' : 'Reemplazar todo con la nube'}</span>
+                    <span className="text-[12px] text-muted-foreground">Descarta lo de este dispositivo y deja la copia de la nube</span>
+                  </span>
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                </button>
               </RowCard>
             </section>
           )}
@@ -1270,6 +1401,13 @@ export function Ajustes({
         open={showLogoutConfirm}
         onConfirm={handleLogout}
         onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      {/* Confirmación de "Reemplazar todo con la nube" (destructivo) */}
+      <ReplaceCloudConfirmDialog
+        open={showReplaceConfirm}
+        onConfirm={handleReplaceAll}
+        onCancel={() => setShowReplaceConfirm(false)}
       />
 
       {/* Sheet de aliases de productos (R48) */}
