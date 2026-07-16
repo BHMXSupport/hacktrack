@@ -173,6 +173,11 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
 
   const savedRecons = state.savedRecons ?? []
 
+  // debt-102: saveRecon fusiona por nombre — si ya existe una reconstitución con esta etiqueta y
+  // otros valores, el guardado la REEMPLAZA. Hacerlo explícito en el botón en vez de pisar en silencio.
+  const existingRecon = savedRecons.find((r) => r.label.toLowerCase() === saveLabel.trim().toLowerCase())
+  const wouldOverwrite = !!existingRecon && (existingRecon.vialMg !== vial || existingRecon.aguaMl !== agua)
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
@@ -272,22 +277,30 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                 + Guardar esta reconstitución
               </button>
             ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Nombre (ej. BPC 157 10mg)"
-                  value={saveLabel}
-                  onChange={(e) => setSaveLabel(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveRecon()}
-                  autoFocus
-                  className="h-11 flex-1 rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
-                />
-                <Button variant="primary" size="sm" onClick={handleSaveRecon} disabled={!saveLabel.trim()}>
-                  Guardar
-                </Button>
-                <Button variant="ghost" size="sm" aria-label="Cancelar" onClick={() => setShowSaveForm(false)}>
-                  <X size={14} />
-                </Button>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nombre (ej. BPC 157 10mg)"
+                    value={saveLabel}
+                    onChange={(e) => setSaveLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveRecon()}
+                    autoFocus
+                    className="h-11 flex-1 rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                  />
+                  <Button variant="primary" size="sm" onClick={handleSaveRecon} disabled={!saveLabel.trim()}>
+                    {wouldOverwrite ? 'Sobrescribir' : 'Guardar'}
+                  </Button>
+                  <Button variant="ghost" size="sm" aria-label="Cancelar" onClick={() => setShowSaveForm(false)}>
+                    <X size={14} />
+                  </Button>
+                </div>
+                {wouldOverwrite && existingRecon && (
+                  <p className="flex items-center gap-1.5 text-[12px] text-yellow-400">
+                    <AlertTriangle size={13} aria-hidden className="shrink-0" />
+                    Ya tienes "{existingRecon.label}" ({existingRecon.vialMg} mg / {existingRecon.aguaMl} mL) — se reemplazará.
+                  </p>
+                )}
               </div>
             )}
           </div>

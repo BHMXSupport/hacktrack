@@ -162,6 +162,9 @@ export function ProtocoloEditSheet({
   const [reminderTime, setReminderTime] = useState(p?.reminderTime ?? '08:00')
   // #36: siempre vacío — solo despachar setVialStock si el usuario lo rellena explícitamente
   const [totalMgStr, setTotalMgStr] = useState('')
+  // debt-102: setVialStock DESCARTA el vial actual (usedMg vuelve a 0) — si el vial en curso todavía
+  // tiene mg restantes, el guardado pide un segundo tap de confirmación antes de pisarlo.
+  const [vialOverwriteConfirm, setVialOverwriteConfirm] = useState(false)
   const [purchaseMgStr, setPurchaseMgStr] = useState('')
   const [purchaseCostStr, setPurchaseCostStr] = useState('')
   const [showHistory, setShowHistory] = useState(false)
@@ -179,6 +182,7 @@ export function ProtocoloEditSheet({
     setReminderTime(p.reminderTime ?? '08:00')
     // #36: inicializar siempre vacío para no re-disparar setVialStock al guardar sin cambios
     setTotalMgStr('')
+    setVialOverwriteConfirm(false)
     setPurchaseMgStr('')
     setPurchaseCostStr('')
     setShowHistory(false)
@@ -284,6 +288,17 @@ export function ProtocoloEditSheet({
     }
     setPhaseDoseErrors([])
 
+    // debt-102: pisar un vial a medias pierde su stock para siempre (usedMg se reinicia a 0).
+    // Primer tap con vial en curso → aviso inline y NO se guarda nada; segundo tap confirma todo.
+    const newVialMg = parseFloat(totalMgStr)
+    const wantsNewVial = totalMgStr.trim() !== '' && !isNaN(newVialMg) && newVialMg > 0
+    const curVial = p.vialStock
+    const vialInUse = !!curVial && curVial.usedMg > 0 && curVial.totalMg - curVial.usedMg > 0
+    if (wantsNewVial && vialInUse && !vialOverwriteConfirm) {
+      setVialOverwriteConfirm(true)
+      return
+    }
+
     const doses: (number | null)[] = Array.from({ length: progN }, (_, i) => {
       const n = parseFloat(phaseDoses[i] ?? '')
       return isNaN(n) ? null : n
@@ -308,9 +323,8 @@ export function ProtocoloEditSheet({
     setIsFreshCadence(false)
 
     // #36: solo despachar setVialStock si el usuario rellenó el campo explícitamente
-    const totalMg = parseFloat(totalMgStr)
-    if (totalMgStr.trim() !== '' && !isNaN(totalMg) && totalMg > 0) {
-      dispatch({ t: 'setVialStock', product: p.product, totalMg })
+    if (wantsNewVial) {
+      dispatch({ t: 'setVialStock', product: p.product, totalMg: newVialMg })
     }
 
     // Registrar compra
@@ -821,10 +835,17 @@ export function ProtocoloEditSheet({
               min={0}
               placeholder="p. ej. 5"
               value={totalMgStr}
-              onChange={(e) => setTotalMgStr(e.target.value)}
+              onChange={(e) => { setTotalMgStr(e.target.value); setVialOverwriteConfirm(false) }}
               aria-label="Miligramos totales del vial"
               className="h-11 w-full rounded-xl border border-white/12 bg-card px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
             />
+            {vialOverwriteConfirm && p.vialStock && (
+              <p className="mt-1 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-[12px] leading-snug text-yellow-400" role="alert">
+                Esto abre un vial nuevo: el actual lleva {vialUsed.toFixed(1)} mg usados y aún le
+                quedan {(vialTotal - vialUsed).toFixed(1)} mg — su registro se descartará. Toca
+                "Guardar cambios" otra vez para confirmar, o borra el campo para conservarlo.
+              </p>
+            )}
           </div>
 
           <p className="text-[13px] font-semibold text-foreground">Registrar compra</p>

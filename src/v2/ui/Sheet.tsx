@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
+import { useModalStack } from './modalStack'
 
 // Bottom-sheet de vidrio. RENDERIZADO EN PORTAL a document.body con position:FIXED.
 // Por qué portal+fixed (no `absolute inset-0` dentro de .app-frame): en iOS standalone, .app-frame usa
@@ -14,7 +15,8 @@ import { X } from 'lucide-react'
 // Anti dead-click: el contenedor es pointer-events-none; backdrop y panel solo reciben clics cuando
 // `settled` (abierto y quieto); y el prop `exit` fija pointerEvents:'none' → aunque AnimatePresence dejara
 // un nodo huérfano, queda con pointer-events:none y NO traga clics de la página.
-// A11y: role=dialog + aria-modal, cierra con Escape, foco inicial al abrir, focus-trap (Tab cicla dentro).
+// A11y: role=dialog + aria-modal, cierra con Escape (vía la pila global de modalStack: solo el modal
+// del tope cierra), foco inicial al abrir, focus-trap (Tab cicla dentro).
 export function Sheet({
   open,
   onClose,
@@ -41,11 +43,14 @@ export function Sheet({
   openRef.current = open
   useEffect(() => { if (!open) setSettled(false) }, [open])
 
-  // Escape para cerrar + foco inicial + focus-trap (Tab cicla dentro del panel).
+  // Escape para cerrar: lo maneja la pila global (modalStack) → con hojas/diálogos apilados,
+  // Escape cierra SOLO el del tope, no todos a la vez.
+  useModalStack(open, onClose)
+
+  // Foco inicial + focus-trap (Tab cicla dentro del panel).
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return }
       if (e.key !== 'Tab' || !panelRef.current) return
       const f = panelRef.current.querySelectorAll<HTMLElement>(
         'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
@@ -66,7 +71,7 @@ export function Sheet({
       document.removeEventListener('keydown', onKey)
       window.clearTimeout(t)
     }
-  }, [open, onClose])
+  }, [open])
 
   if (typeof document === 'undefined') return null
 

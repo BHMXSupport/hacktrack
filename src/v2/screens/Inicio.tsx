@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { useApp, nextInjectionSite, doseForProduct, adherenceMonth } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
-import { startOfDay } from '../../lib/cadence'
+import { startOfDay, dayDiff } from '../../lib/cadence'
 import { doseToMg } from '../../lib/calc'
 import { CadenciaChip } from './ProtocoloEditSheet'
 import { upcomingDoses, protocolStreak, protocolStreakStart, dayProducts, doseTakenOnProduct, doseSkippedOnProduct, pendingDoses } from '../../lib/calendar'
@@ -161,10 +161,11 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
     const t0 = anchor.date.getTime()
     return { next: anchor, sameTimeCount: all.filter((u) => Math.abs(u.date.getTime() - t0) < 60_000).length }
   }, [state, now])
-  const streak = useMemo(() => protocolStreak(state, now), [state])
-  // Fecha de inicio de la racha → el chip explica "desde {fecha}" en vez de un número crudo. (#70)
-  const streakStart = useMemo(() => (streak > 0 ? protocolStreakStart(state, now) : null), [state, streak])
   const today = startOfDay(now)
+  // Convención (calendar.ts): today = identidad del día, now = reloj real — ambos explícitos.
+  const streak = useMemo(() => protocolStreak(state, today, now), [state, now]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Fecha de inicio de la racha → el chip explica "desde {fecha}" en vez de un número crudo. (#70)
+  const streakStart = useMemo(() => (streak > 0 ? protocolStreakStart(state, today, now) : null), [state, streak, now]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // #2/#3: una sola fuente de verdad (tallyDoses vía adherenceMonth) — respeta cadencia real
   // (semanal/cadaN/ciclo/por-uso) y solo cuenta dosis VENCIDAS en el denominador. null = nada que medir.
@@ -209,7 +210,9 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
   }, [state, now, today])
   const [pendingOpen, setPendingOpen] = useState(false)
   const daysAgo = (d: Date) => {
-    const n = Math.floor((today.getTime() - startOfDay(d).getTime()) / 86_400_000)
+    // dayDiff (round) y no floor sobre ms fijos: un tramo con cambio de horario (23/25 h) no debe
+    // desfasar la etiqueta (deuda #69, misma clase)
+    const n = dayDiff(today, d)
     return n === 1 ? 'ayer' : `hace ${n} días`
   }
 

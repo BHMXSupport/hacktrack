@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useApp, adherenceMonth } from '../../lib/store'
 import { startOfDay } from '../../lib/cadence'
+import { addDays } from '../../lib/dates'
 import {
   dayProducts,
   dayStatusEx,
@@ -828,15 +829,15 @@ function AvancesTab() {
     return { due: a?.due ?? 0, taken: a?.taken ?? 0, pct: a?.pct ?? 0 }
   }, [state, adhNow])
 
-  // Adherencia semanal (últimas 8 semanas, más reciente primero)
-  const weekly8 = useMemo(() => weekAdherencePctLast8(state, today), [state, today])
+  // Adherencia semanal (últimas 8 semanas, más reciente primero) — `now` explícito del reloj de 30 s
+  const weekly8 = useMemo(() => weekAdherencePctLast8(state, today, new Date(adhNow)), [state, today, adhNow])
 
   // R31: Serie de dosis por día (para correlación)
   // Cuenta cuántas dosis totales se tomaron cada día (últimos 90 días)
   const doseSeries = useMemo(() => {
     const result: { ts: number; value: number }[] = []
     for (let i = 89; i >= 0; i--) {
-      const d = new Date(today.getTime() - i * 86400000)
+      const d = addDays(today, -i)
       let count = 0
       for (const p of dayProducts(state, d)) {
         if (doseTakenOnProduct(state, d, p)) count++

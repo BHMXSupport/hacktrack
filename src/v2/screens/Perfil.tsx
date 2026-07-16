@@ -8,6 +8,7 @@ import {
   LogOut, Check, X as XIcon, Scale, Ruler, Percent, Activity, Gauge,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
+import { useModalStack } from '../ui/modalStack'
 import { Button } from '../ui/Button'
 import { useApp } from '../../lib/store'
 import { signOut } from '../../lib/backend/auth'
@@ -161,6 +162,8 @@ function DeleteAccountDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
+  // En la pila de modales: Escape cierra este diálogo (tope), no el Sheet de abajo.
+  useModalStack(open, onCancel)
   if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>
@@ -234,6 +237,8 @@ function LogoutDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
+  // En la pila de modales: Escape cierra este diálogo (tope), no el Sheet de abajo.
+  useModalStack(open, onCancel)
   if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>
@@ -301,6 +306,8 @@ function ConsentUpdateDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
+  // En la pila de modales: Escape equivale a "Ahora no" (cierra el diálogo del tope).
+  useModalStack(open, onCancel)
   if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>
@@ -481,6 +488,8 @@ function RevocacionDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
+  // En la pila de modales: Escape cierra este diálogo (tope), no el Sheet de abajo.
+  useModalStack(open, onCancel)
   if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>

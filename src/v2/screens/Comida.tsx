@@ -609,9 +609,8 @@ export function Comida() {
     const series = state.history['Glucosa ayunas']
     if (!series || series.length === 0) return null
     const sorted = [...series].sort((a, b) => b.ts - a.ts)
-    const dG = new Date(sorted[0].ts)
-    const tG = new Date(state.todayTs)
-    return dG.toDateString() === tG.toDateString() ? sorted[0].value : null
+    // isoKey del día del RELOJ: mismo día en el que saveMeasure estampa (todayTs puede rezagarse)
+    return isoKey(sorted[0].ts) === isoKey(Date.now()) ? sorted[0].value : null
   }, [state.history, state.todayTs])
 
   const saveGlucosa = () => {
@@ -720,16 +719,15 @@ export function Comida() {
   // Usamos una forma simple: estado local persistido via medidas del día (saveMeasure).
   // Como alternativa directa sin action nueva: guardamos en localStorage (estado efímero del día).
   // Los mantenemos en state local sincronizado con state.history para evitar nuevas store actions.
+  // Lee la última muestra del día del RELOJ vía isoKey — el mismo día en el que saveMeasure estampa
+  // sus ts, así un tap post-medianoche se lee donde se escribió (todayTs puede rezagarse tras el tick).
   const getElectro = (name: string) => {
     const series = state.history[name]
     if (!series) return 0
-    const todayTs = new Date(state.todayTs)
+    const todayKey = isoKey(Date.now())
     const entry = [...series]
       .sort((a, b) => b.ts - a.ts)
-      .find((s) => {
-        const d = new Date(s.ts)
-        return d.toDateString() === todayTs.toDateString()
-      })
+      .find((s) => isoKey(s.ts) === todayKey)
     return entry?.value ?? 0
   }
 
@@ -737,9 +735,10 @@ export function Comida() {
   const kMg = getElectro('Potasio diario')
   const mgMg = getElectro('Magnesio diario')
 
-  const addElectro = (name: string, current: number, delta: number, step: number) => {
-    const next = Math.max(0, current + delta * step)
-    dispatch({ t: 'saveMeasure', name, value: next })
+  // Solo el DELTA viaja al store: la base la lee el reducer (última muestra del día) — taps rápidos
+  // acumulan aunque React no haya re-renderizado entre ellos.
+  const addElectro = (name: string, delta: number, step: number) => {
+    dispatch({ t: 'saveMeasure', name, delta: delta * step })
   }
 
   // Metas de electrolitos (OMS orientativas — solo informativo, sin claims médicos)
@@ -1204,8 +1203,8 @@ export function Comida() {
             goal={NA_GOAL}
             color="bg-teal"
             step={200}
-            onIncrement={() => addElectro('Sodio diario', naMg, 1, 200)}
-            onDecrement={() => addElectro('Sodio diario', naMg, -1, 200)}
+            onIncrement={() => addElectro('Sodio diario', 1, 200)}
+            onDecrement={() => addElectro('Sodio diario', -1, 200)}
           />
           <ElectrolyteRow
             label="Potasio"
@@ -1215,8 +1214,8 @@ export function Comida() {
             goal={K_GOAL}
             color="bg-ok"
             step={300}
-            onIncrement={() => addElectro('Potasio diario', kMg, 1, 300)}
-            onDecrement={() => addElectro('Potasio diario', kMg, -1, 300)}
+            onIncrement={() => addElectro('Potasio diario', 1, 300)}
+            onDecrement={() => addElectro('Potasio diario', -1, 300)}
           />
           <ElectrolyteRow
             label="Magnesio"
@@ -1226,8 +1225,8 @@ export function Comida() {
             goal={MG_GOAL}
             color="bg-warn"
             step={50}
-            onIncrement={() => addElectro('Magnesio diario', mgMg, 1, 50)}
-            onDecrement={() => addElectro('Magnesio diario', mgMg, -1, 50)}
+            onIncrement={() => addElectro('Magnesio diario', 1, 50)}
+            onDecrement={() => addElectro('Magnesio diario', -1, 50)}
           />
           <p className="text-[11px] leading-snug text-muted-foreground">
             Referencias orientativas (OMS). Solo informativo — no diagnóstico médico. Datos guardados solo en tu dispositivo.

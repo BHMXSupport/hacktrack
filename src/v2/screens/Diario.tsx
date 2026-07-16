@@ -18,14 +18,15 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useApp, isoKey, adherenceMonth } from '../../lib/store'
-import { startOfDay, dayLabel, cyclePhaseInfo } from '../../lib/cadence'
+import { dayLabel, cyclePhaseInfo } from '../../lib/cadence'
 import {
   productStreak,
+  protocolStreak,
   phaseForDate,
 } from '../../lib/calendar'
 import { presenceNow } from '../../lib/pharma'
 import { PEPTIDES, CATEGORY_COLOR, MON, WD, MEASURE_META } from '../../lib/catalog'
-import type { LogItem, RangeFilter } from '../../lib/types'
+import type { LogItem, RangeFilter, AdverseSeverity } from '../../lib/types'
 import { Glass } from '../ui/Glass'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
@@ -232,6 +233,9 @@ function EditLogSheet({
   const [value, setValue] = useState<string>(() => item.value != null ? String(item.value) : '')
   const [unit, setUnit] = useState<string>(() => normDoseUnit(item.unit))
   const [note, setNote] = useState<string>(item.note ?? '')
+  // severidad editable — solo efectos adversos (#122); sin severidad guardada se muestra 'leve'
+  // (igual que el badge del Diario, que cae a 'Leve' cuando severity es undefined)
+  const [severity, setSeverity] = useState<AdverseSeverity>(item.severity ?? 'leve')
   // hora editable: extraída del timestamp
   const [timeStr, setTimeStr] = useState<string>(() => {
     const d = new Date(item.ts)
@@ -244,9 +248,10 @@ function EditLogSheet({
     setValue(item.value != null ? String(item.value) : '')
     setUnit(normDoseUnit(item.unit))
     setNote(item.note ?? '')
+    setSeverity(item.severity ?? 'leve')
     const d = new Date(item.ts)
     setTimeStr(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
-  }, [open, item.ts, item.value, item.unit, item.note])
+  }, [open, item.ts, item.value, item.unit, item.note, item.severity])
 
   function handleSave() {
     const numVal = value.trim() !== '' ? parseFloat(value) : null
@@ -265,13 +270,19 @@ function EditLogSheet({
           note: note.trim() || null,
         },
       })
-    } else if (note.trim() !== (item.note ?? '')) {
-      // skip / compuesto / otros: solo nota editable
-      dispatch({
-        t: 'editLog',
-        id: item.id,
-        patch: { note: note.trim() || null },
-      })
+    } else {
+      // skip / compuesto / efecto-adverso / otros: nota (y severidad si aplica)
+      const severityChanged = item.type === 'efecto-adverso' && severity !== (item.severity ?? 'leve')
+      if (note.trim() !== (item.note ?? '') || severityChanged) {
+        dispatch({
+          t: 'editLog',
+          id: item.id,
+          patch: {
+            note: note.trim() || null,
+            ...(severityChanged ? { severity } : {}),
+          },
+        })
+      }
     }
 
     // R51b: editar hora vía editLogTime
@@ -351,6 +362,40 @@ function EditLogSheet({
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             Este registro agrupa varias medidas. Edita sus valores desde <span className="font-semibold text-teal">Inicio → Cambio de medidas</span>; aquí puedes ajustar la hora o la nota.
           </p>
+        )}
+
+        {/* severidad — solo efectos adversos (#122) */}
+        {item.type === 'efecto-adverso' && (
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Severidad
+            </label>
+            <div className="flex gap-2" role="radiogroup" aria-label="Severidad del efecto">
+              {(['leve', 'moderado', 'severo'] as const).map((s) => {
+                const active = severity === s
+                const label = s === 'leve' ? 'Leve' : s === 'moderado' ? 'Moderado' : 'Severo'
+                const activeCls = s === 'severo'
+                  ? 'bg-alert/15 border-alert/40 text-alert'
+                  : s === 'moderado'
+                    ? 'bg-warn/15 border-warn/40 text-warn'
+                    : 'bg-teal/12 border-teal/40 text-teal'
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setSeverity(s)}
+                    className={`flex-1 h-11 rounded-lg border text-[13px] font-semibold transition-colors ${
+                      active ? activeCls : 'bg-white/6 border-white/10 text-muted-foreground'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         {/* nota (siempre editable) */}
@@ -768,21 +813,6 @@ export function Diario() {
   const doseCount = useMemo(() => deferredFiltered.reduce((a, g) => a + g.items.filter((it) => it.type === 'dose').length, 0), [deferredFiltered])
   const medCount = useMemo(() => deferredFiltered.reduce((a, g) => a + g.items.filter((it) => it.type === 'medida').length, 0), [deferredFiltered])
 
-  // racha global (días con ≥1 dosis)
-  const currentStreak = useMemo(() => {
-    if (pf !== 'todos') return productStreak(state, pf, new Date(state.todayTs))
-    let streak = 0
-    const today = startOfDay(new Date(state.todayTs))
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(today.getTime() - i * 86400000)
-      const key = isoKey(d.getTime())
-      const group = state.log.find((g) => g.dateKey === key)
-      if (!group || !group.items.some((it) => it.type === 'dose')) break
-      streak++
-    }
-    return streak
-  }, [pf, state])
-
   // reloj propio cada 30 s — IGUAL que Inicio — para que el % de adherencia se recalcule en el mismo
   // instante (si no, cerca de la hora de una toma podían divergir ~medio minuto entre pantallas).
   const [adhNow, setAdhNow] = useState(() => Date.now())
@@ -790,6 +820,14 @@ export function Diario() {
     const id = window.setInterval(() => setAdhNow(Date.now()), 30_000)
     return () => window.clearInterval(id)
   }, [])
+
+  // racha global: MISMA fuente de verdad que Inicio (protocolStreak — respeta días de descanso y da
+  // gracia al día en curso). Antes el filtro 'todos' caminaba días crudos con ≥1 dosis, sin descansos
+  // ni gracia → contradecía el número de Inicio cada día de descanso y cada mañana.
+  const currentStreak = useMemo(() => {
+    if (pf !== 'todos') return productStreak(state, pf, new Date(state.todayTs))
+    return protocolStreak(state, new Date(state.todayTs), new Date(adhNow))
+  }, [pf, state, adhNow])
   // adherencia: MISMA fuente de verdad que Inicio (adherenceMonth → % del mes en curso), para que
   // el número coincida entre pantallas. Antes Diario promediaba 8 semanas ISO → divergía de Inicio.
   const periodAdherence = useMemo(() => {

@@ -194,7 +194,7 @@ function PhaseConnect({ onNext }: { onNext: () => void }) {
         </div>
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-            Partner oficial
+            Aliado oficial
           </p>
           <h3 className="text-[17px] font-bold text-foreground">BiohackMX</h3>
         </div>

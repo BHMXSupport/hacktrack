@@ -1,8 +1,9 @@
 // Golden: casos del reducer — logDose (backstops + vialStock + keepSheet), editLogTime
-// (reagrupación + reubicación de history), saveMeasure (coalesce 60 s AS-IS) y el pin del
-// overwrite de electrolitos (debt-90). Timestamps fijos siempre (jun 2026).
-import { describe, expect, it } from 'vitest'
-import { isoKey, reducer } from '../store'
+// (reagrupación + reubicación de history), saveMeasure (coalesce 60 s + cruce de medianoche +
+// modo delta atómico), editLog (severidad de efecto adverso), buckets de nutrición por instante
+// estampado, nextDose DST-seguro y loadRemoteState saneado. Timestamps fijos siempre (jun 2026).
+import { describe, expect, it, vi } from 'vitest'
+import { isoKey, nextDose, nextDoseAt, reducer, type AppState } from '../store'
 import { cad, d, dispatch, doseAction, findItem, mkProtocol, mkState, ts } from './helpers'
 
 const P = 'Ipamorelin'
@@ -110,7 +111,7 @@ describe('editLogTime — reagrupa por dateKey y reubica el history de medidas',
   })
 })
 
-describe('saveMeasure — coalesce de 60 s (semántica actual: SOLO mismo día)', () => {
+describe('saveMeasure — coalesce de 60 s (incluye cruce de medianoche) + modo delta atómico', () => {
   const T0 = ts(2026, 6, 10, 10, 0, 0)
 
   it('< 60 s: actualiza el item existente (mismo id) y reemplaza la última muestra', () => {
@@ -134,36 +135,58 @@ describe('saveMeasure — coalesce de 60 s (semántica actual: SOLO mismo día)'
     expect(s.history['Peso']).toHaveLength(2)
   })
 
-  // PIN AS-IS (debt-70 / handoff #70): el coalesce solo busca en el grupo del día del guardado.
-  // Un stepper que cruza la medianoche (23:59:30 → 00:00:10, 40 s después) NO coalesce:
-  // crea un segundo item en el grupo del día nuevo y una segunda muestra en history.
-  // Comportamiento actual documentado, no deseado necesariamente — si la siguiente ola lo
-  // cambia (coalesce por proximidad de ts), este test debe actualizarse a la nueva semántica.
-  it('cruce de medianoche dentro de la ventana de 60 s NO coalesce (semántica actual)', () => {
-    const s = dispatch(
-      mkState(),
-      { t: 'saveMeasure', name: 'Peso', value: 80, ts: ts(2026, 6, 9, 23, 59, 30) },
-      { t: 'saveMeasure', name: 'Peso', value: 81, ts: ts(2026, 6, 10, 0, 0, 10) },
-    )
-    expect(s.log).toHaveLength(2) // dos grupos: 09 y 10 jun
-    expect(s.log.map((g) => g.dateKey)).toEqual(['2026-06-10', '2026-06-09'])
-    expect(s.history['Peso']).toHaveLength(2)
+  // debt-70 (RESUELTO): el coalesce ahora también encuentra el item previo en el grupo de AYER.
+  // Un stepper que cruza la medianoche (23:59:30 → 00:00:10, 40 s después) actualiza el registro
+  // y lo REAGRUPA al día nuevo — un solo item, una sola muestra en history.
+  it('cruce de medianoche dentro de la ventana de 60 s SÍ coalesce y reagrupa al día nuevo', () => {
+    const s1 = dispatch(mkState(), { t: 'saveMeasure', name: 'Peso', value: 80, ts: ts(2026, 6, 9, 23, 59, 30) })
+    const id = s1.log[0].items[0].id
+    const s2 = reducer(s1, { t: 'saveMeasure', name: 'Peso', value: 81, ts: ts(2026, 6, 10, 0, 0, 10) })
+    expect(s2.log).toHaveLength(1) // el grupo del 09 quedó vacío y se eliminó
+    expect(s2.log[0].dateKey).toBe('2026-06-10')
+    expect(s2.log[0].items).toHaveLength(1)
+    expect(s2.log[0].items[0].id).toBe(id) // mismo registro, movido de día
+    expect(s2.history['Peso']).toEqual([{ ts: ts(2026, 6, 10, 0, 0, 10), value: 81 }])
+    expect(s2.measureValues['Peso']).toBe(81)
   })
 
-  // PIN AS-IS (debt-90): Comida.addElectro calcula `next = current + delta·step` con el valor
-  // del RENDER anterior. Dos taps antes del re-render despachan el MISMO valor absoluto, y el
-  // coalesce de saveMeasure convierte el segundo en un overwrite (no un duplicado): se pierde
-  // un incremento. Aquí se pina la mitad reducer de ese contrato: dos saveMeasure con el mismo
-  // valor "stale" < 60 s → una sola muestra con 500 (no 1000). Buggy-pero-actual.
-  it('electrolitos: dos taps con base stale quedan como UN valor (500, no 1000)', () => {
+  // debt-90 (RESUELTO): el stepper manda SOLO el delta; la base la lee el reducer (última muestra
+  // del día del ts) — dos taps antes del re-render ya no se pisan: acumulan.
+  it('electrolitos: dos taps rápidos con delta ACUMULAN (200 + 200 = 400) y coalescen en un registro', () => {
     const s = dispatch(
       mkState(),
-      { t: 'saveMeasure', name: 'Sodio diario', value: 500, ts: T0 },
-      { t: 'saveMeasure', name: 'Sodio diario', value: 500, ts: T0 + 2_000 }, // 2º tap, base stale
+      { t: 'saveMeasure', name: 'Sodio diario', delta: 200, ts: T0 },
+      { t: 'saveMeasure', name: 'Sodio diario', delta: 200, ts: T0 + 2_000 }, // 2º tap, sin re-render
     )
-    expect(s.measureValues['Sodio diario']).toBe(500)
-    expect(s.history['Sodio diario']).toEqual([{ ts: T0 + 2_000, value: 500 }])
+    expect(s.measureValues['Sodio diario']).toBe(400)
+    expect(s.history['Sodio diario']).toEqual([{ ts: T0 + 2_000, value: 400 }])
     expect(s.log[0].items).toHaveLength(1)
+  })
+
+  it('delta negativo no baja de 0 (clamp)', () => {
+    const s = dispatch(mkState(), { t: 'saveMeasure', name: 'Sodio diario', delta: -200, ts: T0 })
+    expect(s.measureValues['Sodio diario']).toBe(0)
+  })
+
+  // Los acumulados diarios se reinician cada día: en modo delta NO se coalesce a través de la
+  // medianoche — el total de ayer sobrevive como registro propio y el día nuevo arranca de cero.
+  it('delta: el día nuevo arranca de cero y el total de ayer sobrevive (sin coalesce cruzando medianoche)', () => {
+    const s = dispatch(
+      mkState(),
+      { t: 'saveMeasure', name: 'Sodio diario', delta: 2200, ts: ts(2026, 6, 9, 23, 59, 30) },
+      { t: 'saveMeasure', name: 'Sodio diario', delta: 200, ts: ts(2026, 6, 10, 0, 0, 10) },
+    )
+    expect(s.log).toHaveLength(2)
+    expect(s.log.map((g) => g.dateKey)).toEqual(['2026-06-10', '2026-06-09'])
+    expect(s.history['Sodio diario']).toEqual([
+      { ts: ts(2026, 6, 9, 23, 59, 30), value: 2200 },
+      { ts: ts(2026, 6, 10, 0, 0, 10), value: 200 },
+    ])
+  })
+
+  it('acción malformada (ni value ni delta) devuelve el mismo estado', () => {
+    const s1 = mkState()
+    expect(reducer(s1, { t: 'saveMeasure', name: 'Peso', ts: T0 })).toBe(s1)
   })
 })
 
@@ -190,5 +213,130 @@ describe('deleteLog + undoDeleteLog — el vial se reconcilia', () => {
     const s3 = reducer(s2, { t: 'undoDeleteLog' })
     expect(s3.log[0].items[0].id).toBe(id)
     expect(s3.protocols[P].vialStock?.usedMg).toBe(0.25)
+  })
+})
+
+describe('editLog — parche de severidad de efecto adverso (debt-122)', () => {
+  const adverseState = () =>
+    dispatch(stateWithVial(), {
+      t: 'logAdverseEffect', product: P, severity: 'leve', description: 'Enrojecimiento en el sitio', ts: ts(2026, 6, 10, 9, 30),
+    })
+
+  it('corrige la severidad de un efecto adverso ya registrado (y null la elimina)', () => {
+    const s1 = adverseState()
+    const id = s1.log[0].items[0].id
+    const s2 = reducer(s1, { t: 'editLog', id, patch: { severity: 'severo' } })
+    expect(findItem(s2, (it) => it.id === id).severity).toBe('severo')
+    // sin acoplamiento: ni history ni protocolos cambian
+    expect(s2.history).toBe(s1.history)
+    expect(s2.protocols).toBe(s1.protocols)
+    const s3 = reducer(s2, { t: 'editLog', id, patch: { severity: null } })
+    expect(findItem(s3, (it) => it.id === id).severity).toBeUndefined()
+  })
+
+  it('la severidad NO se aplica a items que no son efecto adverso; la rama exclusiva de doseMg sigue intacta', () => {
+    const s1 = dispatch(stateWithVial(), doseAction(P, ts(2026, 6, 10, 9, 0), 0.25, 'mg', { doseMg: 0.25 }))
+    const id = s1.log[0].items[0].id
+    // parche combinado: doseMg ajusta el vial por delta (guard Lote 6), severity se ignora en 'dose'
+    const s2 = reducer(s1, { t: 'editLog', id, patch: { doseMg: 0.5, severity: 'severo' } })
+    const edited = findItem(s2, (it) => it.id === id)
+    expect(edited.doseMg).toBe(0.5)
+    expect(edited.severity).toBeUndefined()
+    expect(s2.protocols[P].vialStock?.usedMg).toBe(0.5) // 0.25 + (0.5 − 0.25)
+  })
+})
+
+describe('debt-clock — la clave del bucket de nutrición deriva del MISMO instante que el ts estampado', () => {
+  it('addMeal con ts post-medianoche cae en el bucket del día del ts, no en el todayTs rezagado', () => {
+    // todayTs sigue anclado al 10 jun (el tick aún no corre); la comida es del 11 jun 00:00:30
+    const s = dispatch(mkState(), { t: 'addMeal', kcal: 300, ts: ts(2026, 6, 11, 0, 0, 30) })
+    expect(s.nutrition['2026-06-11']?.meals[0]).toMatchObject({ kcal: 300, ts: ts(2026, 6, 11, 0, 0, 30) })
+    expect(s.nutrition['2026-06-10']).toBeUndefined()
+  })
+
+  it('addFavMeal respeta la misma invariante (bucket = día del ts)', () => {
+    const base = mkState({
+      foodLibrary: [{ id: 'fav1', label: 'Avena', kcal: 200, protein: 8, carbs: 30, fat: 4, usoCount: 1, defaultMultiplier: 1, hourBucket: {} }],
+    })
+    const s = reducer(base, { t: 'addFavMeal', id: 'fav1', ts: ts(2026, 6, 11, 0, 0, 30) })
+    expect(s.nutrition['2026-06-11']?.meals[0]).toMatchObject({ kcal: 200, favId: 'fav1' })
+    expect(s.nutrition['2026-06-10']).toBeUndefined()
+  })
+
+  it("'water' usa el día del RELOJ, no todayTs (tap post-medianoche antes del tick)", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(d(2026, 6, 11, 0, 0, 30))
+    try {
+      const s = dispatch(mkState(), { t: 'water', delta: 250 }) // todayTs rezagado en el 10 jun
+      expect(s.nutrition['2026-06-11']?.water).toBe(250)
+      expect(s.nutrition['2026-06-10']).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("'copyYesterday' ancla 'hoy' y 'ayer' al reloj: copia las comidas del día local anterior", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(d(2026, 6, 11, 0, 0, 30))
+    try {
+      const base = mkState({
+        nutrition: { '2026-06-10': { water: 0, meals: [{ id: 'm1', kcal: 500, ts: ts(2026, 6, 10, 14, 0), protein: null, carbs: null, fat: null, label: 'Comida', portion: 1 }] } },
+      })
+      const s = reducer(base, { t: 'copyYesterday' })
+      const copied = s.nutrition['2026-06-11']?.meals ?? []
+      expect(copied).toHaveLength(1)
+      expect(copied[0].kcal).toBe(500)
+      expect(isoKey(copied[0].ts)).toBe('2026-06-11') // misma franja horaria, trasladada al día del reloj
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('nextDose / nextDoseAt — caminata por día local, DST-segura (debt-69, sitios del store)', () => {
+  // Cadencia cadaN=5 desde el 4 mar → toca el 9 mar; la caminata cruza el adelanto de Tijuana
+  // (dom 8 mar 02:00). Antes (+86 400 000 ms fijos) la fecha derivaba a la 01:00 del 9 mar.
+  const dstState = () => mkState({
+    todayTs: ts(2026, 3, 7),
+    protocols: { [P]: mkProtocol(P, ts(2026, 3, 4), cad({ mode: 'cadaN', n: 5 })) },
+  })
+
+  it('nextDose devuelve la medianoche EXACTA del 9 de marzo al cruzar el adelanto', () => {
+    expect(nextDose(dstState())?.getTime()).toBe(ts(2026, 3, 9))
+  })
+
+  it('nextDoseAt devuelve el 9 de marzo a la hora del recordatorio (08:00) al cruzar el adelanto', () => {
+    expect(nextDoseAt(dstState(), d(2026, 3, 7, 10, 0))?.getTime()).toBe(ts(2026, 3, 9, 8, 0))
+  })
+})
+
+describe('loadRemoteState — mismas defensas que el import de archivo (debt-remote-nosanitize)', () => {
+  it('un blob vacío NO borra el estado local (guard de respaldo hueco)', () => {
+    const s1 = dispatch(stateWithVial(), doseAction(P, ts(2026, 6, 10, 9, 0), 0.25, 'mg', { doseMg: 0.25 }))
+    const s2 = reducer(s1, { t: 'loadRemoteState', state: {} })
+    expect(s2.log).toBe(s1.log) // datos intactos
+    expect(s2.protocols).toBe(s1.protocols)
+    expect(s2.toast).toBe('El respaldo en la nube está vacío — no se aplicó')
+  })
+
+  it('sanea el blob remoto: descarta log items inválidos antes de hidratar y conserva todayTs local', () => {
+    const s1 = mkState()
+    const remote: Partial<AppState> = {
+      protocols: { [P]: mkProtocol(P, ts(2026, 6, 1), cad({ mode: 'dia' })) },
+      log: [{
+        dateKey: '2026-06-09',
+        items: [
+          { id: 'ok1', t: '9:00 AM', n: 'Dosis registrada', u: `${P} · 1 mg`, cat: '#1B8A7D', ic: 'dose', type: 'dose', ts: ts(2026, 6, 9, 9, 0), product: P },
+          { id: 'bad1', t: '9:05 AM', n: 'X', u: 'x', cat: '#000', ic: 'x', type: 'invalido' as never, ts: ts(2026, 6, 9, 9, 5) },
+        ],
+      }],
+    }
+    const s2 = reducer(s1, { t: 'loadRemoteState', state: remote })
+    expect(s2.log).toHaveLength(1)
+    expect(s2.log[0].items).toHaveLength(1) // el item con type inválido se descartó
+    expect(s2.log[0].items[0].id).toBe('ok1')
+    expect(s2.protocols[P]).toBeTruthy()
+    expect(s2.todayTs).toBe(s1.todayTs) // 'hoy' es local, no del blob
+    expect(s2.toast).toBe('Restaurado · 1 entrada(s) inválida(s) omitida(s)')
   })
 })

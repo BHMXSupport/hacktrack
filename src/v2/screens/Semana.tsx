@@ -31,6 +31,7 @@ import { HEROES } from '../lib/heroes'
 import { useApp, adherence, isoKey } from '../../lib/store'
 import { weekAdherencePct } from '../../lib/calendar'
 import { startOfDay } from '../../lib/cadence'
+import { addDays } from '../../lib/dates'
 import {
   avgKcal,
   kcalSeries,
@@ -49,9 +50,6 @@ import { DataPlate } from '../ui/DataPlate'
 import { Button } from '../ui/Button'
 import { staggerItem } from '../../lib/motion'
 import type { Actividad, Sexo } from '../../lib/types'
-
-// ── Constantes ──────────────────────────────────────────────────────────────
-const DAY = 86_400_000
 
 // ── Helpers de formato ───────────────────────────────────────────────────────
 function fmtDate(ts: number) {
@@ -185,7 +183,7 @@ function PremiumGate({
         <div>
           <p className="text-[17px] font-bold text-foreground mb-1">Hacktrack Plus</p>
           <p className="text-[13px] text-muted-foreground leading-snug">
-            Proyección de meta, TDEE, protocolo en números y más — desbloquea tu progreso real.
+            Proyección de meta, TDEE y protocolo en números. Gratis durante la beta.
           </p>
         </div>
         <Button
@@ -194,7 +192,7 @@ function PremiumGate({
           className="min-w-[160px]"
           onClick={onUnlock}
         >
-          Ver planes
+          Toca para desbloquear
         </Button>
       </div>
     </div>
@@ -581,7 +579,9 @@ export function Semana() {
   const reduce = useReducedMotion()
 
   // ── Derivaciones semanales ────────────────────────────────────────────────
-  const cutoff = state.todayTs - 7 * DAY
+  // MISMA ventana de 7 días calendario que adherence(state, 7): hoy-6 … hoy. Antes el corte era
+  // todayTs - 7·DAY (8 días calendario) → el conteo crudo y la adherencia hablaban de ventanas distintas.
+  const cutoff = addDays(state.todayTs, -6).getTime()
 
   // Dosis registradas en la ventana de 7 días
   const doses = useMemo(() => {
@@ -603,7 +603,7 @@ export function Semana() {
   // descanso como debidos) → divergía del % de la semana en curso. Ahora usa weekAdherencePct (vía tallyDoses).
   const adhPrevOnly = useMemo(() => {
     const today = startOfDay(new Date(state.todayTs))
-    const days = Array.from({ length: 7 }, (_, i) => new Date(today.getTime() - (13 - i) * DAY)) // días -13..-7
+    const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 13)) // días -13..-7
     return weekAdherencePct(state, days, new Date())
   }, [state])
 
@@ -633,7 +633,7 @@ export function Semana() {
   const waterDays = useMemo(() => {
     const result: number[] = []
     for (let i = 0; i < 7; i++) {
-      const d = state.nutrition[isoKey(state.todayTs - i * DAY)]
+      const d = state.nutrition[isoKey(addDays(state.todayTs, -i).getTime())]
       if (d) result.push(d.water)
     }
     return result
@@ -642,7 +642,7 @@ export function Semana() {
   const waterPrevDays = useMemo(() => {
     const result: number[] = []
     for (let i = 7; i < 14; i++) {
-      const d = state.nutrition[isoKey(state.todayTs - i * DAY)]
+      const d = state.nutrition[isoKey(addDays(state.todayTs, -i).getTime())]
       if (d) result.push(d.water)
     }
     return result
@@ -689,7 +689,7 @@ export function Semana() {
   const kcalDays = useMemo(() => {
     const result: number[] = []
     for (let i = 0; i < 7; i++) {
-      const d = state.nutrition[isoKey(state.todayTs - i * DAY)]
+      const d = state.nutrition[isoKey(addDays(state.todayTs, -i).getTime())]
       if (d?.meals.length) result.push(d.meals.reduce((s, m) => s + m.kcal, 0))
     }
     return result
@@ -720,7 +720,7 @@ export function Semana() {
 
   // ── Compartir (Web Share API) ─────────────────────────────────────────────
   const handleShare = useCallback(async () => {
-    const text = `Racha de ${streak} ${streak === 1 ? 'día' : 'días'} · ${adh ? adh.pct + '%' : '—'} adherencia · ${avg7 != null ? avg7 + ' kcal/día' : '—'} — via Hacktrack`
+    const text = `Racha integral de ${streak} ${streak === 1 ? 'día' : 'días'} · ${adh ? adh.pct + '%' : '—'} adherencia · ${avg7 != null ? avg7 + ' kcal/día' : '—'} — vía Hacktrack`
     try {
       if (navigator.share && navigator.canShare?.({ title: 'Mi semana en Hacktrack', text })) {
         await navigator.share({ title: 'Mi semana en Hacktrack', text })
@@ -779,7 +779,7 @@ export function Semana() {
           goal={100}
           unit=""
           label="semana"
-          sub={streak > 0 ? `racha ${streak}d` : undefined}
+          sub={streak > 0 ? `racha integral ${streak}d` : undefined}
           size={88}
           stroke={8}
         />
@@ -830,6 +830,9 @@ export function Semana() {
                 </span>
                 <span className="text-[12px] text-muted-foreground">esta semana</span>
               </DataPlate>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Incluye dosis fuera de cadencia.
+              </p>
             </div>
           </div>
         </Glass>
@@ -933,18 +936,20 @@ export function Semana() {
         </Glass>
       </motion.div>
 
-      {/* ── Racha semanal: condiciones de hoy (SÓLIDA — operativo/acción) ── */}
+      {/* ── Racha integral: condiciones de hoy (SÓLIDA — operativo/acción) ──
+          Concepto DISTINTO de la racha oficial del protocolo (Inicio/Diario/Progreso):
+          esta exige dosis + comida + agua el mismo día. Etiquetarla siempre "integral". */}
       <motion.div variants={itemVars}>
         <div className="rounded-lg border border-white/8 bg-raised p-4">
           <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">
-            Racha y hábitos de hoy
+            Racha integral (dosis + comida + agua)
           </p>
           <div className="flex items-baseline gap-2 mb-3">
             <span className="font-mono text-[30px] font-bold tabular-nums text-[var(--teal-bright)] leading-none">
               {sd.streak}
             </span>
             <span className="text-[13px] text-muted-foreground">
-              {sd.streak === 1 ? 'día' : 'días'} de racha
+              {sd.streak === 1 ? 'día' : 'días'} de racha integral
             </span>
           </div>
           <div className="flex flex-wrap gap-2 mb-3">

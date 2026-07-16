@@ -9,6 +9,8 @@ import {
   Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
+import { useModalStack } from '../ui/modalStack'
+import { NOTIF_PROMPT_DISMISSED_KEY } from '../ui/NotifPermissionPrompt'
 import { Switch } from '../ui/Switch'
 import { backendEnabled } from '../../lib/backend/config'
 import { getSession, signOut } from '../../lib/backend/auth'
@@ -86,6 +88,8 @@ function DeleteConfirmDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
+  // En la pila de modales: Escape cierra este diálogo (tope), no el Sheet de abajo.
+  useModalStack(open, onCancel)
   if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>
@@ -151,6 +155,8 @@ function LogoutConfirmDialog({
   onCancel: () => void
 }) {
   const reduce = useReducedMotion()
+  // En la pila de modales: Escape cierra este diálogo (tope), no el Sheet de abajo.
+  useModalStack(open, onCancel)
   if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>
@@ -375,9 +381,16 @@ export function Ajustes({
     setRestoreState('idle')
     if (!remote.ok) { dispatch({ t: 'toast', msg: remote.error }); return }
     if (remote.empty) { dispatch({ t: 'toast', msg: 'No hay respaldo en la nube todavía' }); return }
+    const incoming = remote.data as Partial<AppState>
+    // Mismo guard que la importación por archivo: una fila válida pero vacía no debe
+    // reemplazar todo (el reducer también lo rechaza; sin este pre-check el toast mentiría éxito).
+    const hasData =
+      (Array.isArray(incoming.log) && incoming.log.length > 0) ||
+      Object.keys(incoming.protocols ?? {}).length > 0 ||
+      (Array.isArray(incoming.importedProducts) && incoming.importedProducts.length > 0)
+    if (!hasData) { dispatch({ t: 'toast', msg: 'El respaldo en la nube está vacío — no se restauró (tus datos siguen intactos)' }); return }
     // El PIN es del dispositivo: el estado local de PIN sobrevive a la restauración (los blobs
     // nuevos ya no lo incluyen, pero un respaldo viejo podría traer el PIN de otro dispositivo).
-    const incoming = remote.data as Partial<AppState>
     const withLocalPin: Partial<AppState> = incoming.settings
       ? { ...incoming, settings: { ...incoming.settings, pinEnabled: settings.pinEnabled, pinHash: settings.pinHash ?? null } }
       : incoming
@@ -391,6 +404,24 @@ export function Ajustes({
 
   // permiso de notificaciones (lectura en tiempo de render)
   const perm = notifPermission()
+
+  // ¿El usuario descartó el aviso de permisos con "No volver a preguntar"?
+  // Se relee al abrir Ajustes (la clave vive en localStorage, fuera del estado).
+  const [notifPromptDismissed, setNotifPromptDismissed] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    try {
+      setNotifPromptDismissed(localStorage.getItem(NOTIF_PROMPT_DISMISSED_KEY) === '1')
+    } catch {
+      setNotifPromptDismissed(false)
+    }
+  }, [open])
+
+  function handleResetNotifPrompt() {
+    try { localStorage.removeItem(NOTIF_PROMPT_DISMISSED_KEY) } catch { /* modo privado */ }
+    setNotifPromptDismissed(false)
+    dispatch({ t: 'toast', msg: 'Listo — verás el aviso la próxima vez que abras la app' })
+  }
 
   // tema actual
   const currentTheme: ThemeMode = settings.themeMode ?? (settings.darkMode ? 'dark' : 'auto')
@@ -856,6 +887,28 @@ export function Ajustes({
                   label="Activar resumen semanal"
                 />
               </Row>
+
+              {/* Reactivar el aviso de permisos si fue descartado con "No volver a preguntar".
+                  Solo aparece cuando la clave está puesta y el permiso sigue sin concederse
+                  (con permiso concedido el aviso ya no aplica y la fila prometería algo falso). */}
+              {notifPromptDismissed && perm !== 'granted' && (
+                <button
+                  type="button"
+                  onClick={handleResetNotifPrompt}
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                  aria-label="Volver a mostrar el aviso de permisos"
+                >
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-[14px] font-medium text-foreground">
+                      Volver a mostrar el aviso de permisos
+                    </span>
+                    <span className="text-[12px] text-muted-foreground">
+                      Lo descartaste con «No volver a preguntar»
+                    </span>
+                  </span>
+                  <Chevron />
+                </button>
+              )}
 
               {/* Opciones avanzadas: segundo recordatorio + rescate (R48) */}
               {settings.remindersEnabled && perm === 'granted' && (

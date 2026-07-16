@@ -1,5 +1,6 @@
 // Hacktrack — motor de cadencias (port del prototipo + fix P0-3: única fuente de verdad)
 import type { PeptideEntry, UserCadence } from './types'
+import { addDays } from './dates'
 import { WD, MON, WDS } from './catalog'
 
 const DAY = 86400000
@@ -104,7 +105,7 @@ export function proximasCadence(
   let d = startOfDay(today)
   for (let i = 0; i < 60 && out.length < n; i++) {
     if (diaTocaCadence(d, cad, start)) out.push(new Date(d))
-    d = new Date(d.getTime() + DAY)
+    d = addDays(d, 1)
   }
   return out
 }
@@ -254,9 +255,8 @@ export function monthMatrix(year: number, month: number): (Date | null)[][] {
   return weeks
 }
 
-// tira de la semana actual (lunes ISO → domingo)
+// tira de la semana actual (lunes ISO → domingo) — celdas con addDays (día local), no ms fijos
 export function weekStrip(today: Date): Date[] {
-  const monday = startOfDay(today)
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
-  return Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * DAY))
+  const monday = addDays(today, -((today.getDay() + 6) % 7))
+  return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
 }

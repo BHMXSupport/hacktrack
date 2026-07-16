@@ -1,6 +1,6 @@
 // RecetasHacktrack — recetario curado (RAW DATA del catálogo: RECIPES_ENRICHED), diseño v2.
-// Freemium: 2 recetas GRATIS por categoría; el resto detrás del paywall con un teaser que muestra
-// cuántas faltan ("Ver el recetario completo con Hacktrack Plus") para que el cliente potencial lo vea.
+// Freemium: 2 recetas visibles por categoría; el teaser abre el sheet de Plus, que durante la beta
+// desbloquea todo gratis (sin venta fingida — ver PaywallSheet).
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Plus, ChevronDown, ChevronUp, Clock, Lock, Sparkles } from 'lucide-react'
@@ -143,8 +143,9 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
         <div className="flex items-start gap-2.5 rounded-xl border border-teal/25 bg-teal/8 px-3 py-2.5">
           <Sparkles size={15} className="mt-0.5 shrink-0 text-teal" aria-hidden />
           <p className="text-[12px] leading-relaxed text-secondary-foreground">
-            Te mostramos <span className="font-semibold text-foreground">2 recetas gratis</span> por categoría. El recetario
-            completo se desbloquea con <span className="font-semibold text-teal">Hacktrack Plus</span>.
+            Te mostramos <span className="font-semibold text-foreground">2 recetas por categoría</span>. El recetario
+            completo <span className="font-semibold text-teal">está desbloqueado gratis durante la beta</span> — toca
+            cualquier sección bloqueada para abrirlo.
           </p>
         </div>
       )}
@@ -216,7 +217,7 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
                   <span className="text-[13px] font-semibold text-foreground">
                     +{locked} recetas de {MEAL_LABEL[meal].toLowerCase()}
                   </span>
-                  <span className="text-[12px] text-teal">Ver el recetario completo con Hacktrack Plus</span>
+                  <span className="text-[12px] text-teal">Gratis durante la beta — toca para desbloquear</span>
                 </span>
               </button>
             )}

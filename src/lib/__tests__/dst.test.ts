@@ -1,11 +1,10 @@
 // Suite DST — America/Tijuana (vitest.config.ts fija TZ; CDMX abolió el DST, Tijuana no).
 // 2026: adelanto dom 8 mar 02:00 (PST−8 → PDT−7); atraso dom 1 nov 02:00 (PDT → PST).
 //
-// Deuda #69 (debt-69 / gap-debt-69): isoKey y tallyDoses iteran por día LOCAL y son correctos,
-// pero varios consumidores caminan días con 86_400_000 ms FIJOS. Al cruzar el adelanto hacia
-// atrás, medianoche−24 h cae a las 23:00 de DOS días antes → se salta un día local completo.
-// Los tests marcados it.fails documentan ese bug tal cual existe hoy; la siguiente ola
-// (barrido #69) los volteará a `it` cuando cambie la aritmética a días calendario locales.
+// Deuda #69 (debt-69 / gap-debt-69): isoKey y tallyDoses iteran por día LOCAL y son correctos.
+// Los consumidores que caminaban días con 86_400_000 ms FIJOS (al cruzar el adelanto hacia atrás,
+// medianoche−24 h caía a las 23:00 de DOS días antes → se saltaba un día local completo) ya usan
+// addDays (src/lib/dates.ts, constructor local); estos tests pinnean que el barrido #69 se sostiene.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { pendingDoses, productStreak, protocolStreak, weekAdherencePctLast8 } from '../calendar'
 import { adherence, isoKey, nextDose, tallyDoses } from '../store'
@@ -76,7 +75,7 @@ describe('lo que YA es DST-seguro (iteración por día local)', () => {
   })
 })
 
-describe('deuda #69 — caminatas con 86_400_000 ms fijos saltan el 8 de marzo', () => {
+describe('deuda #69 (barrida) — las caminatas de días ya no saltan el 8 de marzo', () => {
   beforeEach(() => {
     // weekAdherencePctLast8 usa new Date() interno → reloj fijo para determinismo
     vi.useFakeTimers()
@@ -86,32 +85,30 @@ describe('deuda #69 — caminatas con 86_400_000 ms fijos saltan el 8 de marzo',
     vi.useRealTimers()
   })
 
-  // 12 días tomados (1–12 mar) → la racha real es 12; la caminata (calendar.ts:133) salta el 8
-  // y cuenta 11. Verificado hoy: falla con 11 !== 12.
-  it.fails('protocolStreak cuenta los 12 días tomados que cruzan el adelanto', () => {
+  // 12 días tomados (1–12 mar) → racha 12; con ms fijos la caminata saltaba el 8 y contaba 11.
+  it('protocolStreak cuenta los 12 días tomados que cruzan el adelanto', () => {
     const s = dailyMarch(1, 12)
     expect(protocolStreak(s, d(2026, 3, 12), d(2026, 3, 12, 20, 0))).toBe(12)
   })
 
-  // Misma caminata en calendar.ts:101/107. Verificado hoy: falla con 11 !== 12.
-  it.fails('productStreak cuenta los 12 días tomados que cruzan el adelanto', () => {
+  // Misma caminata en productStreak (calendar.ts).
+  it('productStreak cuenta los 12 días tomados que cruzan el adelanto', () => {
     const s = dailyMarch(1, 12)
     expect(productStreak(s, P, d(2026, 3, 12))).toBe(12)
   })
 
-  // Semana pasada real = 2–8 mar (6 tomadas + el 8 perdida = 86%); la caminata (calendar.ts:170)
-  // corre la ventana a 1–7 mar → reporta 100. Verificado hoy: falla con 100 !== 86.
-  it.fails('weekAdherencePctLast8 evalúa la semana pasada sobre 2–8 mar (86%), no 1–7', () => {
+  // Semana pasada real = 2–8 mar (6 tomadas + el 8 perdida = 86%); con ms fijos la ventana
+  // corría a 1–7 mar y reportaba 100.
+  it('weekAdherencePctLast8 evalúa la semana pasada sobre 2–8 mar (86%), no 1–7', () => {
     const s = dailyMarch(2, 12, { skipDays: [8] })
     const weeks = weekAdherencePctLast8(s, d(2026, 3, 12))
     expect(weeks[0]).toBe(100) // semana en curso (9–15): 4 de 4 vencidas
     expect(weeks[1]).toBe(86) // semana pasada: 6 de 7 (el 8 mar se perdió)
   })
 
-  // Sin ninguna dosis registrada, 1–12 mar programados y vencidos → 12 pendientes; la caminata
-  // con offsets de ms fijos (calendar.ts:231) nunca visita el 8 de marzo. Verificado hoy: falla
-  // con 11 pendientes y sin '2026-03-08'.
-  it.fails('pendingDoses lista las 12 tomas vencidas, incluida la del 8 de marzo', () => {
+  // Sin ninguna dosis registrada, 1–12 mar programados y vencidos → 12 pendientes (con ms fijos
+  // la caminata nunca visitaba el 8 de marzo).
+  it('pendingDoses lista las 12 tomas vencidas, incluida la del 8 de marzo', () => {
     const s = dailyMarch(1, 0) // sin dosis (rango vacío), protocolo desde el 1 mar
     const out = pendingDoses(s, d(2026, 3, 12, 12, 0))
     const keys = out.map((p) => isoKey(p.date.getTime()))
@@ -130,13 +127,40 @@ describe('deuda #69 — caminatas con 86_400_000 ms fijos saltan el 8 de marzo',
     expect(next && isoKey(next.getTime())).toBe('2026-03-09')
   })
 
-  // La caminata hacia adelante (store.ts:1400) no salta el día pero acumula +1 h al cruzar el
-  // adelanto. Verificado hoy: falla devolviendo la 01:00 (1773043200000 vs 1773039600000).
-  it.fails('nextDose devuelve la medianoche exacta del 9 de marzo (hoy deriva a la 01:00)', () => {
+  // La caminata hacia adelante (store.ts) no salta el día; con ms fijos acumulaba +1 h al cruzar
+  // el adelanto y devolvía la 01:00 en vez de la medianoche.
+  it('nextDose devuelve la medianoche exacta del 9 de marzo (sin derivar a la 01:00)', () => {
     const s = mkState({
       todayTs: ts(2026, 3, 7),
       protocols: { [P]: mkProtocol(P, ts(2026, 3, 4), cad({ mode: 'cadaN', n: 5 })) },
     })
     expect(nextDose(s)?.getTime()).toBe(ts(2026, 3, 9))
+  })
+})
+
+describe('barrido #69 — extensiones', () => {
+  // `now` explícito en weekAdherencePctLast8: el parámetro sustituye al new Date() interno,
+  // así que no hace falta reloj falso para que el resultado sea determinista.
+  it('weekAdherencePctLast8 acepta `now` explícito (sin depender del reloj del sistema)', () => {
+    const s = dailyMarch(2, 12, { skipDays: [8] })
+    const weeks = weekAdherencePctLast8(s, d(2026, 3, 12), d(2026, 3, 12, 12, 0))
+    expect(weeks[0]).toBe(100) // semana en curso (9–15): 4 de 4 vencidas
+    expect(weeks[1]).toBe(86) // semana pasada (2–8): 6 de 7
+  })
+
+  // Racha honesta en días de descanso TAMBIÉN cruzando el adelanto: cadaN n=2 desde el 2 mar
+  // (tocan 2, 4, 6, 8, 10, 12); los días impares son descanso y no suman ni rompen.
+  it('protocolStreak respeta descansos por cadencia cruzando el adelanto (con gracia a hoy)', () => {
+    const start = ts(2026, 3, 2)
+    let s = mkState({
+      todayTs: ts(2026, 3, 12),
+      protocols: { [P]: mkProtocol(P, start, cad({ mode: 'cadaN', n: 2 })) },
+    })
+    for (const day of [2, 4, 6, 8, 10]) s = dispatch(s, doseAction(P, ts(2026, 3, day, 9, 0)))
+    // hoy 12 mar a las 07:00 (antes del due 08:00): gracia al día en curso → racha 5
+    expect(protocolStreak(s, d(2026, 3, 12), d(2026, 3, 12, 7, 0))).toBe(5)
+    // con la dosis de hoy registrada → 6
+    s = dispatch(s, doseAction(P, ts(2026, 3, 12, 9, 0)))
+    expect(protocolStreak(s, d(2026, 3, 12), d(2026, 3, 12, 20, 0))).toBe(6)
   })
 })

@@ -2,7 +2,13 @@
 import type { AppState } from './store'
 import { trackedProtocols, productsOnDay, isoKey, tallyDoses } from './store'
 import { startOfDay, dayDiff } from './cadence'
+import { addDays } from './dates'
 import { PEPTIDES } from './catalog'
+
+// Convención de relojes (deuda #69/clock): `today` = IDENTIDAD del día (cualquier instante de ese
+// día local; se normaliza con startOfDay), `now` = hora REAL del reloj para decidir vencimientos.
+// Caminatas de días SIEMPRE con addDays (constructor local) — nunca ±86_400_000 ms fijos, que en
+// zonas con DST (Tijuana) saltan o duplican un día local.
 
 export type DayState = 'taken' | 'missed' | 'scheduled' | 'none'
 /** DayState extendido: 'rest' = no tocaba dosis (día libre por cadencia); 'missed' = tocaba y no se tomó; 'skipped' = tocaba pero todas las dosis fueron saltadas intencionalmente. */
@@ -98,13 +104,13 @@ export function productStreak(s: AppState, product: string, today: Date): number
     if (!scheduled) {
       // retroceder, pero solo si ya empezó el protocolo (no contar hacia antes del start)
       if (d.getTime() < startOfDay(tracked.start).getTime()) break
-      d = new Date(d.getTime() - 86400000)
+      d = addDays(d, -1)
       continue
     }
     const took = doseTakenOnProduct(s, d, product)
     if (took) count++
     else if (i !== 0) break // hoy en curso no rompe (gracia); días pasados sin toma sí
-    d = new Date(d.getTime() - 86400000)
+    d = addDays(d, -1)
   }
   return count
 }
@@ -117,6 +123,9 @@ export function productStreak(s: AppState, product: string, today: Date): number
  * - 'taken'   → +1 (todas las dosis del día registradas)
  * - 'rest'/'none'/'scheduled' → neutral (no suma, no rompe; descanso por cadencia o día aún sin vencer)
  * - 'missed'  → rompe, salvo si es HOY (gracia al día en curso)
+ *
+ * @param today identidad del día actual (se normaliza a medianoche local)
+ * @param now   hora real del reloj (vencimientos); default new Date() al momento de la llamada
  */
 export function protocolStreak(s: AppState, today: Date, now: Date = new Date()): number {
   const tracked = trackedProtocols(s)
@@ -130,7 +139,7 @@ export function protocolStreak(s: AppState, today: Date, now: Date = new Date())
     if (st === 'taken') count++
     else if (st === 'missed' && i !== 0) break // hoy en curso nunca rompe (gracia)
     // 'rest' / 'none' / 'scheduled' / 'missed'-hoy → neutral
-    d = new Date(d.getTime() - 86400000)
+    d = addDays(d, -1)
   }
   return count
 }
@@ -151,7 +160,7 @@ export function protocolStreakStart(s: AppState, today: Date, now: Date = new Da
     const st = dayStatusEx(s, d, now)
     if (st === 'taken') start = new Date(d)
     else if (st === 'missed' && i !== 0) break
-    d = new Date(d.getTime() - 86400000)
+    d = addDays(d, -1)
   }
   return start
 }
@@ -159,16 +168,17 @@ export function protocolStreakStart(s: AppState, today: Date, now: Date = new Da
 /**
  * weekAdherencePctLast8: adherencia por semana de las últimas 8 semanas completas (más reciente primero).
  * Retorna un array de 8 valores 0..100 (o null si no hubo dosis programadas esa semana).
+ *
+ * @param today identidad del día actual
+ * @param now   hora real del reloj — pásala desde el caller; default new Date() por compatibilidad
  */
-export function weekAdherencePctLast8(s: AppState, today: Date): (number | null)[] {
-  const now = new Date()
+export function weekAdherencePctLast8(s: AppState, today: Date, now: Date = new Date()): (number | null)[] {
   // Semana ISO L→D de hoy
-  const thisMonday = startOfDay(today)
-  thisMonday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  const thisMonday = addDays(today, -((today.getDay() + 6) % 7))
   const results: (number | null)[] = []
   for (let w = 0; w < 8; w++) {
-    const monday = new Date(thisMonday.getTime() - w * 7 * 86400000)
-    const days = Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * 86400000))
+    const monday = addDays(thisMonday, -w * 7)
+    const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
     results.push(weekAdherencePct(s, days, now))
   }
   return results
@@ -228,7 +238,7 @@ export function pendingDoses(s: AppState, now: Date): PendingDose[] {
   const out: PendingDose[] = []
   // Mirar desde (hoy - 30 días) hasta hoy para cubrir atrasos razonables
   for (let offset = -30; offset <= 0; offset++) {
-    const d = new Date(today.getTime() + offset * 86400000)
+    const d = addDays(today, offset)
     for (const t of tracked) {
       const prods = dayProducts(s, d)
       if (!prods.includes(t.product)) continue

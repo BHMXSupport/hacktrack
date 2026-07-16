@@ -103,14 +103,37 @@ describe('weekStrip — tira lunes→domingo', () => {
   })
 
   it('la semana que contiene el salto DST no pierde el domingo', () => {
-    // Semana 2–8 mar 2026: el salto es el domingo 8 a las 02:00. Las celdas se generan a las
-    // 00:00 con +i·86400000 ms fijos, pero como la transición de EUA/Tijuana siempre cae en
-    // domingo a las 02:00 y el domingo es la ÚLTIMA celda (a medianoche, antes del salto),
-    // esta caminata en particular sobrevive el DST. (Contraste con dst.test.ts, #69.)
+    // Semana 2–8 mar 2026: el salto es el domingo 8 a las 02:00. Las celdas se generan con
+    // addDays (constructor de día local), así que la caminata es DST-segura por diseño — ya no
+    // por la coincidencia de que la transición de EUA/Tijuana caiga en domingo (última celda),
+    // como cuando se sumaban +i·86 400 000 ms fijos. (Barrido #69; ver dst.test.ts.)
     const strip = weekStrip(d(2026, 3, 7)) // sábado
     expect(strip.map((x) => isoKey(x.getTime()))).toEqual([
       '2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06', '2026-03-07', '2026-03-08',
     ])
+  })
+
+  it('transición A MEDIANOCHE (America/Santiago): la celda del domingo no cae en sábado', () => {
+    // En Tijuana la transición es a las 02:00 del domingo (última celda) y los ms fijos nunca
+    // fallaban en weekStrip; el caso que SÍ rompía es una transición a medianoche exacta.
+    // Chile atrasa el reloj a las 00:00: el dom 5 abr 2026, las 00:00 −03 vuelven a las 23:00
+    // del sáb 4 −04. Con ms fijos, lun 30 mar + 6·86 400 000 ms caía en sáb 4 abr 23:00
+    // (sábado duplicado, domingo perdido); addDays da la medianoche real del domingo.
+    // Node ≥13 relee process.env.TZ en tiempo de ejecución (misma premisa que vitest.config.ts).
+    const prevTZ = process.env.TZ
+    try {
+      process.env.TZ = 'America/Santiago'
+      // guardia: el offset realmente cambia −03 → −04 (si no, el entorno no honra el cambio de TZ)
+      expect(new Date(2026, 3, 4, 12, 0).getTimezoneOffset()).toBe(180)
+      expect(new Date(2026, 3, 5, 12, 0).getTimezoneOffset()).toBe(240)
+      const strip = weekStrip(new Date(2026, 2, 30)) // lunes 30 mar
+      expect(strip.map((x) => isoKey(x.getTime()))).toEqual([
+        '2026-03-30', '2026-03-31', '2026-04-01', '2026-04-02', '2026-04-03', '2026-04-04', '2026-04-05',
+      ])
+      expect(strip[6].getHours()).toBe(0) // medianoche local real del domingo
+    } finally {
+      process.env.TZ = prevTZ
+    }
   })
 })
 

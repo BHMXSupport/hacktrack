@@ -6,6 +6,7 @@ import type {
 } from './types'
 import { PEPTIDES, MEASURES_BY, MEASURE_META, MEASURE_ICON } from './catalog'
 import { presetCad, diaTocaCadence, fmtTime, startOfDay, weekStrip } from './cadence'
+import { addDays, startOfLocalDay } from './dates'
 import { bmiCalc } from './bmi'
 import { doseToMg } from './calc'
 
@@ -22,6 +23,10 @@ export type SheetId =
   | 'pin-setup'      // backend handoff: crear/cambiar el PIN de bloqueo (PinSetupSheet)
 
 export interface AppState {
+  // CONVENCIÓN reloj vs. día: todayTs = IDENTIDAD del día a medianoche LOCAL (agrupación/claves
+  // isoKey); new Date()/Date.now() = RELOJ (instante real de un evento). El tick del provider
+  // refresca todayTs al cruzar medianoche pero puede rezagarse ~1 min — todo reducer que estampe
+  // un ts con el reloj debe derivar la clave del día de ESE mismo instante, nunca de todayTs.
   todayTs: number
   screen: ScreenId
   tab: TabId
@@ -79,7 +84,7 @@ export interface AppState {
 }
 
 export const initialState: AppState = {
-  todayTs: Date.now(),
+  todayTs: startOfLocalDay(Date.now()).getTime(), // identidad de día: SIEMPRE medianoche local (no el reloj crudo)
   screen: 's-splash',
   tab: 'inicio',
   sheet: null,
@@ -175,7 +180,10 @@ export type Action =
   | { t: 'importProducts'; names: string[] }
   | { t: 'logDose'; product: string; value: number | null; unit: string; ts?: number; doseMg?: number; recon?: { vialMg: number; aguaMl: number }; site?: InjectionSite; note?: string; effect?: string; effectIntensity?: number; keepSheet?: boolean } // P0-1 + loop 140 + loop 138/139
   | { t: 'setLogEffect'; id: string; effect: string; effectIntensity?: number } // loop 139: guarda efecto post-dosis en un item ya registrado
-  | { t: 'saveMeasure'; name: string; value: number; nota?: string; ts?: number }  // P0-1
+  // saveMeasure: `value` absoluto O `delta` atómico (exactamente uno). Con delta, la base se lee
+  // DENTRO del reducer (última muestra del mismo día del ts estampado) → taps rápidos de un stepper
+  // acumulan en vez de pisarse con el valor del render anterior (debt-90).
+  | { t: 'saveMeasure'; name: string; value?: number; delta?: number; nota?: string; ts?: number }  // P0-1
   | { t: 'saveMedidas'; values: Partial<Pick<Profile, 'peso' | 'est' | 'grasa' | 'musculo'>>; ts?: number } // KPI compuesto
   | { t: 'logSkip'; product: string; ts?: number; keepSheet?: boolean; late?: boolean } // dosis saltada (no penaliza adherencia). keepSheet: flujo mayor → no cierra ni toastea. late: marca la ocurrencia como "tomada tarde" (la dosis real va en otro día)
   | { t: 'deleteLog'; id: string }                                    // P1-1
@@ -196,7 +204,7 @@ export type Action =
   | { t: 'clearDeletedLogBuffer' }
   | { t: 'setKpiOrder'; order: string[] }                             // n=146: orden y selección de KPIs (hasta 4)
   // ── Nuevas acciones (aditivas) ─────────────────────────────────────────────
-  | { t: 'editLog'; id: string; patch: { value?: number | null; unit?: string | null; doseMg?: number | null; note?: string | null } }
+  | { t: 'editLog'; id: string; patch: { value?: number | null; unit?: string | null; doseMg?: number | null; note?: string | null; severity?: AdverseSeverity | null } }
   | { t: 'setCalcDraft'; draft: AppState['calcDraft'] }
   | { t: 'setRegistrarDraft'; draft: AppState['registrarDraft'] }
   | { t: 'loadRemoteState'; state: Partial<AppState> } // restaurar desde la nube (Supabase): reemplaza el estado local por el blob remoto, vía hydrate (misma ruta segura que la carga inicial)
@@ -554,16 +562,19 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, progresoView: a.view }
 
     case 'water': {
-      const k = isoKey(s.todayTs)
+      // clave del día del RELOJ (no todayTs, que puede rezagarse tras medianoche): el vaso cae en el día real
+      const k = isoKey(Date.now())
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       return { ...s, nutrition: { ...s.nutrition, [k]: { ...cur, water: Math.max(0, cur.water + a.delta) } } }
     }
     case 'addMeal': {
       if (!(a.kcal > 0)) return s
-      const k = isoKey(s.todayTs)
+      // la clave del bucket se deriva del MISMO instante que el ts estampado (invariante: comida.ts ∈ día del bucket)
+      const mealTs = a.ts ?? Date.now()
+      const k = isoKey(mealTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       const meal: Meal = {
-        id: genId(), kcal: Math.round(a.kcal), ts: a.ts ?? Date.now(),
+        id: genId(), kcal: Math.round(a.kcal), ts: mealTs,
         protein: a.protein ?? null, carbs: a.carbs ?? null, fat: a.fat ?? null, label: a.label?.trim() || null, portion: 1,
       }
       const slot = mealSlot(meal.ts)
@@ -585,10 +596,12 @@ export function reducer(s: AppState, a: Action): AppState {
       if (!fav) return s
       const por = a.portion && a.portion > 0 ? a.portion : (fav.defaultMultiplier && fav.defaultMultiplier > 0 ? fav.defaultMultiplier : 1)
       const sc = (v: number | null | undefined) => (v != null ? Math.round(v * por) : null)
-      const k = isoKey(s.todayTs)
+      // misma invariante que addMeal: bucket y ts derivan del mismo instante
+      const mealTs = a.ts ?? Date.now()
+      const k = isoKey(mealTs)
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       const meal: Meal = {
-        id: genId(), kcal: Math.round(fav.kcal * por), ts: a.ts ?? Date.now(),
+        id: genId(), kcal: Math.round(fav.kcal * por), ts: mealTs,
         protein: sc(fav.protein), carbs: sc(fav.carbs), fat: sc(fav.fat),
         label: por !== 1 ? `${fav.label} ×${por}` : fav.label, portion: por, favId: fav.id,
       }
@@ -601,15 +614,16 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, nutrition: nutFav, foodLibrary, lastMealTs: latestMealTs(nutFav) }
     }
     case 'copyYesterday': {
-      const k = isoKey(s.todayTs)
-      const yd = new Date(s.todayTs); yd.setDate(yd.getDate() - 1)
-      const y = s.nutrition[isoKey(yd.getTime())]
+      // 'hoy' y 'ayer' se anclan al RELOJ, el mismo instante del que derivan los ts copiados
+      const anchor = Date.now()
+      const k = isoKey(anchor)
+      const y = s.nutrition[isoKey(addDays(anchor, -1).getTime())]
       if (!y || y.meals.length === 0) return s
       const cur = s.nutrition[k] ?? { water: 0, meals: [] }
       // conserva la hora del día de cada comida de ayer, trasladada a hoy (mantiene su franja)
       const copied: Meal[] = y.meals.map((m) => {
         const o = new Date(m.ts)
-        const d = new Date(s.todayTs); d.setHours(o.getHours(), o.getMinutes(), o.getSeconds(), 0)
+        const d = new Date(anchor); d.setHours(o.getHours(), o.getMinutes(), o.getSeconds(), 0)
         return { ...m, id: genId(), ts: d.getTime() }
       })
       const nutCopy = { ...s.nutrition, [k]: { ...cur, meals: [...copied, ...cur.meals] } }
@@ -835,52 +849,88 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'saveMeasure': {
       const now = a.ts ? new Date(a.ts) : new Date()
       const nowMs = now.getTime()
+      const nowKey = isoKey(nowMs)
+      // Modo DELTA (steppers acumulados como electrolitos): la base es la última muestra del MISMO
+      // día que nowMs, leída AQUÍ dentro — dos taps antes del re-render acumulan (debt-90), y un día
+      // sin muestras arranca de cero (los acumulados diarios se reinician cada día).
+      let value: number
+      if (a.delta != null) {
+        let base = 0
+        let baseTs = -Infinity
+        for (const sm of s.history[a.name] ?? []) {
+          if (sm.ts > baseTs && isoKey(sm.ts) === nowKey) { base = sm.value; baseTs = sm.ts }
+        }
+        value = Math.max(0, base + a.delta)
+      } else if (a.value != null) {
+        value = a.value
+      } else {
+        return s // acción malformada: ni value ni delta
+      }
       const ic = MEASURE_ICON[a.name] ?? { icon: 'medidas', cat: '#5FC9B8' }
-      const uStr = fmtMeasureValue(a.name, a.value) + (a.nota ? ' · ' + a.nota : '')
-      // COALESCE: si ya hay un registro de la MISMA medida en los últimos 60 s, se ACTUALIZA en vez de
-      // crear otro (un stepper de electrolitos no debe ensuciar el diario con un registro por clic).
+      const uStr = fmtMeasureValue(a.name, value) + (a.nota ? ' · ' + a.nota : '')
+      // COALESCE: si ya hay un registro de la MISMA medida en los últimos 60 s, se ACTUALIZA en vez
+      // de crear otro (un stepper no debe ensuciar el diario con un registro por clic). La búsqueda
+      // cubre el grupo de HOY y el de AYER — un stepper puede cruzar la medianoche y el item previo
+      // vive en el grupo de ayer (debt-70). Excepción: en modo delta NO se coalesce a través de la
+      // medianoche — el total de ayer de un acumulado diario debe sobrevivir como registro propio.
       const COALESCE_MS = 60_000
-      const todayKey = isoKey(nowMs)
-      let coalesced = false
-      const log = s.log.map((g) => {
-        if (coalesced || g.dateKey !== todayKey) return g
-        const idx = g.items.findIndex(
+      const prevKey = isoKey(addDays(nowMs, -1).getTime())
+      const candidateKeys = a.delta != null ? [nowKey] : [nowKey, prevKey]
+      let target: { gi: number; ii: number } | null = null
+      for (const key of candidateKeys) {
+        if (target) break
+        const gi = s.log.findIndex((g) => g.dateKey === key)
+        if (gi === -1) continue
+        // items ordenados ts desc → el primer match es el más reciente
+        const ii = s.log[gi].items.findIndex(
           (it) => it.type === 'medida' && it.n === a.name && nowMs >= it.ts && nowMs - it.ts < COALESCE_MS,
         )
-        if (idx === -1) return g
-        coalesced = true
-        const items = g.items.slice()
-        items[idx] = { ...items[idx], u: uStr, t: fmtTime(now), ts: nowMs }
-        return { ...g, items }
-      })
-      const finalLog = coalesced
-        ? log
-        : prependToLog(s.log, { id: genId(), t: fmtTime(now), n: a.name, u: uStr, cat: ic.cat, ic: ic.icon, type: 'medida', ts: nowMs })
+        if (ii !== -1) target = { gi, ii }
+      }
+      const coalesced = target != null
+      let finalLog: LogGroup[]
+      if (target) {
+        const group = s.log[target.gi]
+        const updated: LogItem = { ...group.items[target.ii], u: uStr, t: fmtTime(now), ts: nowMs }
+        if (group.dateKey === nowKey) {
+          const { gi, ii } = target
+          finalLog = s.log.map((g, i) => (i === gi ? { ...g, items: g.items.map((it, j) => (j === ii ? updated : it)) } : g))
+        } else {
+          // el ts nuevo cambió el día del item (cruce de medianoche) → reagrupar vía prependToLog
+          const { gi, ii } = target
+          const without = s.log
+            .map((g, i) => (i === gi ? { ...g, items: g.items.filter((_, j) => j !== ii) } : g))
+            .filter((g) => g.items.length > 0)
+          finalLog = prependToLog(without, updated)
+        }
+      } else {
+        finalLog = prependToLog(s.log, { id: genId(), t: fmtTime(now), n: a.name, u: uStr, cat: ic.cat, ic: ic.icon, type: 'medida', ts: nowMs })
+      }
 
       // history: reemplaza la última muestra reciente (<60 s) o agrega una nueva
       let history = s.history
       if (coalesced) {
         const series = (s.history[a.name] ?? []).slice()
         if (series.length && nowMs - series[series.length - 1].ts < COALESCE_MS) {
-          series[series.length - 1] = { ts: nowMs, value: a.value }
+          series[series.length - 1] = { ts: nowMs, value }
         } else {
-          series.push({ ts: nowMs, value: a.value })
+          series.push({ ts: nowMs, value })
         }
         history = { ...s.history, [a.name]: series }
       } else {
-        history = pushHistory(s.history, [{ name: a.name, value: a.value, ts: nowMs }])
+        history = pushHistory(s.history, [{ name: a.name, value, ts: nowMs }])
       }
 
       const meta = MEASURE_META[a.name]
       const profile = { ...s.profile }
       if (meta?.prof) {
-        profile[meta.prof] = a.value as never
+        profile[meta.prof] = value as never
         if (profile.peso != null && profile.est != null) profile.bmi = bmiCalc(profile.peso, profile.est)
       }
       return {
         ...s,
         log: finalLog,
-        measureValues: { ...s.measureValues, [a.name]: a.value },
+        measureValues: { ...s.measureValues, [a.name]: value },
         history,
         profile,
         logged: true,
@@ -1164,6 +1214,11 @@ export function reducer(s: AppState, a: Action): AppState {
             }
           }
           if (a.patch.note !== undefined) patched.note = a.patch.note ?? undefined
+          // EFECTO ADVERSO: corregir la severidad después de registrarla (debt-122). Solo colorea el
+          // badge — sin acoplamiento con history/vial, y sin tocar la rama exclusiva de doseMg de abajo.
+          if (a.patch.severity !== undefined && it.type === 'efecto-adverso') {
+            patched.severity = a.patch.severity ?? undefined
+          }
           // DOSIS: reconstruir 'u' (diario/charts/chip Repetir parsean este string, no value/unit) + recordar dosis
           if (it.type === 'dose' && (a.patch.value !== undefined || a.patch.unit !== undefined)) {
             const v = a.patch.value !== undefined ? a.patch.value : (it.value ?? null)
@@ -1215,14 +1270,23 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, registrarDraft: a.draft }
 
     case 'loadRemoteState': {
-      // Restaurar desde la nube: fusiona el blob remoto sobre los defaults y rehidrata (misma ruta que
-      // loadState del provider → tan seguro como la carga inicial). Conserva 'hoy' y descarta lo efímero.
+      // Restaurar desde la nube: MISMAS defensas que el import de archivo (#F4/#46) — sanea entradas
+      // inválidas y rechaza blobs vacíos (una fila '{}' en la nube no debe borrar lo local). El pinHash
+      // no se toca aquí: el push ya lo excluye y el restore lo re-inyecta local río arriba (Ajustes).
+      const { state: clean, dropped } = sanitizeImport(a.state)
+      const hasData =
+        (Array.isArray(clean.log) && clean.log.length > 0) ||
+        Object.keys(clean.protocols ?? {}).length > 0 ||
+        (Array.isArray(clean.importedProducts) && clean.importedProducts.length > 0)
+      if (!hasData) return { ...s, toast: 'El respaldo en la nube está vacío — no se aplicó' }
+      // Fusiona el blob saneado sobre los defaults y rehidrata (misma ruta que loadState del provider
+      // → tan seguro como la carga inicial). Conserva 'hoy' y descarta lo efímero.
       const merged = {
         ...initialState,
-        ...a.state,
+        ...clean,
         sheet: null,
         sheetArg: null,
-        toast: null,
+        toast: dropped > 0 ? `Restaurado · ${dropped} entrada(s) inválida(s) omitida(s)` : null,
         toastUndoId: null,
         deletedLogBuffer: null,
         todayTs: s.todayTs,
@@ -1397,7 +1461,7 @@ export function nextDose(s: AppState): Date | null {
   let d = startOfDay(new Date(s.todayTs))
   for (let i = 0; i < 60; i++) {
     if (diaTocaCadence(d, s.protocol.cadence, start)) return d
-    d = new Date(d.getTime() + 86400000)
+    d = addDays(d, 1) // caminata por día LOCAL, no +86 400 000 ms (DST-segura, debt-69)
   }
   return null
 }
@@ -1471,7 +1535,7 @@ function toStat(t: DoseTally): AdherenceStat | null {
 export function adherence(s: AppState, days = 30, now: Date = new Date()): AdherenceStat | null {
   if (!s.protocol) return null
   const today = startOfDay(new Date(s.todayTs)).getTime()
-  return toStat(tallyDoses(s, today - (days - 1) * 86400000, today, now))
+  return toStat(tallyDoses(s, addDays(today, -(days - 1)).getTime(), today, now))
 }
 
 // mes calendario actual: TODAS las dosis que tocarían en el mes (incl. futuras) — para Inicio
@@ -1503,7 +1567,7 @@ export function nextDoseAt(s: AppState, now: Date): Date | null {
       at.setHours(hh || 0, mm || 0, 0, 0)
       if (at.getTime() > now.getTime()) return at
     }
-    d = new Date(d.getTime() + 86400000)
+    d = addDays(d, 1) // caminata por día LOCAL, no +86 400 000 ms (DST-segura, debt-69)
   }
   return null
 }
