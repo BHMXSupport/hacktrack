@@ -52,10 +52,13 @@ export function useCloudSync(state: AppState, dispatch: (a: Action) => void) {
     const onSession = (s: SessionInfo) => {
       const had = sessionRef.current != null
       sessionRef.current = s
-      if (s && pushConfigured) void subscribePush(s.userId)
       // Solo en la transición sin-sesión → sesión (login real o arranque con sesión persistida);
-      // los TOKEN_REFRESHED periódicos re-entregan la misma sesión y no deben disparar ciclos.
-      if (s && !had) void cycleRef.current()
+      // los TOKEN_REFRESHED periódicos re-entregan la misma sesión y no deben re-suscribir push
+      // ni disparar ciclos (subscribePush es idempotente, pero re-suscribir en cada refresh es ruido).
+      if (s && !had) {
+        if (pushConfigured) void subscribePush(s.userId)
+        void cycleRef.current()
+      }
     }
     void getSession().then(onSession)
     void onAuthChange(onSession).then((u) => { unsub = u })

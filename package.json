@@ -12,7 +12,9 @@
     "test": "vitest run",
     "gate:store": "node scripts/store-gate.mjs",
     "build:store": "tsc && VITE_STORE_BUILD=1 vite build --outDir dist-store-cap && rm -rf dist-store-cap/promo",
-    "cap:sync": "npm run build:store && cap sync"
+    "cap:sync": "npm run build:store && cap sync",
+    "metrics": "node scripts/metrics.mjs",
+    "metrics:json": "node scripts/metrics.mjs --json"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
