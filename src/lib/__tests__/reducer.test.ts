@@ -339,4 +339,92 @@ describe('loadRemoteState — mismas defensas que el import de archivo (debt-rem
     expect(s2.todayTs).toBe(s1.todayTs) // 'hoy' es local, no del blob
     expect(s2.toast).toBe('Restaurado · 1 entrada(s) inválida(s) omitida(s)')
   })
+
+  // El reducer es DUEÑO del toast de resultado: éxito limpio → confirmación (Ajustes ya no toastea).
+  it('éxito limpio (sin descartes) → toast «Restaurado desde la nube»', () => {
+    const remote: Partial<AppState> = {
+      protocols: { [P]: mkProtocol(P, ts(2026, 6, 1), cad({ mode: 'dia' })) },
+    }
+    const s2 = reducer(mkState(), { t: 'loadRemoteState', state: remote })
+    expect(s2.protocols[P]).toBeTruthy()
+    expect(s2.toast).toBe('Restaurado desde la nube')
+  })
+
+  // Amplitud de importHasData: un respaldo SOLO de nutrición (comidas/agua, sin log ni protocolos)
+  // es válido — antes el guard lo rechazaba como "vacío" y era irrestaurable para siempre.
+  it('un respaldo solo-nutrición (agua + comidas, sin log/protocolos) SÍ se restaura', () => {
+    const remote: Partial<AppState> = {
+      nutrition: {
+        '2026-06-09': {
+          water: 750,
+          meals: [{ id: 'm1', kcal: 480, ts: ts(2026, 6, 9, 14, 0), protein: 32, carbs: 40, fat: 18, label: 'Pollo con arroz', portion: 1 }],
+        },
+      },
+    }
+    const s2 = reducer(mkState(), { t: 'loadRemoteState', state: remote })
+    expect(s2.nutrition['2026-06-09']?.water).toBe(750)
+    expect(s2.nutrition['2026-06-09']?.meals).toHaveLength(1)
+    expect(s2.toast).toBe('Restaurado desde la nube')
+  })
+
+  it('un respaldo solo-historial (medidas) y uno solo-biblioteca también cuentan como datos', () => {
+    const sHist = reducer(mkState(), {
+      t: 'loadRemoteState',
+      state: { history: { Peso: [{ value: 82.5, ts: ts(2026, 6, 9, 8, 0) }] } } as Partial<AppState>,
+    })
+    expect(sHist.history['Peso']).toHaveLength(1)
+    expect(sHist.toast).toBe('Restaurado desde la nube')
+    const sLib = reducer(mkState(), {
+      t: 'loadRemoteState',
+      state: { foodLibrary: [{ id: 'f1', label: 'Avena', kcal: 300, protein: 10, carbs: 50, fat: 6, usoCount: 3, hourBucket: {}, defaultMultiplier: 1 }] } as Partial<AppState>,
+    })
+    expect(sLib.foodLibrary).toHaveLength(1)
+    expect(sLib.toast).toBe('Restaurado desde la nube')
+  })
+
+  // La fila hueca sigue rechazada aunque traiga las SECCIONES presentes pero vacías.
+  it('secciones presentes pero vacías ({log:[], nutrition:{}, …}) siguen contando como respaldo hueco', () => {
+    const s1 = dispatch(stateWithVial(), doseAction(P, ts(2026, 6, 10, 9, 0), 0.25, 'mg', { doseMg: 0.25 }))
+    const s2 = reducer(s1, {
+      t: 'loadRemoteState',
+      state: { log: [], protocols: {}, importedProducts: [], nutrition: {}, history: {}, foodLibrary: [] } as Partial<AppState>,
+    })
+    expect(s2.log).toBe(s1.log)
+    expect(s2.toast).toBe('El respaldo en la nube está vacío — no se aplicó')
+  })
+})
+
+describe('arcoDelete — Cancelación: reset total con mensaje honesto', () => {
+  it('borra estado, revoca consentimiento y fija el toast de confirmación', () => {
+    const s1 = dispatch(stateWithVial(), doseAction(P, ts(2026, 6, 10, 9, 0), 0.25, 'mg', { doseMg: 0.25 }))
+    const s2 = reducer(s1, { t: 'arcoDelete' })
+    expect(s2.log).toHaveLength(0)
+    expect(s2.protocols).toEqual({})
+    expect(s2.settings.consentActive).toBe(false)
+    expect(s2.screen).toBe('s-onboarding')
+    expect(s2.toast).toBe('Tus datos fueron borrados.')
+  })
+})
+
+describe('modo solo local ↔ respaldo en la nube — excluyentes (sec-F4)', () => {
+  it('activar modo solo local APAGA cloudSync (el switch no puede mentir)', () => {
+    const s1 = mkState({ settings: { ...mkState().settings, cloudSync: true } })
+    const s2 = reducer(s1, { t: 'setLocalOnly', value: true })
+    expect(s2.localOnly).toBe(true)
+    expect(s2.settings.cloudSync).toBe(false)
+  })
+
+  it('desactivar modo solo local NO re-enciende el respaldo (opt-in explícito aparte)', () => {
+    const s1 = reducer(mkState({ settings: { ...mkState().settings, cloudSync: true } }), { t: 'setLocalOnly', value: true })
+    const s2 = reducer(s1, { t: 'setLocalOnly', value: false })
+    expect(s2.localOnly).toBe(false)
+    expect(s2.settings.cloudSync).toBe(false)
+  })
+
+  it('optar por el respaldo en la nube desactiva el modo solo local (simetría)', () => {
+    const s1 = mkState({ localOnly: true })
+    const s2 = reducer(s1, { t: 'setSetting', key: 'cloudSync', value: true })
+    expect(s2.settings.cloudSync).toBe(true)
+    expect(s2.localOnly).toBe(false)
+  })
 })

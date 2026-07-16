@@ -564,7 +564,10 @@ export function Comida() {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
   const now = Date.now()
-  const key = isoKey(state.todayTs)
+  // Día mostrado = día del RELOJ (no todayTs, que puede rezagarse ~60 s tras medianoche): es el
+  // MISMO reloj con el que escriben 'water'/'addMeal'/'addFavMeal', así un tap post-medianoche se
+  // lee en el bucket donde cayó. Se recalcula en cada render (cada dispatch y el tick de 60 s).
+  const key = isoKey(now)
   const day = state.nutrition[key] ?? { water: 0, meals: [] }
 
   // ── Datos de calorías y macros ─────────────────────────────────────────────

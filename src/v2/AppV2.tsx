@@ -96,6 +96,9 @@ function Shell() {
     return (
       <Frame>
         <FlowScreen />
+        {/* Los toasts también deben verse fuera de s-app: p.ej. el aviso de borrado ARCO
+            (éxito u honesto de fallo en nube) se emite navegando a onboarding. */}
+        <Toast />
       </Frame>
     )
   }

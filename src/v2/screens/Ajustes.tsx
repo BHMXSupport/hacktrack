@@ -14,10 +14,11 @@ import { NOTIF_PROMPT_DISMISSED_KEY } from '../ui/NotifPermissionPrompt'
 import { Switch } from '../ui/Switch'
 import { backendEnabled } from '../../lib/backend/config'
 import { getSession, signOut } from '../../lib/backend/auth'
-import { pullRemote, getSyncStatus, onSyncStatusChange, markCloudSyncedNow } from '../../lib/backend/sync'
+import { pullRemote, deleteRemote, getSyncStatus, onSyncStatusChange, markCloudSyncedNow, clearSyncStatus } from '../../lib/backend/sync'
+import { unsubscribePush } from '../../lib/backend/push'
 import { Button } from '../ui/Button'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
-import { useApp } from '../../lib/store'
+import { useApp, sanitizeImport, importHasData } from '../../lib/store'
 import type { AppState } from '../../lib/store'
 import { requestNotif, notifPermission, notifSupported } from '../../lib/notifications'
 import type { ThemeMode, UnitSystem } from '../../lib/types'
@@ -42,6 +43,39 @@ function permLabel(p: ReturnType<typeof notifPermission>): string {
 function formatSyncTime(ts: number): string {
   return new Date(ts).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
+
+// ── borrado de cuenta (Cancelación ARCO) — compartido por Ajustes y Perfil ────
+// (1) Con backend y sesión: borra la copia en la NUBE (fila user_state + suscripciones push, y
+//     des-suscribe el push del navegador) ANTES del borrado local; si falla, devuelve el error para
+//     que el caller avise honesto — nunca "todo borrado" cuando la nube conserva el historial.
+//     En éxito cierra también la sesión de Supabase (el token sb-* es un residuo del usuario borrado).
+// (2) Limpia las claves residuales de localStorage fuera del estado (unidades, coach, última copia…).
+export async function purgeAccountData(): Promise<{ cloudError: string | null }> {
+  let cloudError: string | null = null
+  if (backendEnabled) {
+    const sess = await getSession().catch(() => null)
+    if (sess) {
+      // mejor esfuerzo: si falla, el delete por user_id de abajo borra igual la fila del servidor
+      try { await unsubscribePush() } catch { /* sin SW/push en este navegador */ }
+      const res = await deleteRemote(sess.userId)
+      if (res.ok) {
+        try { await signOut() } catch { /* sin red: el borrado remoto ya ocurrió */ }
+      } else {
+        cloudError = res.error // la sesión se conserva para poder reintentar el borrado
+      }
+    }
+  }
+  try {
+    ;['hacktrack:v1', 'hacktrack-glass-ml', 'hk_diario_coach', 'ht:lastError', 'ht:consentAcceptedAt'].forEach((k) => localStorage.removeItem(k))
+    Object.keys(localStorage).filter((k) => k.startsWith('ht_unit_')).forEach((k) => localStorage.removeItem(k))
+  } catch { /* modo privado / sin acceso a localStorage */ }
+  clearSyncStatus() // borra 'hacktrack:lastCloudSyncAt' y resetea el estado de sync en memoria
+  return { cloudError }
+}
+
+// Aviso honesto cuando el borrado local ocurrió pero el remoto no (guía de reintento incluida).
+export const CLOUD_DELETE_FAILED_MSG =
+  'Se borraron los datos de este dispositivo, pero la copia en la nube no se pudo eliminar. Con conexión, vuelve a intentar «Eliminar mis datos».'
 
 // ── fila genérica: tap target ≥44px garantizado ──────────────────────────────
 function Row({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -382,21 +416,33 @@ export function Ajustes({
     if (!remote.ok) { dispatch({ t: 'toast', msg: remote.error }); return }
     if (remote.empty) { dispatch({ t: 'toast', msg: 'No hay respaldo en la nube todavía' }); return }
     const incoming = remote.data as Partial<AppState>
-    // Mismo guard que la importación por archivo: una fila válida pero vacía no debe
-    // reemplazar todo (el reducer también lo rechaza; sin este pre-check el toast mentiría éxito).
-    const hasData =
-      (Array.isArray(incoming.log) && incoming.log.length > 0) ||
-      Object.keys(incoming.protocols ?? {}).length > 0 ||
-      (Array.isArray(incoming.importedProducts) && incoming.importedProducts.length > 0)
-    if (!hasData) { dispatch({ t: 'toast', msg: 'El respaldo en la nube está vacío — no se restauró (tus datos siguen intactos)' }); return }
-    // El PIN es del dispositivo: el estado local de PIN sobrevive a la restauración (los blobs
-    // nuevos ya no lo incluyen, pero un respaldo viejo podría traer el PIN de otro dispositivo).
-    const withLocalPin: Partial<AppState> = incoming.settings
-      ? { ...incoming, settings: { ...incoming.settings, pinEnabled: settings.pinEnabled, pinHash: settings.pinHash ?? null } }
-      : incoming
-    dispatch({ t: 'loadRemoteState', state: withLocalPin })
+    // ÚNICO predicado de resultado, el MISMO que usa el reducer: sanitizeImport + importHasData
+    // sobre el blob SANEADO. (El pre-check crudo de antes divergía: un blob cuyas entradas se
+    // descartan TODAS al sanear pasaba aquí, el reducer lo rechazaba, y el toast mentía éxito.)
+    if (!importHasData(sanitizeImport(incoming).state)) {
+      dispatch({ t: 'toast', msg: 'El respaldo en la nube está vacío — no se restauró (tus datos siguen intactos)' })
+      return
+    }
+    // Decisiones del DISPOSITIVO — PIN, consentimiento (activo + versión), respaldo en la nube y
+    // modo solo local — sobreviven a la restauración: un respaldo viejo no puede reactivar un
+    // consentimiento revocado ni re-encender las subidas (LFPDPPP: re-consentir es un acto explícito).
+    const withDeviceLocal: Partial<AppState> = {
+      ...incoming,
+      localOnly: state.localOnly,
+      settings: {
+        ...(incoming.settings ?? settings),
+        pinEnabled: settings.pinEnabled,
+        pinHash: settings.pinHash ?? null,
+        consentActive: settings.consentActive,
+        consentVersion: settings.consentVersion,
+        cloudSync: settings.cloudSync,
+      },
+    }
+    dispatch({ t: 'loadRemoteState', state: withDeviceLocal })
+    // Solo se estampa "última copia" en éxito real: el predicado de arriba es el mismo que aplica
+    // el reducer, que además es dueño del toast ('Restaurado desde la nube' / 'N omitidas') — aquí
+    // NO se toastea para no tapar el aviso de entradas descartadas.
     markCloudSyncedNow()
-    dispatch({ t: 'toast', msg: 'Restaurado desde la nube' })
   }
   const [showAliasSheet, setShowAliasSheet] = useState(false)
   const fileImportRef = useRef<HTMLInputElement>(null)
@@ -461,8 +507,13 @@ export function Ajustes({
     dispatch({ t: 'setSetting', key: 'summaryTime', value: e.target.value })
   }
 
-  function handleDeleteAccount() {
+  async function handleDeleteAccount() {
+    // Corta cualquier push debounced pendiente ANTES de borrar la nube (que no re-suba la fila recién borrada)
+    dispatch({ t: 'setSetting', key: 'cloudSync', value: false })
+    const { cloudError } = await purgeAccountData()
     dispatch({ t: 'arcoDelete' })
+    // El toast honesto va DESPUÉS de arcoDelete para no ser tapado por su 'Tus datos fueron borrados.'
+    if (cloudError) dispatch({ t: 'toast', msg: CLOUD_DELETE_FAILED_MSG })
     setShowDeleteConfirm(false)
     onClose()
   }
@@ -497,12 +548,9 @@ export function Ajustes({
             dispatch({ t: 'toast', msg: 'Archivo de respaldo inválido' })
             return
           }
-          // No reemplazar TODO con un respaldo vacío (estructura válida pero sin datos) → evita perder todo sin querer.
-          const hasData =
-            (Array.isArray(importedState.log) && importedState.log.length > 0) ||
-            Object.keys(importedState.protocols ?? {}).length > 0 ||
-            (Array.isArray(importedState.importedProducts) && importedState.importedProducts.length > 0)
-          if (!hasData) {
+          // No reemplazar TODO con un respaldo vacío (estructura válida pero sin datos) → evita perder
+          // todo sin querer. Mismo predicado compartido que el restore de nube, sobre el blob saneado.
+          if (!importHasData(sanitizeImport(importedState).state)) {
             dispatch({ t: 'toast', msg: 'El respaldo está vacío — no se importó (tus datos siguen intactos)' })
             return
           }

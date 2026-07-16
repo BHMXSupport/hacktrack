@@ -12,7 +12,7 @@ import { useModalStack } from '../ui/modalStack'
 import { Button } from '../ui/Button'
 import { useApp } from '../../lib/store'
 import { signOut } from '../../lib/backend/auth'
-import { CURRENT_CONSENT_VERSION } from './Ajustes'
+import { CURRENT_CONSENT_VERSION, purgeAccountData, CLOUD_DELETE_FAILED_MSG } from './Ajustes'
 
 // URL real del Aviso de Privacidad completo (página estática dentro de la PWA)
 const PRIVACY_URL = `${import.meta.env.BASE_URL}aviso-privacidad.html`
@@ -538,7 +538,7 @@ function RevocacionDialog({
                 <span className="text-[14px] font-medium text-foreground">Modo solo local</span>
                 <span className="text-[12px] text-muted-foreground">
                   {localOnly
-                    ? 'Activo — preferencia registrada'
+                    ? 'Activo — sin respaldo en la nube; tus datos se quedan en este dispositivo'
                     : 'Desactivado'}
                 </span>
               </span>
@@ -740,15 +740,15 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
   }
 
   // ── borrar cuenta (Cancelación ARCO) ─────────────────────────────────────
-  function handleDeleteAccount() {
-    // ARCO/Cancelación: arcoDelete resetea el estado, pero NO limpiaba las claves secundarias de localStorage
-    // (preferencias de unidad, vaso de agua, coach, último error, estado legado v1). Las borramos para no
-    // dejar residuos del usuario tras "borrar todos mis datos".
-    try {
-      ;['hacktrack:v1', 'hacktrack-glass-ml', 'hk_diario_coach', 'ht:lastError', 'ht:consentAcceptedAt'].forEach((k) => localStorage.removeItem(k))
-      Object.keys(localStorage).filter((k) => k.startsWith('ht_unit_')).forEach((k) => localStorage.removeItem(k))
-    } catch { /* modo privado / sin acceso a localStorage */ }
+  async function handleDeleteAccount() {
+    // Cancelación de verdad: purgeAccountData (compartido con Ajustes) borra PRIMERO la copia en la
+    // nube (user_state + push) si hay backend/sesión y luego las claves residuales de localStorage.
+    // Corta antes cualquier push debounced pendiente (que no re-suba la fila recién borrada).
+    dispatch({ t: 'setSetting', key: 'cloudSync', value: false })
+    const { cloudError } = await purgeAccountData()
     dispatch({ t: 'arcoDelete' })
+    // El toast honesto va DESPUÉS de arcoDelete para no ser tapado por su 'Tus datos fueron borrados.'
+    if (cloudError) dispatch({ t: 'toast', msg: CLOUD_DELETE_FAILED_MSG })
     setShowDeleteConfirm(false)
     onClose()
   }

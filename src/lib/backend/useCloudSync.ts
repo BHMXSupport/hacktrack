@@ -31,8 +31,10 @@ export function useCloudSync(state: AppState) {
   }, [])
 
   // Respaldo (push) del estado, debounced, cuando cloudSync está activo y hay sesión.
+  // localOnly es un guard INDEPENDIENTE de cloudSync: aunque un estado viejo/restaurado traiga
+  // cloudSync=true, "modo solo local" activo significa que nada sube — el switch no puede mentir.
   useEffect(() => {
-    if (!backendEnabled || !state.settings.cloudSync) return
+    if (!backendEnabled || !state.settings.cloudSync || state.localOnly) return
     const s = sessionRef.current
     if (!s) return
     window.clearTimeout(timer.current)

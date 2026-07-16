@@ -485,6 +485,22 @@ export function sanitizeImport(st: Partial<AppState>): { state: Partial<AppState
   return { state: out, dropped }
 }
 
+// Guard de "respaldo con datos": rechaza SOLO la fila hueca ('{}') — un respaldo válido puede tener
+// únicamente nutrición/hidratación (Comida), historial de medidas o biblioteca de alimentos, sin log
+// ni protocolos. ÚNICA fuente de verdad del predicado: la comparten el reducer (loadRemoteState) y
+// Ajustes (restore + import de archivo) para que no puedan divergir. Evaluar siempre sobre el blob
+// YA SANEADO por sanitizeImport (el crudo puede "tener datos" que el saneo descarta por completo).
+export function importHasData(st: Partial<AppState>): boolean {
+  return (
+    (Array.isArray(st.log) && st.log.length > 0) ||
+    Object.keys(st.protocols ?? {}).length > 0 ||
+    (Array.isArray(st.importedProducts) && st.importedProducts.length > 0) ||
+    Object.keys(st.nutrition ?? {}).length > 0 ||
+    Object.keys(st.history ?? {}).length > 0 ||
+    (Array.isArray(st.foodLibrary) && st.foodLibrary.length > 0)
+  )
+}
+
 // ── reducer ──────────────────────────────────────────────────────────────────
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.t) {
@@ -537,7 +553,12 @@ export function reducer(s: AppState, a: Action): AppState {
       }
     }
     case 'setLocalOnly':
-      return { ...s, localOnly: a.value }
+      // Modo solo local y respaldo en la nube son excluyentes: activarlo APAGA cloudSync de verdad
+      // (useCloudSync además lo respeta como guard) — el switch no puede decir "solo local" y seguir
+      // subiendo. Desactivarlo NO re-enciende el respaldo: eso es un opt-in explícito en Ajustes.
+      return a.value
+        ? { ...s, localOnly: true, settings: { ...s.settings, cloudSync: false } }
+        : { ...s, localOnly: false }
     case 'finishOnboarding':
       return { ...s, justOnboarded: true, screen: 's-app', tab: 'inicio' }
     case 'seenWelcome':
@@ -1123,6 +1144,11 @@ export function reducer(s: AppState, a: Action): AppState {
     }
 
     case 'setSetting':
+      // Simetría con setLocalOnly: optar por el respaldo en la nube desactiva el modo solo local
+      // (la decisión explícita más reciente gana; nunca quedan ambos activos con la UI mintiendo).
+      if (a.key === 'cloudSync' && a.value === true) {
+        return { ...s, localOnly: false, settings: { ...s.settings, cloudSync: true } }
+      }
       return { ...s, settings: { ...s.settings, [a.key]: a.value } }
     case 'setThemeMode': {
       // 'light'/'dark' derivan darkMode para compat con código que aún lee settings.darkMode
@@ -1273,12 +1299,10 @@ export function reducer(s: AppState, a: Action): AppState {
       // Restaurar desde la nube: MISMAS defensas que el import de archivo (#F4/#46) — sanea entradas
       // inválidas y rechaza blobs vacíos (una fila '{}' en la nube no debe borrar lo local). El pinHash
       // no se toca aquí: el push ya lo excluye y el restore lo re-inyecta local río arriba (Ajustes).
+      // El reducer es DUEÑO del toast de resultado (éxito limpio / N omitidas / vacío): Ajustes no
+      // debe re-toastear encima, o taparía el aviso de entradas descartadas.
       const { state: clean, dropped } = sanitizeImport(a.state)
-      const hasData =
-        (Array.isArray(clean.log) && clean.log.length > 0) ||
-        Object.keys(clean.protocols ?? {}).length > 0 ||
-        (Array.isArray(clean.importedProducts) && clean.importedProducts.length > 0)
-      if (!hasData) return { ...s, toast: 'El respaldo en la nube está vacío — no se aplicó' }
+      if (!importHasData(clean)) return { ...s, toast: 'El respaldo en la nube está vacío — no se aplicó' }
       // Fusiona el blob saneado sobre los defaults y rehidrata (misma ruta que loadState del provider
       // → tan seguro como la carga inicial). Conserva 'hoy' y descarta lo efímero.
       const merged = {
@@ -1286,7 +1310,7 @@ export function reducer(s: AppState, a: Action): AppState {
         ...clean,
         sheet: null,
         sheetArg: null,
-        toast: dropped > 0 ? `Restaurado · ${dropped} entrada(s) inválida(s) omitida(s)` : null,
+        toast: dropped > 0 ? `Restaurado · ${dropped} entrada(s) inválida(s) omitida(s)` : 'Restaurado desde la nube',
         toastUndoId: null,
         deletedLogBuffer: null,
         todayTs: s.todayTs,

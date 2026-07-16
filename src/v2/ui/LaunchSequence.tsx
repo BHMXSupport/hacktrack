@@ -67,7 +67,8 @@ export function LaunchSequence() {
       reveal()
     }
     let cap = 0
-    if (v && v.readyState >= 4) onReady()
+    // v.error cubre el fallo que ya ocurrió ANTES de enganchar listeners (el 'error' no se re-emite).
+    if (v && (v.readyState >= 4 || v.error)) onReady()
     else if (v) {
       v.addEventListener('canplaythrough', onReady)
       v.addEventListener('error', onReady)
@@ -87,19 +88,33 @@ export function LaunchSequence() {
   }, [phase, reduce])
 
   // Fade-in del video al estar realmente en marcha + cierre al terminar (8s completos).
+  // 'error' en fase 'playing' cierra como si hubiera terminado: un media roto jamás emite 'ended'.
+  // (En 'gate'/'loading' NO cierra: ahí el flujo error→onReady→rescate ya avanza solo.)
   useEffect(() => {
     if (reduce) return
     const v = vidRef.current
     if (!v) return
     const onPlaying = () => setVideoVisible(true)
     const onEnded = () => setPhase('done')
+    const onError = () => setPhase((p) => (p === 'playing' ? 'done' : p))
     v.addEventListener('playing', onPlaying)
     v.addEventListener('ended', onEnded)
+    v.addEventListener('error', onError)
     return () => {
       v.removeEventListener('playing', onPlaying)
       v.removeEventListener('ended', onEnded)
+      v.removeEventListener('error', onError)
     }
   }, [reduce])
+
+  // Escape independiente de 'ended': un fallo de media (Range/206 en iOS, códec, red) NUNCA puede
+  // dejar colgado el gate. Sin 'playing' en 4s → cerrar; con el video ya corriendo, tope duro de
+  // duración + margen (8s de warp + 2.5s) por si 'ended' no llega (p.ej. congelado en Bajo Consumo).
+  useEffect(() => {
+    if (reduce || phase !== 'playing') return
+    const t = window.setTimeout(() => setPhase('done'), videoVisible ? 10500 : 4000)
+    return () => window.clearTimeout(t)
+  }, [reduce, phase, videoVisible])
 
   // reduce-motion: sin video → cierra rápido tras revelar.
   useEffect(() => {

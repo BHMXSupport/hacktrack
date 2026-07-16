@@ -11,11 +11,13 @@
 //     hilo principal en notifications.ts sigue siendo la entrega primaria; mismo tag → no duplica).
 //  5. push / notificationclick para el push real del backend (supabase/functions/push-scheduler).
 
-import { clientsClaim } from 'workbox-core'
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching'
+import { clientsClaim, cacheNames } from 'workbox-core'
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL, getCacheKeyForURL } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { StaleWhileRevalidate, CacheFirst, NetworkOnly } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
+import { createPartialResponse } from 'workbox-range-requests'
+import { selectClient } from './lib/sw-clients'
 
 declare let self: ServiceWorkerGlobalScope
 
@@ -23,6 +25,25 @@ declare let self: ServiceWorkerGlobalScope
 // así ningún cliente queda pidiendo chunks viejos ya purgados del precache.
 self.skipWaiting()
 clientsClaim()
+
+// ── Media con Range → 206 desde el precache (iOS) ────────────────────────────────────────────────
+// WebKit pide media SIEMPRE con `Range: bytes=…` y RECHAZA una respuesta no-206 del SW: el <video>
+// dispara 'error' y jamás 'ended' (Chrome sintetiza el 206, Safari no). El precache de workbox
+// responde 200 completo, así que sin esta ruta los mp4 precacheados brickean el gate de arranque
+// en iOS. Registrada ANTES de precacheAndRoute para ganarle el match (el Router usa la primera
+// ruta que matchea). Matchea destination 'video' (elementos <video>) y cualquier request
+// same-origin con header Range; sin entrada en precache cae a red (GitHub Pages sí da 206 nativo).
+registerRoute(
+  ({ request, url }) =>
+    url.origin === self.location.origin &&
+    (request.destination === 'video' || request.headers.has('range')),
+  async ({ request }) => {
+    const cacheKey = getCacheKeyForURL(request.url)
+    const cached = cacheKey ? await (await caches.open(cacheNames.precache)).match(cacheKey) : undefined
+    if (!cached) return fetch(request)
+    return request.headers.has('range') ? createPartialResponse(request, cached) : cached
+  },
+)
 
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
@@ -163,13 +184,16 @@ self.addEventListener('notificationclick', (event) => {
   const url = goto ? base + '?goto=' + encodeURIComponent(goto) : base
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
-      const existing = wins.find((c) => c.url.startsWith(self.location.origin)) as WindowClient | undefined
+      // SOLO clientes del app shell (scope + fuera del denylist): matchAll devuelve TODO el origen
+      // (aviso-privacidad.html, /promo/, otros proyectos de Pages) y enfocar una de esas pestañas
+      // tragaba el NOTIF_GOTO sin listener y dejaba el openWindow inalcanzable.
+      const existing = selectClient(wins as readonly WindowClient[], self.registration.scope)
       if (existing) {
         // App ya abierta: enfoca y avísale el destino por postMessage (provider.tsx escucha NOTIF_GOTO).
         if (goto) existing.postMessage({ type: 'NOTIF_GOTO', goto })
         return existing.focus()
       }
-      return self.clients.openWindow(url) // app cerrada: abre con ?goto= y la app lo lee al cargar
+      return self.clients.openWindow(url) // sin cliente del app shell: abre con ?goto= y la app lo lee al cargar
     }),
   )
 })

@@ -50,6 +50,14 @@ function markPushFailed(): void {
   emitSyncStatus()
 }
 
+/** Olvida el estado de sync del dispositivo (última copia + fallo pendiente) — al borrar la cuenta,
+ *  un sello de "Última copia" viejo sería un residuo del usuario borrado. */
+export function clearSyncStatus(): void {
+  try { window.localStorage.removeItem(LAST_SYNC_KEY) } catch { /* localStorage bloqueado */ }
+  lastPushFailed = false
+  emitSyncStatus()
+}
+
 // ── Errores → es-MX (toasts honestos, sin jerga de Postgres) ──
 function mapSyncError(msg: string): string {
   const m = (msg || '').toLowerCase()
@@ -102,6 +110,29 @@ function stripDeviceOnlyFields(blob: Record<string, unknown>): Record<string, un
     return { ...blob, settings: rest }
   }
   return blob
+}
+
+// ── Delete (Cancelación ARCO) ──
+// "Eliminar mis datos" debe alcanzar también la nube: fila user_state (historial completo de salud)
+// y TODAS las suscripciones push del usuario (si quedan, el push-scheduler seguiría mandando
+// recordatorios a una cuenta "borrada"). Resultado tipado como pullRemote: el caller distingue
+// éxito de fallo para avisar honesto (nunca "todo borrado" si la nube conserva una copia).
+export type DeleteResult = { ok: true } | { ok: false; error: string }
+
+/** Borra la copia remota del usuario: fila user_state + push_subscriptions. Devuelve resultado tipado. */
+export async function deleteRemote(userId: string): Promise<DeleteResult> {
+  if (!backendEnabled) return { ok: false, error: 'La nube no está configurada en esta versión.' }
+  const sb = await getSupabase()
+  if (!sb) return { ok: false, error: 'La nube no está disponible ahora. Inténtalo de nuevo.' }
+  try {
+    const st = await sb.from('user_state').delete().eq('user_id', userId)
+    if (st.error) return { ok: false, error: mapSyncError(st.error.message) }
+    const ps = await sb.from('push_subscriptions').delete().eq('user_id', userId)
+    if (ps.error) return { ok: false, error: mapSyncError(ps.error.message) }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: mapSyncError(e instanceof Error ? e.message : String(e)) }
+  }
 }
 
 /** Sube (upsert) el estado local del usuario, marcando updated_at = ahora. Devuelve ok. */

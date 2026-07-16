@@ -51,15 +51,21 @@ step() { printf '\n\033[1;36m══ %s\033[0m\n' "$*"; }
 info() { printf '   %s\n' "$*"; }
 die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
-mapi() { # mapi METHOD PATH [JSON_BODY] — llamada a la Management API
+# El token NUNCA viaja en argv (ps lo expone a cualquier usuario local mientras corre curl):
+# curl lo lee de un config file 600 dentro de un mktemp -d propio, borrado al salir (trap EXIT).
+# El body JSON va por stdin por la misma razón (el de creación de proyecto lleva la password de BD).
+CURL_AUTH=""
+_cleanup_auth() { [ -n "$CURL_AUTH" ] && rm -rf "$(dirname "$CURL_AUTH")"; }
+trap _cleanup_auth EXIT
+
+mapi() { # mapi METHOD PATH [JSON_BODY] — llamada a la Management API (token via --config, body via stdin)
   local method="$1" path="$2" body="${3:-}"
   if [ -n "$body" ]; then
-    curl -sS -f -X "$method" "$API$path" \
-      -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" -d "$body"
+    printf '%s' "$body" | curl -sS -f -X "$method" "$API$path" \
+      --config "$CURL_AUTH" \
+      -H "Content-Type: application/json" --data-binary @-
   else
-    curl -sS -f -X "$method" "$API$path" \
-      -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
+    curl -sS -f -X "$method" "$API$path" --config "$CURL_AUTH"
   fi
 }
 
@@ -73,6 +79,10 @@ command -v npx  >/dev/null || die "Falta npx (npm)."
 [ -f "$VAPID_FILE" ] || die "Falta $VAPID_FILE ({\"publicKey\":\"base64url\",\"privateKey\":\"base64url\"})."
 [ -f "$REPO_ROOT/supabase/migrations/0001_init.sql" ] || die "No encuentro las migraciones (¿repo correcto?)."
 export SUPABASE_ACCESS_TOKEN
+CURL_AUTH="$(mktemp -d)/auth.conf"
+umask 077
+printf 'header = "Authorization: Bearer %s"\n' "$SUPABASE_ACCESS_TOKEN" > "$CURL_AUTH"
+umask 022
 info "CLI: $(npx supabase --version 2>/dev/null || echo '?') · repo: $REPO_ROOT"
 
 # ── 1. Proyecto: reusar por ref, reusar por nombre, o crear ───────────────────
@@ -96,8 +106,9 @@ if [ -z "$REF" ]; then
   fi
   DB_PASS="${SUPABASE_DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)}"
   info "Creando proyecto '$PROJECT_NAME' en $REGION…"
-  REF="$(mapi POST /projects "$(jq -n --arg n "$PROJECT_NAME" --arg o "$SUPABASE_ORG_ID" --arg r "$REGION" --arg p "$DB_PASS" \
-        '{name:$n, organization_id:$o, region:$r, db_pass:$p}')" | jq -r '.id')"
+  # La password entra a jq por ENV (env.DB_PASS), no por --arg: los argv son visibles en ps.
+  REF="$(mapi POST /projects "$(DB_PASS="$DB_PASS" jq -n --arg n "$PROJECT_NAME" --arg o "$SUPABASE_ORG_ID" --arg r "$REGION" \
+        '{name:$n, organization_id:$o, region:$r, db_pass:env.DB_PASS}')" | jq -r '.id')"
   [ -n "$REF" ] && [ "$REF" != "null" ] || die "La creación del proyecto no devolvió ref."
   umask 077 && printf '%s\n' "$DB_PASS" > "$REPO_ROOT/.secrets/supabase-db-password" && umask 022
   export SUPABASE_DB_PASSWORD="$DB_PASS"
@@ -188,7 +199,36 @@ cat > "$CRON_SQL" <<SQL
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
-alter database postgres set app.service_role_key = '${SERVICE_KEY:-<PEGA_AQUI_LA_SERVICE_ROLE_KEY>}';
+-- La service key vive CIFRADA en Supabase Vault — NUNCA como GUC a nivel de base de datos:
+-- un 'alter database … set' la haría legible por CUALQUIER SQL del proyecto via current_setting()
+-- (p.ej. un RPC futuro expuesto al rol authenticated = key que salta RLS en manos de un usuario).
+-- Idempotente: si el secreto ya existe, lo actualiza.
+do \$\$
+declare
+  sid uuid;
+begin
+  select id into sid from vault.secrets where name = 'push_scheduler_service_key';
+  if sid is null then
+    perform vault.create_secret(
+      '${SERVICE_KEY:-<PEGA_AQUI_LA_SERVICE_ROLE_KEY>}',
+      'push_scheduler_service_key',
+      'service_role key para el cron de push-scheduler (activate-cloud.sh)'
+    );
+  else
+    perform vault.update_secret(sid, '${SERVICE_KEY:-<PEGA_AQUI_LA_SERVICE_ROLE_KEY>}');
+  end if;
+end
+\$\$;
+
+-- Limpia el GUC inseguro que generaban versiones previas de este SQL (best-effort: no-op si nunca
+-- se aplicó o si el rol no puede tocar parámetros de la base, como en el stack local).
+do \$\$
+begin
+  execute 'alter database postgres reset app.service_role_key';
+exception when insufficient_privilege or undefined_object then
+  null;
+end
+\$\$;
 
 select cron.schedule(
   'push-scheduler-every-15m',
@@ -198,12 +238,18 @@ select cron.schedule(
     url     := '$PROJECT_URL/functions/v1/push-scheduler',
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'push_scheduler_service_key')
     ),
     body    := '{}'::jsonb
   );
   \$\$
 );
+
+-- FALLBACK (solo si Vault no está disponible en el proyecto): setting a nivel del ROL que corre
+-- el cron (postgres en el SQL editor) — jamás a nivel de base de datos:
+--   alter role postgres set app.service_role_key = '<service_role_key>';
+--   -- y en el body del cron, sustituir el subselect de Vault por:
+--   --   current_setting('app.service_role_key', true)
 SQL
 umask 022
 info "SQL generado en .secrets/push-cron.sql (gitignored)."
