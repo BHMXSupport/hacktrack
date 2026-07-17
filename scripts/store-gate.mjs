@@ -120,9 +120,9 @@ function whitelisted(rel, ctx) {
 
 // ── Marcadores de DCE (deben existir en la base y NO en tienda) ────────────────
 const DCE_MARKERS = [
-  { label: 'ImportSheet: encabezado de compras', text: 'Tus compras en BiohackMX' },
-  { label: 'ImportSheet: CTA de conexión',        text: 'Conectar con BiohackMX' },
-  { label: 'InstallGate: copy "sin tienda"',      text: 'sin tienda y siempre a la mano' },
+  { label: 'ImportSheet: título del picker manual', text: 'Agrega tus productos' },
+  { label: 'ImportSheet: subtítulo del picker',      text: 'Elige los que registras' },
+  { label: 'InstallGate: copy "sin tienda"',         text: 'sin tienda y siempre a la mano' },
 ]
 // Textos/patrones que SOLO el binario de tienda debe contener (`re` o `text`).
 // rachaLabel se pliega en compilación: en tienda queda `(a="racha"){return`${a} de registro`}`

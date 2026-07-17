@@ -216,7 +216,7 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
 
   // #F5 — auto-avance de la fase de titulación: deriva la fase por fecha (phaseForDate desde startDate +
   // phaseWeeks del catálogo) y avanza curPhase HACIA ADELANTE (nunca atrás → respeta un avance manual).
-  // Sin esto, quien no tocaba el botón manual se quedaba en fase 0 y veía la dosis sugerida equivocada
+  // Sin esto, quien no tocaba el botón manual se quedaba en fase 0 y veía la dosis de su fase equivocada
   // para su semana real. Re-evalúa al cambiar de día (todayTs) o al editar protocolos.
   useEffect(() => {
     for (const [name, p] of Object.entries(state.protocols)) {

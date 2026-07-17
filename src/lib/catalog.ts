@@ -342,18 +342,6 @@ export const DISCLAIMER = {
   proto:   'Esto describe un ritmo general. Tú confirmas y ajustas lo que TÚ haces. No es consejo médico.',
 } as const
 
-// Compras del usuario en BiohackMX (mock — en real vendría del OAuth/cuenta BiohackMX).
-// El usuario elige de SUS compras cuáles está usando y quiere trackear.
-export interface BiohackmxPurchase { product: string; orderId: string; date: string }
-export const MOCK_BIOHACKMX_PURCHASES: BiohackmxPurchase[] = [
-  { product: 'Retatrutide', orderId: 'BMX-1042', date: '12 may 2026' },
-  { product: 'BPC-157',     orderId: 'BMX-1042', date: '12 may 2026' },
-  { product: 'GLOW 70',     orderId: 'BMX-0988', date: '28 abr 2026' },
-  { product: 'NAD+',        orderId: 'BMX-0988', date: '28 abr 2026' },
-  { product: 'TB-500',      orderId: 'BMX-0951', date: '3 abr 2026' },
-  { product: 'Semax',       orderId: 'BMX-0951', date: '3 abr 2026' },
-]
-
 // Objetivos (pantalla de selección) — SIN producto asociado (P0-4)
 export interface GoalOption { label: string; sub: string; cat: Category }
 export const GOALS: GoalOption[] = [

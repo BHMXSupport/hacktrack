@@ -11,6 +11,7 @@
     "remotion": "remotion studio src/remotion/Root.tsx",
     "test": "vitest run",
     "gate:store": "node scripts/store-gate.mjs",
+    "gate:dosing": "node scripts/no-dosing-gate.mjs",
     "build:store": "tsc && VITE_STORE_BUILD=1 vite build --outDir dist-store-cap && rm -rf dist-store-cap/promo",
     "cap:sync": "npm run build:store && cap sync",
     "metrics": "node scripts/metrics.mjs",

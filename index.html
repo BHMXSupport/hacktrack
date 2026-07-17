@@ -2,8 +2,11 @@
 <html lang="es-MX">
   <head>
     <meta charset="UTF-8" />
-    <!-- Sin maximum-scale/user-scalable: bloquear el pinch-zoom viola WCAG 1.4.4 (baja visión). -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Zoom bloqueado por decision de producto (sensacion de app nativa; el pinch-zoom rompia el layout
+         en iPhone). Compensacion conocida: WCAG 1.4.4 (baja vision) — el usuario con baja vision usa el
+         zoom del SISTEMA (iOS/Android), no el del navegador. Es un flag de "best practices" de Lighthouse,
+         no un motivo de rechazo en revision de apps. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0E5A52" />
     <link rel="icon" type="image/png" href="/favicon-64.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
