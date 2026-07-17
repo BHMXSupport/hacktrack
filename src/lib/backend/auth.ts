@@ -20,11 +20,21 @@ function mapAuthError(msg: string): string {
   return 'No se pudo completar. Inténtalo de nuevo.'
 }
 
+// URL de retorno = origen + base ('/hacktrack/' en prod). Debe estar en el allow-list del proyecto.
+// Sin esto, el correo de confirmación redirige al ORIGEN pelón (raíz) → 404 (la app vive en /hacktrack/).
+function appRedirectUrl(): string | undefined {
+  return typeof window !== 'undefined' ? `${window.location.origin}${import.meta.env.BASE_URL}` : undefined
+}
+
 export async function signUp(email: string, password: string): Promise<AuthOutcome> {
   if (!backendEnabled) return { ok: true, mock: true }
   const sb = await getSupabase()
   if (!sb) return { ok: true, mock: true }
-  const { error } = await sb.auth.signUp({ email: email.trim(), password })
+  const { error } = await sb.auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: appRedirectUrl() },
+  })
   return error ? { ok: false, error: mapAuthError(error.message) } : { ok: true }
 }
 
@@ -40,8 +50,7 @@ export async function resetPassword(email: string): Promise<AuthOutcome> {
   if (!backendEnabled) return { ok: true, mock: true }
   const sb = await getSupabase()
   if (!sb) return { ok: true, mock: true }
-  const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}${import.meta.env.BASE_URL}` : undefined
-  const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo })
+  const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: appRedirectUrl() })
   return error ? { ok: false, error: mapAuthError(error.message) } : { ok: true }
 }
 
