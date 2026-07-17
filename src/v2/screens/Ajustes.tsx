@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
-  Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator,
+  Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator, CreditCard,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
 import { useModalStack } from '../ui/modalStack'
@@ -1295,7 +1295,29 @@ export function Ajustes({
             </RowCard>
           </section>
 
-          {/* ── CUENTA ────────────────────────────────────────────────────── */}
+          {/* ── PLAN Y FACTURACIÓN ────────────────────────────────────────── */}
+          <section>
+            <SectionLabel>Plan y facturación</SectionLabel>
+            <RowCard>
+              {/* Estado de plan — HONESTO: durante la beta no hay cargos ni suscripción, así que no
+                  hay panel de facturación (mostrar "próximo cargo" sería inventar un dato falso).
+                  Cuando exista pago real (MercadoPago), esta fila se expande a: método de pago,
+                  próximo cargo, historial y CANCELAR — requisito legal (Profeco: cancelar debe ser
+                  tan fácil como suscribirse). Spec en el handoff de Auth & Backend, épica C. */}
+              <Row>
+                <CreditCard size={18} className="shrink-0 text-teal" />
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[14px] font-medium text-foreground">Gratis durante la beta</span>
+                  <span className="text-[12px] text-muted-foreground">
+                    No tienes cargos ni suscripciones activas. Si Hacktrack Plus llega a tener costo, te
+                    avisaremos aquí antes de cualquier cobro y podrás cancelar cuando quieras.
+                  </span>
+                </span>
+              </Row>
+            </RowCard>
+          </section>
+
+          {/* ── CUENTA ─────────────────────────────────────────────────────── */}
           <section>
             <SectionLabel>Cuenta</SectionLabel>
             <RowCard>
