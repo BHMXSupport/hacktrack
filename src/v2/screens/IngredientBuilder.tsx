@@ -1,5 +1,6 @@
-// IngredientBuilder — arma un platillo desde ingredientes (g/ml) y guarda totales. (v2)
-// Reusa el RAW DATA de ingredientes del catálogo (INGREDIENTS); diseño nuevo del rebuild.
+// IngredientBuilder — arma un platillo desde ingredientes (g/ml) y guarda totales.
+// Vestido "Bitácora": pozos cálidos + hairline, readouts mono en tinta, total serif ámbar
+// sobre placa de instrumento. Reusa el RAW DATA de ingredientes del catálogo (INGREDIENTS).
 import { useMemo, useState } from 'react'
 import { Search, Plus, Minus, X, Check } from 'lucide-react'
 import { useApp } from '../../lib/store'
@@ -12,6 +13,9 @@ const QUICK = ['Tofu firme', 'Arroz blanco cocido', 'Lentejas cocidas', 'Brócol
   .filter((n) => ING_MAP.has(n))
 
 const r0 = (n: number) => Math.round(n)
+
+// Foco azul vía color-mix (el alfa sobre var(--x) no se emite en este setup).
+const FOCUS_RING = 'focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--blue)_45%,transparent)]'
 
 export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
   const { dispatch } = useApp()
@@ -82,28 +86,28 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
     <div className="flex flex-col gap-4">
       {/* Buscar ingrediente */}
       <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" aria-hidden />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Agregar ingrediente (pollo, arroz…)"
-          className="h-11 w-full rounded-lg border border-white/10 bg-raised pl-9 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+          className={`h-11 w-full rounded-[8px] border border-hairline bg-raised pl-9 pr-3 text-[15px] text-ink placeholder:text-ink-3 ${FOCUS_RING}`}
         />
       </div>
 
-      {/* Resultados de búsqueda */}
+      {/* Resultados de búsqueda — columna impresa con reglas hairline */}
       {results.length > 0 && (
-        <div className="flex flex-col overflow-hidden rounded-lg border border-white/10 bg-raised">
+        <div className="flex flex-col overflow-hidden rounded-[8px] border border-hairline bg-surface">
           {results.map((ing) => (
             <button
               key={ing.name}
               type="button"
               onClick={() => addIng(ing.name)}
-              className="flex min-h-[44px] items-center justify-between gap-3 border-b border-white/[0.06] px-3 py-2 text-left last:border-0 hover:bg-white/5"
+              className="flex min-h-[44px] items-center justify-between gap-3 border-b border-hairline px-3 py-2 text-left last:border-0 transition-colors hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             >
-              <span className="truncate text-[14px] text-foreground">{ing.name}</span>
-              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+              <span className="truncate text-[14px] text-ink">{ing.name}</span>
+              <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-3">
                 {ing.kcal} kcal · P {ing.protein}/{ing.per}{ing.unit}
               </span>
             </button>
@@ -114,14 +118,14 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
       {/* Chips rápidos cuando no hay filas */}
       {rows.length === 0 && results.length === 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-[12px] text-muted-foreground">Empieza agregando un ingrediente:</p>
+          <p className="text-[13px] text-ink-2">Empieza agregando un ingrediente:</p>
           <div className="flex flex-wrap gap-2">
             {QUICK.map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => addIng(n)}
-                className="inline-flex min-h-[36px] items-center gap-1 rounded-full border border-white/12 bg-white/5 px-3 text-[12px] font-semibold text-secondary-foreground hover:bg-white/10"
+                className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-hairline bg-surface px-3.5 font-mono text-[12px] font-medium text-ink-2 transition-colors hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <Plus size={12} /> {n}
               </button>
@@ -138,14 +142,14 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
             const f = row.grams / ing.per
             const rowKcal = r0(ing.kcal * f)
             return (
-              <div key={row.name} className="flex items-center gap-2 rounded-xl border border-white/8 bg-raised px-3 py-2">
+              <div key={row.name} className="flex items-center gap-2 rounded-sm border border-hairline bg-raised px-3 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-medium text-foreground">{ing.name}</p>
-                  <p className="font-mono text-[11px] text-[var(--teal-bright)]">{rowKcal} kcal</p>
+                  <p className="truncate text-[14px] font-medium text-ink">{ing.name}</p>
+                  <p className="font-mono text-[12px] tabular-nums text-ink-2">{rowKcal} kcal</p>
                 </div>
-                {/* Stepper de gramos */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button type="button" aria-label="−5g" disabled={row.grams <= 5} onClick={() => setGrams(row.name, row.grams - 5)} className="grid h-9 w-9 place-items-center rounded-full border border-white/12 text-secondary-foreground active:scale-95 disabled:opacity-40">
+                {/* Stepper de gramos (targets 44px) */}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button type="button" aria-label="−5g" disabled={row.grams <= 5} onClick={() => setGrams(row.name, row.grams - 5)} className="grid h-11 w-11 place-items-center rounded-full border border-hairline bg-surface text-ink-2 active:scale-95 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                     <Minus size={14} />
                   </button>
                   <input
@@ -157,14 +161,14 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
                       const v = e.target.value.replace(/[^\d]/g, '')
                       setGrams(row.name, v === '' ? 0 : parseInt(v, 10))
                     }}
-                    className="h-9 w-12 rounded-md border border-white/10 bg-void text-center font-mono text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                    className={`h-11 w-12 rounded-[8px] border border-hairline bg-surface text-center font-mono text-[13px] tabular-nums text-ink ${FOCUS_RING}`}
                   />
-                  <span className="text-[11px] text-muted-foreground">{ing.unit}</span>
-                  <button type="button" aria-label="+5g" onClick={() => setGrams(row.name, row.grams + 5)} className="grid h-9 w-9 place-items-center rounded-full border border-white/12 text-secondary-foreground active:scale-95">
+                  <span className="font-mono text-[11px] text-ink-3">{ing.unit}</span>
+                  <button type="button" aria-label="+5g" onClick={() => setGrams(row.name, row.grams + 5)} className="grid h-11 w-11 place-items-center rounded-full border border-hairline bg-surface text-ink-2 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                     <Plus size={14} />
                   </button>
                 </div>
-                <button type="button" aria-label={`Quitar ${ing.name}`} onClick={() => removeRow(row.name)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-alert">
+                <button type="button" aria-label={`Quitar ${ing.name}`} onClick={() => removeRow(row.name)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                   <X size={16} />
                 </button>
               </div>
@@ -173,17 +177,19 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
         </div>
       )}
 
-      {/* Totales */}
+      {/* Totales — placa de instrumento, numeral serif ámbar (energía) */}
       {rows.length > 0 && (
         <DataPlate className="flex flex-col gap-2 px-4 py-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-[12px] uppercase tracking-wider text-muted-foreground">Total</span>
-            <span className="font-mono text-[24px] font-bold tabular-nums text-[var(--teal-bright)]">{r0(totals.kcal)} <span className="text-[13px] font-normal text-muted-foreground">kcal</span></span>
+            <span className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] opacity-70">Total</span>
+            <span className="font-serif text-[28px] font-normal tabular-nums text-amber">
+              {r0(totals.kcal)} <span className="font-mono text-[13px] font-normal text-[#F2EDE3] opacity-60">kcal</span>
+            </span>
           </div>
-          <div className="flex gap-4 font-mono text-[12px]">
-            <span style={{ color: 'var(--teal-bright)' }}>P {r0(totals.protein)} g</span>
-            <span style={{ color: '#D97706' }}>C {r0(totals.carbs)} g</span>
-            <span style={{ color: '#6B7BE8' }}>G {r0(totals.fat)} g</span>
+          <div className="flex gap-4 font-mono text-[12px] tabular-nums opacity-80">
+            <span>P {r0(totals.protein)} g</span>
+            <span>C {r0(totals.carbs)} g</span>
+            <span>G {r0(totals.fat)} g</span>
           </div>
         </DataPlate>
       )}
@@ -191,7 +197,7 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
       {/* Nombre del platillo */}
       {rows.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="ib-name" className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Nombre del platillo</label>
+          <label htmlFor="ib-name" className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2">Nombre del platillo</label>
           <input
             id="ib-name"
             type="text"
@@ -199,7 +205,7 @@ export function IngredientBuilder({ onSaved, onCancel }: { onSaved: () => void; 
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={autoName}
-            className="h-11 rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+            className={`h-11 rounded-[8px] border border-hairline bg-raised px-3 text-[15px] text-ink placeholder:text-ink-3 ${FOCUS_RING}`}
           />
         </div>
       )}

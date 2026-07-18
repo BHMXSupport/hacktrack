@@ -1,14 +1,15 @@
-// Semana — resumen semanal (rebuild v2)
-// Sigue el design system "Precision × Accessible" v2:
-//  - Glass para contenido/analítica
-//  - bg-raised para médico-operativo (hidratación, alertas)
-//  - Ring para adherencia, DataPlate para números críticos
-//  - Motion: solo transform/opacity, stagger, reduced-motion aware
-//  - es-MX, sin claims médicos, tap targets ≥44px
+// Semana — resumen semanal, restyle "Bitácora" (LOCKED 2026-07-17).
+// Sistema editorial papel-y-tinta: §-folios por sección, numerales serif (StatNumber),
+// anillo ámbar de instrumento (racha integral / adherencia), barras editoriales
+// (azul = datos, ámbar = energía), jerga con tap-explain (TermInfo).
+// Overhaul ESTÉTICO: derivaciones, dispatches y copy de cumplimiento intactos.
 //
 // R42: tarjeta proyección de meta (SVG inline + ETA)
 // R43: gate "Completar perfil" inline si falta edad/sexo/actividad
 // R45: PremiumGate envuelve features avanzadas
+//
+// `embedded`: Diario la aloja tras su segmentado "Registro | Semana" — sin masthead
+// ni padding propios (los pone el anfitrión). Como pantalla propia (AppV2) no cambia.
 import { useMemo, useCallback, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
@@ -27,7 +28,6 @@ import {
   Activity,
 } from 'lucide-react'
 import { SectionHero } from '../ui/SectionHero'
-import { HEROES } from '../lib/heroes'
 import { useApp, adherence, isoKey } from '../../lib/store'
 import { weekAdherencePct } from '../../lib/calendar'
 import { startOfDay } from '../../lib/cadence'
@@ -49,13 +49,23 @@ import { Glass } from '../ui/Glass'
 import { Ring } from '../ui/Ring'
 import { DataPlate } from '../ui/DataPlate'
 import { Button } from '../ui/Button'
-import { staggerItem } from '../../lib/motion'
+import { Chip } from '../ui/Chip'
+import { FolioLabel } from '../ui/FolioLabel'
+import { TermInfo } from '../ui/TermInfo'
+import { StatNumber } from '../ui/StatNumber'
+import { staggerContainer, staggerItem } from '../lib/motion'
 import type { Actividad, Sexo } from '../../lib/types'
 
 // ── Helpers de formato ───────────────────────────────────────────────────────
 function fmtDate(ts: number) {
   return new Date(ts).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+// ── Clases compartidas (Bitácora) ────────────────────────────────────────────
+// Alfa sobre var() no se emite en este setup (ver Button.tsx) → tintes con color-mix
+// en clases arbitrarias LITERALES (el JIT necesita verlas escritas).
+const MONO_LABEL = 'font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2'
+const INPUT_CLS = 'h-12 w-full rounded-[8px] border border-hairline bg-raised px-3 font-mono text-[15px] tabular-nums text-ink placeholder:text-ink-3 focus:outline-none focus:border-blue'
 
 // ── Clasificación visual de señales ─────────────────────────────────────────
 type InsightType = 'logro' | 'alerta' | 'info'
@@ -82,26 +92,27 @@ function classifyInsight(text: string): InsightType {
   return 'info'
 }
 
+// Estado nunca color-solo: ícono (forma) + texto + color.
 const INSIGHT_ICON: Record<InsightType, React.ReactNode> = {
   logro: <Star size={14} className="shrink-0 mt-0.5" />,
   alerta: <AlertTriangle size={14} className="shrink-0 mt-0.5" />,
   info: <Info size={14} className="shrink-0 mt-0.5" />,
 }
 const INSIGHT_COL: Record<InsightType, string> = {
-  logro: 'text-teal',
+  logro: 'text-ok',
   alerta: 'text-warn',
-  info: 'text-secondary-foreground',
+  info: 'text-ink-2',
 }
 const INSIGHT_BG: Record<InsightType, string> = {
-  logro: 'bg-teal/8',
-  alerta: 'bg-warn/10',
-  info: 'bg-white/4',
+  logro: 'bg-[color-mix(in_srgb,var(--ok)_10%,transparent)]',
+  alerta: 'bg-[color-mix(in_srgb,var(--warn)_12%,transparent)]',
+  info: 'bg-raised',
 }
 
-// ── Subcomponente: barra de progreso ────────────────────────────────────────
-function ProgressBar({ pct, color = 'bg-teal' }: { pct: number; color?: string }) {
+// ── Subcomponente: barra de progreso (medidor editorial: crece desde la base) ─
+function ProgressBar({ pct, color = 'bg-blue' }: { pct: number; color?: string }) {
   return (
-    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+    <div className="h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--ink)_8%,transparent)]">
       <div
         className={`h-full rounded-full transition-all duration-300 ${color}`}
         style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
@@ -111,14 +122,18 @@ function ProgressBar({ pct, color = 'bg-teal' }: { pct: number; color?: string }
 }
 
 // ── Subcomponente: fila de stat con delta opcional ───────────────────────────
+// Readout editorial: label mono UPPER (+ tap-explain opcional), numeral SERIF tabular en tinta,
+// unidad mono pequeña. El delta nunca es color-solo (flecha + signo + texto).
 function StatRow({
   label,
+  info,
   value,
   sub,
   delta,
   deltaLabel,
 }: {
   label: string
+  info?: React.ReactNode   // TermInfo opcional junto al label (fuera del uppercase)
   value: React.ReactNode
   sub?: string
   delta?: number | null
@@ -132,21 +147,24 @@ function StatRow({
       ? 'text-ok'
       : delta < 0
       ? 'text-warn'
-      : 'text-muted-foreground'
+      : 'text-ink-3'
   const DeltaIcon =
     delta == null ? null : delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus
 
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="text-[12px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <DataPlate className="inline-flex items-baseline gap-1.5 px-3 py-2 mt-1">
-        <span className="font-mono text-[22px] font-semibold tabular-nums text-foreground leading-none">
+      <div className="flex items-center gap-1.5">
+        <p className={MONO_LABEL}>{label}</p>
+        {info}
+      </div>
+      <p className="mt-1 flex items-baseline gap-1.5">
+        <span className="font-serif text-[30px] font-normal leading-none tracking-[-0.01em] tabular-nums text-ink">
           {value}
         </span>
         {sub && (
-          <span className="text-[12px] text-muted-foreground">{sub}</span>
+          <span className="font-mono text-[12px] text-ink-2">{sub}</span>
         )}
-      </DataPlate>
+      </p>
       {delta != null && DeltaIcon && (
         <p className={`mt-1 flex items-center gap-1 text-[12px] font-medium ${deltaColor}`}>
           <DeltaIcon size={12} />
@@ -159,6 +177,7 @@ function StatRow({
 
 // ── R45: PremiumGate ─────────────────────────────────────────────────────────
 // Envuelve features avanzadas; si premium=false muestra overlay "Hacktrack Plus".
+// Overlay opaco por color-mix (sin backdrop-filter decorativo — elevación = reglas).
 function PremiumGate({
   isPremium,
   onUnlock,
@@ -172,18 +191,18 @@ function PremiumGate({
 
   return (
     <div className="relative">
-      {/* Contenido desenfocado en el fondo */}
+      {/* Contenido atenuado en el fondo (filter estático, no animado) */}
       <div className="pointer-events-none select-none blur-[3px] opacity-40" aria-hidden>
         {children}
       </div>
       {/* Overlay */}
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-xl bg-black/60 backdrop-blur-sm px-6 py-8 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal/15 border border-teal/30">
-          <Lock size={22} className="text-teal" />
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-sm border border-hairline bg-[color-mix(in_srgb,var(--paper)_86%,transparent)] px-6 py-8 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--amber)_35%,transparent)] bg-amber-soft">
+          <Lock size={22} className="text-amber" />
         </div>
         <div>
-          <p className="text-[17px] font-bold text-foreground mb-1">Hacktrack Plus</p>
-          <p className="text-[13px] text-muted-foreground leading-snug">
+          <p className="mb-1 font-serif text-[22px] font-normal text-ink">Hacktrack Plus</p>
+          <p className="text-[14px] leading-snug text-ink-2">
             Proyección de meta, TDEE y protocolo en números. Gratis durante la beta.
           </p>
         </div>
@@ -229,12 +248,12 @@ function ProfileGate({
   return (
     <Glass className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal/12 border border-teal/25">
-          <Activity size={18} className="text-teal" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--blue)_25%,transparent)] bg-[color-mix(in_srgb,var(--blue)_10%,transparent)]">
+          <Activity size={18} className="text-blue" />
         </div>
         <div>
-          <p className="text-[14px] font-semibold text-foreground">Completar perfil</p>
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-[15px] font-semibold text-ink">Completar perfil</p>
+          <p className="text-[12px] text-ink-2">
             Necesitamos tu edad, sexo y nivel de actividad para calcular TDEE y proyecciones.
           </p>
         </div>
@@ -242,7 +261,7 @@ function ProfileGate({
 
       {/* Edad */}
       <div className="flex flex-col gap-1">
-        <label htmlFor="semana-edad" className="text-[12px] uppercase tracking-wider text-muted-foreground">
+        <label htmlFor="semana-edad" className={MONO_LABEL}>
           Edad
         </label>
         <input
@@ -252,7 +271,7 @@ function ProfileGate({
           placeholder="Años"
           min={10}
           max={120}
-          className="h-12 w-full rounded-md border border-white/12 bg-white/5 px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-teal/60"
+          className={INPUT_CLS}
           defaultValue={profile.edad ?? ''}
           onBlur={(e) => {
             const v = parseFloat(e.target.value)
@@ -270,15 +289,15 @@ function ProfileGate({
 
       {/* Sexo */}
       <div className="flex flex-col gap-1">
-        <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Sexo</p>
+        <p className={MONO_LABEL}>Sexo</p>
         <div className="flex gap-2">
           {(['H', 'M'] as Sexo[]).map((sx) => (
             <button
               key={sx}
-              className={`flex-1 h-12 rounded-md border text-[14px] font-semibold transition-colors ${
+              className={`h-12 flex-1 rounded-[8px] border text-[14px] font-semibold transition-colors ${
                 profile.sexo === sx
-                  ? 'border-teal bg-teal/15 text-teal'
-                  : 'border-white/12 bg-white/4 text-muted-foreground hover:bg-white/8'
+                  ? 'border-blue bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] text-blue'
+                  : 'border-hairline bg-transparent text-ink-2 hover:bg-raised'
               }`}
               onClick={() => dispatch({ t: 'setProfileFields', patch: { sexo: sx } })}
               aria-pressed={profile.sexo === sx}
@@ -291,27 +310,22 @@ function ProfileGate({
 
       {/* Actividad */}
       <div className="flex flex-col gap-1">
-        <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Actividad</p>
+        <p className={MONO_LABEL}>Actividad</p>
         <div className="flex flex-wrap gap-2">
           {ACT_LABEL.map((a) => (
-            <button
+            <Chip
               key={a.v}
-              className={`h-11 min-w-[80px] rounded-full border px-3 text-[13px] font-semibold transition-colors ${
-                profile.actividad === a.v
-                  ? 'border-teal bg-teal/15 text-teal'
-                  : 'border-white/12 bg-white/4 text-muted-foreground hover:bg-white/8'
-              }`}
+              active={profile.actividad === a.v}
               onClick={() => dispatch({ t: 'setProfileFields', patch: { actividad: a.v } })}
-              aria-pressed={profile.actividad === a.v}
             >
               {a.l}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
 
       {/* Hint */}
-      <p className="text-[11px] text-muted-foreground leading-snug border-l border-teal/30 pl-2">
+      <p className="border-l-2 border-hairline pl-3 text-[12px] leading-snug text-ink-3">
         Completa los tres campos para habilitar el TDEE y la proyección de meta.
       </p>
     </Glass>
@@ -349,7 +363,8 @@ function ProyeccionMetaCard({
     return ssTot > 0 ? Math.max(0, Math.min(1, 1 - ssRes / ssTot)) : 1
   }
 
-  // Gráfica SVG inline simple (sin dependencias de charts)
+  // Gráfica SVG inline simple (sin dependencias de charts).
+  // Colores Bitácora: datos = tinta muda, tendencia = azul (dato), meta + "ahora" = ámbar (energía).
   function TrendSVG({ points, goal }: { points: number[]; goal: number }) {
     const W = 280, H = 64
     if (points.length < 2) return null
@@ -386,42 +401,43 @@ function ProyeccionMetaCard({
         className="overflow-visible"
         style={{ maxWidth: '100%' }}
       >
-        {/* Meta */}
+        {/* Meta (ámbar punteado — tu objetivo/energía) */}
         <line
           x1={0} y1={goalY} x2={W} y2={goalY}
-          stroke="rgba(95,201,184,.25)"
+          stroke="var(--amber)"
+          strokeOpacity={0.55}
           strokeWidth={1}
           strokeDasharray="4 3"
         />
-        {/* Datos */}
-        <path d={d} fill="none" stroke="rgba(255,255,255,.25)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-        {/* Tendencia */}
-        <path d={trend} fill="none" stroke="var(--teal)" strokeWidth={2} strokeLinecap="round" opacity={0.9} />
-        {/* Punto actual */}
+        {/* Datos (tinta muda) */}
+        <path d={d} fill="none" stroke="var(--ink-3)" strokeOpacity={0.5} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+        {/* Tendencia (azul = dato) */}
+        <path d={trend} fill="none" stroke="var(--blue)" strokeWidth={2} strokeLinecap="round" opacity={0.9} />
+        {/* Punto actual ("ahora" = ámbar) */}
         <circle
           cx={px(n - 1)}
           cy={py(points[n - 1])}
           r={4}
-          fill="var(--teal)"
+          fill="var(--amber)"
         />
       </svg>
     )
   }
 
   const r2 = proj ? calcR2(proj.points) : 0
-  const r2Color = r2 >= 0.7 ? 'text-ok' : r2 >= 0.4 ? 'text-warn' : 'text-muted-foreground'
+  const r2Color = r2 >= 0.7 ? 'text-ok' : r2 >= 0.4 ? 'text-warn' : 'text-ink-3'
 
   // Sin meta definida → input + gráfica placeholder + CTA
   if (metaPesoKg == null || metaPesoKg == undefined) {
     return (
       <Glass className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <Target size={15} className="text-teal shrink-0" />
-          <p className="text-[12px] uppercase tracking-wider text-muted-foreground">
+          <Target size={15} className="shrink-0 text-blue" />
+          <p className={MONO_LABEL}>
             Proyección de meta
           </p>
         </div>
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-ink-2">
           Define tu peso objetivo para ver tu trayectoria proyectada y ETA estimada.
         </p>
         {/* Gráfica placeholder tenue */}
@@ -430,15 +446,15 @@ function ProyeccionMetaCard({
             <path
               d="M0,50 C40,45 80,35 140,28 C180,22 230,20 280,18"
               fill="none"
-              stroke="rgba(255,255,255,.3)"
+              stroke="var(--ink-3)"
               strokeWidth={1.5}
             />
-            <line x1={0} y1={16} x2={280} y2={16} stroke="rgba(95,201,184,.3)" strokeWidth={1} strokeDasharray="4 3" />
+            <line x1={0} y1={16} x2={280} y2={16} stroke="var(--amber)" strokeOpacity={0.6} strokeWidth={1} strokeDasharray="4 3" />
           </svg>
         </div>
         {/* Input meta */}
         <div className="flex flex-col gap-1">
-          <label htmlFor="semana-meta-kg" className="text-[12px] uppercase tracking-wider text-muted-foreground">
+          <label htmlFor="semana-meta-kg" className={MONO_LABEL}>
             Meta de peso (kg)
           </label>
           <div className="flex gap-2">
@@ -449,7 +465,7 @@ function ProyeccionMetaCard({
               placeholder="ej. 72"
               min={30}
               max={300}
-              className="h-12 flex-1 rounded-md border border-white/12 bg-white/5 px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-teal/60"
+              className={`${INPUT_CLS} flex-1`}
               onBlur={(e) => {
                 const v = parseFloat(e.target.value)
                 if (Number.isFinite(v) && v >= 30 && v <= 300) {
@@ -472,17 +488,17 @@ function ProyeccionMetaCard({
     return (
       <Glass className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Target size={15} className="text-teal shrink-0" />
-          <p className="text-[12px] uppercase tracking-wider text-muted-foreground">
+          <Target size={15} className="shrink-0 text-blue" />
+          <p className={MONO_LABEL}>
             Proyección de meta
           </p>
         </div>
-        <DataPlate className="inline-flex items-baseline gap-2 px-3 py-2">
-          <span className="font-mono text-[18px] font-semibold text-foreground tabular-nums">
+        <DataPlate className="inline-flex items-baseline gap-2 px-3 py-2 self-start">
+          <span className="text-[18px] font-normal tabular-nums">
             Meta: {metaPesoKg} kg
           </span>
         </DataPlate>
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-ink-2">
           Registra al menos 5 pesajes para construir tu tendencia y calcular el ETA.
         </p>
       </Glass>
@@ -501,34 +517,37 @@ function ProyeccionMetaCard({
     <Glass className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Target size={15} className="text-teal shrink-0" />
-          <p className="text-[12px] uppercase tracking-wider text-muted-foreground">
+          <Target size={15} className="shrink-0 text-blue" />
+          <p className={MONO_LABEL}>
             Proyección de meta
           </p>
         </div>
-        {/* R² chip */}
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[11px] font-mono font-semibold ${r2Color} border-current/20 bg-current/5`}
-          title={`Coeficiente de determinación R² = ${r2.toFixed(2)}`}
-        >
-          R² {r2.toFixed(2)}
+        {/* R² chip + tap-explain (jerga a la mano) */}
+        <span className="flex items-center gap-1.5">
+          <span
+            className={`rounded-full border px-2 py-0.5 font-mono text-[12px] font-medium tabular-nums ${r2Color} border-current/20 bg-current/5`}
+            title={`Coeficiente de determinación R² = ${r2.toFixed(2)}`}
+          >
+            R² {r2.toFixed(2)}
+          </span>
+          <TermInfo term="R²">Qué tan bien la tendencia se ajusta a tus pesajes (1.00 = exacto).</TermInfo>
         </span>
       </div>
 
-      {/* Peso actual → meta */}
+      {/* Peso actual → meta (placa de instrumento, numerales serif; meta en ámbar) */}
       <div className="flex items-baseline gap-2 flex-wrap">
         <DataPlate className="inline-flex items-baseline gap-1 px-3 py-2">
-          <span className="font-mono text-[22px] font-semibold tabular-nums text-foreground leading-none">
+          <span className="text-[22px] font-normal leading-none tabular-nums">
             {proj.current}
           </span>
-          <span className="text-[12px] text-muted-foreground">kg</span>
+          <span className="font-mono text-[12px] opacity-70">kg</span>
         </DataPlate>
-        <span className="text-[13px] text-muted-foreground">→</span>
+        <span className="text-[13px] text-ink-3">→</span>
         <DataPlate className="inline-flex items-baseline gap-1 px-3 py-2">
-          <span className="font-mono text-[22px] font-semibold tabular-nums text-teal leading-none">
+          <span className="text-[22px] font-normal leading-none tabular-nums text-amber">
             {proj.goal}
           </span>
-          <span className="text-[12px] text-muted-foreground">kg meta</span>
+          <span className="font-mono text-[12px] opacity-70">kg meta</span>
         </DataPlate>
       </div>
 
@@ -537,8 +556,8 @@ function ProyeccionMetaCard({
 
       {/* Barra de progreso */}
       <div className="flex flex-col gap-1">
-        <ProgressBar pct={pct} color={towardGoal ? 'bg-teal' : 'bg-warn'} />
-        <div className="flex justify-between text-[11px] text-muted-foreground">
+        <ProgressBar pct={pct} color={towardGoal ? 'bg-blue' : 'bg-warn'} />
+        <div className="flex justify-between font-mono text-[12px] tabular-nums text-ink-3">
           <span>{proj.points[0]} kg inicio</span>
           <span>{Math.round(pct)}% completado</span>
         </div>
@@ -546,10 +565,10 @@ function ProyeccionMetaCard({
 
       {/* ETA */}
       <div
-        className={`rounded-md px-3 py-2 text-[13px] font-medium ${
+        className={`rounded-[8px] px-3 py-2 text-[13px] font-medium ${
           towardGoal
-            ? 'bg-teal/8 text-teal'
-            : 'bg-warn/10 text-warn'
+            ? 'bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] text-blue'
+            : 'bg-[color-mix(in_srgb,var(--warn)_12%,transparent)] text-warn'
         }`}
       >
         {proj.etaTs ? (
@@ -559,10 +578,11 @@ function ProyeccionMetaCard({
               {proj.etaLabel ?? fmtDate(proj.etaTs)}
             </span>
             {proj.weeksLeft != null && (
-              <span className="text-[12px] opacity-75 ml-1">
+              <span className="ml-1 text-[12px] opacity-75">
                 (~{proj.weeksLeft} {proj.weeksLeft === 1 ? 'semana' : 'semanas'})
               </span>
-            )}
+            )}{' '}
+            <TermInfo term="ETA">Fecha estimada de llegada a tu meta, según tu tendencia reciente.</TermInfo>
           </>
         ) : towardGoal ? (
           'Tendencia favorable — sigue registrando para calcular el ETA.'
@@ -575,7 +595,7 @@ function ProyeccionMetaCard({
 }
 
 // ── Pantalla principal ───────────────────────────────────────────────────────
-export function Semana() {
+export function Semana({ embedded = false }: { embedded?: boolean } = {}) {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
 
@@ -737,60 +757,77 @@ export function Semana() {
 
   const canShare = streak > 0 || (adh?.pct ?? 0) > 0
 
-  // Variantes de animación reducida
-  const parentVars = {
-    animate: {
-      transition: { staggerChildren: reduce ? 0 : 0.06 },
-    },
-  }
-  const itemVars = reduce ? {} : staggerItem
+  // Botón compartir (masthead o cabecera embebida)
+  const shareBtn = canShare ? (
+    <button
+      onClick={handleShare}
+      className="inline-flex h-11 items-center gap-2 rounded-full border border-hairline px-4 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-blue transition-colors hover:bg-raised"
+      aria-label="Compartir resumen semanal"
+    >
+      <Share2 size={15} />
+      Compartir
+    </button>
+  ) : undefined
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <motion.div
-      className="flex flex-col gap-4 px-4 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
-      variants={parentVars}
-      initial="initial"
-      animate="animate"
+      className={
+        embedded
+          ? 'flex flex-col gap-4'
+          : 'flex flex-col gap-4 px-4 pb-32 pt-[max(20px,env(safe-area-inset-top))]'
+      }
+      variants={staggerContainer}
+      initial={reduce ? false : 'hidden'}
+      animate="show"
     >
-      {/* ── Header ── */}
-      <motion.div variants={itemVars}>
-        <SectionHero
-          {...HEROES.semana}
-          title="Tu semana"
-          subtitle="Últimos 7 días"
-          action={
-            canShare ? (
-              <button
-                onClick={handleShare}
-                className="inline-flex items-center gap-2 h-11 rounded-full border border-white/10 px-4 text-[13px] font-semibold text-secondary-foreground bg-white/5 hover:bg-white/10 transition-colors"
-                aria-label="Compartir resumen semanal"
-              >
-                <Share2 size={15} />
-                Compartir semana
-              </button>
-            ) : undefined
-          }
-        />
+      {/* ── Cabecera ── */}
+      {embedded ? (
+        <motion.div variants={staggerItem} className="flex items-center gap-3">
+          {/* Kicker corto: nombra la ventana (regla de la ref) y cabe en UNA línea junto al botón
+              Compartir — el texto largo envolvía a 2 líneas y desalineaba el tick ámbar. */}
+          <FolioLabel className="min-w-0 flex-1">Últimos 7 días</FolioLabel>
+          {shareBtn}
+        </motion.div>
+      ) : (
+        <motion.div variants={staggerItem}>
+          <SectionHero
+            eyebrow="Bitácora · Semana"
+            title="Tu semana"
+            subtitle="Últimos 7 días"
+            action={shareBtn}
+          />
+        </motion.div>
+      )}
+
+      {/* ── § 01 · Semana en un vistazo — anillo ámbar (racha integral) ── */}
+      {!embedded && (
+        <motion.div variants={staggerItem}>
+          <FolioLabel n={1}>Semana en un vistazo</FolioLabel>
+        </motion.div>
+      )}
+      <motion.div variants={staggerItem}>
+        <Glass className="flex flex-col items-center gap-2 py-5">
+          <Ring
+            value={wellnessScore}
+            goal={100}
+            unit=""
+            label="semana"
+            sub={streak > 0 ? `${rachaLabel('racha integral')} ${streak}d` : undefined}
+            size={120}
+            stroke={10}
+          />
+          <p className="max-w-[30ch] text-center text-[12px] leading-snug text-ink-3">
+            Índice de tu semana: adherencia, agua, comidas y peso.
+          </p>
+        </Glass>
       </motion.div>
 
-      {/* ── Wellness ring ── */}
-      <motion.div variants={itemVars} className="flex justify-end">
-        <Ring
-          value={wellnessScore}
-          goal={100}
-          unit=""
-          label="semana"
-          sub={streak > 0 ? `${rachaLabel('racha integral')} ${streak}d` : undefined}
-          size={88}
-          stroke={8}
-        />
+      {/* ── § 02 · Adherencia ── */}
+      <motion.div variants={staggerItem}>
+        <FolioLabel n={embedded ? 1 : 2}>Adherencia</FolioLabel>
       </motion.div>
-
-      {/* ── KPIs en Glass ── */}
-
-      {/* Adherencia con Ring */}
-      <motion.div variants={itemVars}>
+      <motion.div variants={staggerItem}>
         <Glass className="flex items-center gap-5">
           <Ring
             value={adh?.pct ?? 0}
@@ -798,19 +835,23 @@ export function Semana() {
             unit="%"
             label="adherencia"
             sub={
-              adh
-                ? `${adh.taken} de ${adh.due} dosis`
-                : hasProtocol
-                ? 'sin dosis esta semana'
-                : 'sin protocolo'
+              <span className="flex max-w-[180px] items-center justify-center gap-1 text-center text-[12px] leading-tight text-ink-2">
+                {adh
+                  ? `${adh.taken} de ${adh.due} dosis`
+                  : hasProtocol
+                  ? 'sin dosis esta semana'
+                  : 'sin protocolo'}
+                {/* jerga a la mano (Ley 2) */}
+                <TermInfo term="adherencia">Qué tanto vas al día con las tomas de tu protocolo.</TermInfo>
+              </span>
             }
             size={120}
             stroke={10}
           />
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
             {adhDelta != null && Math.abs(adhDelta) >= 1 && (
               <div
-                className={`flex items-center gap-1.5 text-[13px] font-medium ${
+                className={`flex items-center gap-1.5 font-mono text-[13px] font-medium tabular-nums ${
                   adhDelta >= 0 ? 'text-ok' : 'text-warn'
                 }`}
               >
@@ -823,16 +864,13 @@ export function Semana() {
               </div>
             )}
             <div>
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
-                Dosis registradas
-              </p>
-              <DataPlate className="inline-flex items-baseline gap-1 px-3 py-2">
-                <span className="font-mono text-[24px] font-semibold tabular-nums text-foreground leading-none">
-                  {doses}
-                </span>
-                <span className="text-[12px] text-muted-foreground">esta semana</span>
-              </DataPlate>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <StatNumber
+                label="Dosis registradas"
+                value={doses}
+                size={30}
+                deltaLabel="esta semana"
+              />
+              <p className="mt-1 text-[12px] text-ink-3">
                 Incluye dosis fuera de cadencia.
               </p>
             </div>
@@ -840,24 +878,29 @@ export function Semana() {
         </Glass>
       </motion.div>
 
-      {/* Calorías promedio en Glass — #10: solo objetivos metabólicos/composición */}
+      {/* ── § 03 · Nutrición ── */}
+      <motion.div variants={staggerItem}>
+        <FolioLabel n={embedded ? 2 : 3}>Nutrición · 7 días</FolioLabel>
+      </motion.div>
+
+      {/* Calorías promedio — #10: solo objetivos metabólicos/composición */}
       {metabolic && (
-      <motion.div variants={itemVars}>
+      <motion.div variants={staggerItem}>
         <Glass>
-          <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-2">
+          <p className={`${MONO_LABEL} mb-2`}>
             Calorías promedio
           </p>
           {avg7 != null ? (
             <div className="flex items-baseline gap-3 flex-wrap">
-              <DataPlate className="inline-flex items-baseline gap-1 px-3 py-2">
-                <span className="font-mono text-[26px] font-semibold tabular-nums text-foreground leading-none">
+              <span className="flex items-baseline gap-1.5">
+                <span className="font-serif text-[30px] font-normal leading-none tracking-[-0.01em] tabular-nums text-ink">
                   {avg7 >= 1000 ? `${(avg7 / 1000).toFixed(1)}k` : avg7}
                 </span>
-                <span className="text-[12px] text-muted-foreground">kcal/día</span>
-              </DataPlate>
+                <span className="font-mono text-[12px] text-ink-2">kcal/día</span>
+              </span>
               {caloricDelta != null && (
                 <span
-                  className={`font-mono text-[13px] font-semibold ${
+                  className={`font-mono text-[13px] font-semibold tabular-nums ${
                     isGrowth
                       ? caloricDelta > 0 ? 'text-ok' : 'text-warn'
                       : caloricDelta < 0 ? 'text-ok' : 'text-warn'
@@ -869,23 +912,23 @@ export function Semana() {
               )}
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">Sin registros esta semana</p>
+            <p className="text-[13px] text-ink-2">Sin registros esta semana</p>
           )}
         </Glass>
       </motion.div>
       )}
 
-      {/* ── Hidratación — SÓLIDA (dato médico-operativo) ── */}
-      <motion.div variants={itemVars}>
-        <div className="rounded-lg border border-white/8 bg-raised p-4">
+      {/* Hidratación — SÓLIDA (dato médico-operativo; fila/pozo, no columna) */}
+      <motion.div variants={staggerItem}>
+        <div className="rounded-sm border border-hairline bg-raised p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2 text-[14px] font-semibold text-foreground">
-              <Droplet size={15} className="text-teal shrink-0" />
+            <span className="flex items-center gap-2 text-[15px] font-semibold text-ink">
+              <Droplet size={15} className="shrink-0 text-blue" />
               Hidratación promedio/día
             </span>
-            <span className="font-mono tabular-nums text-[14px] text-foreground shrink-0">
+            <span className="shrink-0 font-mono text-[14px] font-semibold tabular-nums text-ink">
               {waterAvgL.toFixed(1)}
-              <span className="text-muted-foreground"> / {waterGoalL} L</span>
+              <span className="font-normal text-ink-3"> / {waterGoalL} L</span>
             </span>
           </div>
           <ProgressBar pct={waterPct} />
@@ -901,25 +944,25 @@ export function Semana() {
           )}
           <button
             onClick={() => dispatch({ t: 'tab', tab: 'comida' })}
-            className="mt-3 inline-flex min-h-[44px] items-center text-[13px] font-medium text-teal"
+            className="mt-3 inline-flex min-h-[44px] items-center text-[13px] font-medium text-blue"
           >
             Registrar agua en Comida →
           </button>
         </div>
       </motion.div>
 
-      {/* ── Señales de la semana — Glass (analítica/insights) ── */}
-      <motion.div variants={itemVars}>
+      {/* ── § 04 · Señales de la semana ── */}
+      <motion.div variants={staggerItem}>
+        <FolioLabel n={embedded ? 3 : 4}>Señales de la semana</FolioLabel>
+      </motion.div>
+      <motion.div variants={staggerItem}>
         <Glass>
-          <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">
-            Señales de la semana
-          </p>
           {classifiedInsights.length > 0 ? (
             <div className="flex flex-col gap-2">
               {classifiedInsights.map((ins, i) => (
                 <div
                   key={i}
-                  className={`flex items-start gap-2.5 rounded-md px-3 py-2.5 ${INSIGHT_BG[ins.type]}`}
+                  className={`flex items-start gap-2.5 rounded-[8px] px-3 py-2.5 ${INSIGHT_BG[ins.type]}`}
                 >
                   <span className={INSIGHT_COL[ins.type]}>
                     {INSIGHT_ICON[ins.type]}
@@ -931,30 +974,33 @@ export function Semana() {
               ))}
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-[13px] text-ink-2">
               Registra comidas, agua y peso durante la semana para ver observaciones personalizadas.
             </p>
           )}
         </Glass>
       </motion.div>
 
-      {/* ── Racha integral: condiciones de hoy (SÓLIDA — operativo/acción) ──
+      {/* ── § 05 · Racha integral: condiciones de hoy (SÓLIDA — operativo/acción) ──
           Concepto DISTINTO de la racha oficial del protocolo (Inicio/Diario/Progreso):
           esta exige dosis + comida + agua el mismo día. Etiquetarla siempre "integral". */}
-      <motion.div variants={itemVars}>
-        <div className="rounded-lg border border-white/8 bg-raised p-4">
-          <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">
-            {rachaLabel('Racha integral')} (dosis + comida + agua)
+      <motion.div variants={staggerItem}>
+        <FolioLabel n={embedded ? 4 : 5}>{rachaLabel('Racha integral')}</FolioLabel>
+      </motion.div>
+      <motion.div variants={staggerItem}>
+        <div className="rounded-sm border border-hairline bg-raised p-4">
+          <p className="mb-3 text-[12px] text-ink-3">
+            Dosis + comida + agua el mismo día.
           </p>
-          <div className="flex items-baseline gap-2 mb-3">
-            <span className="font-mono text-[30px] font-bold tabular-nums text-[var(--teal-bright)] leading-none">
+          <div className="mb-3 flex items-baseline gap-2">
+            <span className="font-serif text-[34px] font-normal leading-none tracking-[-0.01em] tabular-nums text-ink">
               {sd.streak}
             </span>
-            <span className="text-[13px] text-muted-foreground">
+            <span className="text-[13px] text-ink-2">
               {sd.streak === 1 ? 'día' : 'días'} de {rachaLabel('racha integral')}
             </span>
           </div>
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="mb-3 flex flex-wrap gap-2">
             {(
               [
                 ['Dosis', sd.today.dose],
@@ -964,10 +1010,10 @@ export function Semana() {
             ).map(([lbl, ok]) => (
               <span
                 key={lbl}
-                className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold ${
+                className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full border px-3 font-mono text-[12px] font-medium ${
                   ok
-                    ? 'bg-teal/15 text-teal'
-                    : 'bg-white/6 text-muted-foreground'
+                    ? 'border-[color-mix(in_srgb,var(--ok)_25%,transparent)] bg-[color-mix(in_srgb,var(--ok)_12%,transparent)] text-ok'
+                    : 'border-hairline bg-transparent text-ink-3'
                 }`}
               >
                 {ok ? <CheckCircle2 size={13} /> : <Circle size={13} />}
@@ -987,7 +1033,7 @@ export function Semana() {
                     : 'inicio',
                 })
               }
-              className="mt-1 inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-white/15 px-4 text-[13px] font-semibold text-foreground hover:bg-white/8 transition-colors"
+              className="mt-1 inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-4 text-[13px] font-semibold text-blue transition-colors hover:bg-[color-mix(in_srgb,var(--blue)_14%,transparent)]"
             >
               Ir a registrar →
             </button>
@@ -995,15 +1041,12 @@ export function Semana() {
         </div>
       </motion.div>
 
-      {/* ══ SECCIÓN PREMIUM (R45) ═══════════════════════════════════════════ */}
-      {/* Separador */}
-      <motion.div variants={itemVars}>
-        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          Perspectivas avanzadas
-        </p>
+      {/* ══ § 06 · SECCIÓN PREMIUM (R45) ════════════════════════════════════ */}
+      <motion.div variants={staggerItem}>
+        <FolioLabel n={embedded ? 5 : 6}>Perspectivas avanzadas</FolioLabel>
       </motion.div>
 
-      <motion.div variants={itemVars}>
+      <motion.div variants={staggerItem}>
         <PremiumGate
           isPremium={isPremium}
           onUnlock={() => dispatch({ t: 'sheet', sheet: 'paywall' })}
@@ -1028,11 +1071,16 @@ export function Semana() {
               {/* Margen energético (TDEE) — #10: solo objetivos metabólicos/composición */}
               {metabolic && tdeeVal != null && avg7 != null && (
                 <Glass>
-                  <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">
+                  <p className={`${MONO_LABEL} mb-3`}>
                     Margen energético
                   </p>
                   <div className="flex gap-4 flex-wrap">
-                    <StatRow label="TDEE est." value={tdeeVal} sub="kcal" />
+                    <StatRow
+                      label="TDEE est."
+                      info={<TermInfo term="TDEE">Calorías que tu cuerpo gasta al día, estimadas con tu perfil.</TermInfo>}
+                      value={tdeeVal}
+                      sub="kcal"
+                    />
                     <StatRow label="Consumo 7d" value={avg7} sub="kcal/día" />
                     {caloricDelta != null && (
                       <StatRow
@@ -1052,10 +1100,10 @@ export function Semana() {
                   </div>
                   {severeDeficit && (
                     <div
-                      className={`mt-3 rounded-md border px-3 py-2.5 ${
+                      className={`mt-3 rounded-[8px] border px-3 py-2.5 ${
                         veryDeficit
-                          ? 'border-alert/40 bg-alert/10'
-                          : 'border-warn/30 bg-warn/10'
+                          ? 'border-[color-mix(in_srgb,var(--alert)_40%,transparent)] bg-[color-mix(in_srgb,var(--alert)_10%,transparent)]'
+                          : 'border-[color-mix(in_srgb,var(--warn)_30%,transparent)] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)]'
                       }`}
                     >
                       <p
@@ -1077,7 +1125,7 @@ export function Semana() {
             {/* Protocolo en números — independiente del perfil */}
             {pn && (pn.deltaKcal != null || pn.weightDelta != null) && (
               <Glass>
-                <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">
+                <p className={`${MONO_LABEL} mb-3`}>
                   Tu protocolo en números
                 </p>
                 <div className="flex gap-4 flex-wrap">
@@ -1085,7 +1133,7 @@ export function Semana() {
                     <StatRow
                       label="Δ kcal/día prom."
                       value={
-                        <span className={pn.deltaKcal <= 0 ? 'text-ok' : 'text-foreground'}>
+                        <span className={pn.deltaKcal <= 0 ? 'text-ok' : 'text-ink'}>
                           {pn.deltaKcal > 0 ? '+' : ''}{pn.deltaKcal}
                         </span>
                       }
@@ -1096,7 +1144,7 @@ export function Semana() {
                     <StatRow
                       label="Δ peso"
                       value={
-                        <span className={pn.weightDelta <= 0 ? 'text-ok' : 'text-foreground'}>
+                        <span className={pn.weightDelta <= 0 ? 'text-ok' : 'text-ink'}>
                           {pn.weightDelta > 0 ? '+' : ''}{pn.weightDelta}
                         </span>
                       }
@@ -1105,7 +1153,7 @@ export function Semana() {
                   )}
                 </div>
                 {!pn.enoughData && (
-                  <p className="mt-3 text-[12px] text-muted-foreground">
+                  <p className="mt-3 text-[12px] text-ink-3">
                     Registra ~14 días para una comparación más sólida.
                   </p>
                 )}
@@ -1117,8 +1165,8 @@ export function Semana() {
       </motion.div>
 
       {/* ── Aviso legal observacional ── */}
-      <motion.div variants={itemVars}>
-        <p className="border-l-2 border-white/10 pl-3 text-[12px] leading-relaxed text-muted-foreground">
+      <motion.div variants={staggerItem}>
+        <p className="border-l-2 border-hairline pl-3 text-[12px] leading-relaxed text-ink-3">
           Resumen de tu registro personal. La adherencia mide tu consistencia, no la eficacia ni un resultado clínico. Tu historial se guarda solo en tu dispositivo.
         </p>
       </motion.div>

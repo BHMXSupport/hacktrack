@@ -1,6 +1,7 @@
 import { Minus, Plus } from 'lucide-react'
 
-// Stepper −/+ (tap targets 48px). Envuelve el número/contenido editable.
+// Stepper −/+ "Bitácora" (tap targets 52px). Botones sobre superficie cálida con hairline + tinta ink.
+// Envuelve el número/contenido editable (que suele ser un StatNumber serif).
 export function Stepper({
   onDec,
   onInc,
@@ -20,7 +21,7 @@ export function Stepper({
         type="button"
         aria-label={decLabel}
         onClick={onDec}
-        className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full border border-white/12 bg-raised text-foreground active:scale-95"
+        className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full border border-hairline bg-surface text-ink shadow-soft active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
       >
         <Minus size={22} />
       </button>
@@ -29,7 +30,7 @@ export function Stepper({
         type="button"
         aria-label={incLabel}
         onClick={onInc}
-        className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full border border-white/12 bg-raised text-foreground active:scale-95"
+        className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full border border-hairline bg-surface text-ink shadow-soft active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
       >
         <Plus size={22} />
       </button>

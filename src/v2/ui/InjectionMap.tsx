@@ -1,21 +1,23 @@
-// InjectionMap v3 — mapa interactivo de rotación de sitios de inyección.
-// Base visual: figura premium generada (Higgsfield, maniquí slate + rim-light teal,
-//   frente + espalda) como imagen; las 6 zonas son botones interactivos posicionados
-//   encima (coords %). Conserva: recencia (injectionZoneRecency), zona sugerida,
-//   detalle, leyenda color+ícono+texto, a11y (button nativo + aria), es-MX, sin jeringas.
+// InjectionMap v4 — "Bitácora": figura editorial abstracta de rotación de sitios.
+// Ref canónica docs/design-refs (zonecard): torso en hairline (cabeza + tronco simétrico),
+// SIN jeringas/agujas ni imagen fotográfica — solo dots de recencia sobre la silueta.
+// CONSERVA ÍNTEGRO el comportamiento: modos visor (Inicio) y selector (RegistrarSheet) vía
+// selected/onSelect, recencia (injectionZoneRecency), zona sugerida (#19: rotación real del
+// store), detalle con aria-live, leyenda color+ícono+texto (nunca color solo), es-MX.
+// Semántica de color: recencia = estados (alert/warn/ok); selección = azul (interactivo);
+// sugerido = ámbar (tu atención aquí / ahora). Elevación = reglas, no sombras (sin glows).
 
 import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp, SITE_LABEL, injectionZoneRecency, nextInjectionSite } from '../../lib/store'
 import type { InjectionSite } from '../../lib/types'
 import type { ZoneRecency } from '../../lib/store'
-import bodySrc from '../../assets/rebuild/injection-body.webp'
 
 const RECENCY_COLOR: Record<ZoneRecency, string> = {
   fresh: 'var(--alert)',
   recent: 'var(--warn)',
   ok: 'var(--ok)',
-  none: 'var(--muted-foreground)',
+  none: 'var(--ink-3)',
 }
 const RECENCY_LABEL: Record<ZoneRecency, string> = {
   fresh: '< 1 día',
@@ -38,20 +40,20 @@ const SITE_SHORT: Record<InjectionSite, string> = {
   'gluteo-der': 'Glúteo der.',
 }
 
-// Posición (% del contenedor, que respeta el aspecto nativo de la figura 1200×896 con
-// object-contain → sin letterbox, coords 1:1 sobre la figura). RECALIBRADAS midiendo la figura
-// real con overlay de rejilla (cada 5%): la figura de FRENTE está centrada en x≈25% y la de
-// ESPALDA en x≈75% (NO 29/71 — ese error empujaba los marcadores hacia el centro → muslos en la ingle).
-// Lateralidad = perspectiva del USUARIO ("tu izquierda/derecha"):
-//  FRENTE (centro x~25%): der = lado del espectador izquierdo (x menor); izq = espectador derecho.
-//  ESPALDA (centro x~75%): der = espectador derecho (x mayor); izq = espectador izquierdo.
+// Posición (% del contenedor con aspecto 1200×896 — mismo aspecto que la figura anterior, así el
+// placeholder de RegistrarSheet sigue midiendo igual). La silueta SVG de abajo se dibuja en el
+// MISMO sistema de coordenadas (viewBox 1200×896): FRENTE centrado en x=25% y ESPALDA en x=75%.
+// Coords RECALIBRADAS a la silueta abstracta (abdomen y=49%, muslos y=74%, glúteos y=66% —
+// bajo la línea de cintura y=60%). Lateralidad = perspectiva del USUARIO ("tu izquierda/derecha"):
+//  FRENTE (centro x=25%): der = lado del espectador izquierdo (x menor); izq = espectador derecho.
+//  ESPALDA (centro x=75%): der = espectador derecho (x mayor); izq = espectador izquierdo.
 const ZONES: { site: InjectionSite; x: number; y: number }[] = [
-  { site: 'abdomen-der', x: 22, y: 46 },
-  { site: 'abdomen-izq', x: 28, y: 46 },
-  { site: 'muslo-der', x: 18, y: 66 },
-  { site: 'muslo-izq', x: 32, y: 66 },
-  { site: 'gluteo-izq', x: 69, y: 50 },
-  { site: 'gluteo-der', x: 81, y: 50 },
+  { site: 'abdomen-der', x: 21, y: 49 },
+  { site: 'abdomen-izq', x: 29, y: 49 },
+  { site: 'muslo-der', x: 19, y: 74 },
+  { site: 'muslo-izq', x: 31, y: 74 },
+  { site: 'gluteo-izq', x: 69, y: 66 },
+  { site: 'gluteo-der', x: 81, y: 66 },
 ]
 
 function relLabel(ts: number | null): string {
@@ -60,6 +62,45 @@ function relLabel(ts: number | null): string {
   if (days <= 0) return 'hoy'
   if (days === 1) return 'ayer'
   return `hace ${days} días`
+}
+
+// Silueta editorial (cabeza + tronco simétrico de la ref, escalada ×7 al viewBox 1200×896).
+// Trazo hairline con vector-effect para que la regla mida ~1.5px en pantalla a cualquier tamaño.
+const TORSO_D = (dx: number) =>
+  `M${300 + dx} 195 C${230 + dx} 195 ${174 + dx} 216 ${146 + dx} 251 ` +
+  `C${121.5 + dx} 282.5 ${114.5 + dx} 321 ${114.5 + dx} 370 ` +
+  `C${114.5 + dx} 433 ${135.5 + dx} 475 ${142.5 + dx} 531 ` +
+  `C${149.5 + dx} 587 ${142.5 + dx} 657 ${156.5 + dx} 706 ` +
+  `C${170.5 + dx} 755 ${223 + dx} 769 ${300 + dx} 769 ` +
+  `C${377 + dx} 769 ${429.5 + dx} 755 ${443.5 + dx} 706 ` +
+  `C${457.5 + dx} 657 ${450.5 + dx} 587 ${457.5 + dx} 531 ` +
+  `C${464.5 + dx} 475 ${485.5 + dx} 433 ${485.5 + dx} 370 ` +
+  `C${485.5 + dx} 321 ${478.5 + dx} 282.5 ${454 + dx} 251 ` +
+  `C${426 + dx} 216 ${370 + dx} 195 ${300 + dx} 195 Z`
+
+function AbstractBody() {
+  return (
+    <svg
+      viewBox="0 0 1200 896"
+      className="absolute inset-0 h-full w-full"
+      fill="none"
+      aria-hidden="true"
+    >
+      <g stroke="var(--ink-3)" strokeOpacity={0.55} strokeWidth={1.5}>
+        {/* FRENTE (x centro = 300) */}
+        <circle cx={300} cy={104} r={59.5} fill="var(--surface)" vectorEffect="non-scaling-stroke" />
+        <path d={TORSO_D(0)} fill="var(--surface)" vectorEffect="non-scaling-stroke" />
+        {/* línea de cintura (referencia editorial) */}
+        <line x1={167} y1={538} x2={433} y2={538} strokeDasharray="14 18" vectorEffect="non-scaling-stroke" />
+        {/* ESPALDA (x centro = 900) */}
+        <circle cx={900} cy={104} r={59.5} fill="var(--surface)" vectorEffect="non-scaling-stroke" />
+        <path d={TORSO_D(600)} fill="var(--surface)" vectorEffect="non-scaling-stroke" />
+        <line x1={767} y1={538} x2={1033} y2={538} strokeDasharray="14 18" vectorEffect="non-scaling-stroke" />
+        {/* línea de columna (distingue la vista de espalda) */}
+        <line x1={900} y1={216} x2={900} y2={530} strokeDasharray="14 18" vectorEffect="non-scaling-stroke" />
+      </g>
+    </svg>
+  )
 }
 
 function Zone({
@@ -89,31 +130,30 @@ function Zone({
       aria-label={`${SITE_LABEL[site]}: ${RECENCY_LABEL[recency]}`}
       aria-pressed={isSelected}
       onClick={onSelect}
-      className="absolute grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="absolute grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       style={{ left: `${x}%`, top: `${y}%` }}
     >
-      {/* halo de zona sugerida */}
+      {/* halo de zona sugerida — ámbar (tu atención aquí), guiño discontinuo de instrumento */}
       {isSuggested && (
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full"
-          style={{ border: '1.5px dashed var(--teal)', opacity: 0.6 }}
+          className="absolute inset-0.5 rounded-full"
+          style={{ border: '1.5px dashed var(--amber)', opacity: 0.8 }}
         />
       )}
-      {/* parche */}
+      {/* dot de recencia (la marca editorial de la ref) */}
       <span
         aria-hidden
         className="grid h-7 w-7 place-items-center rounded-full font-mono text-[12px]"
         style={{
-          background: active ? `color-mix(in srgb, ${color} 22%, transparent)` : 'rgba(255,255,255,0.06)',
-          border: `${isSelected ? 2.5 : 1.5}px solid ${isSelected ? 'var(--teal-bright)' : active ? color : 'rgba(255,255,255,0.25)'}`,
-          color: isSelected ? 'var(--teal-bright)' : active ? color : 'rgba(255,255,255,0.45)',
-          boxShadow: isSelected
-            ? '0 0 8px var(--teal-bright), 0 0 16px var(--teal-bright)'
-            : active
-              ? `0 0 6px ${color}`
-              : 'none',
-          transition: reduce ? 'none' : 'border-color .15s, box-shadow .15s, background .15s',
+          background: active
+            ? `color-mix(in srgb, ${color} 20%, transparent)`
+            : 'var(--surface)',
+          border: `${isSelected ? 2.5 : 1.5}px solid ${
+            isSelected ? 'var(--blue)' : active ? color : 'color-mix(in srgb, var(--ink-3) 60%, transparent)'
+          }`,
+          color: isSelected ? 'var(--blue)' : active ? color : 'var(--ink-3)',
+          transition: reduce ? 'none' : 'border-color .15s, background .15s',
         }}
       >
         {RECENCY_ICON[recency]}
@@ -160,22 +200,32 @@ export function InjectionMap({
   }, [selected, recencyMap])
 
   return (
-    <div className="rounded-lg border border-white/10 bg-raised p-4" role="group" aria-label="Mapa de rotación de sitios de inyección">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">Sitio de inyección</h3>
+    <div
+      className="rounded-sm border border-hairline bg-raised p-4"
+      role="group"
+      aria-label="Mapa de rotación de sitios de inyección"
+    >
+      {/* Kicker editorial + chip de zona sugerida (ámbar suave, texto tinta AA) */}
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-mono text-[12px] font-medium uppercase tracking-[0.14em] text-ink-2">
+          <span aria-hidden className="h-1.5 w-1.5 shrink-0 bg-amber" />
+          Sitio de inyección
+        </h3>
         {suggested && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-teal/30 bg-teal/15 px-2 py-0.5 font-mono text-[11px] font-semibold text-teal">
-            <span aria-hidden>◎</span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline bg-amber-soft px-2.5 py-1 font-mono text-[12px] font-medium text-ink">
+            <span aria-hidden style={{ color: 'var(--amber)' }}>◎</span>
             <span>Sugerido: {SITE_SHORT[suggested]}</span>
           </span>
         )}
       </div>
-      <p className="-mt-2 mb-3 text-[11px] text-muted-foreground">Izq./der. son desde <span className="text-secondary-foreground">tu</span> perspectiva.</p>
+      <p className="mb-3 text-[12px] text-ink-3">
+        Izq./der. son desde <span className="font-medium text-ink-2">tu</span> perspectiva.
+      </p>
 
-      {/* Imagen del cuerpo + zonas interactivas encima */}
+      {/* Figura abstracta (frente + espalda) + zonas interactivas encima */}
       <div className="relative mx-auto w-full" style={{ maxWidth: 360 }}>
         <div className="relative w-full" style={{ aspectRatio: '1200 / 896' }}>
-          <img src={bodySrc} alt="" aria-hidden className="absolute inset-0 h-full w-full object-contain" />
+          <AbstractBody />
           {ZONES.map((z) => (
             <Zone
               key={z.site}
@@ -190,7 +240,7 @@ export function InjectionMap({
             />
           ))}
         </div>
-        <div className="flex justify-around px-6 font-mono text-[10px] uppercase tracking-widest text-muted-foreground" aria-hidden>
+        <div className="flex justify-around px-6 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-3" aria-hidden>
           <span>Frente</span>
           <span>Espalda</span>
         </div>
@@ -205,28 +255,28 @@ export function InjectionMap({
         transition={reduce ? { duration: 0 } : { duration: 0.2 }}
       >
         {detail ? (
-          <div className="rounded-md border border-white/[0.06] bg-void px-3 py-2">
+          <div className="rounded-[8px] border border-hairline bg-surface px-3 py-2">
             <div className="flex items-center gap-2">
-              <span aria-hidden className="text-base leading-none" style={{ color: RECENCY_COLOR[detail.recency] }}>
+              <span aria-hidden className="font-mono text-base leading-none" style={{ color: RECENCY_COLOR[detail.recency] }}>
                 {RECENCY_ICON[detail.recency]}
               </span>
-              <span className="text-sm font-semibold text-foreground">{detail.label}</span>
-              <span className="ml-auto font-mono text-xs" style={{ color: RECENCY_COLOR[detail.recency] }}>
+              <span className="text-[14px] font-semibold text-ink">{detail.label}</span>
+              <span className="ml-auto font-mono text-[12px] tabular-nums" style={{ color: RECENCY_COLOR[detail.recency] }}>
                 {RECENCY_LABEL[detail.recency]}
               </span>
             </div>
-            <p className="ml-6 mt-0.5 text-xs text-muted-foreground">Última: {relLabel(detail.lastTs)}</p>
+            <p className="ml-6 mt-0.5 font-mono text-[12px] text-ink-3">Última: {relLabel(detail.lastTs)}</p>
           </div>
         ) : (
-          <p className="pt-2 text-center text-xs text-muted-foreground">Toca una zona para ver su historial</p>
+          <p className="pt-2 text-center text-[12px] text-ink-3">Toca una zona para ver su historial</p>
         )}
       </motion.div>
 
-      {/* Leyenda color + ícono + texto */}
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-white/[0.08] pt-3" aria-label="Leyenda de recencia">
+      {/* Leyenda color + ícono + texto (estado nunca es color solo) */}
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-hairline pt-3" aria-label="Leyenda de recencia">
         {LEGEND.map(({ recency, label }) => (
-          <span key={recency} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span aria-hidden className="font-mono text-[10px]" style={{ color: RECENCY_COLOR[recency] }}>
+          <span key={recency} className="inline-flex items-center gap-1.5 font-mono text-[12px] text-ink-2">
+            <span aria-hidden className="font-mono text-[11px]" style={{ color: RECENCY_COLOR[recency] }}>
               {RECENCY_ICON[recency]}
             </span>
             {label}
@@ -234,7 +284,7 @@ export function InjectionMap({
         ))}
       </div>
 
-      <p className="mt-2 text-center text-[10px] text-muted-foreground">Tu historial se guarda solo en tu dispositivo</p>
+      <p className="mt-2 text-center text-[12px] text-ink-3">Tu historial se guarda solo en tu dispositivo</p>
     </div>
   )
 }

@@ -1,58 +1,163 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   Hacktrack rebuild — "Precision × Accessible" tokens.
-   Cockpit oscuro premium. Contraste AA+ verificado:
-   foreground 15:1 · secondary 7:1 · muted 5.7:1 · teal 8.1:1.
+   Hacktrack — Design System "Bitácora" (LOCKED 2026-07-17).
+   Reporte editorial de papel-y-tinta sobre tu cuerpo. Dos temas
+   de primera clase: Papel (claro, :root) y Tinta (oscuro).
+   Tipografía self-hosted (Fraunces / Inter / JetBrains Mono) — se
+   importa vía @fontsource en src/main.tsx (NO CDN de Google: es un
+   anti-patrón PWA + riesgo de CSP).
+
+   Mecanismo de tema (sin cambios): el provider pone
+   document.documentElement[data-theme="dark"|"light"] y
+   [data-contrast="high"]. :root = Papel; [data-theme="dark"] = Tinta.
+
+   Contraste (AA es PISO en ambos temas; ratios medidos vs. su fondo):
+     Papel  ink #1A1712 / paper #F4F1EA ....... ~15.9:1
+            ink-2 #575146 / paper ............... ~7.0:1
+            ink-3 #6E6656 / paper ............... ~5.0:1  (AA texto normal; ≥4.5 también en surface/raised)
+            blue #2A3F8F / paper ................ ~8.4:1  (interactivo/enlaces)
+            blanco / blue (botón) ............... ~9.5:1
+            amber #C9761F / paper ............... ~3.0:1  (SOLO gráfico: anillo, realces grandes)
+     Tinta  ink #F2EDE3 / paper #14110C ........ ~16.1:1
+            ink-2 #B4AC9B / paper ............... ~8.4:1
+            ink-3 #8A8272 / paper ............... ~5.0:1  (AA texto normal)
+            blue #8AA6FF / paper ................ ~8.1:1
+            amber #F0A63C / paper ............... ~9.2:1
+   Alto contraste sube muted/secondary a ≥AA (≥4.5:1) y hairline a 0.20.
    ============================================================ */
 @layer base {
+  /* ── Papel (claro) — papel cálido, no blanco frío. TOKENS CANÓNICOS. ── */
   :root {
-    --void: #080C0F;          /* fondo más profundo (body) */
-    --background: #0D1117;    /* superficie de pantalla */
-    --raised: #131920;        /* filas / elevado */
-    --card: #171E27;          /* cards */
-    --card-foreground: #E8EDF2;
-    --foreground: #E8EDF2;    /* texto primario — 15:1 */
-    --secondary: #1B2740;
-    --secondary-foreground: #9AA7B8; /* texto secundario — 7:1 */
-    --muted: #1B2740;
-    --muted-foreground: #8A98B5;     /* texto terciario — 5.7:1 (piso AA, no bajar) */
-    /* Alias de tokens legados que usa MultiLineChart (no estaban definidos → ejes/etiquetas invisibles).
-       Referencian los tokens reales (theme-aware) para que el chart sea visible y con buen contraste. */
-    --ink-300: var(--muted-foreground);
-    --ink-400: var(--secondary-foreground);
-    --ink-700: var(--foreground);
-    --brand-500: #5FC9B8;
-    --border: rgba(255,255,255,0.08);
-    --input: #1B2740;
-    --ring: #5FC9B8;
-    --primary: #5FC9B8;       /* teal readout — NUNCA #5eead4 (mint de BiohackMX) */
-    --primary-foreground: #06100D;
-    --teal: #5FC9B8;
-    --teal-dim: #3A8F83;
-    --teal-bright: #6FE3CD;   /* solo número hero */
-    --ok: #4AC98E;
-    --warn: #E8A23A;
-    --alert: #E85A4A;
-    /* placa opaca para readouts críticos (data-plate) */
-    --plate: #080C0F;
+    --paper:        #F4F1EA;   /* body */
+    --surface:      #FBFAF6;   /* cards (papel levantado) */
+    --raised:       #EEE9DE;   /* filas / pozos */
+    --ink:          #1A1712;   /* texto primario — casi-negro cálido (~15.9:1) */
+    --ink-2:        #575146;   /* texto secundario (~7:1) */
+    --ink-3:        #6E6656;   /* texto terciario — hoja de tokens de la ref canónica: AA (≥4.5:1)
+                                  también a 12px (kickers mono, sublabels); antes #8A8477 (~3.3:1) fallaba AA */
+    --hairline:     rgba(26,23,18,0.12);
+    --blue:         #2A3F8F;   /* interactivo/confianza/datos — azul tinta profundo */
+    --blue-press:   #223475;
+    --amber:        #C9761F;   /* energía: anillo, racha, realces (ámbar arcilla editorial) — SOLO gráfico */
+    --amber-soft:   #F3E7D4;   /* relleno tinte ámbar */
+    --amber-ink:    #8A5A10;   /* "ámbar cuando debe ser texto AA" (hoja de la ref): ≥4.8 en todas las superficies */
+    /* Colores de estado como TEXTO (chips 12px "Hecha", deltas ▲▼, atrasada…): AA ≥4.5 en paper,
+       surface, raised y tintes al 10–12%. Los previos (#2E9E6B/#C7901E/#C6412E) daban 3.2/2.5/4.4. */
+    --ok:           #2B7441;
+    --warn:         #8A5A10;
+    --alert:        #B93227;
 
-    /* ── Escala de radios y alturas de control ──────────────────
-       Tokens para uso futuro: no aplican globalmente todavía.
-       --radius-sm  → radio compacto (badges, chips pequeños)
-       --radius-md  → radio estándar (cards, inputs)
-       --radius-lg  → radio grande (sheets, modales)
-       --control-h  → tap target primario (44 px — Apple/WCAG mínimo accesible)
-       --control-h-sm → tap target secundario compacto (40 px)
-       ──────────────────────────────────────────────────────── */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --control-h: 44px;
+    /* Series de péptidos (ref canónica: azul / oro / violeta — triádico colorblind-safe, cero teal).
+       Solo elemento gráfico (barras/curvas/dots, ≥3:1); verde/rojo quedan reservados a estado. */
+    --series-1:     var(--blue);
+    --series-2:     #B5731A;
+    --series-3:     #6D3FD1;
+
+    /* Placa opaca de instrumento para readouts críticos (data-plate).
+       Superficie oscura en AMBOS temas; su texto es blanco cálido fijo. */
+    --plate:        #1A1712;
+
+    /* Alturas de control accesibles (Apple/WCAG mín. tap target). Radios: escala ÚNICA en
+       tailwind.config (borderRadius sm10/md14/lg20/xl26) — aquí NO se duplica. */
+    --control-h:    44px;
     --control-h-sm: 40px;
+
+    /* ── Alias de tokens LEGADOS (compat): apuntan a los canónicos de arriba, así
+       cada clase existente (text-foreground, bg-card, text-teal, border-border…) hereda
+       la nueva paleta cálida y el árbol vivo SIGUE renderizando. Se resuelven por tema
+       porque referencian variables que el bloque Tinta redefine sobre el mismo <html>. */
+    --void:                 var(--paper);
+    --background:           var(--paper);
+    --card:                 var(--surface);
+    --card-foreground:      var(--ink);
+    --foreground:           var(--ink);
+    --secondary:            var(--raised);
+    --secondary-foreground: var(--ink-2);
+    --muted:                var(--raised);
+    --muted-foreground:     var(--ink-3);
+    --border:               var(--hairline);
+    --input:                var(--raised);
+    --ring:                 var(--amber);   /* anillo/acento = ÁMBAR (nunca teal) */
+    --primary:              var(--blue);
+    --primary-foreground:   #FBFAF6;
+    /* El acento teal legado se remapea a azul (interactivo) → desaparece el teal del render */
+    --teal:                 var(--blue);
+    --teal-dim:             var(--blue-press);
+    --teal-bright:          var(--blue);
+    /* Alias que consume MultiLineChart (ejes/etiquetas/plasma) */
+    --ink-300:              var(--ink-3);
+    --ink-400:              var(--ink-2);
+    --ink-700:              var(--ink);
+    --brand-500:            var(--blue);
+  }
+
+  /* ── Tinta (oscuro) — tinta cálida, NO azul-negro. Solo overrides canónicos:
+     los alias legados los siguen automáticamente (var() se resuelve por tema). ── */
+  [data-theme="dark"] {
+    --paper:      #14110C;   /* cuerpo de tinta cálida */
+    --surface:    #1E1A13;   /* panel cálido */
+    --raised:     #262019;
+    --ink:        #F2EDE3;   /* blanco cálido */
+    --ink-2:      #B4AC9B;
+    --ink-3:      #8A8272;   /* AA sobre tinta */
+    --hairline:   rgba(255,255,255,0.09);
+    --blue:       #8AA6FF;   /* interactivo/datos — brillante para AA sobre tinta */
+    --blue-press: #6E8DF0;
+    --amber:      #F0A63C;   /* EL glow: anillo/racha/energía — luminoso */
+    --amber-soft: rgba(240,166,60,0.14);
+    --amber-ink:  var(--amber);  /* en Tinta el ámbar YA es texto AA (~9.2:1) */
+    --ok:         #4AC98E;
+    --warn:       #E8B24A;
+    --alert:      #F0705C;
+    --plate:      #262019;
+    --primary-foreground: #14110C;
+    /* Series de péptidos — luminosas sobre tinta (ref canónica), nunca menta. */
+    --series-2:   #F3B84E;
+    --series-3:   #B79BF2;
+  }
+
+  /* Guarda anti-flash SOLO pre-montaje (antes de que el provider ponga data-theme):
+     respeta prefers-color-scheme del SO para el primer frame. Debe reflejar el bloque
+     [data-theme="dark"] de arriba; una vez montado, [data-theme] gana. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --paper:      #14110C;
+      --surface:    #1E1A13;
+      --raised:     #262019;
+      --ink:        #F2EDE3;
+      --ink-2:      #B4AC9B;
+      --ink-3:      #8A8272;
+      --hairline:   rgba(255,255,255,0.09);
+      --blue:       #8AA6FF;
+      --blue-press: #6E8DF0;
+      --amber:      #F0A63C;
+      --amber-soft: rgba(240,166,60,0.14);
+      --amber-ink:  #F0A63C;
+      --ok:         #4AC98E;
+      --warn:       #E8B24A;
+      --alert:      #F0705C;
+      --plate:      #262019;
+      --primary-foreground: #14110C;
+      --series-2:   #F3B84E;
+      --series-3:   #B79BF2;
+    }
+  }
+
+  /* #12 — Alto contraste (accesibilidad): sube muted/secondary a ≥AA y hairline a 0.20,
+     sin tocar tamaños. Papel (base) y Tinta ([data-theme="dark"]…) son simétricos:
+     el bloque Tinta-HC (specificity 0,2,0) gana sobre el HC claro (0,1,0). */
+  [data-contrast="high"] {
+    --ink-2:    #3D382F;   /* ~9:1 sobre papel */
+    --ink-3:    #575146;   /* ~7:1 — "sube al nivel de ink-2" (ref canónica; base ya es ~5:1) */
+    --hairline: rgba(26,23,18,0.20);
+  }
+  [data-theme="dark"][data-contrast="high"] {
+    --ink-2:    #CFC6B4;
+    --ink-3:    #A9A090;   /* ~7.3:1 sobre tinta (sube desde ~5:1) */
+    --hairline: rgba(255,255,255,0.20);
   }
 
   * { border-color: var(--border); }
@@ -60,18 +165,13 @@
   html, body, #root { margin: 0; height: 100%; overscroll-behavior: none; }
 
   /* Móvil: bloquear el scroll/rebote del documento — solo los contenedores internos scrollean.
-     Evita que al hacer overscroll se vea el fondo negro detrás del frame (rubber-band de iOS/Android).
-     En escritorio se deja scrollear para no recortar el preview enmarcado (md:880px). */
-    /* height: 100% (de la regla base) cubre TODA la pantalla con viewport-fit=cover, incluida el
-       área segura inferior; usar 100dvh dejaba una franja negra abajo en algunos iPhone. Solo
-       bloqueamos el scroll del documento. */
+     Evita que al hacer overscroll se vea el fondo detrás del frame (rubber-band de iOS/Android). */
   @media (max-width: 767px) {
     html, body { overflow: hidden; }
   }
 
-  /* PWA INSTALADA (standalone): usar 100vh, que SÍ incluye la zona del home-indicator/barra de gestos.
-     100dvh la EXCLUYE → por eso quedaba la franja negra abajo (mismo fix que la app vieja). Así el frame
-     y su fondo llegan hasta el borde físico inferior. */
+  /* PWA INSTALADA (standalone): usar 100vh (incluye la zona del home-indicator/barra de gestos;
+     100dvh la EXCLUYE → dejaba franja abajo). Así el frame y su fondo llegan al borde físico inferior. */
   @media all and (display-mode: standalone) {
     html, body, #root { height: 100vh; }
     .app-frame {
@@ -83,15 +183,15 @@
     }
   }
 
-  /* Los contenedores con scroll no encadenan su overscroll al padre (no arrastran ni rebotan la página). */
+  /* Los contenedores con scroll no encadenan su overscroll al padre. */
   .overflow-y-auto, .overflow-auto, .overflow-y-scroll, .overflow-x-auto {
     overscroll-behavior: contain;
   }
 
   body {
-    background: var(--void);
-    color: var(--foreground);
-    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
   }
@@ -104,138 +204,103 @@
   }
 }
 
-/* Grid de precisión sutil (fondo de cockpit) — utilidad reutilizable */
 @layer utilities {
-  /* Scroll fiable en iOS PWA: momentum + contención del rebote. El contenedor debe ser un <div> plano
-     (no un elemento con transform/animación de framer-motion, que rompe el touch-scroll en WebKit). */
+  /* Scroll fiable en iOS PWA: momentum + contención del rebote. El contenedor debe ser un <div>
+     plano (no un elemento con transform/animación de framer-motion, que rompe el touch-scroll en WebKit). */
   .ios-scroll {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
   }
+
+  /* Papel de fondo del frame. La ref canónica muestra papel PLANO (sin retícula): se retiró la
+     rejilla que se transparentaba en ambos temas. Se conserva la clase para no tocar el markup. */
   .bg-precision-grid {
-    background-color: var(--void);
-    background-image:
-      radial-gradient(120% 75% at 50% -8%, rgba(18,26,43,.85), rgba(7,11,18,0) 62%),
-      linear-gradient(rgba(95,201,184,.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(95,201,184,.045) 1px, transparent 1px);
-    background-size: auto, 40px 40px, 40px 40px;
-    background-position: center top, center, center;
+    background-color: var(--paper);
   }
-  /* Capa de movimiento CSS garantizado del fondo ambiental — visible aunque el
-     navegador bloquee el autoplay del <video> (iOS/Safari/Low-Power). Glows teal
-     que derivan lentamente. */
+
+  /* Capa de movimiento CSS del fondo ambiental — glows cálidos (ámbar = energía + azul = datos)
+     que derivan lentamente. GPU-only (transform/opacity). */
   .ambient-drift {
     background:
-      radial-gradient(42% 34% at 26% 28%, rgba(95,201,184,.12), transparent 70%),
-      radial-gradient(38% 32% at 78% 74%, rgba(56,128,168,.12), transparent 70%);
+      radial-gradient(42% 34% at 26% 28%, rgba(201,118,31,.10), transparent 70%),
+      radial-gradient(38% 32% at 78% 74%, rgba(42,63,143,.08), transparent 70%);
     animation: ambient-drift 24s ease-in-out infinite alternate;
     will-change: transform, opacity;
+  }
+  [data-theme="dark"] .ambient-drift {
+    background:
+      radial-gradient(42% 34% at 26% 28%, rgba(240,166,60,.14), transparent 70%),
+      radial-gradient(38% 32% at 78% 74%, rgba(138,166,255,.12), transparent 70%);
   }
   @keyframes ambient-drift {
     0%   { transform: translate3d(-3%, -2%, 0) scale(1.06); opacity: .55; }
     50%  { transform: translate3d(3%, 3%, 0) scale(1.14);   opacity: .95; }
     100% { transform: translate3d(4%, -3%, 0) scale(1.07);  opacity: .60; }
   }
-  /* Apaga blur/motion bajo reduced-motion o low-power */
+
+  /* El fondo ambiental de video (orientado a oscuro) se oculta en Papel. */
+  [data-theme="light"] .ambient-bg { display: none; }
+
+  /* Apaga blur/motion bajo reduced-motion o low-power (accesibilidad). */
   @media (prefers-reduced-motion: reduce) {
     .glass, .glass-nav { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
     .ambient-drift { animation: none !important; }
   }
 }
 
-/* Primitiva de vidrio (cards) — la usan los componentes shadcn-style del rebuild */
 @layer components {
+  /* Card primitiva = "columna impresa" (ref canónica docs/design-refs): superficie OPACA
+     + hairline + sombra susurro. Sin backdrop-filter decorativo (elevación = reglas, no vidrio);
+     el blur queda reservado al backdrop del Sheet asentado. Tinta: panel cálido + realce superior
+     + medio-pixel de glow ámbar (inner-glow del graft Tactile Depth), sin sombrón negro. */
   .glass {
-    background: rgba(23,30,39,0.72);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-top-color: rgba(255,255,255,0.14);
-    box-shadow: var(--tw-shadow, inset 0 1px 0 rgba(255,255,255,.06), 0 16px 40px rgba(0,0,0,.55), 0 0 0 .5px rgba(95,201,184,.10));
-    -webkit-backdrop-filter: blur(20px) saturate(140%);
-    backdrop-filter: blur(20px) saturate(140%);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--tw-shadow, 0 1px 2px rgba(26,23,18,.05));
   }
+  [data-theme="dark"] .glass {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-top-color: rgba(255,255,255,0.10);
+    box-shadow: var(--tw-shadow, inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 .5px rgba(240,166,60,.05));
+  }
+
+  /* Placa de instrumento para readouts críticos (superficie oscura cálida en ambos temas).
+     Radio 10 (columna de imprenta, casi cuadrada — ref canónica). */
   .data-plate {
     background: var(--plate);
     border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px;
-    color: var(--foreground);
+    border-radius: 10px;
+    color: #F2EDE3;
   }
-  /* Variante SÓLIDA del vidrio para usar MIENTRAS el sheet se desliza. Animar el transform de un
-     elemento con backdrop-filter: blur(20px) encima del video ambiental obliga a iOS a re-rasterizar
-     el blur en cada frame → la subida se ve "rara/mecánica". Durante el movimiento usamos esta versión
-     opaca (sin backdrop-filter, GPU barata); al asentarse, el sheet vuelve a .glass. Mismo aspecto. */
+
+  /* FAB de captura universal [+] — decisión por tema de la ref canónica: Papel = azul tinta
+     (todo lo interactivo en un color); Tinta = ÁMBAR luminoso con glifo de tinta (el único
+     glow de la pantalla vive en la captura y el dial). Borde de la superficie para "recortarlo". */
+  .fab-capture {
+    background: var(--blue);
+    color: var(--primary-foreground);
+    border: 3px solid var(--surface);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--blue) 42%, transparent);
+  }
+  [data-theme="dark"] .fab-capture {
+    background: var(--amber);
+    color: #1A1206;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--amber) 45%, transparent);
+  }
+
+  /* Variante SÓLIDA del vidrio MIENTRAS el sheet se desliza (anti-jank): sin backdrop-filter,
+     GPU barata. Al asentarse el sheet vuelve a .glass (blur). NO tocar este mecanismo. */
   .sheet-solid {
-    /* Semi-transparente (cercana a .glass .72), NO opaca: durante el slide un 0.97 se veía como un
-       bloque/"tile" negro. Sigue SIN backdrop-filter → barata en GPU (no reintroduce el jank del blur). */
-    background: rgba(23, 30, 39, 0.72);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-top-color: rgba(255,255,255,0.14);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 40px rgba(0,0,0,.45), 0 0 0 .5px rgba(95,201,184,.10);
+    background: color-mix(in srgb, var(--surface) 97%, transparent);
+    border: 1px solid var(--hairline);
+    box-shadow: 0 1px 2px rgba(26,23,18,.05), 0 12px 30px rgba(26,23,18,.10);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  [data-theme="light"] .sheet-solid {
-    background: rgba(255,255,255,0.98);
-    border-color: rgba(14,23,38,0.08);
-    border-top-color: rgba(14,23,38,0.05);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 30px rgba(14,23,38,.10), 0 0 0 .5px rgba(14,138,120,.12);
+  [data-theme="dark"] .sheet-solid {
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    border-top-color: rgba(255,255,255,0.10);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 14px 36px rgba(0,0,0,.45), 0 0 0 .5px rgba(240,166,60,.06);
   }
-}
-
-/* #12 — Alto contraste: sube el contraste del texto tenue (AA+) sin tocar tamaños.
-   Solo redefine tokens de color de texto; toda la UI que usa muted/secondary se beneficia. */
-[data-contrast="high"] {
-  --muted-foreground: #AEB9CC;       /* gris tenue → mucho más legible sobre el cockpit */
-  --secondary-foreground: #E3E9F2;
-  --border: rgba(255,255,255,0.20);
-}
-[data-contrast="high"][data-theme="light"] {
-  --muted-foreground: #3A475C;
-  --secondary-foreground: #16202F;
-  --border: rgba(14,23,38,0.22);
-}
-
-/* ============================================================
-   Tema CLARO (opcional, R3) — variante coherente del cockpit.
-   Dark sigue siendo el default (:root). Light = data-theme="light".
-   ============================================================ */
-[data-theme="light"] {
-  --void: #EAEEF4;
-  --background: #F4F7FB;
-  --raised: #FFFFFF;
-  --card: #FFFFFF;
-  --card-foreground: #0E1726;
-  --foreground: #0E1726;            /* texto primario oscuro */
-  --secondary: #E6EAF2;
-  --secondary-foreground: #3C4A63;  /* AA en claro */
-  --muted: #EDF1F7;
-  --muted-foreground: #54637A;      /* AA en claro */
-  --border: rgba(14,23,38,0.10);
-  --input: #EDF1F7;
-  --ring: #0E8A78;
-  --primary: #0E8A78;               /* teal oscuro → AA sobre claro */
-  --primary-foreground: #FFFFFF;
-  --teal: #0E8A78;
-  --teal-dim: #0B6E60;
-  --teal-bright: #0B6E60;
-  --ok: #1F9D6B;
-  --warn: #9A5B0E;
-  --alert: #C2362B;
-  --plate: #0E1726;                 /* readout = panel de instrumento oscuro aún en claro */
-}
-[data-theme="light"] body { background: var(--background); }
-[data-theme="light"] .glass {
-  background: rgba(255,255,255,0.80);
-  border-color: rgba(14,23,38,0.08);
-  border-top-color: rgba(14,23,38,0.05);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 30px rgba(14,23,38,.10), 0 0 0 .5px rgba(14,138,120,.12);
-}
-[data-theme="light"] .glass::before { opacity: 0; }       /* sin ruido sobre vidrio claro */
-[data-theme="light"] .data-plate { color: #E8EDF2; }       /* texto claro sobre la placa oscura */
-[data-theme="light"] .ambient-bg { display: none; }        /* el fondo ambiental (video oscuro) se oculta en claro */
-[data-theme="light"] .bg-precision-grid {
-  background-color: var(--background);
-  background-image:
-    radial-gradient(120% 75% at 50% -8%, rgba(14,138,120,.06), rgba(244,247,251,0) 62%),
-    linear-gradient(rgba(14,23,38,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(14,23,38,.045) 1px, transparent 1px);
 }

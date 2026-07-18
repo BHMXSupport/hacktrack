@@ -4,6 +4,8 @@
  * Crea cuenta (nombre obligatorio + correo opcional). Cuenta OBLIGATORIA (sin opción "sin cuenta").
  * Sin backend la cuenta es LOCAL: no hay contraseña que verificar, así que no se muestra
  * el campo ni el medidor de fortaleza (nada debe parecer una verificación real).
+ * Estética "Bitácora": folio de paso, titular serif, azul interactivo. El consentimiento
+ * (checkbox + Aviso de Privacidad) conserva su copy y semántica EXACTOS.
  * "Crear cuenta" → dispatch setName + finishOnboarding (va a 's-app').
  * "Ya tengo cuenta" → dispatch go 's-login'.
  *
@@ -22,22 +24,15 @@ import { backendEnabled } from '../../lib/backend/config'
 import { signUp } from '../../lib/backend/auth'
 import { CURRENT_CONSENT_VERSION } from '../screens/Ajustes'
 import { Button } from '../ui/Button'
+import { FolioLabel } from '../ui/FolioLabel'
+import { fadeUp } from '../lib/motion'
 
 // Aviso de Privacidad servido como página estática dentro de la PWA → URL real, enlazable (Epic E).
 const PRIVACY_URL = `${import.meta.env.BASE_URL}aviso-privacidad.html`
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const fade = {
-  hidden: { opacity: 0, y: 14 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.3, ease: [0, 0, 0.2, 1] as [number, number, number, number] },
-  },
-}
-
-// Input estilizado con tokens v2
+// Input estilizado con tokens Bitácora
 function Field({
   id,
   label,
@@ -55,7 +50,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-semibold text-secondary-foreground">
+      <label htmlFor={id} className="text-[13px] font-semibold text-ink-2">
         {label}
         {required && (
           <span aria-hidden="true" className="ml-0.5 text-alert">
@@ -122,24 +117,24 @@ export function Account() {
     dispatch({ t: 'finishOnboarding' })
   }
 
-  // Fortaleza de contraseña básica (visual, no bloquea)
+  // Fortaleza de contraseña básica (visual, no bloquea) — colores de estado con tokens (AA por tema)
   const pwScore = password.length === 0 ? 0
     : password.length < 8 ? 1
     : /[A-Z]/.test(password) && /[0-9]/.test(password) ? 3
     : 2
-  const pwColor = ['', '#E85D3A', '#E8A33A', '#2FB57C'][pwScore]
+  const pwColor = ['', 'var(--alert)', 'var(--warn)', 'var(--ok)'][pwScore]
   const pwLabel = ['', 'Débil', 'Moderada', 'Fuerte'][pwScore]
 
-  // Shared input class
+  // Shared input class — placa de registro editorial
   const inputCls =
-    'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-secondary-foreground/70 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
+    'h-12 w-full rounded-[10px] border border-hairline bg-surface px-4 text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--blue)_18%,transparent)] transition-[border-color,box-shadow]'
 
   return (
     <div
       className="relative z-10 flex h-full flex-col overflow-y-auto"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
-      {/* App bar */}
+      {/* App bar — folio editorial */}
       <header
         className="flex flex-shrink-0 items-center gap-4 px-4"
         style={{
@@ -150,16 +145,16 @@ export function Account() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-protocol' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
 
         {/* Paso 5 de 5 */}
-        <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 5 de 5</span>
-          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={5} aria-valuemin={1} aria-valuemax={5} aria-label="Último paso">
-            <div className="h-full w-full rounded-full bg-teal" />
+        <div className="flex flex-1 flex-col gap-1.5">
+          <FolioLabel n={5}>Paso 5 de 5</FolioLabel>
+          <div className="h-1 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={5} aria-valuemin={1} aria-valuemax={5} aria-label="Último paso">
+            <div className="h-full w-full rounded-full bg-blue" />
           </div>
         </div>
 
@@ -172,12 +167,12 @@ export function Account() {
         variants={{ show: { transition: { staggerChildren: 0.08 } } }}
         className="flex flex-1 flex-col gap-6 px-5 pt-2"
       >
-        {/* Título */}
-        <motion.div variants={fade} className="text-center">
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
+        {/* Título serif */}
+        <motion.div variants={fadeUp} className="text-center">
+          <h1 className="font-serif text-[28px] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
             ¡Casi listo!
           </h1>
-          <p className="mt-2 text-[14px] text-secondary-foreground">
+          <p className="mt-2 text-[14px] text-ink-2">
             {backendEnabled
               ? 'Tus registros se guardan en tu dispositivo. Con tu cuenta puedes activar el respaldo opcional en la nube.'
               : 'Tus registros se guardan solo en este dispositivo. Tu cuenta es local por ahora — la sincronización llega pronto.'}
@@ -186,7 +181,7 @@ export function Account() {
 
         {/* Formulario */}
         <motion.form
-          variants={fade}
+          variants={fadeUp}
           onSubmit={handleCreate}
           className="flex flex-col gap-4"
           noValidate
@@ -210,14 +205,14 @@ export function Account() {
                 aria-required="true"
                 aria-describedby={tried && !name.trim() ? 'ht-name-error' : undefined}
                 aria-invalid={tried && !name.trim() ? 'true' : undefined}
-                className={inputCls + (tried && !name.trim() ? ' border-alert focus:border-alert focus:ring-alert/20' : '')}
+                className={inputCls + (tried && !name.trim() ? ' border-alert focus:border-alert focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--alert)_18%,transparent)]' : '')}
               />
               {name.trim() && (
-                <User size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-teal" aria-hidden="true" />
+                <User size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-blue" aria-hidden="true" />
               )}
             </div>
             {name.trim() && (
-              <p aria-live="polite" className="text-[13px] font-semibold text-teal">
+              <p aria-live="polite" className="font-serif text-[15px] text-ink">
                 Hola, {name.trim()}
               </p>
             )}
@@ -241,7 +236,7 @@ export function Account() {
               onBlur={handleEmailBlur}
               aria-describedby={emailError ? 'ht-email-error' : undefined}
               aria-invalid={emailError ? 'true' : undefined}
-              className={inputCls + (emailError ? ' border-alert focus:border-alert focus:ring-alert/20' : '')}
+              className={inputCls + (emailError ? ' border-alert focus:border-alert focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--alert)_18%,transparent)]' : '')}
             />
           </Field>
 
@@ -262,39 +257,39 @@ export function Account() {
                   type="button"
                   aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-secondary-foreground hover:text-foreground"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-ink-2 hover:text-ink"
                 >
                   {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {/* Indicador de fortaleza */}
+              {/* Indicador de fortaleza — estado nunca solo-color: barra + etiqueta en tinta */}
               {password && (
-                <div className="flex items-center gap-2 mt-1">
+                <div className="mt-1 flex items-center gap-2">
                   <div className="flex gap-1">
                     {[1, 2, 3].map((n) => (
                       <div
                         key={n}
                         className="h-1 w-8 rounded-full transition-colors duration-200"
-                        style={{ background: n <= pwScore ? pwColor : 'rgba(255,255,255,0.1)' }}
+                        style={{ background: n <= pwScore ? pwColor : 'var(--raised)' }}
                       />
                     ))}
                   </div>
-                  <span className="text-[11px] font-medium" style={{ color: pwColor }}>
+                  <span className="text-[12px] font-medium text-ink-2">
                     {pwLabel}
                   </span>
                 </div>
               )}
             </Field>
           ) : (
-            <p className="flex items-center gap-2 text-[12px] leading-relaxed text-secondary-foreground">
-              <span className="inline-flex shrink-0 items-center rounded-full border border-teal/25 bg-teal/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal">
+            <p className="flex items-center gap-2 text-[12px] leading-relaxed text-ink-2">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] px-2 py-0.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-blue">
                 Próximamente
               </span>
               Cuenta en la nube con contraseña y respaldo.
             </p>
           )}
 
-          {/* Trust badges — visibles antes del consentimiento */}
+          {/* Trust badges — visibles antes del consentimiento (píldoras de confianza, azul) */}
           <div className="flex flex-wrap gap-2">
             {[
               'Datos locales',
@@ -303,37 +298,37 @@ export function Account() {
             ].map((txt) => (
               <span
                 key={txt}
-                className="inline-flex items-center gap-1.5 rounded-full border border-teal/30 bg-teal/15 px-3 py-1 text-[11px] font-medium text-teal"
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-surface px-3 py-1 font-mono text-[12px] font-medium text-ink-2"
               >
-                <Shield size={11} />
+                <Shield size={11} className="text-blue" />
                 {txt}
               </span>
             ))}
           </div>
 
           {/* Disclaimer médico — posición visible, antes del checkbox */}
-          <p className="text-[12px] leading-relaxed text-secondary-foreground">
+          <p className="text-[12px] leading-relaxed text-ink-2">
             No reemplaza consejo médico profesional.
           </p>
 
           {/* Checkbox de privacidad — contenedor sólido para consentimiento legible */}
-          <div className="rounded-xl border border-white/10 bg-raised/80 p-4 flex items-start gap-3">
+          <div className="flex items-start gap-3 rounded-sm border border-hairline bg-surface p-4 shadow-[0_1px_2px_rgba(26,23,18,.05)]">
             <input
               id="ht-privacy"
               type="checkbox"
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
               aria-required="true"
-              className="mt-0.5 h-6 w-6 flex-shrink-0 cursor-pointer rounded accent-teal"
+              className="mt-0.5 h-6 w-6 flex-shrink-0 cursor-pointer rounded accent-blue"
             />
-            <label htmlFor="ht-privacy" className="block cursor-pointer text-[13px] leading-relaxed text-foreground">
+            <label htmlFor="ht-privacy" className="block cursor-pointer text-[13px] leading-relaxed text-ink">
               He leído y acepto el{' '}
               <a
                 href={PRIVACY_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="font-semibold text-teal underline underline-offset-2"
+                className="font-semibold text-blue underline underline-offset-2"
               >
                 Aviso de Privacidad
               </a>.
@@ -357,14 +352,14 @@ export function Account() {
         </motion.form>
 
         {/* Separador */}
-        <motion.div variants={fade} className="flex items-center gap-4" aria-hidden="true">
-          <div className="h-px flex-1 bg-white/8" />
-          <span className="text-[12px] text-secondary-foreground">o</span>
-          <div className="h-px flex-1 bg-white/8" />
+        <motion.div variants={fadeUp} className="flex items-center gap-4" aria-hidden="true">
+          <div className="h-px flex-1 bg-hairline" />
+          <span className="font-mono text-[12px] text-ink-3">o</span>
+          <div className="h-px flex-1 bg-hairline" />
         </motion.div>
 
         {/* Cuenta obligatoria: solo "ya tengo cuenta" (se quitó "continuar sin cuenta") */}
-        <motion.div variants={fade}>
+        <motion.div variants={fadeUp}>
           <Button size="full" variant="outline" onClick={() => dispatch({ t: 'go', screen: 's-login' })}>
             Ya tengo cuenta · Iniciar sesión
           </Button>

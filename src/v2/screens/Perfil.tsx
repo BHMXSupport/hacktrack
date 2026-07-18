@@ -1,4 +1,6 @@
-// Hacktrack v2 — Perfil y privacidad. Precision × Accessible.
+// Hacktrack v2 — Perfil y privacidad. Design system "Bitácora" (LOCKED): filas editoriales,
+// §-folios, hairlines, azul = interactivo/confianza; chip "Tus datos son tuyos" (graft v2)
+// abre el resumen de privacidad. Contenido ARCO/consentimiento INTACTO — solo cambia la piel.
 // R46: nombre editable inline. R50: cerrar sesión, aviso privacidad real, oposición/revocación real.
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
@@ -10,6 +12,9 @@ import {
 import { Sheet } from '../ui/Sheet'
 import { useModalStack } from '../ui/modalStack'
 import { Button } from '../ui/Button'
+import { Switch } from '../ui/Switch'
+import { FolioLabel } from '../ui/FolioLabel'
+import { TrustChip } from '../ui/TrustChip'
 import { useApp } from '../../lib/store'
 import { signOut } from '../../lib/backend/auth'
 import { CURRENT_CONSENT_VERSION, purgeAccountData, CLOUD_DELETE_FAILED_MSG } from './Ajustes'
@@ -39,8 +44,8 @@ function Row({
   icon,
   label,
   sub,
-  iconClass = 'text-teal',
-  labelClass = 'text-foreground',
+  iconClass = 'text-blue',
+  labelClass = 'text-ink',
   onClick,
   chevron = true,
 }: {
@@ -56,34 +61,34 @@ function Row({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-white/3"
+      className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
       aria-label={label}
     >
       <span className={['shrink-0', iconClass].join(' ')}>{icon}</span>
       <span className="flex flex-1 flex-col">
-        <span className={['text-[14px] font-medium', labelClass].join(' ')}>{label}</span>
-        {sub && <span className="text-[12px] text-muted-foreground">{sub}</span>}
+        <span className={['text-[15px] font-medium', labelClass].join(' ')}>{label}</span>
+        {sub && <span className="text-[12px] text-ink-3">{sub}</span>}
       </span>
-      {chevron && <ChevronRight size={16} className="shrink-0 text-muted-foreground" />}
+      {chevron && <ChevronRight size={16} className="shrink-0 text-ink-3" />}
     </button>
   )
 }
 
-// ── card contenedor de filas ─────────────────────────────────────────────────
+// ── card contenedor de filas — pozo cálido con hairlines (reglas, no sombras) ─
 function RowCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col divide-y divide-white/6 overflow-hidden rounded-xl bg-raised">
+    <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-[10px] border border-hairline bg-raised">
       {children}
     </div>
   )
 }
 
-// ── label de sección ─────────────────────────────────────────────────────────
-function SectionLabel({ children }: { children: React.ReactNode }) {
+// ── label de sección — §-folio editorial (graft del veredicto v2) ────────────
+function SectionLabel({ n, children }: { n?: number; children: React.ReactNode }) {
   return (
-    <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <FolioLabel n={n} className="px-1 pb-2.5">
       {children}
-    </p>
+    </FolioLabel>
   )
 }
 
@@ -115,22 +120,24 @@ function ProfileCompleteness({ profile }: { profile: import('../../lib/types').P
 
   return (
     <div className="w-full max-w-[300px]">
-      <div className="mb-1 flex justify-between">
-        <span className="text-[12px] text-muted-foreground">Perfil completo</span>
-        <span className="font-mono text-[12px] font-bold tabular-nums text-foreground">
+      <div className="mb-1 flex items-baseline justify-between">
+        <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink-3">Perfil completo</span>
+        <span className="font-mono text-[12px] font-medium tabular-nums text-ink">
           {count} / {total}
         </span>
       </div>
-      <div className="h-1 overflow-hidden rounded-full bg-white/10">
+      {/* Medidor editorial: crece desde la base (scaleX no aplica a width-animation heredada —
+          se conserva el mecanismo original). Relleno AZUL = dato/interactivo, nunca ámbar. */}
+      <div className="h-1 overflow-hidden rounded-full bg-raised">
         <motion.div
-          className="h-full rounded-full bg-teal"
+          className="h-full rounded-full bg-blue"
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         />
       </div>
       {missing.length > 0 && (
-        <p className="mt-1 text-[11px] italic text-muted-foreground">
+        <p className="mt-1 text-[12px] italic text-ink-3">
           Falta: {missing.slice(0, 3).map((f) => f.label).join(', ')}
           {missing.length > 3 && ` y ${missing.length - 3} más`}
         </p>
@@ -139,12 +146,12 @@ function ProfileCompleteness({ profile }: { profile: import('../../lib/types').P
   )
 }
 
-// ── badge de cumplimiento LFPDPPP ─────────────────────────────────────────────
+// ── badge de cumplimiento LFPDPPP — píldora hairline mono (sello editorial) ───
 function LfpdpppBadge() {
   return (
-    <div className="flex items-center gap-2 rounded-xl bg-raised px-4 py-3">
-      <ShieldCheck size={18} className="shrink-0 text-teal" />
-      <span className="text-[12px] font-semibold text-secondary-foreground">
+    <div className="flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-hairline bg-surface px-4">
+      <ShieldCheck size={14} strokeWidth={1.6} className="shrink-0 text-blue" />
+      <span className="font-mono text-[12px] font-medium tracking-[0.06em] text-ink-2">
         Hecho en México · Cumple LFPDPPP
       </span>
     </div>
@@ -180,7 +187,7 @@ function DeleteAccountDialog({
           <motion.div
             role="alertdialog" aria-modal="true"
             aria-label="Confirmar eliminación de cuenta"
-            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[26px] border-t border-hairline bg-paper p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
@@ -191,15 +198,15 @@ function DeleteAccountDialog({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-3" />
             <div className="mb-4 flex flex-col items-center gap-2 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-alert/15">
-                <Trash2 size={22} className="text-alert" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-[10px] border border-[color-mix(in_srgb,var(--alert)_35%,transparent)] bg-[color-mix(in_srgb,var(--alert)_12%,transparent)]">
+                <Trash2 size={22} strokeWidth={1.6} className="text-alert" />
               </div>
-              <h3 className="text-[18px] font-bold text-foreground">
+              <h3 className="font-serif text-[20px] font-medium tracking-tight text-ink">
                 ¿Cancelar cuenta y borrar datos?
               </h3>
-              <p className="max-w-[300px] text-[13px] leading-relaxed text-muted-foreground">
+              <p className="max-w-[300px] text-[14px] leading-relaxed text-ink-2">
                 Ejerces tu derecho de Cancelación (LFPDPPP). Todos tus registros, protocolos y
                 configuración serán eliminados de este dispositivo de forma permanente. No se puede
                 deshacer.
@@ -255,7 +262,7 @@ function LogoutDialog({
           <motion.div
             role="alertdialog" aria-modal="true"
             aria-label="Confirmar cierre de sesión"
-            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[26px] border-t border-hairline bg-paper p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
@@ -266,13 +273,13 @@ function LogoutDialog({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-3" />
             <div className="mb-4 flex flex-col items-center gap-2 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/8">
-                <LogOut size={22} className="text-foreground" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-[10px] border border-hairline bg-raised">
+                <LogOut size={22} strokeWidth={1.6} className="text-ink" />
               </div>
-              <h3 className="text-[18px] font-bold text-foreground">¿Cerrar sesión?</h3>
-              <p className="max-w-[300px] text-[13px] leading-relaxed text-muted-foreground">
+              <h3 className="font-serif text-[20px] font-medium tracking-tight text-ink">¿Cerrar sesión?</h3>
+              <p className="max-w-[300px] text-[14px] leading-relaxed text-ink-2">
                 Tus datos quedan guardados en este dispositivo. Podrás volver a acceder en cualquier
                 momento.
               </p>
@@ -324,7 +331,7 @@ function ConsentUpdateDialog({
           <motion.div
             role="alertdialog" aria-modal="true"
             aria-label="Aviso de privacidad actualizado — revisar y aceptar"
-            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[26px] border-t border-hairline bg-paper p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
@@ -335,21 +342,21 @@ function ConsentUpdateDialog({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-3" />
             <div className="mb-1 flex items-center gap-2">
-              <FileText size={18} className="text-warn" />
-              <h3 className="text-[17px] font-bold text-foreground">
+              <FileText size={18} strokeWidth={1.6} className="text-warn" />
+              <h3 className="font-serif text-[20px] font-medium tracking-tight text-ink">
                 Revisa el Aviso de Privacidad
               </h3>
             </div>
             {/* Se abre tanto por cambio de versión (#82) como para re-aceptar tras revocar */}
-            <p className="mb-3 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mb-3 text-[14px] leading-relaxed text-ink-2">
               La versión vigente es la {CURRENT_CONSENT_VERSION}. Revísala antes de aceptar —
               aceptar registra tu consentimiento con esa versión y la fecha de hoy.
             </p>
-            <div className="mb-3 rounded-xl bg-raised px-4 py-3">
-              <p className="text-[12px] font-semibold text-foreground">Qué dice esta versión</p>
-              <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+            <div className="mb-3 rounded-[10px] border border-hairline bg-raised px-4 py-3">
+              <p className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2">Qué dice esta versión</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
                 {CONSENT_VERSION_SUMMARY}
               </p>
             </div>
@@ -357,7 +364,7 @@ function ConsentUpdateDialog({
               href={PRIVACY_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mb-4 inline-flex min-h-[44px] items-center text-[13px] font-semibold text-teal underline underline-offset-2"
+              className="mb-4 inline-flex min-h-[44px] items-center text-[14px] font-semibold text-blue underline underline-offset-2"
             >
               Leer el Aviso de Privacidad completo
             </a>
@@ -387,25 +394,25 @@ function AvisoPrivacidad({
 }) {
   const reduce = useReducedMotion()
   return (
-    <div className="overflow-hidden rounded-xl bg-raised">
+    <div className="overflow-hidden rounded-[10px] border border-hairline bg-raised">
       <button
         type="button"
         aria-expanded={open}
         aria-label="Aviso de privacidad LFPDPPP"
         onClick={onToggle}
-        className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-white/3"
+        className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
       >
-        <FileText size={18} className="shrink-0 text-teal" />
+        <FileText size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
         <span className="flex flex-1 flex-col">
-          <span className="text-[14px] font-medium text-foreground">Aviso de privacidad</span>
-          <span className="text-[12px] text-muted-foreground">
+          <span className="text-[15px] font-medium text-ink">Aviso de privacidad</span>
+          <span className="text-[12px] text-ink-3">
             LFPDPPP — Ley Federal de Protección de Datos
           </span>
         </span>
         <ChevronRight
           size={16}
           className={[
-            'shrink-0 text-muted-foreground transition-transform duration-200',
+            'shrink-0 text-ink-3 transition-transform duration-200',
             open ? 'rotate-90' : '',
           ].join(' ')}
         />
@@ -421,46 +428,46 @@ function AvisoPrivacidad({
             transition={reduce ? { duration: 0.1 } : { duration: 0.22 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-col gap-3 border-t border-white/6 px-4 py-4">
-              <p className="text-[13px] font-semibold text-foreground">
+            <div className="flex flex-col gap-3 border-t border-hairline px-4 py-4">
+              <p className="font-serif text-[17px] font-medium text-ink">
                 Aviso de privacidad simplificado
               </p>
               {/* Mantener responsable, versión y fecha en sincronía con public/aviso-privacidad.html */}
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">Responsable:</span> Hacktrack
+              <p className="text-[13px] leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">Responsable:</span> Hacktrack
                 (razón social por definir — borrador en revisión legal).
               </p>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">Datos que recopilamos:</span> nombre,
+              <p className="text-[13px] leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">Datos que recopilamos:</span> nombre,
                 correo electrónico (opcional), medidas corporales, registros de dosis y protocolos
                 que tú introduces manualmente.
               </p>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">Finalidad:</span> mostrarte tu
+              <p className="text-[13px] leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">Finalidad:</span> mostrarte tu
                 historial, calcular adherencia y ofrecerte recordatorios. No se usan para publicidad
                 ni se comparten con terceros.
               </p>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">Almacenamiento:</span> local-first —
+              <p className="text-[13px] leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">Almacenamiento:</span> local-first —
                 tus datos residen en tu dispositivo (localStorage). No se envían a ningún servidor,
                 salvo que actives el respaldo opcional en la nube (cifrado en tránsito).
               </p>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">Derechos ARCO</span> (LFPDPPP
+              <p className="text-[13px] leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">Derechos ARCO</span> (LFPDPPP
                 arts. 22–28): puedes Acceder, Rectificar, Cancelar u Oponerte al tratamiento de tus
                 datos en cualquier momento desde esta misma pantalla.
               </p>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
+              <p className="text-[13px] leading-relaxed text-ink-2">
                 <a
                   href={PRIVACY_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold text-teal underline underline-offset-2"
+                  className="font-semibold text-blue underline underline-offset-2"
                 >
                   Leer el Aviso de Privacidad completo
                 </a>{' '}(LFPDPPP).
               </p>
-              <p className="text-[12px] font-semibold text-teal">
+              <p className="font-mono text-[12px] font-medium text-ink-2">
                 Versión {CURRENT_CONSENT_VERSION} · Última actualización: junio de 2026
               </p>
             </div>
@@ -506,7 +513,7 @@ function RevocacionDialog({
           <motion.div
             role="dialog"
             aria-label="Gestionar consentimiento y modo local"
-            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[26px] border-t border-hairline bg-paper p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
@@ -517,51 +524,36 @@ function RevocacionDialog({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-ink-3" />
             <div className="mb-1 flex items-center gap-2">
-              <ShieldOff size={18} className="text-teal" />
-              <h3 className="text-[17px] font-bold text-foreground">
+              <ShieldOff size={18} strokeWidth={1.6} className="text-blue" />
+              <h3 className="font-serif text-[20px] font-medium tracking-tight text-ink">
                 Gestionar consentimiento (Oposición)
               </h3>
             </div>
-            <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mb-4 text-[14px] leading-relaxed text-ink-2">
               Ejerces tus derechos de Oposición y revocación del consentimiento (LFPDPPP arts. 8 y
               27). Al revocar: se desactiva el respaldo en la nube (si estuviera activo) y tu
               consentimiento queda registrado como revocado. Tus datos permanecen en este
               dispositivo hasta que tú los borres con «Eliminar mis datos».
             </p>
 
-            {/* Toggle modo solo local */}
-            <div className="mb-4 flex items-center gap-3 rounded-xl bg-raised px-4 py-3">
-              <ShieldCheck size={18} className="shrink-0 text-teal" />
+            {/* Toggle modo solo local — mismo Switch compartido de la app (idéntico en toda la UI) */}
+            <div className="mb-4 flex items-center gap-3 rounded-[10px] border border-hairline bg-raised px-4 py-3">
+              <ShieldCheck size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
               <span className="flex flex-1 flex-col">
-                <span className="text-[14px] font-medium text-foreground">Modo solo local</span>
-                <span className="text-[12px] text-muted-foreground">
+                <span className="text-[15px] font-medium text-ink">Modo solo local</span>
+                <span className="text-[12px] text-ink-3">
                   {localOnly
                     ? 'Activo — sin respaldo en la nube; tus datos se quedan en este dispositivo'
                     : 'Desactivado'}
                 </span>
               </span>
-              {/* Chip de estado */}
-              <button
-                type="button"
-                role="switch"
-                aria-checked={localOnly}
-                aria-label="Activar modo solo local"
-                onClick={() => onSetLocalOnly(!localOnly)}
-                className={[
-                  'relative h-[28px] w-[48px] shrink-0 rounded-full transition-colors duration-200',
-                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
-                  localOnly ? 'bg-teal' : 'bg-white/15',
-                ].join(' ')}
-              >
-                <span
-                  className={[
-                    'absolute top-[3px] left-[3px] h-[22px] w-[22px] rounded-full bg-white shadow transition-transform duration-200',
-                    localOnly ? 'translate-x-[20px]' : 'translate-x-0',
-                  ].join(' ')}
-                />
-              </button>
+              <Switch
+                checked={localOnly}
+                onChange={(v) => onSetLocalOnly(v)}
+                label="Activar modo solo local"
+              />
             </div>
 
             {/* Revocación real: consentActive → false (nada de botones sin efecto) */}
@@ -576,7 +568,7 @@ function RevocacionDialog({
                   Revocar consentimiento
                 </Button>
               ) : (
-                <p className="text-center text-[12px] text-muted-foreground">
+                <p className="text-center text-[12px] text-ink-3">
                   Consentimiento revocado. Puedes volver a aceptarlo desde «Estado de
                   consentimiento».
                 </p>
@@ -617,6 +609,16 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
   const avatarFileRef = useRef<HTMLInputElement>(null)
   const reduce = useReducedMotion()
+
+  // Chip "Tus datos son tuyos" (graft v2) → abre el resumen de privacidad (el acordeón
+  // del aviso, más abajo en esta misma hoja) y lleva la vista hasta él.
+  const avisoRef = useRef<HTMLElement>(null)
+  function openAviso() {
+    setShowAvisoPrivacidad(true)
+    window.setTimeout(() => {
+      avisoRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    }, 60)
+  }
 
   const needsReConsent = settings.consentVersion !== CURRENT_CONSENT_VERSION
   const consentLabel =
@@ -784,7 +786,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
   return (
     <>
       <Sheet open={open} onClose={onClose} title="Perfil y privacidad">
-        <div className="flex flex-col gap-5 pb-2">
+        <div className="flex flex-col gap-6 pb-2">
 
           {/* ── Banner de re-consentimiento ──────────────────────────────── */}
           <AnimatePresence>
@@ -796,13 +798,14 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2 }}
                 onClick={() => setShowConsentUpdate(true)}
-                className="flex w-full items-center gap-2 rounded-xl bg-warn/20 px-4 py-3 text-left"
+                className="flex min-h-[44px] w-full items-center gap-2.5 rounded-[10px] border border-[color-mix(in_srgb,var(--warn)_45%,transparent)] bg-[color-mix(in_srgb,var(--warn)_14%,transparent)] px-4 py-3 text-left"
                 aria-label="Aviso de privacidad actualizado — toca para revisar y aceptar"
               >
-                <ShieldCheck size={16} className="shrink-0 text-warn" />
-                <span className="text-[13px] font-semibold text-warn">
+                <ShieldCheck size={16} strokeWidth={1.8} className="shrink-0 text-warn" />
+                <span className="flex-1 text-[13px] font-semibold text-ink">
                   Aviso de privacidad actualizado — toca para revisar
                 </span>
+                <ChevronRight size={16} className="shrink-0 text-ink-3" />
               </motion.button>
             )}
           </AnimatePresence>
@@ -810,7 +813,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
           {/* ── Avatar + nombre + completitud ────────────────────────────── */}
           <section className="flex flex-col items-center gap-3 pt-1">
             <div className="relative inline-block">
-              <div className="h-[80px] w-[80px] overflow-hidden rounded-full bg-raised">
+              <div className="h-[80px] w-[80px] overflow-hidden rounded-full border border-hairline bg-raised">
                 {(profile as { avatarDataUrl?: string }).avatarDataUrl ? (
                   <img
                     src={(profile as { avatarDataUrl?: string }).avatarDataUrl}
@@ -819,7 +822,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <User size={36} className="text-muted-foreground" />
+                    <User size={36} strokeWidth={1.4} className="text-ink-3" />
                   </div>
                 )}
               </div>
@@ -827,7 +830,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                 type="button"
                 aria-label="Cambiar foto de perfil"
                 onClick={() => avatarFileRef.current?.click()}
-                className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <Pencil size={12} className="text-primary-foreground" />
               </button>
@@ -841,11 +844,13 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
               />
             </div>
 
-            <div className="text-center">
-              <p className="text-[18px] font-bold text-foreground">
+            <div className="flex flex-col items-center gap-1 text-center">
+              {/* La voz editorial: el nombre en serif (Fraunces) */}
+              <p className="font-serif text-[24px] font-medium leading-tight tracking-tight text-ink">
                 {profile.name ?? 'Tu perfil'}
               </p>
-              <p className="text-[12px] text-muted-foreground">Tus datos son tuyos</p>
+              {/* Graft v2: chip de confianza → abre el resumen de privacidad */}
+              <TrustChip onOpen={openAviso} className="-my-1" />
             </div>
 
             <ProfileCompleteness profile={profile} />
@@ -853,16 +858,16 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
           {/* ── Información personal ──────────────────────────────────────── */}
           <section>
-            <SectionLabel>Información personal</SectionLabel>
-            <div className="flex flex-col divide-y divide-white/6 overflow-hidden rounded-xl bg-raised">
+            <SectionLabel n={1}>Información personal</SectionLabel>
+            <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-[10px] border border-hairline bg-raised">
 
               {/* Nombre editable inline (R46) */}
               <div className="flex min-h-[44px] items-start gap-3 px-4 py-2">
-                <span className="mt-0.5 shrink-0 text-teal">
-                  <User size={18} />
+                <span className="mt-0.5 shrink-0 text-blue">
+                  <User size={18} strokeWidth={1.6} />
                 </span>
                 <span className="flex flex-1 flex-col gap-1">
-                  <span className="text-[14px] font-medium text-foreground">Nombre</span>
+                  <span className="text-[15px] font-medium text-ink">Nombre</span>
                   <AnimatePresence mode="wait" initial={false}>
                     {nameEditing ? (
                       <motion.span
@@ -884,13 +889,13 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                           onChange={(e) => setNameDraft(e.target.value)}
                           onKeyDown={handleNameKey}
                           onBlur={commitName}
-                          className="flex-1 rounded-md border border-white/10 bg-card px-2 py-1 text-[13px] text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-teal"
+                          className="flex-1 rounded-[8px] border border-hairline bg-surface px-2 py-1 text-[14px] text-ink placeholder:text-ink-3 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue"
                         />
                         <button
                           type="button"
                           aria-label="Confirmar nombre"
                           onClick={commitName}
-                          className="shrink-0 text-teal"
+                          className="shrink-0 text-blue"
                         >
                           <Check size={16} />
                         </button>
@@ -901,7 +906,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                             setNameEditing(false)
                             setNameDraft(profile.name ?? '')
                           }}
-                          className="shrink-0 text-muted-foreground"
+                          className="shrink-0 text-ink-3"
                         >
                           <XIcon size={16} />
                         </button>
@@ -913,10 +918,10 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.12 }}
-                        className="text-[12px] text-muted-foreground"
+                        className="text-[13px] text-ink-2"
                       >
                         {profile.name ?? (
-                          <span className="italic">Sin nombre</span>
+                          <span className="italic text-ink-3">Sin nombre</span>
                         )}
                       </motion.span>
                     )}
@@ -930,7 +935,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                       setNameDraft(profile.name ?? '')
                       setNameEditing(true)
                     }}
-                    className="mt-1 shrink-0 text-muted-foreground"
+                    className="mt-1 shrink-0 text-ink-3"
                   >
                     <Pencil size={14} />
                   </button>
@@ -939,7 +944,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
               {/* Correo electrónico */}
               <div className="flex min-h-[44px] items-start gap-3 px-4 py-2">
-                <span className="mt-0.5 shrink-0 text-teal">
+                <span className="mt-0.5 shrink-0 text-blue">
                   <svg
                     width={18}
                     height={18}
@@ -955,7 +960,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                   </svg>
                 </span>
                 <span className="flex flex-1 flex-col gap-1">
-                  <span className="text-[14px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     Correo electrónico
                   </span>
                   <AnimatePresence mode="wait" initial={false}>
@@ -978,7 +983,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                           onChange={(e) => { setEmailDraft(e.target.value); setEmailError('') }}
                           onKeyDown={handleEmailKey}
                           onBlur={commitEmail}
-                          className="rounded-md border border-white/10 bg-card px-2 py-1 text-[13px] text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-teal"
+                          className="rounded-[8px] border border-hairline bg-surface px-2 py-1 text-[14px] text-ink placeholder:text-ink-3 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue"
                         />
                         {emailError && (
                           <span className="text-[12px] text-alert">{emailError}</span>
@@ -991,10 +996,10 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.12 }}
-                        className="text-[12px] text-muted-foreground"
+                        className="text-[13px] text-ink-2"
                       >
                         {profile.email ?? (
-                          <span className="italic">Sin correo</span>
+                          <span className="italic text-ink-3">Sin correo</span>
                         )}
                       </motion.span>
                     )}
@@ -1005,7 +1010,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                     type="button"
                     aria-label="Editar correo electrónico"
                     onClick={() => { setEmailDraft(profile.email ?? ''); setEmailEditing(true) }}
-                    className="mt-1 shrink-0 text-muted-foreground"
+                    className="mt-1 shrink-0 text-ink-3"
                   >
                     <Pencil size={14} />
                   </button>
@@ -1019,34 +1024,34 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
               Antes el perfil solo mostraba Nombre+Correo → parecían "no guardados". Aquí se ven y, al
               tocarlos, se abre su registro (MedidaSheet) para actualizarlos manteniendo el historial. */}
           <section>
-            <SectionLabel>Datos biométricos</SectionLabel>
+            <SectionLabel n={2}>Datos biométricos</SectionLabel>
             <RowCard>
               <Row
-                icon={<Scale size={18} />}
+                icon={<Scale size={18} strokeWidth={1.6} />}
                 label="Peso"
                 sub={profile.peso != null ? `${profile.peso} kg` : 'Sin registrar — toca para agregar'}
                 onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: 'Peso' })}
               />
               <Row
-                icon={<Ruler size={18} />}
+                icon={<Ruler size={18} strokeWidth={1.6} />}
                 label="Altura"
                 sub={profile.est != null ? `${profile.est} cm` : 'Sin registrar — toca para agregar'}
                 onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: 'Altura' })}
               />
               <Row
-                icon={<Percent size={18} />}
+                icon={<Percent size={18} strokeWidth={1.6} />}
                 label="% grasa"
                 sub={profile.grasa != null ? `${profile.grasa} %` : 'Sin registrar — toca para agregar'}
                 onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: '% grasa' })}
               />
               <Row
-                icon={<Activity size={18} />}
+                icon={<Activity size={18} strokeWidth={1.6} />}
                 label="% músculo"
                 sub={profile.musculo != null ? `${profile.musculo} %` : 'Sin registrar — toca para agregar'}
                 onClick={() => dispatch({ t: 'sheet', sheet: 'medida', arg: '% músculo' })}
               />
               <Row
-                icon={<Gauge size={18} />}
+                icon={<Gauge size={18} strokeWidth={1.6} />}
                 label="IMC"
                 sub={profile.bmi != null ? `${profile.bmi}` : 'Se calcula con peso y altura'}
                 chevron={false}
@@ -1056,18 +1061,18 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
           {/* ── Privacidad y datos (ARCO) ────────────────────────────────── */}
           <section>
-            <SectionLabel>Privacidad y derechos ARCO</SectionLabel>
+            <SectionLabel n={3}>Privacidad y derechos ARCO</SectionLabel>
             <RowCard>
               {/* Estado de consentimiento — revisar el aviso antes de aceptar (#82) */}
               <Row
-                icon={<ShieldCheck size={18} />}
+                icon={<ShieldCheck size={18} strokeWidth={1.6} />}
                 label={
                   needsReConsent
                     ? 'Consentimiento — ¡actualización!'
                     : 'Estado de consentimiento'
                 }
                 sub={consentLabel}
-                labelClass={needsReConsent ? 'text-warn' : 'text-foreground'}
+                labelClass={needsReConsent ? 'text-warn' : 'text-ink'}
                 onClick={
                   needsReConsent || !settings.consentActive
                     ? () => setShowConsentUpdate(true)
@@ -1078,7 +1083,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
               {/* Acceso — descargar JSON */}
               <Row
-                icon={<Download size={18} />}
+                icon={<Download size={18} strokeWidth={1.6} />}
                 label="Descargar mis datos"
                 sub="JSON completo · respaldo local (Acceso)"
                 onClick={exportJSON}
@@ -1086,7 +1091,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
               {/* Cancelación — eliminar cuenta */}
               <Row
-                icon={<Trash2 size={18} />}
+                icon={<Trash2 size={18} strokeWidth={1.6} />}
                 label="Eliminar mis datos"
                 sub="Borrar todo de este dispositivo (Cancelación)"
                 iconClass="text-alert"
@@ -1100,21 +1105,21 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                 aria-expanded={showMoreArco}
                 aria-label="Ver más opciones de gestión de datos (Rectificación y Oposición)"
                 onClick={() => setShowMoreArco((v) => !v)}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-white/3"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
               >
-                <ShieldCheck size={18} className="shrink-0 text-teal" />
+                <ShieldCheck size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     Gestionar mis datos (ARCO)
                   </span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[12px] text-ink-3">
                     Rectificación, oposición, exportar historial
                   </span>
                 </span>
                 <ChevronRight
                   size={16}
                   className={[
-                    'shrink-0 text-muted-foreground transition-transform duration-200',
+                    'shrink-0 text-ink-3 transition-transform duration-200',
                     showMoreArco ? 'rotate-90' : '',
                   ].join(' ')}
                 />
@@ -1132,7 +1137,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
                   >
                     {/* Acceso — CSV historial */}
                     <Row
-                      icon={<Download size={18} />}
+                      icon={<Download size={18} strokeWidth={1.6} />}
                       label="Exportar historial (CSV)"
                       sub="Tus registros de los últimos 90 días"
                       onClick={exportCSV}
@@ -1140,7 +1145,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
                     {/* Rectificación — corregir datos */}
                     <Row
-                      icon={<Pencil size={18} />}
+                      icon={<Pencil size={18} strokeWidth={1.6} />}
                       label="Corregir mis datos"
                       sub="Rectificación — edita nombre o correo arriba"
                       onClick={() =>
@@ -1150,7 +1155,7 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
                     {/* Oposición — gestionar consentimiento / modo local (R50) */}
                     <Row
-                      icon={<ShieldOff size={18} />}
+                      icon={<ShieldOff size={18} strokeWidth={1.6} />}
                       label="Oposición / revocar consentimiento"
                       sub={
                         settings.consentActive
@@ -1165,8 +1170,8 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
             </RowCard>
           </section>
 
-          {/* ── Aviso de privacidad (acordeón — R50) ─────────────────────── */}
-          <section>
+          {/* ── Aviso de privacidad (acordeón — R50; ancla del TrustChip) ── */}
+          <section ref={avisoRef}>
             <AvisoPrivacidad
               open={showAvisoPrivacidad}
               onToggle={() => setShowAvisoPrivacidad((v) => !v)}
@@ -1175,11 +1180,11 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
 
           {/* ── Microcopy de privacidad ───────────────────────────────────── */}
           <section>
-            <div className="flex gap-3 rounded-xl bg-raised px-4 py-3">
-              <ShieldCheck size={16} className="mt-0.5 shrink-0 text-teal" />
+            <div className="flex gap-3 rounded-[10px] border border-hairline bg-raised px-4 py-3">
+              <ShieldCheck size={16} strokeWidth={1.6} className="mt-0.5 shrink-0 text-blue" />
               <div>
-                <p className="text-[13px] font-semibold text-foreground">Almacenamiento local</p>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+                <p className="text-[14px] font-semibold text-ink">Almacenamiento local</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">
                   Tus datos viven en tu dispositivo (localStorage) y no se envían a ningún servidor,
                   salvo que actives el respaldo opcional en la nube. Puedes exportarlos o
                   eliminarlos en cualquier momento.
@@ -1197,17 +1202,17 @@ export function Perfil({ open, onClose }: { open: boolean; onClose: () => void }
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                 aria-label="Cerrar sesión"
               >
-                <LogOut size={18} className="shrink-0 text-muted-foreground" />
+                <LogOut size={18} strokeWidth={1.6} className="shrink-0 text-ink-3" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">Cerrar sesión</span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[15px] font-medium text-ink">Cerrar sesión</span>
+                  <span className="text-[12px] text-ink-3">
                     Tus datos se conservan en este dispositivo
                   </span>
                 </span>
-                <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+                <ChevronRight size={16} className="shrink-0 text-ink-3" />
               </button>
             </RowCard>
           </section>

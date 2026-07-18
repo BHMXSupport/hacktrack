@@ -1,0 +1,388 @@
+<!--
+  Hacktrack — Dirección "Bitácora" — INICIO · tema PAPEL (claro)
+  Fuentes reales (self-host .woff2 en prod, CERO CDN):
+    Display serif → Fraunces         (aprox: Georgia)
+    UI / cuerpo   → IBM Plex Sans     (aprox: system-ui)
+    Mono readouts → IBM Plex Mono     (aprox: ui-monospace)
+  Archivo único autocontenido · sin requests externos · 390×844.
+  Motion: dial ámbar traza (pathLength) + numeral serif cuenta a 92; reglas de
+  sección se "imprimen" (scaleX). Todo transform/opacity; reduced-motion → instantáneo.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hacktrack · Inicio (Papel)</title>
+<style>
+  :root{
+    --paper:#F6F2EA; --paper-2:#EFE9DC; --column:#FFFFFF;
+    --ink:#1A1712; --ink-2:#57503F; --ink-3:#6E6656; --ink-4:#9A9788;
+    --rule:#E4DDCE; --rule-2:#D4CBB7;
+    --blue:#2C46C9; --blue-ink:#2438A8;
+    --amber:#C87A16; --amber-tip:#E8912B; --amber-ink:#9A5A0A;
+    --pos:#2E7D46; --alert:#C4342A;
+    --serif:Georgia,'Times New Roman',serif;                 /* Fraunces */
+    --sans:system-ui,'Segoe UI','Helvetica Neue',Arial,sans-serif; /* IBM Plex Sans */
+    --mono:ui-monospace,'SF Mono','IBM Plex Mono',Menlo,monospace; /* IBM Plex Mono */
+  }
+  @media (prefers-reduced-motion: reduce){ *{animation:none!important} }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  html,body{height:100%}
+  body{display:grid;place-items:center;font-family:var(--sans);color:var(--ink);
+    background:radial-gradient(120% 90% at 50% 0%,#E7E0D1 0%,#D2CAB8 100%)}
+  .frame{width:390px;height:844px;background:var(--paper);position:relative;overflow:hidden;
+    border-radius:44px;box-shadow:0 30px 80px rgba(40,33,20,.34),0 2px 0 rgba(255,255,255,.5) inset;
+    border:1px solid #C9C0AD}
+
+  /* status bar */
+  .status{height:46px;display:flex;align-items:flex-end;justify-content:space-between;
+    padding:0 26px 7px;font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:600}
+  .status .dots{display:flex;gap:5px;align-items:center}
+  .status .bar{width:3px;border-radius:1px;background:var(--ink)}
+  .bat{width:23px;height:12px;border:1.5px solid var(--ink);border-radius:3px;position:relative;opacity:.9}
+  .bat::after{content:"";position:absolute;right:-3px;top:3.5px;width:2px;height:5px;background:var(--ink);border-radius:0 1px 1px 0}
+  .bat i{position:absolute;inset:1.5px;width:72%;background:var(--ink);border-radius:1px;display:block}
+
+  .scroll{height:calc(844px - 46px - 84px);overflow-y:auto;padding:0 20px 34px}
+  .scroll::-webkit-scrollbar{width:0}
+
+  /* masthead */
+  .mast{padding:4px 0 12px;border-bottom:1.5px solid var(--ink)}
+  .mast .top{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase;white-space:nowrap}
+  .mast h1{font-family:var(--serif);font-weight:400;font-size:34px;line-height:1;letter-spacing:-.01em;margin-top:11px;
+    display:flex;justify-content:space-between;align-items:flex-end}
+  .hist{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--blue-ink);text-transform:uppercase;
+    display:inline-flex;align-items:center;gap:3px;padding-bottom:5px}
+
+  /* kicker + rule-wipe */
+  .kick{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+    display:flex;align-items:center;gap:10px;margin:24px 0 12px}
+  .kick .ln{flex:1;height:1.5px;background:var(--rule-2);transform-origin:left;
+    animation:wipe .55s cubic-bezier(0,0,0,1) both}
+  @keyframes wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+  /* lead — dial ámbar + numeral serif héroe */
+  .lead{background:var(--column);border:1px solid var(--rule);border-radius:10px;padding:18px;
+    box-shadow:0 1px 2px rgba(26,23,18,.05);display:flex;gap:14px;align-items:center}
+  .dialwrap{position:relative;width:140px;height:140px;flex:none}
+  .dialwrap svg{width:140px;height:140px;display:block}
+  .valarc{stroke-dasharray:92 100;stroke-dashoffset:92;animation:arc 1s .15s cubic-bezier(0,0,0,1) forwards}
+  @keyframes arc{to{stroke-dashoffset:0}}
+  .needle{opacity:0;animation:tip .01s .95s forwards}
+  @keyframes tip{to{opacity:1}}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+  .num{animation:rise .6s .2s both}
+  @keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+  .bignum{font-family:var(--serif);font-weight:400;font-size:50px;line-height:.9;letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;color:var(--ink);display:flex;align-items:flex-start}
+  .bignum .pct{font-size:20px;margin-top:6px;margin-left:1px;color:var(--ink-2)}
+  .center .cl{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+  .leadside{flex:1;min-width:0}
+  .leadside .cap{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .leadside .fr{font-family:var(--serif);font-size:29px;line-height:1;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .leadside .fr small{font-family:var(--mono);font-size:13px;color:var(--ink-3)}
+  .leadside .sub{font-size:14px;color:var(--ink-2);margin-top:4px;line-height:1.35}
+  .chips{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:12px}
+  .delta{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:var(--mono);font-size:12px;
+    color:var(--pos);background:rgba(46,125,70,.09);border:1px solid rgba(46,125,70,.24);border-radius:999px;padding:4px 10px}
+  .streak{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:var(--mono);font-size:12px;
+    color:var(--amber-ink);background:rgba(200,122,22,.10);border:1px solid rgba(200,122,22,.28);border-radius:999px;padding:4px 10px}
+
+  /* next dose */
+  .dose{background:var(--column);border:1px solid var(--rule);border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(26,23,18,.05)}
+  .dose .body{display:flex;gap:14px;padding:15px 16px 6px;align-items:flex-start}
+  .timeblk{text-align:center;padding-right:14px;border-right:1.5px solid var(--rule);min-width:70px}
+  .timeblk .t{font-family:var(--serif);font-size:29px;line-height:1;font-variant-numeric:tabular-nums}
+  .timeblk .d{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase;margin-top:6px}
+  .dose .mid{flex:1;min-width:0}
+  .peprow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .dose .pep{font-family:var(--serif);font-size:21px;line-height:1.05}
+  .dose .zone{font-family:var(--mono);font-size:13px;color:var(--ink-2);margin-top:6px;display:flex;align-items:center;gap:7px}
+  .drop{width:10px;height:10px;border-radius:50% 50% 50% 0;background:var(--blue);transform:rotate(45deg);display:inline-block;flex:none}
+  .dose .amt{font-size:13px;color:var(--ink-3);margin-top:5px}
+  .cd{flex:none;font-family:var(--mono);font-size:12px;color:var(--amber-ink);white-space:nowrap;
+    background:rgba(200,122,22,.10);border:1px solid rgba(200,122,22,.26);padding:5px 9px;border-radius:6px}
+  .acts{display:flex;gap:9px;padding:12px 16px 15px}
+  .btn{height:46px;border-radius:8px;font-family:var(--sans);font-size:15px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;cursor:pointer}
+  .btn.pri{flex:1;background:var(--blue);color:#fff;box-shadow:0 1px 2px rgba(44,70,201,.34)}
+  .btn.gho{flex:0 0 116px;background:transparent;color:var(--ink-2);border-color:var(--rule-2)}
+
+  /* pendiente atrasada (microcopy corregida) */
+  .overdue{display:flex;align-items:center;gap:11px;background:var(--column);border:1px solid rgba(196,52,42,.28);
+    border-left:3px solid var(--alert);border-radius:10px;padding:12px 14px;box-shadow:0 1px 2px rgba(26,23,18,.05)}
+  .overdue .tx{flex:1;min-width:0}
+  .overdue .tx b{font-family:var(--serif);font-size:16px;font-weight:500}
+  .overdue .tx span{display:block;font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:2px}
+  .overdue button{flex:none;height:40px;padding:0 13px;border-radius:8px;border:1px solid var(--blue);
+    background:rgba(44,70,201,.08);color:var(--blue-ink);font-family:var(--sans);font-weight:600;font-size:13px;cursor:pointer}
+
+  /* tus dosis de hoy */
+  .list{background:var(--column);border:1px solid var(--rule);border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(26,23,18,.05)}
+  .drow{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--rule)}
+  .drow:last-child{border-bottom:0}
+  .chk{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--rule-2);flex:none;display:grid;place-items:center}
+  .chk.done{background:var(--blue);border-color:var(--blue)}
+  .dinfo{flex:1;min-width:0}
+  .dinfo .n{font-family:var(--serif);font-size:17px;line-height:1.05}
+  .dinfo .n.done{text-decoration:line-through;color:var(--ink-3)}
+  .dinfo .m{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:3px;display:flex;align-items:center;gap:6px}
+  .sem{font-family:var(--mono);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .mark{height:38px;padding:0 13px;border-radius:8px;border:1.5px solid var(--blue);background:rgba(44,70,201,.08);
+    color:var(--blue-ink);font-family:var(--sans);font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .donebadge{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--pos);display:inline-flex;align-items:center;gap:5px}
+
+  /* señales — small multiples */
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+  .kpi{background:var(--column);border:1px solid var(--rule);border-radius:10px;padding:12px 12px 11px;
+    box-shadow:0 1px 2px rgba(26,23,18,.05)}
+  .kpi .kc{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .kpi .v{font-family:var(--serif);font-size:27px;line-height:1;margin-top:9px;font-variant-numeric:tabular-nums}
+  .kpi .v u{font-family:var(--mono);font-size:12px;font-style:normal;color:var(--ink-3);margin-left:2px}
+  .kpi .sp{margin-top:8px;height:20px}
+  .kpi .dl{font-family:var(--mono);font-size:12px;margin-top:6px;display:flex;align-items:center;gap:4px}
+
+  /* nutrición */
+  .nut{background:var(--column);border:1px solid var(--rule);border-radius:10px;padding:15px 16px;
+    box-shadow:0 1px 2px rgba(26,23,18,.05)}
+  .nrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .nrow+.nrow{margin-top:14px;padding-top:14px;border-top:1px solid var(--rule)}
+  .nlab{font-family:var(--sans);font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .nval{font-family:var(--mono);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .nval b{color:var(--ink);font-size:16px}
+  .track{height:8px;background:var(--paper-2);border-radius:5px;overflow:hidden;margin-top:9px}
+  .track i{display:block;height:100%;border-radius:5px;transform-origin:left;animation:grow 1s .1s cubic-bezier(0,0,0,1) both}
+  @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+  /* rotación de sitios */
+  .zonecard{background:var(--column);border:1px solid var(--rule);border-radius:10px;padding:16px;
+    box-shadow:0 1px 2px rgba(26,23,18,.05);display:flex;gap:18px;align-items:center}
+  .torso{flex:none}
+  .zlegend{flex:1;display:flex;flex-direction:column;gap:12px}
+  .zl{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+  .zl .mk{width:12px;height:12px;border-radius:50%;flex:none}
+  .zl b{color:var(--ink);font-family:var(--sans);font-weight:600;font-size:14px}
+
+  .disc{margin-top:16px;padding:12px 14px;background:var(--paper-2);border:1px solid var(--rule);border-radius:10px;
+    display:flex;gap:10px}
+  .disc svg{flex:none;margin-top:1px}
+  .disc p{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink-2)}
+
+  /* bottom nav */
+  .nav{position:absolute;left:0;right:0;bottom:0;height:84px;background:var(--column);
+    border-top:1.5px solid var(--rule-2);box-shadow:0 -2px 0 var(--rule),0 -10px 30px rgba(26,23,18,.06);
+    display:flex;align-items:flex-start;padding:11px 12px 0;justify-content:space-between}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--ink-3);
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  .tab.on{color:var(--blue)}
+  .tab .ic{width:23px;height:23px;display:grid;place-items:center}
+  .tab.on .u{width:16px;height:3px;border-radius:2px;background:var(--blue);margin-top:1px}
+  .fab{flex:0 0 58px;height:58px;border-radius:50%;background:var(--blue);color:#fff;
+    display:grid;place-items:center;margin-top:-13px;box-shadow:0 6px 18px rgba(44,70,201,.42);border:3px solid var(--column)}
+  .homebar{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;width:128px;height:5px;border-radius:3px;background:var(--ink);opacity:.22}
+
+  /* colofón discreto (nota de motion del mockup, no UI) */
+  .mnote{font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;color:var(--ink-3);
+    text-align:center;margin:26px auto 0;max-width:300px;opacity:.55;line-height:1.6}
+</style>
+
+<div class="frame">
+  <div class="status">
+    <span>14:48</span>
+    <span class="dots">
+      <span class="bar" style="height:6px"></span><span class="bar" style="height:9px"></span><span class="bar" style="height:12px"></span><span class="bar" style="height:15px"></span>
+      <span class="bat"><i></i></span>
+    </span>
+  </div>
+
+  <div class="scroll">
+    <!-- masthead -->
+    <div class="mast">
+      <div class="top"><span>Hacktrack · Tu bitácora</span><span>Vie 17 jul</span></div>
+      <h1><span>Hola, Diego</span><a class="hist">Diario ›</a></h1>
+    </div>
+
+    <!-- LEAD: adherencia con dial ámbar + numeral serif héroe -->
+    <div class="kick">Adherencia · julio<span class="ln"></span></div>
+    <div class="lead">
+      <div class="dialwrap">
+        <svg viewBox="0 0 200 200" fill="none" aria-hidden="true">
+          <!-- bezel de ticks (instrumento) -->
+          <circle cx="100" cy="100" r="94" stroke="var(--ink-4)" stroke-width="7"
+            stroke-dasharray="1.6 8.24" opacity=".55"/>
+          <!-- ticks mayores en cuartos -->
+          <g stroke="var(--ink-3)" stroke-width="2">
+            <line x1="100" y1="6" x2="100" y2="16"/><line x1="194" y1="100" x2="184" y2="100"/>
+            <line x1="100" y1="194" x2="100" y2="184"/><line x1="6" y1="100" x2="16" y2="100"/>
+          </g>
+          <g transform="rotate(-90 100 100)">
+            <!-- pista -->
+            <circle cx="100" cy="100" r="82" stroke="var(--paper-2)" stroke-width="11"/>
+            <!-- arco de valor (92%) -->
+            <circle class="valarc" cx="100" cy="100" r="82" pathLength="100"
+              stroke="var(--amber)" stroke-width="11" stroke-linecap="round"/>
+          </g>
+          <!-- aguja / marcador en la punta (92%) -->
+          <g class="needle">
+            <circle cx="60.5" cy="28.1" r="8" fill="var(--column)"/>
+            <circle cx="60.5" cy="28.1" r="5.5" fill="var(--amber-tip)"/>
+          </g>
+        </svg>
+        <div class="center">
+          <div class="bignum"><span class="num">92</span><span class="pct">%</span></div>
+          <div class="cl">al día</div>
+        </div>
+      </div>
+      <div class="leadside">
+        <div class="cap">Este mes</div>
+        <div class="fr">46 <small>/ 50 dosis</small></div>
+        <div class="sub">al día de tu protocolo</div>
+        <div class="chips">
+          <span class="delta">▲ 4 pts vs. jun</span>
+          <span class="streak">◆ Racha 18 d</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRÓXIMA TOMA -->
+    <div class="kick">Lo siguiente<span class="ln"></span></div>
+    <div class="dose">
+      <div class="body">
+        <div class="timeblk"><div class="t">18:00</div><div class="d">Hoy</div></div>
+        <div class="mid">
+          <div class="peprow"><span class="pep">BPC-157</span><span class="cd">en 3 h 12 m</span></div>
+          <div class="zone"><span class="drop"></span>Abdomen · lado derecho</div>
+          <div class="amt">0.25 ml · tu registro</div>
+        </div>
+      </div>
+      <div class="acts">
+        <button class="btn pri">Registrar dosis</button>
+        <button class="btn gho">Hoy no</button>
+      </div>
+    </div>
+
+    <!-- PENDIENTE ATRASADA — microcopy corregida -->
+    <div class="kick">Quedó pendiente<span class="ln"></span></div>
+    <div class="overdue">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--alert)" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <div class="tx"><b>NAD+</b><span>ayer · 21:00 — no se registró</span></div>
+      <button>Registrar (atrasada)</button>
+    </div>
+
+    <!-- TUS DOSIS DE HOY -->
+    <div class="kick">Tus dosis de hoy<span class="ln"></span></div>
+    <div class="list">
+      <div class="drow" style="border-left:3px solid var(--amber)">
+        <span class="chk"></span>
+        <div class="dinfo"><div class="n">BPC-157</div><div class="m"><span class="sem" style="color:var(--amber-ink)">◐ en ventana</span> · 18:00</div></div>
+        <button class="mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12l5 5L20 6"/></svg>Marcar</button>
+      </div>
+      <div class="drow" style="border-left:3px solid transparent">
+        <span class="chk done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 6"/></svg></span>
+        <div class="dinfo"><div class="n done">Retatrutida</div><div class="m">registrada · 08:04</div></div>
+        <span class="donebadge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12l5 5L20 6"/></svg>Hecha</span>
+      </div>
+      <div class="drow" style="border-left:3px solid var(--rule-2)">
+        <span class="chk"></span>
+        <div class="dinfo"><div class="n">NAD+</div><div class="m"><span class="sem" style="color:var(--ink-3)">○ próxima</span> · 21:00</div></div>
+        <button class="mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12l5 5L20 6"/></svg>Marcar</button>
+      </div>
+    </div>
+
+    <!-- TUS SEÑALES -->
+    <div class="kick">Tus señales · 7 días<span class="ln"></span></div>
+    <div class="grid">
+      <div class="kpi">
+        <div class="kc">Peso</div>
+        <div class="v">82.4<u>kg</u></div>
+        <svg class="sp" width="100%" height="20" viewBox="0 0 84 20" preserveAspectRatio="none"><polyline points="0,5 16,8 32,7 48,12 66,14 84,16" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="dl" style="color:var(--pos)">▼ 0.6 kg</div>
+      </div>
+      <div class="kpi">
+        <div class="kc">Sueño</div>
+        <div class="v">7.4<u>h</u></div>
+        <svg class="sp" width="100%" height="20" viewBox="0 0 84 20" preserveAspectRatio="none"><polyline points="0,15 18,12 34,14 52,8 68,6 84,5" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="dl" style="color:var(--pos)">▲ 0.5 h</div>
+      </div>
+      <div class="kpi">
+        <div class="kc">Energía</div>
+        <div class="v">8<u>/10</u></div>
+        <svg class="sp" width="100%" height="20" viewBox="0 0 84 20" preserveAspectRatio="none"><polyline points="0,12 18,10 34,11 52,7 68,9 84,6" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="dl" style="color:var(--ink-3)">→ estable</div>
+      </div>
+    </div>
+
+    <!-- NUTRICIÓN -->
+    <div class="kick">Nutrición de hoy<span class="ln"></span></div>
+    <div class="nut">
+      <div class="nrow" style="display:block">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="nlab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.8"><path d="M12 3c3 4 6 7 6 11a6 6 0 01-12 0c0-4 3-7 6-11z"/></svg>Hidratación</span>
+          <span class="nval"><b>1.4</b> / 2.0 L</span>
+        </div>
+        <div class="track"><i style="width:70%;background:var(--blue)"></i></div>
+      </div>
+      <div class="nrow" style="display:block">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="nlab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--amber-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Energía (kcal)</span>
+          <span class="nval"><b>1 780</b> / 2 200 kcal</span>
+        </div>
+        <div class="track"><i style="width:81%;background:var(--amber)"></i></div>
+      </div>
+    </div>
+
+    <!-- ROTACIÓN DE SITIOS -->
+    <div class="kick">Rotación de sitios<span class="ln"></span></div>
+    <div class="zonecard">
+      <svg class="torso" width="78" height="112" viewBox="0 0 78 112" fill="none">
+        <!-- torso abstracto en hairline (sin jeringa): cabeza + tronco simétrico -->
+        <circle cx="39" cy="12" r="8.5" stroke="var(--rule-2)" stroke-width="1.5" fill="var(--paper-2)"/>
+        <path d="M39 25 C 29 25 21 28 17 33 C 13.5 37.5 12.5 43 12.5 50 C 12.5 59 15.5 65 16.5 73 C 17.5 81 16.5 91 18.5 98 C 20.5 105 28 107 39 107 C 50 107 57.5 105 59.5 98 C 61.5 91 60.5 81 61.5 73 C 62.5 65 65.5 59 65.5 50 C 65.5 43 64.5 37.5 61 33 C 57 28 49 25 39 25 Z"
+          stroke="var(--rule-2)" stroke-width="1.5" fill="var(--paper-2)"/>
+        <!-- línea de cintura (referencia editorial) -->
+        <line x1="20" y1="74" x2="58" y2="74" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="3 4"/>
+        <!-- dots de recencia -->
+        <circle cx="28" cy="60" r="5.5" fill="var(--amber)"/>
+        <circle cx="50" cy="60" r="5.5" fill="none" stroke="var(--ink-3)" stroke-width="1.6"/>
+        <circle cx="30" cy="92" r="5.5" fill="none" stroke="var(--ink-4)" stroke-width="1.6" stroke-dasharray="2 2"/>
+        <circle cx="48" cy="92" r="5.5" fill="var(--blue)" opacity=".5"/>
+      </svg>
+      <div class="zlegend">
+        <div class="zl"><span class="mk" style="background:var(--amber)"></span><span><b>Abdomen der.</b> — hoy</span></div>
+        <div class="zl"><span class="mk" style="background:transparent;border:1.6px solid var(--ink-3)"></span><span><b>Abdomen izq.</b> — disponible</span></div>
+        <div class="zl"><span class="mk" style="background:transparent;border:1.6px dashed var(--ink-4)"></span><span><b>Muslo der.</b> — en descanso</span></div>
+        <div class="zl"><span class="mk" style="background:var(--blue);opacity:.5"></span><span><b>Muslo izq.</b> — hace 2 días</span></div>
+      </div>
+    </div>
+
+    <div class="disc">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+      <p>Tu bitácora personal. Los valores son <b>tu registro</b>, no una recomendación de dosis ni consejo médico.</p>
+    </div>
+
+    <div class="mnote">motion · el dial ámbar se traza (pathLength) mientras el numeral serif cuenta a 92; las reglas de sección se «imprimen» (scaleX). reduced-motion → instantáneo</div>
+  </div>
+
+  <!-- NAV: Inicio · Vida · [+] · Diario · Cuerpo -->
+  <div class="nav">
+    <div class="tab on">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.9"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg></span>
+      Inicio<span class="u"></span>
+    </div>
+    <div class="tab">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><path d="M3 12h4l2 6 4-14 2 8h6"/></svg></span>
+      Vida
+    </div>
+    <div class="fab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3"><path d="M12 5v14M5 12h14"/></svg></div>
+    <div class="tab">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M9 9h7M9 13h7M9 17h4"/></svg></span>
+      Diario
+    </div>
+    <div class="tab">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><circle cx="12" cy="6" r="3"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg></span>
+      Cuerpo
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>

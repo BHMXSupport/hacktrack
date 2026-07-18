@@ -76,7 +76,7 @@ export function MultiLineChart({
 }: Props) {
   const reduce = useReducedMotion()
   const svgRef = useRef<SVGSVGElement>(null)
-  const washoutGradId = `washoutGrad-${useId()}` // id único por instancia (evita colisión si hay varios charts)
+  const washoutPatId = `washoutHatch-${useId()}` // id único por instancia (evita colisión si hay varios charts)
   const [hoverT, setHoverT] = useState<number | null>(null)
   // item 380 — tooltip educativo en refLines al tap (índice de la línea activa, o null)
   const [activeRefLine, setActiveRefLine] = useState<number | null>(null)
@@ -187,16 +187,18 @@ export function MultiLineChart({
         const y = toY(v)
         return (
           <g key={`y${v}`}>
-            <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--border)" strokeWidth={1} strokeDasharray="4 4" opacity={0.6} />
-            <text x={PAD.l - 6} y={y + 3} textAnchor="end" fontSize={9} fontWeight={500} fontFamily="JetBrains Mono, monospace" fill="var(--ink-400)">
+            {/* Retícula editorial: hairline cálida sólida (regla de figura impresa), no punteado glassy. */}
+            <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="var(--hairline)" strokeWidth={1} />
+            <text x={PAD.l - 6} y={y + 3} textAnchor="end" fontSize={9} fontWeight={500} fontFamily="JetBrains Mono, monospace" fill="var(--ink-3)">
               {formatY(v)}
             </text>
           </g>
         )
       })}
 
-      {/* item 280 — zona de washout: gris CLARO (no se pierde en el negro) que se desvanece hacia el
-          futuro, borde de inicio + etiqueta CENTRADA a la altura del 50% del chart. */}
+      {/* item 280 — zona de washout ("LAVADO"): rayado diagonal editorial (hatch, ref canónica) en
+          tinta terciaria que no se pierde en ningún tema, borde de inicio + placa opaca con la
+          etiqueta LAVADO centrada a la altura del 50% del chart. */}
       {washoutShade && (() => {
         // centro horizontal de la zona, clamp para que la etiqueta no se salga del área de ploteo
         const cx = Math.min(Math.max((washoutShade.left + washoutShade.right) / 2, washoutShade.left + 30), W - PAD.r - 30)
@@ -204,34 +206,33 @@ export function MultiLineChart({
         return (
           <g>
             <defs>
-              <linearGradient id={washoutGradId} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="var(--ink-300)" stopOpacity={0.24} />
-                <stop offset="100%" stopColor="var(--ink-300)" stopOpacity={0.06} />
-              </linearGradient>
+              <pattern id={washoutPatId} width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1={0} y1={0} x2={0} y2={6} stroke="var(--ink-3)" strokeWidth={1} opacity={0.22} />
+              </pattern>
             </defs>
             <rect
               x={washoutShade.left}
               y={PAD.t}
               width={washoutShade.right - washoutShade.left}
               height={plotH}
-              fill={`url(#${washoutGradId})`}
+              fill={`url(#${washoutPatId})`}
             />
             {/* borde de inicio del washout — marca de dónde empieza (más visible) */}
             <line
               x1={washoutShade.left} y1={PAD.t} x2={washoutShade.left} y2={PAD.t + plotH}
-              stroke="var(--ink-400)" strokeWidth={1.25} strokeDasharray="2 3" strokeLinecap="round" opacity={0.7}
+              stroke="var(--ink-3)" strokeWidth={1.25} strokeDasharray="2 3" strokeLinecap="round" opacity={0.7}
             />
-            {/* etiqueta centrada a la altura del 50%, con fondo sólido + texto brillante (alto contraste) */}
+            {/* placa opaca de instrumento (texto claro fijo en ambos temas) con la etiqueta LAVADO */}
             <rect
-              x={cx - 28} y={cy - 8}
-              width={56} height={16} rx={8}
-              fill="var(--card)" opacity={0.94} stroke="var(--ink-400)" strokeWidth={0.75} strokeOpacity={0.45}
+              x={cx - 30} y={cy - 9}
+              width={60} height={16} rx={4}
+              fill="var(--plate)" opacity={0.95}
             />
             <text
-              x={cx} y={cy + 3.5} textAnchor="middle"
-              fontSize={9} fontWeight={700} letterSpacing="0.4" fontFamily="Inter, sans-serif" fill="var(--ink-700)"
+              x={cx} y={cy + 2.5} textAnchor="middle"
+              fontSize={9} fontWeight={600} letterSpacing="1.4" fontFamily="JetBrains Mono, monospace" fill="#F2EDE3"
             >
-              washout
+              LAVADO
             </text>
           </g>
         )
@@ -373,18 +374,20 @@ export function MultiLineChart({
         </text>
       ))}
 
-      {/* línea "ahora" — motion.line para deslizar al cambiar ventana */}
+      {/* cursor "AHORA" — ÁMBAR (tu atención / ahora), glow susurro, desliza al cambiar ventana.
+          El texto va en tinta (--ink) para AA en ambos temas; el ámbar carga la marca gráfica. */}
       {nowTs >= x0 && nowTs <= x1 && (
         <g>
           <motion.line
             x1={nowX} y1={PAD.t} x2={nowX} y2={PAD.t + plotH}
-            stroke="var(--brand-500)" strokeWidth={1} strokeDasharray="3 3"
+            stroke="var(--amber)" strokeWidth={1.4} strokeDasharray="2 3" strokeLinecap="round"
+            style={{ filter: 'drop-shadow(0 0 3px color-mix(in srgb, var(--amber) 45%, transparent))' }}
             initial={{ x1: nowX, x2: nowX }}
             animate={{ x1: nowX, x2: nowX }}
             transition={{ duration: dur.base, ease: ease.standard }}
           />
-          <text x={nowX} y={PAD.t - 5} textAnchor="middle" fontSize={9} fontWeight={600} fontFamily="JetBrains Mono, monospace" fill="var(--brand-500)">
-            ahora
+          <text x={nowX} y={PAD.t - 5} textAnchor="middle" fontSize={9} fontWeight={700} letterSpacing="1.2" fontFamily="JetBrains Mono, monospace" fill="var(--ink)">
+            AHORA
           </text>
         </g>
       )}
@@ -513,26 +516,28 @@ export function MultiLineChart({
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
             transition={{ duration: dur.fast, ease: ease.standard }}
           >
-            <line x1={sx(hover.t)} y1={PAD.t} x2={sx(hover.t)} y2={PAD.t + plotH} stroke="var(--ink-400)" strokeWidth={1} />
+            <line x1={sx(hover.t)} y1={PAD.t} x2={sx(hover.t)} y2={PAD.t + plotH} stroke="var(--ink-2)" strokeWidth={1} />
             {hover.rows.map((r) => (
               <circle key={r.product} cx={sx(hover.t)} cy={toY(r.v!)} r={3} fill={r.color} stroke="var(--card)" strokeWidth={1.5} />
             ))}
-            <rect x={boxX} y={PAD.t} width={boxW} height={boxH} rx={6} fill="var(--card)" stroke="var(--border)" strokeWidth={1} opacity={0.97} />
+            {/* Tooltip = placa de instrumento (ref canónica): superficie oscura cálida en AMBOS temas,
+                producto en blanco-papel, valor en el color de su serie. */}
+            <rect x={boxX} y={PAD.t} width={boxW} height={boxH} rx={6} fill="var(--plate)" stroke="rgba(255,255,255,0.12)" strokeWidth={1} opacity={0.98} />
             {hover.rows.map((r, i) => {
               const yOff = rowOffsets[i] ?? (14 + i * rowH)
               const hasWashout = mode === 'percent' && r.halfLifeH != null
               return (
                 <g key={r.product} transform={`translate(${boxX + 8}, ${PAD.t + yOff})`}>
                   <circle cx={3} cy={-3} r={3.5} fill={r.color} />
-                  <text x={12} y={0} fontSize={10} fontFamily="JetBrains Mono, monospace" fill="var(--ink-700)">
+                  <text x={12} y={0} fontSize={10} fontFamily="JetBrains Mono, monospace" fill="#F2EDE3" fillOpacity={0.74}>
                     {r.product.length > 12 ? r.product.slice(0, 11) + '…' : r.product}
                   </text>
-                  <text x={boxW - 16} y={0} textAnchor="end" fontSize={10.5} fontFamily="JetBrains Mono, monospace" fill="var(--ink-900)" fontWeight={700}>
+                  <text x={boxW - 16} y={0} textAnchor="end" fontSize={10.5} fontFamily="JetBrains Mono, monospace" fill={r.color} fontWeight={700}>
                     {formatY(r.v!)}
                   </text>
                   {hasWashout && (
-                    <text x={12} y={10} fontSize={8.5} fontFamily="JetBrains Mono, monospace" fill="var(--ink-300)">
-                      washout {formatWashout(r.halfLifeH!)}
+                    <text x={12} y={10} fontSize={8.5} fontFamily="JetBrains Mono, monospace" fill="#F2EDE3" fillOpacity={0.5}>
+                      lavado {formatWashout(r.halfLifeH!)}
                     </text>
                   )}
                 </g>

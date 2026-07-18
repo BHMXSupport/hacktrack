@@ -12,7 +12,11 @@ import { doseToMg } from './calc'
 
 export type ScreenId =
   | 's-splash' | 's-onboarding' | 's-goal' | 's-baseline' | 's-measures' | 's-protocol' | 's-account' | 's-login' | 's-forgot' | 's-welcome' | 's-import' | 's-app'
-export type TabId = 'inicio' | 'diario' | 'protocolo' | 'vida' | 'comida' | 'semana'
+// IA v2 (5-tab LOCKED): inicio · vida · [+] · diario · cuerpo.
+// 'protocolo' | 'comida' | 'semana' son ids LEGADOS aún válidos (estado persistido viejo,
+// deep-links de notificaciones y dispatches existentes): AppV2 los muestra DENTRO de su
+// pestaña nueva (protocolo/comida→cuerpo, semana→diario) y provider los migra al hidratar.
+export type TabId = 'inicio' | 'vida' | 'diario' | 'cuerpo' | 'protocolo' | 'comida' | 'semana'
 export type ProgresoView = 'cal' | 'avances'
 export type SheetId =
   | 'registrar' | 'calc' | 'medida' | 'medidas' | 'agregar' | 'day-detail' | 'crear-platillo' | 'recetario'

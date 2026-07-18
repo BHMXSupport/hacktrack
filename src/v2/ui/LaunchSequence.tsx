@@ -8,6 +8,8 @@ import preloaderPoster from '../../assets/rebuild/preloader-poster.webp'
 // estático): gate (logo + frase + Entrar) → al tocar, bufferea; cuando el video está LISTO
 // EMPIEZA A CORRER detrás del gate y se mantiene +1s; luego el gate se desvanece revelando el
 // warp YA EN MOVIMIENTO → reproduce su duración completa (cierra por 'ended') → app.
+// Cromo "Bitácora": gate = masthead editorial sobre papel; sobre el video (oscuro) el wordmark
+// va en blanco-papel cálido FIJO (no depende del tema) y la barra de carga es ÁMBAR (energía).
 const PHRASES = [
   'La constancia es tu mejor protocolo.',
   'Lo que se mide, mejora.',
@@ -135,7 +137,7 @@ export function LaunchSequence() {
   const showGate = phase === 'gate' || phase === 'loading'
 
   return (
-    <div className="absolute inset-0 z-[100] overflow-hidden bg-void">
+    <div className="absolute inset-0 z-[100] overflow-hidden bg-paper">
       {/* Video warp — montado desde el inicio (bufferea); corre detrás del gate y se revela en movimiento */}
       {!reduce && (
         <>
@@ -149,25 +151,25 @@ export function LaunchSequence() {
             aria-hidden
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${videoVisible ? 'opacity-100' : 'opacity-0'}`}
           />
-          {/* Scrim radial para legibilidad del wordmark sobre el núcleo brillante */}
+          {/* Scrim radial cálido para legibilidad del wordmark sobre el núcleo brillante */}
           <div
             className="pointer-events-none absolute inset-0"
-            style={{ background: 'radial-gradient(ellipse 62% 26% at 50% 50%, rgba(7,11,18,.80), rgba(7,11,18,0) 70%)' }}
+            style={{ background: 'radial-gradient(ellipse 62% 26% at 50% 50%, rgba(20,17,12,.80), rgba(20,17,12,0) 70%)' }}
           />
         </>
       )}
 
-      {/* Chrome del preloader: wordmark + barra (visible al irse el gate) */}
+      {/* Cromo del preloader: wordmark serif + barra ámbar (visible al irse el gate).
+          Va SOBRE el video (oscuro): blanco-papel cálido fijo, independiente del tema. */}
       <div className="absolute inset-0 flex flex-col items-center justify-center" role="status" aria-label="Cargando Hacktrack">
         <div className="relative flex flex-col items-center gap-5">
-          <h1 className="text-[34px] font-bold tracking-tight [text-shadow:0_2px_18px_rgba(0,0,0,.65)]">
-            <span className="text-foreground">Hack</span>
-            <span className="text-teal">track</span>
+          <h1 className="font-serif text-[36px] font-normal tracking-[-0.01em] text-[#F2EDE3] [text-shadow:0_2px_18px_rgba(0,0,0,.65)]">
+            Hacktrack
           </h1>
           {phase === 'playing' && !reduce && (
             <div className="h-1 w-32 overflow-hidden rounded-full bg-white/15">
               <motion.div
-                className="h-full rounded-full bg-teal"
+                className="h-full rounded-full bg-amber"
                 initial={{ width: '6%' }}
                 animate={{ width: '100%' }}
                 transition={{ duration: 7.5, ease: 'easeInOut' }}
@@ -177,12 +179,13 @@ export function LaunchSequence() {
         </div>
       </div>
 
-      {/* Gate overlay (z-110) — logo + frase + Entrar/spinner. Cubre el video mientras carga. */}
+      {/* Gate overlay (z-110) — masthead editorial sobre papel: logo + frase + Entrar/spinner.
+          Cubre el video mientras carga. */}
       <AnimatePresence>
         {showGate && (
           <motion.div
             key="gate"
-            className="absolute inset-0 z-[110] flex flex-col items-center justify-between overflow-hidden bg-void px-8 py-[max(48px,env(safe-area-inset-top))]"
+            className="absolute inset-0 z-[110] flex flex-col items-center justify-between overflow-hidden bg-paper px-8 py-[max(48px,env(safe-area-inset-top))]"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -198,13 +201,17 @@ export function LaunchSequence() {
               <img
                 src={LOGO}
                 alt="Hacktrack"
-                className="h-24 w-24 rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,.5),0_0_0_1px_rgba(95,201,184,.18)]"
+                className="h-24 w-24 rounded-[24px] border border-hairline shadow-[0_12px_40px_rgba(26,23,18,.25)]"
               />
-              <h1 className="mt-6 text-[34px] font-bold tracking-tight [text-shadow:0_2px_18px_rgba(0,0,0,.65)]">
-                <span className="text-foreground">Hack</span>
-                <span className="text-teal">track</span>
+              <p className="mt-6 font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">
+                Tu bitácora
+              </p>
+              <h1 className="mt-1 font-serif text-[36px] font-normal tracking-[-0.01em] text-ink">
+                Hacktrack
               </h1>
-              <p className="mt-4 max-w-[280px] text-[15px] leading-relaxed text-secondary-foreground">{phrase}</p>
+              {/* Regla editorial bajo el masthead */}
+              <div aria-hidden className="mt-3 h-[1.5px] w-16 bg-[color-mix(in_srgb,var(--ink)_60%,transparent)]" />
+              <p className="mt-4 max-w-[280px] text-[15px] leading-relaxed text-ink-2">{phrase}</p>
             </motion.div>
             <div className="flex-1" />
             <motion.button
@@ -212,7 +219,7 @@ export function LaunchSequence() {
               onClick={handleEnter}
               disabled={phase === 'loading'}
               aria-busy={phase === 'loading'}
-              className="relative flex h-14 w-full max-w-[360px] items-center justify-center rounded-2xl bg-teal text-[16px] font-semibold text-[#04211c] shadow-[0_8px_24px_rgba(95,201,184,.28)] transition-transform active:scale-[.98] disabled:active:scale-100"
+              className="relative flex h-14 w-full max-w-[360px] items-center justify-center rounded-[10px] bg-blue text-[16px] font-semibold text-primary-foreground shadow-[0_1px_2px_rgba(26,23,18,.20)] transition-transform active:scale-[.98] disabled:active:scale-100"
               initial={reduce ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}

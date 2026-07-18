@@ -5,6 +5,7 @@
  * NO se promete ningún enlace — se muestra que la función aún no está disponible.
  * Como los datos son LOCALES al dispositivo, lo explicamos claro:
  * recuperamos el acceso a la cuenta (sync), no los datos del dispositivo.
+ * Estética "Bitácora": titular serif, azul interactivo, columnas impresas.
  *
  * ScreenId: 's-forgot'
  * Dispatch:
@@ -19,13 +20,9 @@ import { backendEnabled } from '../../lib/backend/config'
 import { resetPassword } from '../../lib/backend/auth'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
+import { fadeUp } from '../lib/motion'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-const fade = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.26, ease: [0, 0, 0.2, 1] as [number, number, number, number] } },
-}
 
 export function Forgot() {
   const { dispatch } = useApp()
@@ -36,7 +33,7 @@ export function Forgot() {
   const [sent, setSent] = useState(false)
 
   const inputCls =
-    'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-secondary-foreground/70 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
+    'h-12 w-full rounded-[10px] border border-hairline bg-surface px-4 text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--blue)_18%,transparent)] transition-[border-color,box-shadow]'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -61,7 +58,7 @@ export function Forgot() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-login' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
@@ -74,12 +71,12 @@ export function Forgot() {
         variants={{ show: { transition: { staggerChildren: 0.07 } } }}
         className="flex flex-1 flex-col gap-6 px-5 pt-2"
       >
-        <motion.div variants={fade} className="flex flex-col items-center gap-3 pt-4 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'color-mix(in srgb, #5FC9B8 14%, transparent)' }}>
-            <KeyRound size={26} className="text-teal" aria-hidden="true" />
+        <motion.div variants={fadeUp} className="flex flex-col items-center gap-3 pt-4 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-hairline bg-[color-mix(in_srgb,var(--blue)_10%,transparent)]">
+            <KeyRound size={26} className="text-blue" aria-hidden="true" />
           </span>
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">Recuperar acceso</h1>
-          <p className="max-w-[300px] text-[14px] text-secondary-foreground">
+          <h1 className="font-serif text-[28px] font-normal leading-[1.1] tracking-[-0.01em] text-ink">Recuperar acceso</h1>
+          <p className="max-w-[300px] text-[14px] text-ink-2">
             {backendEnabled
               ? 'Te enviaremos un enlace para restablecer tu contraseña de cuenta.'
               : 'Esta función aún no está disponible en la beta.'}
@@ -87,36 +84,37 @@ export function Forgot() {
         </motion.div>
 
         {!backendEnabled ? (
-          <motion.div variants={fade}>
+          <motion.div variants={fadeUp}>
             <Glass className="flex flex-col items-center gap-3 p-6 text-center">
-              <span className="inline-flex items-center rounded-full border border-teal/25 bg-teal/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal">
+              <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] px-2.5 py-0.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-blue">
                 Próximamente
               </span>
-              <p className="text-[15px] font-semibold text-foreground">
+              <p className="text-[15px] font-semibold text-ink">
                 La recuperación por correo llega con la nube
               </p>
-              <p className="text-[13px] leading-relaxed text-secondary-foreground">
+              <p className="text-[13px] leading-relaxed text-ink-2">
                 Tu cuenta es local por ahora — la sincronización llega pronto. No hay
                 contraseña de nube que restablecer: entra directo desde iniciar sesión.
               </p>
             </Glass>
           </motion.div>
         ) : sent ? (
-          <motion.div variants={fade}>
+          <motion.div variants={fadeUp}>
             <Glass className="flex flex-col items-center gap-3 p-6 text-center">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-teal/12 text-teal">
+              {/* Éxito: forma (check) + texto + color — nunca color solo */}
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-[color-mix(in_srgb,var(--ok)_14%,transparent)] text-ok">
                 <Check size={24} strokeWidth={2.5} />
               </span>
-              <p className="text-[15px] font-semibold text-foreground">Revisa tu correo</p>
-              <p className="text-[13px] text-secondary-foreground">
-                Si <span className="text-foreground">{email.trim()}</span> tiene una cuenta, te llegará un enlace en unos minutos.
+              <p className="text-[15px] font-semibold text-ink">Revisa tu correo</p>
+              <p className="text-[13px] text-ink-2">
+                Si <span className="text-ink">{email.trim()}</span> tiene una cuenta, te llegará un enlace en unos minutos.
               </p>
             </Glass>
           </motion.div>
         ) : (
-          <motion.form variants={fade} onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+          <motion.form variants={fadeUp} onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor={`${uid}-email`} className="text-[13px] font-semibold text-secondary-foreground">
+              <label htmlFor={`${uid}-email`} className="text-[13px] font-semibold text-ink-2">
                 Correo electrónico
               </label>
               <input
@@ -127,7 +125,7 @@ export function Forgot() {
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); if (error && EMAIL_RE.test(e.target.value.trim())) setError(false) }}
                 aria-invalid={error ? 'true' : undefined}
-                className={inputCls + (error ? ' border-alert focus:border-alert focus:ring-alert/20' : '')}
+                className={inputCls + (error ? ' border-alert focus:border-alert focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--alert)_18%,transparent)]' : '')}
               />
               {error && <p role="alert" className="text-[12px] text-alert">Ingresa un correo electrónico válido.</p>}
             </div>
@@ -136,11 +134,11 @@ export function Forgot() {
         )}
 
         {/* Nota: datos locales */}
-        <motion.div variants={fade}>
+        <motion.div variants={fadeUp}>
           <Glass className="flex items-start gap-3 p-4">
-            <Shield size={16} className="mt-0.5 shrink-0 text-teal" aria-hidden />
-            <p className="text-[12px] leading-relaxed text-secondary-foreground">
-              Tus <span className="text-foreground">registros se guardan en este dispositivo</span>, no en la nube.
+            <Shield size={16} className="mt-0.5 shrink-0 text-blue" aria-hidden />
+            <p className="text-[12px] leading-relaxed text-ink-2">
+              Tus <span className="text-ink">registros se guardan en este dispositivo</span>, no en la nube.
               {backendEnabled
                 ? ' Recuperar la contraseña restaura el acceso a tu cuenta, no borra ni recupera datos locales.'
                 : ' Nada de esto afecta tus datos locales.'}
@@ -148,7 +146,7 @@ export function Forgot() {
           </Glass>
         </motion.div>
 
-        <motion.div variants={fade} className="mt-auto pt-2">
+        <motion.div variants={fadeUp} className="mt-auto pt-2">
           <Button size="full" variant="outline" onClick={() => dispatch({ t: 'go', screen: 's-login' })}>
             Volver a iniciar sesión
           </Button>

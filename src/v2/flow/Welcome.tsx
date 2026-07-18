@@ -1,9 +1,10 @@
 /**
  * Welcome.tsx — v2 flow
  *
- * Celebración post-onboarding. Muestra un resumen de configuración y
- * lleva a 's-app' via seenWelcome (que limpia justOnboarded).
- * Sin claims médicos.
+ * Celebración post-onboarding, estética "Bitácora": papel cálido, chispa ÁMBAR
+ * (energía ganada), titular serif y resumen como columna impresa con folio.
+ * Muestra un resumen de configuración y lleva a 's-app' via seenWelcome
+ * (que limpia justOnboarded). Sin claims médicos.
  *
  * ScreenId: 's-welcome'
  * Dispatch:
@@ -15,11 +16,11 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { Sparkles, BarChart2, Leaf } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { backendEnabled } from '../../lib/backend/config'
-import { CATEGORY_COLOR } from '../../lib/catalog'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
+import { FolioLabel } from '../ui/FolioLabel'
 
-// ── Animación ─────────────────────────────────────────────────────────────────
+// ── Animación (firma editorial de motion.ts, con stagger propio de celebración) ──
 
 const stagger = {
   hidden: {},
@@ -31,7 +32,7 @@ const itemFade = {
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.34, ease: [0, 0, 0.2, 1] as [number, number, number, number] },
+    transition: { duration: 0.34, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
   },
 }
 
@@ -50,24 +51,24 @@ interface StatRowProps {
   icon: React.ReactNode
   label: string
   value: string
-  color: string
+  color: string // CSS var del token ('var(--amber)' | 'var(--blue)' | …) — solo tinte del chip
 }
 
 function StatRow({ icon, label, value, color }: StatRowProps) {
   return (
-    <Glass className="flex items-center gap-4 py-3 px-4">
+    <Glass className="flex items-center gap-4 px-4 py-3">
       <span
-        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
-        style={{ background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-hairline"
+        style={{ background: `color-mix(in srgb, ${color} 12%, transparent)` }}
         aria-hidden="true"
       >
         {icon}
       </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground">
+      <div className="min-w-0 flex-1">
+        <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2">
           {label}
         </p>
-        <p className="text-[14px] font-semibold text-foreground truncate">{value}</p>
+        <p className="truncate text-[14px] font-semibold text-ink">{value}</p>
       </div>
     </Glass>
   )
@@ -93,12 +94,8 @@ export function Welcome() {
   const reduce = useReducedMotion()
 
   const name = state.profile.name
-  const goal = state.curGoal
   // Todos los objetivos elegidos (principal + secundarios), deduplicados
   const allGoals = [...new Set([state.curGoal, ...(state.secondaryGoals ?? [])].filter(Boolean) as string[])]
-  const accentColor = goal
-    ? (CATEGORY_COLOR[goal as keyof typeof CATEGORY_COLOR] ?? '#5FC9B8')
-    : '#5FC9B8'
 
   const nMedidas = state.selectedMeasures.length
   const nProductos = Object.keys(state.protocols).length
@@ -121,39 +118,39 @@ export function Welcome() {
 
   const stats: StatRowProps[] = [
     {
-      icon: <Sparkles size={16} style={{ color: accentColor }} />,
+      // Objetivo = tu energía → ámbar
+      icon: <Sparkles size={16} className="text-amber" />,
       label: allGoals.length > 1 ? 'Objetivos' : 'Objetivo',
       value: allGoals.length ? allGoals.map((g) => GOAL_LABEL[g] ?? g).join(' · ') : 'Explorando',
-      color: accentColor,
+      color: 'var(--amber)',
     },
     {
-      icon: <BarChart2 size={16} className="text-teal" />,
+      // Métricas = datos → azul
+      icon: <BarChart2 size={16} className="text-blue" />,
       label: 'Métricas',
       value:
         nMedidas > 0
           ? `${nMedidas} seleccionada${nMedidas !== 1 ? 's' : ''}`
           : 'Puedes agregar después',
-      color: '#5FC9B8',
+      color: 'var(--blue)',
     },
     {
-      icon: <Leaf size={16} style={{ color: '#6B7BE8' }} />,
+      icon: <Leaf size={16} className="text-blue" />,
       label: 'Productos',
       value:
         nProductos > 0
           ? `${nProductos} en seguimiento`
           : 'Agrega desde Protocolo',
-      color: '#6B7BE8',
+      color: 'var(--blue)',
     },
   ]
 
   return (
     <div
-      className="flex min-h-dvh flex-col items-center justify-center bg-void px-6"
+      className="flex min-h-dvh flex-col items-center justify-center bg-paper px-6"
       style={{
         paddingTop: 'max(40px, env(safe-area-inset-top))',
         paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))',
-        background:
-          'linear-gradient(160deg, var(--bg-void, #0b1120) 0%, color-mix(in srgb, #5FC9B8 5%, #0b1120) 100%)',
       }}
     >
       <motion.div
@@ -162,58 +159,49 @@ export function Welcome() {
         variants={stagger}
         className="flex w-full max-w-[400px] flex-col items-center gap-7"
       >
-        {/* Ícono de celebración */}
+        {/* Chispa de celebración — ámbar: la energía es tuya */}
         <motion.div variants={celebrate}>
-          <div
-            className="flex h-20 w-20 items-center justify-center rounded-full"
-            style={{
-              background: `color-mix(in srgb, ${accentColor} 15%, transparent)`,
-              border: `2px solid color-mix(in srgb, ${accentColor} 30%, transparent)`,
-            }}
-          >
-            <Sparkles
-              size={34}
-              style={{ color: accentColor }}
-              aria-hidden="true"
-            />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-[color-mix(in_srgb,var(--amber)_35%,transparent)] bg-[color-mix(in_srgb,var(--amber)_14%,transparent)]">
+            <Sparkles size={34} className="text-amber" aria-hidden="true" />
           </div>
         </motion.div>
 
-        {/* Copy */}
+        {/* Copy — titular serif */}
         <motion.div variants={itemFade} className="text-center">
           {name && (
-            <p className="mb-1 text-[15px] text-secondary-foreground">
+            <p className="mb-1.5 font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">
               Hola, {name}
             </p>
           )}
-          <h1 className="text-[30px] font-bold leading-tight tracking-tight text-foreground">
+          <h1 className="font-serif text-[30px] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
             {hasProducts ? 'Tu protocolo está listo' : 'Tu espacio está listo'}
           </h1>
-          <p className="mt-2 text-[14px] text-secondary-foreground max-w-[280px] mx-auto">
+          <p className="mx-auto mt-2 max-w-[280px] text-[14px] text-ink-2">
             {hasProducts
               ? 'Empieza a registrar y observa tu progreso a lo largo del tiempo.'
               : 'Agrega tu primer producto para empezar a registrar.'}
           </p>
         </motion.div>
 
-        {/* Resumen de configuración */}
+        {/* Resumen de configuración — sección con folio editorial */}
         <motion.div variants={itemFade} className="flex w-full flex-col gap-2">
+          <FolioLabel className="mb-1">Tu configuración</FolioLabel>
           {stats.map((s) => (
             <StatRow key={s.label} {...s} />
           ))}
         </motion.div>
 
         {/* CTA */}
-        <motion.div variants={itemFade} className="w-full flex flex-col gap-2">
+        <motion.div variants={itemFade} className="flex w-full flex-col gap-2">
           <Button size="full" onClick={handleVerPlan}>
             {hasProducts ? 'Ver mi plan' : 'Agregar mi primer producto'}
           </Button>
-          <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
+          <p className="text-center text-[12px] leading-relaxed text-ink-2">
             {backendEnabled
               ? 'Tus registros se guardan en este dispositivo. Tu cuenta te permite activar el respaldo opcional en la nube.'
               : 'Tus registros se guardan en este dispositivo. La sincronización en la nube llega pronto.'}
           </p>
-          <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
+          <p className="text-center text-[12px] leading-relaxed text-ink-2">
             Hacktrack es una herramienta de seguimiento personal.
             No reemplaza consejo médico.
           </p>

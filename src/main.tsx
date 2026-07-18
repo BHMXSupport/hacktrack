@@ -6,7 +6,12 @@ import { initInstallCapture } from './lib/install'
 import { initStateMirror } from './lib/native/stateMirror'
 import { initNativeNotifications } from './lib/native/notifications'
 import { initBackButton } from './lib/native/backButton'
-import './styles/globals.css'  // rebuild "Precision × Accessible" (Tailwind + tokens)
+// Fuentes self-hosted (Vite empaqueta los woff2; sin CDN de Google → PWA + CSP seguros).
+// Fraunces = numerales/titulares (la voz) · Inter = body/UI · JetBrains Mono = micro-labels/units.
+import '@fontsource-variable/fraunces'
+import '@fontsource-variable/inter'
+import '@fontsource-variable/jetbrains-mono'
+import './styles/globals.css'  // Design System "Bitácora" (Tailwind + tokens Papel/Tinta)
 
 // Captura el evento beforeinstallprompt ANTES de montar React (se dispara muy temprano).
 initInstallCapture()

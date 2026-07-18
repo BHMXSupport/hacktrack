@@ -45,11 +45,17 @@ export function PinSetupSheet({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <Sheet open={open} onClose={onClose} title="PIN de bloqueo">
       <div className="flex flex-col items-center gap-7 pb-2 pt-1">
-        <p className="text-center text-[13px] text-muted-foreground">
-          {step === 'enter' ? 'Elige un PIN de 4 dígitos' : 'Confírmalo'}
-        </p>
+        {/* Kicker mono de instrumento + instrucción en cuerpo pleno (piso 15px) */}
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-3">
+            Paso {step === 'enter' ? '1' : '2'} de 2
+          </p>
+          <p className="text-center text-[15px] text-ink-2">
+            {step === 'enter' ? 'Elige un PIN de 4 dígitos' : 'Confírmalo'}
+          </p>
+        </div>
         <PinPad value={value} onChange={onChange} shake={shake} />
-        <p className="max-w-[280px] text-center text-[11px] leading-relaxed text-muted-foreground/70">
+        <p className="max-w-[280px] text-center text-[12px] leading-relaxed text-ink-3">
           Bloquea la app al abrirla. Es privacidad casual, no cifrado: tus datos siguen en este dispositivo. Si lo olvidas, tendrás que borrar los datos para entrar.
         </p>
       </div>

@@ -1,5 +1,5 @@
 // CalcSheet v2 — calculadora de unidades / reconstitución
-// Design system "Precision × Accessible". Reutiliza calc.ts de src/lib/.
+// Design system "Bitácora" (papel-y-tinta editorial). Reutiliza calc.ts de src/lib/.
 // "Copiar a mi registro" → dispatch setDraftDose y abre 'registrar'.
 // Compliance: la calculadora SOLO convierte la dosis que el usuario teclea; no la decide.
 import { useState, useEffect, useRef } from 'react'
@@ -10,9 +10,17 @@ import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
 import { DataPlate } from '../ui/DataPlate'
 import { Chip } from '../ui/Chip'
+import { TermInfo } from '../ui/TermInfo'
 import { useModalStack } from '../ui/modalStack'
 import { STORE_BUILD } from '../../lib/buildFlags'
 import type { SyringeScale } from '../../lib/types'
+
+// ── Clases compartidas "Bitácora" (solo presentación) ─────────────────────────
+const KICKER = 'font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2'
+const LABEL = 'font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2'
+// Campo cálido; foco azul-tinta (color-mix porque el alfa sobre var() no se emite en este setup).
+const FIELD =
+  'rounded-[8px] border border-hairline bg-raised px-3 text-[15px] text-ink placeholder:text-ink-3 focus:outline-none focus:border-blue focus:ring-2 focus:ring-[color-mix(in_srgb,var(--blue)_30%,transparent)]'
 
 // ── Interstitial de tienda (solo STORE_BUILD) ─────────────────────────────────
 // Aviso de uso-de-investigación UNA vez por sesión, ANTES del primer uso de la
@@ -208,7 +216,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
         /* Interstitial de tienda: sustituye el contenido hasta "Entendido" — la calculadora
            no se usa sin ver el aviso. En la PWA esta rama es código muerto (eliminada). */
         <div className="flex flex-col gap-5 py-2">
-          <p className="text-[14px] leading-relaxed text-muted-foreground">
+          <p className="text-[15px] leading-relaxed text-ink-2">
             Esta calculadora solo hace aritmética (reconstitución/conversión) con los datos que tú
             ingresas. No recomienda ni sugiere dosis.
           </p>
@@ -220,7 +228,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
       <div className="flex flex-col gap-5">
 
         {/* Descripción */}
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-[14px] text-ink-2">
           Ingresa los datos de tu vial y tu dosis para convertir a unidades de dispositivo.
         </p>
 
@@ -229,7 +237,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
           <div className="flex flex-col gap-2">
             <button
               type="button"
-              className="flex min-h-[44px] items-center gap-1.5 text-[13px] font-semibold text-teal"
+              className="flex min-h-[44px] items-center gap-1.5 text-[13px] font-semibold text-blue"
               onClick={() => setShowSaved((v) => !v)}
             >
               {showSaved ? '▲' : '▼'} Mis viales ({savedRecons.length})
@@ -239,11 +247,12 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                 {savedRecons.map((rec) => (
                   <div
                     key={rec.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-raised px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-sm border border-hairline bg-raised px-4 py-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold text-foreground">{rec.label}</p>
-                      <p className="text-[12px] font-mono text-muted-foreground">{rec.vialMg} mg / {rec.aguaMl} mL</p>
+                      {/* Nombre del vial en serif (la voz editorial de los productos) */}
+                      <p className="truncate font-serif text-[16px] font-medium leading-tight text-ink">{rec.label}</p>
+                      <p className="mt-0.5 font-mono text-[12px] tabular-nums text-ink-2">{rec.vialMg} mg / {rec.aguaMl} mL</p>
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <Button variant="outline" size="sm" onClick={() => loadSaved(rec)}>
@@ -268,7 +277,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
 
         {/* ── Campo: Vial (mg) ── */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="calc-vial">
+          <label className={LABEL} htmlFor="calc-vial">
             Vial (mg)
           </label>
           <input
@@ -279,13 +288,13 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
             placeholder="ej. 10"
             value={vialStr}
             onChange={(e) => setVialStr(e.target.value)}
-            className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+            className={`h-11 w-full font-mono tabular-nums ${FIELD}`}
           />
         </div>
 
         {/* ── Campo: Agua (mL) ── */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="calc-agua">
+          <label className={LABEL} htmlFor="calc-agua">
             Agua (mL)
           </label>
           <input
@@ -296,7 +305,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
             placeholder="ej. 2"
             value={aguaStr}
             onChange={(e) => setAguaStr(e.target.value)}
-            className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+            className={`h-11 w-full font-mono tabular-nums ${FIELD}`}
           />
         </div>
 
@@ -306,7 +315,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
             {!showSaveForm ? (
               <button
                 type="button"
-                className="text-[13px] font-semibold text-teal min-h-[44px] flex items-center gap-1"
+                className="flex min-h-[44px] items-center gap-1 text-[13px] font-semibold text-blue"
                 onClick={() => setShowSaveForm(true)}
               >
                 + Guardar esta reconstitución
@@ -321,7 +330,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                     onChange={(e) => setSaveLabel(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSaveRecon()}
                     autoFocus
-                    className="h-11 flex-1 rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                    className={`h-11 flex-1 ${FIELD}`}
                   />
                   <Button variant="primary" size="sm" onClick={handleSaveRecon} disabled={!saveLabel.trim()}>
                     {wouldOverwrite ? 'Sobrescribir' : 'Guardar'}
@@ -331,8 +340,8 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                   </Button>
                 </div>
                 {wouldOverwrite && existingRecon && (
-                  <p className="flex items-center gap-1.5 text-[12px] text-yellow-400">
-                    <AlertTriangle size={13} aria-hidden className="shrink-0" />
+                  <p className="flex items-center gap-1.5 text-[13px] text-ink-2">
+                    <AlertTriangle size={13} aria-hidden className="shrink-0 text-warn" />
                     Ya tienes "{existingRecon.label}" ({existingRecon.vialMg} mg / {existingRecon.aguaMl} mL) — se reemplazará.
                   </p>
                 )}
@@ -343,7 +352,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
 
         {/* ── Campo: Tu dosis + unidad ── */}
         <div className="flex flex-col gap-2">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="calc-dosis">
+          <label className={LABEL} htmlFor="calc-dosis">
             {plumaMode ? 'Número de clics' : 'Tu dosis'}
           </label>
           <input
@@ -354,7 +363,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
             placeholder={plumaMode ? 'ej. 4 clics' : 'ej. 0.5'}
             value={dosisStr}
             onChange={(e) => setDosisStr(e.target.value)}
-            className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+            className={`h-11 w-full font-mono tabular-nums ${FIELD}`}
           />
           <div className="flex gap-2">
             {(['mg', 'mcg'] as DosisUnit[]).map((u) => (
@@ -367,8 +376,9 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
 
         {/* ── Dispositivo ── */}
         <div className="flex flex-col gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className={`${KICKER} flex items-center gap-1.5`}>
             Dispositivo
+            <TermInfo term="U-100">Las marcas de una jeringa de insulina U-100: 100 UI equivalen a 1 mL.</TermInfo>
           </p>
           <div className="flex gap-2">
             {DEVICE_PRESETS.map((p) => {
@@ -388,14 +398,14 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                     }
                   }}
                   className={[
-                    'flex flex-1 min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-lg border px-2 py-2 transition-all text-center',
+                    'flex flex-1 min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-[8px] border px-2 py-2 transition-colors text-center',
                     isActive
-                      ? 'border-teal/60 bg-teal/10 text-teal'
-                      : 'border-white/10 bg-raised text-muted-foreground',
+                      ? 'border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] text-blue'
+                      : 'border-hairline bg-raised text-ink-2',
                   ].join(' ')}
                 >
-                  <span className="text-[13px] font-bold leading-none">{p.label}</span>
-                  <span className="text-[11px] leading-none opacity-70">{p.sub}</span>
+                  <span className="text-[13px] font-semibold leading-none">{p.label}</span>
+                  <span className="font-mono text-[11px] leading-none opacity-70">{p.sub}</span>
                 </button>
               )
             })}
@@ -403,8 +413,8 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
 
           {/* Modo pluma: factor clics → mg */}
           {plumaMode && (
-            <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-raised/60 p-3">
-              <p className="text-[12px] text-muted-foreground">
+            <div className="flex flex-col gap-2 rounded-sm border border-hairline bg-raised p-3">
+              <p className="text-[13px] text-ink-2">
                 Pluma dosificadora — cada clic equivale a:
               </p>
               <div className="flex items-center gap-2">
@@ -416,45 +426,46 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
                   placeholder="0.25"
                   value={clicMgStr}
                   onChange={(e) => setClicMgStr(e.target.value)}
-                  className="h-11 flex-1 rounded-lg border border-white/10 bg-raised px-3 text-center font-mono text-[16px] font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                  className={`h-11 flex-1 text-center font-mono text-[16px] font-semibold tabular-nums ${FIELD}`}
                 />
-                <span className="text-[13px] font-semibold text-muted-foreground shrink-0">mg / clic</span>
+                <span className="shrink-0 font-mono text-[12px] font-medium text-ink-2">mg / clic</span>
               </div>
               {plumaResult != null && (
-                <p className="text-center font-mono text-[14px] font-bold text-teal">
+                <p className="text-center font-mono text-[14px] font-semibold tabular-nums text-blue">
                   {dosis} clics = {plumaResult < 1 ? plumaResult.toFixed(3) : plumaResult.toFixed(2)} mg
                 </p>
               )}
-              <p className="text-[11px] text-muted-foreground/60">
+              <p className="text-[12px] text-ink-2">
                 Factor orientativo — verifica la concentración en tu dispositivo. No es consejo médico.
               </p>
             </div>
           )}
         </div>
 
-        {/* ── Resultado ── */}
+        {/* ── Resultado — placa de instrumento con numeral SERIF (colores fijos: la placa es oscura en ambos temas) ── */}
         {r ? (
           <DataPlate className="flex flex-col items-center gap-2 py-6 text-center">
             <span
-              className="font-mono text-[52px] font-bold tabular-nums leading-none"
-              style={{ color: r.overCapacity ? 'var(--alert, #ef4444)' : 'var(--teal-bright, #5FC9B8)' }}
+              className="flex items-baseline font-serif text-[52px] font-normal leading-none tabular-nums tracking-[-0.02em]"
+              style={{ color: r.overCapacity ? '#F0705C' : '#F2EDE3' }}
             >
-              {r.ui} UI
+              {r.ui}
+              <span className="ml-1.5 font-mono text-[14px] font-medium tracking-normal text-[#B4AC9B]">UI</span>
             </span>
-            <span className="text-[13px] text-muted-foreground leading-snug">
+            <span className="font-mono text-[13px] leading-snug tabular-nums text-[#B4AC9B]">
               ≈ {r.mL} mL · {r.conc} mg/mL
               <br />
               U-100
             </span>
 
             {r.overCapacity && (
-              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-alert mt-1">
+              <p className="mt-1 flex items-center gap-1.5 font-sans text-[13px] font-semibold text-[#F0705C]">
                 <AlertTriangle size={14} aria-hidden className="shrink-0" />
                 No cabe en una {r.scale} U — prueba con un barril mayor.
               </p>
             )}
             {!r.overCapacity && r.lowPrecision && (
-              <p className="flex items-center gap-1.5 text-[13px] text-yellow-400 mt-1">
+              <p className="mt-1 flex items-center gap-1.5 font-sans text-[13px] text-[#E8B24A]">
                 <AlertTriangle size={14} aria-hidden className="shrink-0" />
                 Menos de 5 UI: difícil de medir con precisión.
               </p>
@@ -462,12 +473,12 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
 
             {/* Advertencia de rango (item 409) */}
             {rangeWarning && (
-              <div className="mt-2 w-full rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-left">
-                <p className="flex items-center gap-1.5 text-[12px] font-semibold text-yellow-400">
+              <div className="mt-2 w-full rounded-[8px] border border-[rgba(232,178,74,.35)] bg-[rgba(232,178,74,.10)] px-3 py-2 text-left">
+                <p className="flex items-center gap-1.5 font-sans text-[12px] font-semibold text-[#E8B24A]">
                   <AlertTriangle size={13} aria-hidden className="shrink-0" />
                   Volumen fuera del rango habitual ({rangeMin}–{rangeMax} mL)
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="mt-0.5 font-sans text-[12px] text-[#B4AC9B]">
                   Verifica tu reconstitución. No es consejo médico.
                 </p>
               </div>
@@ -475,7 +486,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
           </DataPlate>
         ) : (
           <DataPlate className="py-8 text-center">
-            <span className="text-[14px] text-muted-foreground">
+            <span className="font-sans text-[14px] text-[#B4AC9B]">
               Ingresa vial, agua y tu dosis para ver el resultado.
             </span>
           </DataPlate>
@@ -492,7 +503,7 @@ export function CalcSheet({ open, onClose }: { open: boolean; onClose: () => voi
         </Button>
 
         {/* Disclaimer */}
-        <p className="text-center text-[11px] text-muted-foreground/60 leading-relaxed">
+        <p className="text-center text-[12px] leading-relaxed text-ink-2">
           Esta calculadora convierte la dosis que tú ingresas. No recomienda dosis ni es consejo médico.
         </p>
 

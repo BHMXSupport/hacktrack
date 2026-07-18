@@ -7,6 +7,7 @@ import { notifSupported, notifPermission } from '../../lib/notifications'
 import { rachaLabel } from '../../lib/buildFlags'
 
 // Prompt de permiso de notificaciones — aparece al ENTRAR a la app si el permiso NO está concedido.
+// Vestido "Bitácora" (papel cálido, azul = confianza/interactivo); la LÓGICA de descarte queda intacta.
 // Acelerador conservador: máximo UNA vez por sesión (sessionStorage) y con descarte PERSISTENTE
 // ("No volver a preguntar", localStorage) — antes re-aparecía como modal bloqueante en CADA apertura
 // hasta conceder, para siempre. Desaparece en cuanto se concede ("sí").
@@ -93,10 +94,12 @@ export function NotifPermissionPrompt() {
     <Sheet open={open} onClose={() => setOpen(false)} title="Activa tus recordatorios">
       <div className="flex flex-col gap-5">
         <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-teal/15 text-teal">
+          {/* Campana en azul (confianza/interactivo); tinte con color-mix porque el alfa sobre
+              var(--x) (bg-blue/10) no se emite en este setup. */}
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-hairline bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] text-blue">
             <Bell size={20} />
           </div>
-          <p className="text-[14px] leading-relaxed text-muted-foreground">
+          <p className="text-[15px] leading-relaxed text-ink-2">
             {denied
               ? 'Las notificaciones están bloqueadas para Hacktrack. Tu teléfono ya no muestra el aviso automático, así que actívalas a mano en los ajustes.'
               // rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio
@@ -105,12 +108,12 @@ export function NotifPermissionPrompt() {
         </div>
 
         {denied ? (
-          <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 text-[13px] leading-relaxed text-muted-foreground">
-            <p className="mb-2 font-semibold text-foreground">Cómo activarlas en iPhone</p>
+          <div className="rounded-sm border border-hairline bg-raised p-4 text-[14px] leading-relaxed text-ink-2">
+            <p className="mb-2 font-semibold text-ink">Cómo activarlas en iPhone</p>
             <ol className="ml-4 list-decimal space-y-1">
-              <li>Abre <span className="text-foreground">Ajustes</span> del teléfono.</li>
-              <li>Baja y toca <span className="text-foreground">Hacktrack</span>.</li>
-              <li>Entra en <span className="text-foreground">Notificaciones</span> y activa <span className="text-foreground">Permitir notificaciones</span>.</li>
+              <li>Abre <span className="font-medium text-ink">Ajustes</span> del teléfono.</li>
+              <li>Baja y toca <span className="font-medium text-ink">Hacktrack</span>.</li>
+              <li>Entra en <span className="font-medium text-ink">Notificaciones</span> y activa <span className="font-medium text-ink">Permitir notificaciones</span>.</li>
             </ol>
             <p className="mt-2">En Android: Ajustes → Apps → Hacktrack → Notificaciones.</p>
           </div>
@@ -130,7 +133,7 @@ export function NotifPermissionPrompt() {
               if (denied) safeSet('local', NOTIF_PROMPT_DISMISSED_KEY, '1')
               setOpen(false)
             }}
-            className="py-2 text-[13px] font-medium text-muted-foreground active:opacity-70"
+            className="min-h-[44px] py-2 text-[14px] font-medium text-ink-2 transition-opacity active:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             {denied ? 'Entendido' : 'Ahora no'}
           </button>
@@ -140,7 +143,7 @@ export function NotifPermissionPrompt() {
                 safeSet('local', NOTIF_PROMPT_DISMISSED_KEY, '1')
                 setOpen(false)
               }}
-              className="py-1 text-[12px] font-medium text-muted-foreground/70 active:opacity-70"
+              className="min-h-[44px] py-1 text-[12px] font-medium text-ink-3 transition-opacity active:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             >
               No volver a preguntar
             </button>

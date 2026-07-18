@@ -1,11 +1,10 @@
 // Vida v2 — "Vida del péptido en el cuerpo": presencia PK multi-producto.
 // Estimación EDUCATIVA (vidas medias aproximadas de literatura). No es consejo médico.
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { Eye, EyeOff, FlaskConical, Info } from 'lucide-react'
+import { Eye, EyeOff, Activity, Info, Plus } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { SectionHero } from '../ui/SectionHero'
-import { HEROES } from '../lib/heroes'
 import {
   buildPharmaSeries,
   fmtApproxMg,
@@ -23,15 +22,25 @@ import {
   thresholdCrossTs,
   washoutMs,
   hasAccumulation,
+  PRESENCE_FLOOR_PCT,
+  seriesColorMap,
   type Mode,
 } from '../../lib/pharma'
-import { CATEGORY_COLOR, PEPTIDES } from '../../lib/catalog'
+import { PEPTIDES } from '../../lib/catalog'
 import { upcomingDoses } from '../../lib/calendar'
 import { MultiLineChart } from '../../components/MultiLineChart'
 import { Glass } from '../ui/Glass'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
+import { PlainSummary } from '../ui/PlainSummary'
+import { StatNumber } from '../ui/StatNumber'
+import { TermInfo } from '../ui/TermInfo'
+import { FolioLabel } from '../ui/FolioLabel'
+
+// Palabras cardinales es-MX 0–10 para el resumen llano ("tres péptidos"); >10 cae a número.
+const NUM_ES = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez']
+const numWord = (n: number) => NUM_ES[n] ?? String(n)
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -68,16 +77,17 @@ const fade = {
 
 function EmptyState() {
   return (
-    <motion.div variants={fade} className="mt-6">
+    <motion.div variants={fade} className="mt-2">
       <Glass className="flex flex-col items-center gap-4 py-10 text-center">
-        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-teal/10">
-          <FlaskConical size={26} className="text-teal" />
+        {/* Ícono de "curva/actividad" — nunca matraz/jeringa (separación de marca + compliance). */}
+        <span className="grid h-14 w-14 place-items-center rounded-sm bg-amber-soft">
+          <Activity size={26} className="text-amber" />
         </span>
         <div>
-          <p className="font-semibold text-foreground">Sin dosis registradas aún</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Registra tus dosis desde <span className="text-secondary-foreground">Inicio</span> o el botón <span className="text-teal">＋</span>.
-            Aquí verás automáticamente cuánto sigue activo en tu cuerpo.
+          <p className="font-serif text-[19px] font-normal text-ink">Sin dosis registradas aún</p>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">
+            Registra tus dosis desde <span className="text-ink">Inicio</span> o el botón <span className="text-blue">＋</span>.
+            Aquí verás cuánto sigue activo en tu cuerpo.
           </p>
         </div>
       </Glass>
@@ -192,13 +202,13 @@ function AucBars({ series }: { series: { product: string; color: string; aucMgH:
   const fmt = (v: number) =>
     v < 1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : String(Math.round(v))
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       {withAuc.map((s, i) => (
         <div key={s.product} className="flex min-w-0 items-center gap-3">
-          <span className="w-20 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-secondary-foreground">
+          <span className="w-20 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] text-ink-2">
             {s.product}
           </span>
-          <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+          <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-raised">
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
@@ -211,7 +221,7 @@ function AucBars({ series }: { series: { product: string; color: string; aucMgH:
               }}
             />
           </div>
-          <span className="w-24 shrink-0 text-right font-mono text-[12px] font-semibold tabular-nums text-foreground">
+          <span className="w-24 shrink-0 text-right font-mono text-[12px] font-semibold tabular-nums text-ink">
             {fmt(s.aucMgH)} mg·h
           </span>
         </div>
@@ -233,6 +243,7 @@ export function Vida() {
   const [showNextDose, setShowNextDose] = useState(true)
   const [showNotes, setShowNotes] = useState(false)
   const chartRef = useRef<HTMLDivElement>(null)
+  const curveRef = useRef<HTMLDivElement>(null) // ancla de "Ver la curva ↓" (scroll a la figura)
 
   // "ahora" en vivo — pausa el tick cuando la pestaña/app no está visible (batería).
   useEffect(() => {
@@ -260,6 +271,10 @@ export function Vida() {
   )
 
   const byProduct = useMemo(() => collectDosesByProduct(state), [state.log, state.productRecon])
+
+  // Color de serie ESTABLE por producto (azul/oro/violeta de la ref canónica) — misma fuente
+  // que buildPharmaSeries, para que refs verticales y notas coincidan con las curvas/barras.
+  const seriesColors = useMemo(() => seriesColorMap(state), [state.log, state.protocols])
 
   const nextDose = useMemo(() => {
     const upcoming = upcomingDoses(state, new Date(now), 3, 30)
@@ -301,12 +316,12 @@ export function Vida() {
         refs.push({ t: ts, label: labelBase, color: 'var(--teal-bright)', dot: true, ...(tooltipStr ? { tooltip: tooltipStr } : {}) })
       } else {
         const { product, ts } = group[0]
-        const color = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--teal)'
+        const color = seriesColors.get(product) ?? 'var(--series-1)'
         refs.push({ t: ts, label: product, color, dot: true })
       }
     }
     return refs
-  }, [showNextDose, state, now, data.domainX])
+  }, [showNextDose, state, now, data.domainX, seriesColors])
 
   const toggle = (product: string) =>
     setHidden((prev) => {
@@ -330,6 +345,24 @@ export function Vida() {
     return set
   }, [data.series, byProduct])
 
+  // Presencia por péptido (% del pico = currentMg/peakMg) — alimenta el resumen llano, el hero y las
+  // barras. Deriva de PharmaSeries (misma fuente que la gráfica); ordenado por presencia desc.
+  const ranked = useMemo(
+    () =>
+      data.series
+        .map((s) => ({
+          product: s.product,
+          color: s.color,
+          halfLifeH: s.halfLifeH,
+          isAccum: accumProducts.has(s.product),
+          pct: s.peakMg > 0 ? Math.min(100, (s.currentMg / s.peakMg) * 100) : 0,
+        }))
+        .sort((a, b) => b.pct - a.pct),
+    [data.series, accumProducts],
+  )
+  const dominant = ranked[0]
+  const activeCount = ranked.filter((r) => r.pct >= PRESENCE_FLOOR_PCT).length
+
   // Notas educativas por producto
   const noteProducts = useMemo(() => {
     // #10: productos registrados pero sin presencia en la ventana → mostrarlos con su última dosis
@@ -352,12 +385,12 @@ export function Vida() {
         product: p,
         color:
           data.series.find((s) => s.product === p)?.color ??
-          CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar'] ??
-          'var(--teal)',
+          seriesColors.get(p) ??
+          'var(--series-1)',
         text: oowTs != null ? `sin presencia en esta ventana — última dosis ${fmtAgo(oowTs)}` : getProductNote(p),
       }
     })
-  }, [data.series, data.skipped, data.outOfWindow, state.protocols, now])
+  }, [data.series, data.skipped, data.outOfWindow, state.protocols, now, seriesColors])
 
   // ── Ejes ──────────────────────────────────────────────────────────────────
 
@@ -517,21 +550,47 @@ export function Vida() {
     return { tssItems, ratios, aucEntries, perProduct, coPres }
   }, [data.series, state, hidden, now, byProduct])
 
+  // ── Derivados de presentación (reloj de cabecera, acciones, resumen llano) ──
+  // Reloj coherente con "now" (mismo instante que status/countdowns — regla de la ref canónica).
+  // h23 como la ref ("AHORA · 14:48"): el 12h sin meridiano era ambiguo y chocaba con el engrane.
+  const clock = new Date(now).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  // Registrar dosis: abre la sheet existente (sin lógica nueva), prefijada al péptido dominante.
+  const openRegistrar = () => dispatch({ t: 'sheet', sheet: 'registrar', arg: dominant?.product ?? null })
+  const scrollToCurve = () =>
+    curveRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+
+  // Frase llana (Ley 1: divulgación progresiva) — nombra cuántos siguen activos y el dominante.
+  const summarySentence: ReactNode =
+    activeCount <= 0 ? (
+      <>Por ahora, ningún péptido mantiene <b>presencia relevante</b>; los registrados siguen en lavado.</>
+    ) : activeCount === 1 ? (
+      <>
+        Ahora mismo, <b>un péptido</b> sigue activo en tu cuerpo: <b>{dominant.product}</b>.
+      </>
+    ) : (
+      <>
+        Ahora mismo, <b>{numWord(activeCount)} péptidos</b> siguen activos en tu cuerpo. El que más
+        presencia tiene es <b>{dominant.product}</b>.
+      </>
+    )
+
   // ── Estado vacío ──────────────────────────────────────────────────────────
 
   if (!data.hasAnyDose) {
     return (
       <motion.div
-        className="flex flex-col gap-4 px-4 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
+        className="flex flex-col gap-5 px-5 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
         initial={reduce ? false : 'hidden'}
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.07 } } }}
       >
         <motion.div variants={fade}>
           <SectionHero
-            {...HEROES.vida}
+            eyebrow="Vida · en tu cuerpo"
+            meta={`Ahora · ${clock}`}
+            metaClear
             title="Vida"
-            subtitle="Presencia estimada de cada péptido"
+            subtitle="Lo que sigue activo en tu cuerpo, estimado a partir de tus dosis."
           />
         </motion.div>
         <EmptyState />
@@ -543,22 +602,24 @@ export function Vida() {
   if (data.series.length === 0) {
     return (
       <motion.div
-        className="flex flex-col gap-4 px-4 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
+        className="flex flex-col gap-5 px-5 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
         initial={reduce ? false : 'hidden'}
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.07 } } }}
       >
         <motion.div variants={fade}>
           <SectionHero
-            {...HEROES.vida}
+            eyebrow="Vida · en tu cuerpo"
+            meta={`Ahora · ${clock}`}
+            metaClear
             title="Vida"
-            subtitle="Presencia estimada de cada péptido"
+            subtitle="Lo que sigue activo en tu cuerpo, estimado a partir de tus dosis."
           />
         </motion.div>
         <motion.div variants={fade}>
           <Glass>
-            <p className="font-semibold text-foreground">Vida del péptido en el cuerpo</p>
-            <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
+            <p className="font-serif text-[19px] font-normal text-ink">Vida del péptido en el cuerpo</p>
+            <p className="mt-2 text-[14px] text-ink-2 leading-relaxed">
               {(data.skipped.length > 0 || data.outOfWindow.length > 0)
                 ? 'Estos productos están registrados pero sin presencia en esta ventana. Aquí tienes su contexto — amplía el rango para ver dosis más antiguas:'
                 : 'Ningún producto tiene presencia relevante en esta ventana. Amplía el rango o registra una dosis reciente.'}
@@ -566,13 +627,13 @@ export function Vida() {
             {noteProducts.length > 0 && (
               <div className="mt-3 flex flex-col gap-2">
                 {noteProducts.map((n) => (
-                  <div key={n.product} className="flex gap-2 text-[12px] text-muted-foreground leading-snug">
+                  <div key={n.product} className="flex gap-2 text-[12px] text-ink-3 leading-snug">
                     <span
                       className="mt-1 h-2 w-2 shrink-0 rounded-full"
                       style={{ background: n.color }}
                     />
                     <span>
-                      <strong className="font-semibold text-secondary-foreground">{n.product}:</strong>{' '}
+                      <strong className="font-semibold text-ink-2">{n.product}:</strong>{' '}
                       {n.text}
                     </span>
                   </div>
@@ -582,7 +643,7 @@ export function Vida() {
             {data.skipped.length === 0 && win !== '7d' && (
               <button
                 onClick={() => setWin('7d')}
-                className="mt-3 text-[13px] font-semibold text-teal"
+                className="mt-3 text-[14px] font-semibold text-blue"
               >
                 Ver 7 días
               </button>
@@ -591,8 +652,9 @@ export function Vida() {
         </motion.div>
         {/* Disclaimer sólido */}
         <motion.div variants={fade}>
-          <div className="rounded-lg border border-white/8 bg-raised px-4 py-3">
-            <p className="text-[12px] text-muted-foreground leading-relaxed">
+          <div className="flex gap-2.5 rounded-sm border border-hairline bg-raised px-3.5 py-3">
+            <Info size={16} className="mt-0.5 shrink-0 text-ink-3" />
+            <p className="text-[12px] text-ink-2 leading-relaxed">
               Esta visualización no constituye guía médica. Estimación educativa basada en vidas medias
               aproximadas de literatura científica.
             </p>
@@ -606,82 +668,188 @@ export function Vida() {
 
   return (
     <motion.div
-      className="flex flex-col gap-4 px-4 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
+      className="flex flex-col gap-5 px-5 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
       initial={reduce ? false : 'hidden'}
       animate="show"
       variants={{ show: { transition: { staggerChildren: 0.07 } } }}
     >
-      {/* Cabecera */}
+      {/* Cabecera — masthead editorial (kicker + reloj coherente con "now") */}
       <motion.div variants={fade}>
         <SectionHero
-          {...HEROES.vida}
+          eyebrow="Vida · en tu cuerpo"
+          meta={`Ahora · ${clock}`}
+          metaClear
           title="Vida"
-          subtitle="Presencia estimada de cada péptido"
+          subtitle="Lo que sigue activo en tu cuerpo, estimado a partir de tus dosis."
         />
       </motion.div>
 
-      {/* ── CENTRO: Gráfica combinada de presencia PK ── */}
+      {/* ── LEAD llano (Ley 1): frase + numeral grande + acción + barras por péptido ── */}
       <motion.div variants={fade}>
-        <Glass className="p-0">
-          <div className="p-4 pb-0">
-            {/* Cabecera de la tarjeta */}
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold text-foreground">Vida del péptido en el cuerpo</p>
-                <p className="text-[12px] text-muted-foreground">
-                  Estimado de cuánto sigue activo tras cada dosis
-                </p>
+        <Glass className="flex flex-col gap-4 p-[18px]">
+          <PlainSummary>{summarySentence}</PlainSummary>
+
+          {/* Hero: dominante % del pico (serif, count-up) + etiqueta con tap-explain */}
+          {dominant && (
+            <div className="flex items-end gap-3.5">
+              {/* El "%" en ámbar/oro como la ref (.hero .pct): 28px ≈ texto grande → AA con ≥3:1. */}
+              <StatNumber value={dominant.pct} unit="%" decimals={0} size={72} unitSize={28} unitClass="text-amber" />
+              <div className="pb-1.5">
+                <div className="font-serif text-[19px] font-normal leading-tight text-ink">
+                  {dominant.product}
+                </div>
+                <div className="mt-1 flex items-center gap-1 font-mono text-[12px] text-ink-3">
+                  de su pico estimado
+                  <TermInfo term="% del pico">
+                    Qué tan cerca está del punto más alto que alcanzó tras tu última dosis (estimado).
+                    No es un nivel en sangre.
+                  </TermInfo>
+                </div>
               </div>
-              {mode === 'absolute' && (
-                <span className="shrink-0 rounded-md bg-white/6 px-2 py-1 font-mono text-[10px] text-muted-foreground">
-                  mg residual
-                </span>
-              )}
             </div>
+          )}
 
-            {/* Controles: ventana + escala */}
-            <div className="mb-3 flex gap-2">
-              <SegmentedTabs<Win>
-                options={WIN_OPTS}
-                value={win}
-                onChange={setWin}
-                className="flex-1"
-              />
-              <SegmentedTabs<Mode>
-                options={MODE_OPTS}
-                value={mode}
-                onChange={setMode}
-                className="flex-1"
-              />
+          {/* Acciones: Registrar dosis (azul) + Ver la curva ↓ (contorno, ancla a la figura) */}
+          <div className="flex gap-2.5">
+            <Button variant="primary" size="full" className="flex-1" onClick={openRegistrar}>
+              <Plus size={16} strokeWidth={2.4} aria-hidden />
+              Registrar dosis
+            </Button>
+            <Button variant="outline" size="full" className="flex-1" onClick={scrollToCurve}>
+              Ver la curva ↓
+            </Button>
+          </div>
+
+          {/* Resumen llano por péptido: nombre + t½ + barra en su color + % o "en lavado" */}
+          {ranked.length > 0 && (
+            <div className="-mb-1 mt-1">
+              {ranked.map((r, i) => {
+                const washout = r.pct < 5
+                return (
+                  <div key={r.product} className="flex items-center gap-3 border-t border-hairline py-3">
+                    <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: r.color }} />
+                    <div className="w-[92px] shrink-0">
+                      <div className="truncate font-serif text-[16px] leading-none text-ink">{r.product}</div>
+                      <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-ink-3">
+                        <span className="truncate">
+                          t½ ~{formatHalfLife(r.halfLifeH)}
+                          {r.isAccum ? ' · acum.' : ''}
+                        </span>
+                        {i === 0 && (
+                          <TermInfo term="t½ (vida media)">
+                            El tiempo que tarda en quedar la mitad de lo que había. Marca qué tan
+                            rápido se elimina.
+                          </TermInfo>
+                        )}
+                      </div>
+                    </div>
+                    <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-raised">
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ width: `${Math.max(2, r.pct)}%`, background: r.color, transformOrigin: 'left center' }}
+                        initial={reduce ? false : { scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 0.5, delay: 0.1 + i * 0.06, ease: [0, 0, 0, 1] }}
+                      />
+                    </div>
+                    <div className="min-w-[70px] shrink-0 whitespace-nowrap text-right">
+                      {washout ? (
+                        <span
+                          className="inline-block rounded-full border px-2 py-0.5 font-mono text-[12px] font-medium"
+                          style={{
+                            /* Texto 12px: mezcla hacia tinta para AA (≥4.5) en las 3 series y ambos temas;
+                               el borde/fondo conservan el color puro de la serie (elemento gráfico). */
+                            color: `color-mix(in srgb, ${r.color} 60%, var(--ink))`,
+                            borderColor: `color-mix(in srgb, ${r.color} 40%, transparent)`,
+                            background: `color-mix(in srgb, ${r.color} 8%, transparent)`,
+                          }}
+                        >
+                          en lavado
+                        </span>
+                      ) : (
+                        <span className="font-mono text-[14px] font-semibold tabular-nums text-ink">
+                          {Math.round(r.pct)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
+          )}
+        </Glass>
+      </motion.div>
 
-            {/* Opciones secundarias — solo "Próxima dosis" (las líneas verticales por péptido) */}
-            {nextDose && (
-              <div className="mb-3 flex flex-wrap items-center gap-1.5">
-                <Chip active={showNextDose} onClick={() => setShowNextDose((v) => !v)}>
-                  Próxima dosis
-                </Chip>
-              </div>
-            )}
+      {/* ── LA CURVA COMPLETA: folio + controles + figura científica (divulgación) ── */}
+      <motion.div variants={fade} ref={curveRef} className="scroll-mt-4 flex flex-col gap-3">
+        <FolioLabel n={2}>La curva completa</FolioLabel>
 
-            {/* Pill próxima dosis */}
+        {/* Controles como la ref: ventana = píldoras sueltas con activa EN TINTA (izq);
+            escala (% pico / mg) = toggle agrupado con activa azul (der). */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SegmentedTabs<Win>
+            options={WIN_OPTS}
+            value={win}
+            onChange={setWin}
+            variant="pills"
+          />
+          <SegmentedTabs<Mode>
+            options={MODE_OPTS}
+            value={mode}
+            onChange={setMode}
+          />
+        </div>
+
+        {/* Próxima dosis: toggle (líneas verticales por péptido) + pill */}
+        {nextDose && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip active={showNextDose} onClick={() => setShowNextDose((v) => !v)}>
+              Próxima dosis
+            </Chip>
             <AnimatePresence>
-              {nextDose && nextDose.date.getTime() > now && (
+              {nextDose.date.getTime() > now && (
                 <NextDosePill key="ndp" nextTs={nextDose.date.getTime()} now={now} />
               )}
             </AnimatePresence>
+          </div>
+        )}
+
+        {/* Figura ("Fig. 1 · tu estimación personal") */}
+        <Glass className="p-0">
+          <div className="px-4 pt-4">
+            <div
+              className="flex items-baseline justify-between gap-2 pb-3"
+              style={{ borderBottom: '1.5px solid var(--ink)' }}
+            >
+              <div>
+                <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-3">
+                  Fig. 1 · tu estimación personal
+                </div>
+                <div className="mt-0.5 font-serif text-[18px] leading-tight text-ink">
+                  Presencia estimada
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1 font-mono text-[11px] text-ink-3">
+                {mode === 'percent' ? '% del pico' : 'mg residual'}
+                <TermInfo term={mode === 'percent' ? '% del pico' : 'mg residual'}>
+                  {mode === 'percent'
+                    ? 'Porcentaje del punto más alto que alcanzó tras tu última dosis (estimado).'
+                    : 'Miligramos que se estima siguen presentes ahora, según las vidas medias publicadas.'}
+                </TermInfo>
+              </div>
+            </div>
+            {/* #31: rotular la unidad del eje Y */}
+            <p className="mt-2.5 font-mono text-[11px] leading-snug text-ink-3">
+              Eje vertical:{' '}
+              {mode === 'percent'
+                ? '% del pico estimado — no es un nivel en sangre.'
+                : 'mg estimados en el cuerpo — no es un nivel en sangre.'}
+            </p>
           </div>
 
           {/* Gráfica SVG — sin padding horizontal para usar todo el ancho */}
           {visible.length > 0 ? (
             <div className="relative">
-              {/* #31: rotular la unidad del eje Y (la curva no traía unidad explícita) */}
-              <p className="mb-1 text-[11px] text-muted-foreground">
-                Eje vertical:{' '}
-                {mode === 'percent'
-                  ? '% del pico estimado'
-                  : 'mg estimados en el cuerpo'}
-              </p>
               <div
                 ref={chartRef}
                 role="img"
@@ -764,8 +932,8 @@ export function Vida() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <EyeOff size={24} className="text-muted-foreground" />
-              <p className="text-[13px] text-muted-foreground">
+              <EyeOff size={24} className="text-ink-3" />
+              <p className="text-[14px] text-ink-2">
                 Toca un producto abajo para mostrar su curva.
               </p>
             </div>
@@ -792,16 +960,23 @@ export function Vida() {
         </Glass>
       </motion.div>
 
-      {/* ── Exposición acumulada (AUC) ── */}
+      {/* ── Exposición acumulada (AUC) — folio §-graft ── */}
       {visible.some((s) => s.aucMgH > 0) && (
-        <motion.div variants={fade}>
+        <motion.div variants={fade} className="flex flex-col gap-3">
+          <FolioLabel n={3}>
+            Carga acumulada (AUC)
+            {/* normal-case + tracking-normal: el popover de TermInfo hereda el UPPER/tracking del folio
+                si no se resetea aquí (TermInfo es primitiva compartida, no se edita). */}
+            <span className="inline-flex normal-case tracking-normal">
+              <TermInfo term="AUC">
+                Concentración × tiempo: cuánta exposición total acumuló tu cuerpo en esta ventana.
+                Estimación teórica, no un nivel en sangre.
+              </TermInfo>
+            </span>
+          </FolioLabel>
           <Glass>
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Carga acumulada (AUC){' '}
-              <span className="font-normal text-muted-foreground/70">· en esta ventana</span>
-            </p>
             <AucBars series={visible} />
-            <p className="mt-2 text-[11px] text-muted-foreground leading-snug">
+            <p className="mt-3 text-[12px] text-ink-3 leading-snug">
               Cuánta concentración × tiempo pasó en tu cuerpo en esta ventana (estimación teórica, no un nivel en sangre).
             </p>
           </Glass>
@@ -866,7 +1041,7 @@ export function Vida() {
                           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-secondary-foreground">
                             {prod}
                           </span>
-                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10">
+                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-raised">
                             <div
                               className="h-full rounded-full"
                               style={{ width: `${frac * 100}%`, background: color }}
@@ -889,7 +1064,7 @@ export function Vida() {
               {advancedMetrics.perProduct
                 .filter((p) => p.cv != null || p.intervals.length >= 2 || p.fi != null)
                 .map((p) => (
-                  <div key={p.product} className="rounded-md bg-white/4 p-3">
+                  <div key={p.product} className="rounded-md bg-raised p-3">
                     <div className="mb-2 flex items-center gap-2">
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
@@ -985,7 +1160,7 @@ export function Vida() {
                 </div>
               )}
 
-              <p className="text-[12px] text-muted-foreground leading-snug border-l-2 border-white/15 pl-3">
+              <p className="text-[12px] text-muted-foreground leading-snug border-l-2 border-hairline pl-3">
                 Todas las métricas son estimaciones educativas basadas en modelos de primer orden y
                 vidas medias de literatura. No representan farmacocinética individual ni son consejo
                 médico.
@@ -1048,11 +1223,12 @@ export function Vida() {
 
       {/* ── Disclaimer — superficie sólida (no Glass), siempre visible ── */}
       <motion.div variants={fade}>
-        <div className="rounded-lg border border-white/8 bg-raised px-4 py-3">
-          <p className="text-[12px] text-muted-foreground leading-relaxed">
+        <div className="flex gap-2.5 rounded-sm border border-hairline bg-raised px-3.5 py-3">
+          <Info size={16} className="mt-0.5 shrink-0 text-ink-3" />
+          <p className="text-[12px] text-ink-2 leading-relaxed">
             Esta visualización no constituye guía médica. Estimación educativa basada en vidas
             medias aproximadas de la literatura científica. No representa tu farmacocinética
-            individual ni es recomendación de dosis.
+            individual ni es recomendación de dosis. Es tu bitácora, no un dispositivo clínico.
           </p>
         </div>
       </motion.div>

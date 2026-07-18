@@ -1,7 +1,8 @@
 /**
  * MeasurePicker.tsx — v2 flow
  *
- * Selector de métricas a seguir según el objetivo elegido.
+ * Selector de métricas a seguir según el objetivo elegido. Estética "Bitácora":
+ * chips mono (el instrumento), selección en azul interactivo, folio editorial de paso.
  * Máximo 6 chips; pre-selecciona los 4 primeros.
  * Avanza con setMeasures → go 's-protocol'.
  * Atrás → 's-baseline'.
@@ -17,23 +18,12 @@ import { ChevronLeft, Check } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import {
   MEASURES_BY,
-  CATEGORY_COLOR,
-  MEASURE_CATEGORY,
   MEDIDAS_ONLY_MEASURES,
 } from '../../lib/catalog'
 import { Button } from '../ui/Button'
 import { Chip } from '../ui/Chip'
-
-// ── Animación ─────────────────────────────────────────────────────────────────
-
-const fade = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.26, ease: [0, 0, 0.2, 1] as [number, number, number, number] },
-  },
-}
+import { FolioLabel } from '../ui/FolioLabel'
+import { fadeUp } from '../lib/motion'
 
 const MAX_CHIPS = 6
 
@@ -52,7 +42,6 @@ export function MeasurePicker() {
   const [goalIndex, setGoalIndex] = useState(0)
   const currentGoal = goals[Math.min(goalIndex, goals.length - 1)]
   const isLastGoal = goalIndex >= goals.length - 1
-  const accentColor = CATEGORY_COLOR[currentGoal as keyof typeof CATEGORY_COLOR] ?? '#5FC9B8'
 
   const measuresFor = (g: string) =>
     (MEASURES_BY[g] ?? MEASURES_BY['Explorar']).filter((m) => !MEDIDAS_ONLY_MEASURES.includes(m)).slice(0, MAX_CHIPS)
@@ -100,7 +89,7 @@ export function MeasurePicker() {
       className="relative z-10 flex h-full flex-col"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
-      {/* App bar */}
+      {/* App bar — folio editorial */}
       <header
         className="flex flex-shrink-0 items-center gap-4 px-4"
         style={{
@@ -111,16 +100,15 @@ export function MeasurePicker() {
         <button
           aria-label="Atrás"
           onClick={handleBack}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 3 de 4 */}
-        <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 3 de 5</span>
-          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 3 de 5">
-            <div className="h-full w-[60%] rounded-full bg-teal" />
+        <div className="flex flex-1 flex-col gap-1.5">
+          <FolioLabel n={3}>Paso 3 de 5</FolioLabel>
+          <div className="h-1 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={3} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 3 de 5">
+            <div className="h-full w-[60%] rounded-full bg-blue" />
           </div>
         </div>
 
@@ -133,26 +121,27 @@ export function MeasurePicker() {
         variants={{ show: { transition: { staggerChildren: 0.05 } } }}
         className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pt-2"
       >
-        {/* Título */}
-        <motion.div variants={fade}>
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
+        {/* Título serif + kicker del objetivo actual */}
+        <motion.div variants={fadeUp}>
+          <h1 className="font-serif text-[28px] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
             ¿Qué quieres seguir?
           </h1>
-          {/* Métricas POR objetivo + progreso cuando hay varios */}
-          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold" style={{ borderColor: `color-mix(in srgb, ${accentColor} 40%, transparent)`, background: `color-mix(in srgb, ${accentColor} 12%, transparent)`, color: accentColor }}>
+          {/* Métricas POR objetivo + progreso cuando hay varios — kicker mono con tick ámbar */}
+          <span className="mt-2.5 inline-flex items-center gap-2 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2">
+            <span aria-hidden className="h-1.5 w-1.5 shrink-0 bg-amber" />
             Métricas para: {currentGoal}
+            {goals.length > 1 && (
+              <span className="normal-case tracking-normal text-ink-3">· Objetivo {goalIndex + 1} de {goals.length}</span>
+            )}
           </span>
-          {goals.length > 1 && (
-            <span className="ml-2 text-[12px] font-semibold text-secondary-foreground">Objetivo {goalIndex + 1} de {goals.length}</span>
-          )}
-          <p className="mt-2 text-[14px] text-secondary-foreground">
+          <p className="mt-2 text-[14px] text-ink-2">
             Elige las que más te interesan. Puedes cambiarlas después.
           </p>
         </motion.div>
 
-        {/* Chips de métricas */}
+        {/* Chips de métricas — píldoras mono; activa = relleno azul (tokens del Chip) */}
         <motion.div
-          variants={fade}
+          variants={fadeUp}
           role="group"
           aria-label="Métricas disponibles"
           className="flex flex-wrap gap-2"
@@ -164,23 +153,6 @@ export function MeasurePicker() {
                 key={m}
                 active={active}
                 onClick={() => toggle(m)}
-                className={active ? '' : ''}
-                style={
-                  active
-                    ? {
-                        // SÓLIDO (sin color-mix ni alpha → opaco en cualquier iOS): relleno del color de la
-                        // categoría + texto oscuro, como el chip teal activo. Máximo contraste.
-                        background: accentColor,
-                        color: '#0b1014',
-                        border: `2px solid ${accentColor}`,
-                      }
-                    : {
-                        // Inactivo: slate sólido opaco + borde y texto claros (no translúcido → no se transparenta).
-                        background: '#1b2430',
-                        color: '#E8EDF2',
-                        border: '1px solid rgba(255,255,255,0.30)',
-                      }
-                }
               >
                 {/* Checkmark animado */}
                 <AnimatePresence>
@@ -204,11 +176,11 @@ export function MeasurePicker() {
         </motion.div>
 
         {/* Contador de selección */}
-        <motion.div variants={fade}>
+        <motion.div variants={fadeUp}>
           <p
             role="status"
             aria-live="polite"
-            className="min-h-[20px] text-[13px] text-secondary-foreground"
+            className="min-h-[20px] text-[13px] text-ink-2"
           >
             {selected.size > 0
               ? `${selected.size} métrica${selected.size !== 1 ? 's' : ''} seleccionada${selected.size !== 1 ? 's' : ''}. Podrás ajustar esto más adelante.`
@@ -216,46 +188,40 @@ export function MeasurePicker() {
           </p>
         </motion.div>
 
-        {/* Preview de selección */}
+        {/* Preview de selección — columna impresa con etiquetas mono */}
         {selected.size > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22 }}
           >
-            <div className="rounded-xl border border-white/10 bg-raised/80 p-4 flex flex-col gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground">
+            <div className="flex flex-col gap-2.5 rounded-sm border border-hairline bg-surface p-4 shadow-[0_1px_2px_rgba(26,23,18,.05)]">
+              <p className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">
                 Seguirás
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {[...selected].map((m) => {
-                  // Cada chip con el color SÓLIDO de su categoría (Recuperación, Piel, …) + texto oscuro.
-                  // Sin color-mix ni alpha → opaco y de alto contraste en cualquier iOS.
-                  const color = CATEGORY_COLOR[MEASURE_CATEGORY[m]] ?? accentColor
-                  return (
-                    <span
-                      key={m}
-                      className="rounded-full px-2.5 py-1 text-[12px] font-bold"
-                      style={{ background: color, color: '#0b1014' }}
-                    >
-                      {m}
-                    </span>
-                  )
-                })}
+                {[...selected].map((m) => (
+                  <span
+                    key={m}
+                    className="rounded-full border border-hairline bg-raised px-2.5 py-1 font-mono text-[12px] font-medium text-ink"
+                  >
+                    {m}
+                  </span>
+                ))}
               </div>
             </div>
           </motion.div>
         )}
 
         {/* Disclaimer */}
-        <motion.div variants={fade}>
-          <p className="text-[11px] leading-relaxed text-secondary-foreground">
+        <motion.div variants={fadeUp}>
+          <p className="text-[12px] leading-relaxed text-ink-2">
             Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
           </p>
         </motion.div>
 
         {/* CTAs */}
-        <motion.div variants={fade} className="mt-auto flex flex-col gap-2">
+        <motion.div variants={fadeUp} className="mt-auto flex flex-col gap-2">
           <Button
             size="full"
             onClick={handleContinuar}

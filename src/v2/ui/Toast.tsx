@@ -30,12 +30,12 @@ export function Toast() {
           role="status"
           aria-live="polite"
         >
-          <div className="glass pointer-events-auto flex max-w-full items-center gap-3 rounded-full px-4 py-2.5 text-[14px] text-foreground shadow-glass">
+          <div className="glass pointer-events-auto flex max-w-full items-center gap-3 rounded-full px-4 py-2.5 text-[14px] text-ink shadow-soft">
             <span className="truncate">{state.toast}</span>
             {hasUndo && (
               <button
                 type="button"
-                className="shrink-0 font-semibold text-teal"
+                className="shrink-0 font-semibold text-blue"
                 onClick={() => {
                   const id = state.toastUndoId!
                   if (id.startsWith('__undo_delete__')) dispatch({ t: 'undoDeleteLog' })

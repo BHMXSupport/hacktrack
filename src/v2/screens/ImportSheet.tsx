@@ -1,4 +1,5 @@
-// ImportSheet v2 — design system "Precision × Accessible"
+// ImportSheet v2 — design system "Bitácora" (LOCKED): picker editorial — filas con hairline,
+// nombre del producto en serif, metadatos mono, check azul-tinta (interactivo).
 // Selector MANUAL de productos: el usuario elige del catálogo público lo que registra.
 // Sin proveedor externo, sin puente de importación, sin flujo de conexión externa.
 // Es un multi-select del catálogo; la app no ingiere datos de ninguna cuenta externa.
@@ -43,14 +44,15 @@ function ProductRow({
 }) {
   const reduce = useReducedMotion()
   const entry = PEPTIDES[name]
-  const color = entry ? CATEGORY_COLOR[entry.cat] : 'var(--teal)'
+  // Fallback AZUL (interactivo) — nunca teal/menta (separación de marca).
+  const color = entry ? CATEGORY_COLOR[entry.cat] : 'var(--blue)'
 
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onToggle}
-      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
     >
       {/* Dot categoría */}
       <span
@@ -59,28 +61,28 @@ function ProductRow({
         aria-hidden="true"
       />
 
-      {/* Info */}
+      {/* Info — nombre serif (la voz), metadatos mono (el instrumento) */}
       <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-semibold text-foreground leading-tight">{name}</p>
+        <p className="truncate font-serif text-[17px] font-medium leading-tight tracking-tight text-ink">{name}</p>
         {entry && (
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
+          <p className="mt-0.5 font-mono text-[12px] text-ink-3">
             {entry.cat} · {cadenceLabel(name)}
           </p>
         )}
       </div>
 
-      {/* Checkbox visual */}
+      {/* Checkbox visual — azul tinta al seleccionar; contorno visible en ambos temas */}
       <motion.span
-        animate={reduce ? undefined : { scale: selected ? 1 : 0.85, opacity: selected ? 1 : 0.35 }}
+        animate={reduce ? undefined : { scale: selected ? 1 : 0.85, opacity: selected ? 1 : 0.45 }}
         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-        className="shrink-0 h-6 w-6 rounded-[7px] flex items-center justify-center"
+        className="shrink-0 h-6 w-6 rounded-[6px] flex items-center justify-center"
         style={{
-          background: selected ? 'var(--teal)' : 'transparent',
-          border: selected ? 'none' : '1.5px solid rgba(255,255,255,0.2)',
+          background: selected ? 'var(--blue)' : 'transparent',
+          border: selected ? 'none' : '1.5px solid color-mix(in srgb, var(--ink-3) 60%, transparent)',
         }}
         aria-hidden="true"
       >
-        {selected && <Check size={14} strokeWidth={2.5} className="text-void" />}
+        {selected && <Check size={14} strokeWidth={2.5} style={{ color: 'var(--primary-foreground)' }} />}
       </motion.span>
     </button>
   )
@@ -138,7 +140,7 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
   return (
     <Sheet open={open} onClose={onClose} title="Agrega tus productos">
       <div className="flex flex-col gap-5">
-        <p className="text-[13px] text-secondary-foreground">
+        <p className="text-[14px] leading-relaxed text-ink-2">
           Elige los que registras. Solo organizan tu seguimiento — no es recomendación médica ni de dosificación.
         </p>
 
@@ -146,7 +148,8 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
         <div className="relative">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-foreground"
+            strokeWidth={1.6}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3"
             aria-hidden="true"
           />
           <input
@@ -155,22 +158,22 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar producto…"
             aria-label="Buscar producto en el catálogo"
-            className="h-12 w-full rounded-lg border border-white/20 bg-card pl-9 pr-3 text-[15px] text-foreground placeholder:text-secondary-foreground focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20"
+            className="h-12 w-full rounded-[8px] border border-hairline bg-raised pl-9 pr-3 text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--blue)_25%,transparent)]"
           />
         </div>
 
         {/* Contador */}
         {count > 0 && (
-          <span className="text-[12px] text-muted-foreground" aria-live="polite">
+          <span className="font-mono text-[12px] tabular-nums text-ink-3" aria-live="polite">
             {count} seleccionado{count !== 1 ? 's' : ''}
           </span>
         )}
 
-        {/* Lista del catálogo */}
-        <Glass className="p-0 divide-y divide-white/8 overflow-hidden">
+        {/* Lista del catálogo — columna impresa con filas hairline */}
+        <Glass className="p-0 divide-y divide-hairline overflow-hidden">
           {results.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 px-4 text-center">
-              <p className="text-[14px] text-secondary-foreground">
+              <p className="text-[15px] text-ink-2">
                 {query.trim()
                   ? 'Sin resultados. Prueba otro nombre.'
                   : 'Ya estás rastreando todo el catálogo.'}
@@ -188,7 +191,7 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
           )}
         </Glass>
 
-        <p className="text-[12px] text-muted-foreground text-center">
+        <p className="text-center text-[12px] text-ink-3">
           Tu historial se guarda solo en tu dispositivo.
         </p>
 

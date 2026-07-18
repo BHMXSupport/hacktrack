@@ -1,18 +1,24 @@
 // DoseConfirmSheet v2 — confirmación rápida / backfill de dosis
-// Design system "Precision × Accessible".
+// Design system "Bitácora" (papel-y-tinta editorial): resumen serif del producto,
+// cantidades como "tu registro", ruedas de hora en mono con banda azul-tinta.
 // Prop `arg`: string|null — producto a confirmar (parseado desde sheetArg).
 // Flujo: paso 1 → elige hora + nota libre; paso 2 → efecto/síntoma opcional.
 // Dispatch: logDose con ts elegido, note, effect.
 // Compliance: sin jeringas, sin claims médicos, dato observacional.
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { X } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { EFFECT_OPTIONS } from '../../lib/catalog'
 import { fmtTime } from '../../lib/cadence'
 import { Sheet } from '../ui/Sheet'
 import { Button } from '../ui/Button'
 import { Chip } from '../ui/Chip'
+
+// ── Clases compartidas "Bitácora" (solo presentación) ─────────────────────────
+const KICKER = 'font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2'
+// Campo cálido; foco azul-tinta (color-mix porque el alfa sobre var() no se emite en este setup).
+const FIELD =
+  'rounded-[8px] border border-hairline bg-raised px-3 text-[15px] text-ink placeholder:text-ink-3 focus:outline-none focus:border-blue focus:ring-2 focus:ring-[color-mix(in_srgb,var(--blue)_30%,transparent)]'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -35,6 +41,8 @@ const ITEM_H = 40
 const HOURS  = Array.from({ length: 12 }, (_, i) => i + 1)
 const MINS5  = Array.from({ length: 12 }, (_, i) => i * 5)
 const APS    = ['AM', 'PM']
+// El "instrumento" va en mono (JetBrains) — ítem activo azul-tinta, inactivos en tinta terciaria.
+const WHEEL_MONO = "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace"
 
 function WheelCol({
   items,
@@ -107,10 +115,11 @@ function WheelCol({
             height: ITEM_H,
             lineHeight: `${ITEM_H}px`,
             scrollSnapAlign: 'center',
-            fontFamily: 'var(--font-mono, monospace)',
+            fontFamily: WHEEL_MONO,
+            fontVariantNumeric: 'tabular-nums',
             fontSize: i === index ? 20 : 15,
-            fontWeight: i === index ? 700 : 400,
-            color: i === index ? 'var(--teal, #5FC9B8)' : 'rgba(255,255,255,0.5)',
+            fontWeight: i === index ? 600 : 400,
+            color: i === index ? 'var(--blue)' : 'var(--ink-3)',
             transition: 'font-size .1s, color .1s',
           }}
         >
@@ -140,24 +149,22 @@ function TimeWheelInline({ nowTs, onChange }: { nowTs: number; onChange: (ts: nu
   }, [hi, mi, ai])
 
   return (
-    <div
-      className="relative flex gap-1 rounded-2xl bg-raised/60 px-3"
-      style={{ border: '1px solid rgba(255,255,255,0.08)' }}
-    >
+    <div className="relative flex gap-1 rounded-sm border border-hairline bg-raised px-3">
+      {/* banda de selección — azul-tinta (interactivo), theme-aware vía color-mix */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-2"
         style={{
           top: ITEM_H,
           height: ITEM_H,
-          borderTop: '1px solid rgba(95,201,184,0.35)',
-          borderBottom: '1px solid rgba(95,201,184,0.35)',
+          borderTop: '1px solid color-mix(in srgb, var(--blue) 35%, transparent)',
+          borderBottom: '1px solid color-mix(in srgb, var(--blue) 35%, transparent)',
         }}
       />
       <WheelCol items={HOURS} index={hi} onIndex={setHi} label="Hora" />
       <div
-        className="self-center text-muted-foreground"
-        style={{ lineHeight: `${ITEM_H * 3}px`, fontFamily: 'monospace', fontWeight: 700 }}
+        className="self-center text-ink-3"
+        style={{ lineHeight: `${ITEM_H * 3}px`, fontFamily: WHEEL_MONO, fontWeight: 600 }}
       >
         :
       </div>
@@ -291,7 +298,11 @@ export function DoseConfirmSheet({
     transition: { duration: 0.18 },
   }
 
-  const btnRow = 'flex h-[60px] w-full flex-col items-center justify-center gap-0.5 rounded-xl font-semibold transition-all active:scale-[.98]'
+  // Botones de hora (60px): rectángulo de imprenta radio 8; el primario azul-tinta con sombra
+  // susurro (sin glow — el ámbar es del anillo, no del botón); alternativo = contorno azul + tinte.
+  const btnRow = 'flex h-[60px] w-full flex-col items-center justify-center gap-0.5 rounded-[8px] font-semibold transition-all active:scale-[.98]'
+  const btnPri = 'bg-primary text-primary-foreground shadow-[0_1px_2px_rgba(26,23,18,.20)]'
+  const btnAlt = 'border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] text-blue'
 
   const stepSubtitle =
     step === 'time'
@@ -311,22 +322,26 @@ export function DoseConfirmSheet({
           <motion.div key="step-time" {...slideProps} className="flex flex-col gap-4">
 
             {/* Subtítulo del paso */}
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className={KICKER}>
               {stepSubtitle}
             </p>
 
-            {/* Descripción */}
-            <p className="text-[14px] text-foreground">
-              <strong>{product}</strong>
-              {value != null ? ` · ${value} ${unit}` : ''}
-              {isPunctual
-                ? ''
-                : '. Tu hora programada no coincide con la actual — ¿cuándo te la aplicaste?'}
-            </p>
+            {/* Resumen serif — el producto es la voz (Fraunces); la cantidad, "tu registro" en mono */}
+            <div className="flex flex-col gap-1">
+              <span className="font-serif text-[24px] font-normal leading-tight text-ink">{product}</span>
+              {value != null && (
+                <span className="font-mono text-[13px] tabular-nums text-ink-2">{value} {unit} · tu registro</span>
+              )}
+              {!isPunctual && (
+                <p className="mt-1 text-[15px] leading-relaxed text-ink-2">
+                  Tu hora programada no coincide con la actual — ¿cuándo te la aplicaste?
+                </p>
+              )}
+            </div>
 
             {/* Nota opcional */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="dc-note">
+              <label className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2" htmlFor="dc-note">
                 Nota opcional
               </label>
               <input
@@ -337,10 +352,10 @@ export function DoseConfirmSheet({
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="ej: abdomen, náusea leve, energía…"
                 aria-label="Nota de la dosis (máx. 120 caracteres)"
-                className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                className={`h-11 w-full ${FIELD}`}
               />
               {note.length > 100 && (
-                <span className="text-right text-[11px] text-muted-foreground">{note.length}/120</span>
+                <span className="text-right font-mono text-[12px] tabular-nums text-ink-2">{note.length}/120</span>
               )}
             </div>
 
@@ -349,14 +364,12 @@ export function DoseConfirmSheet({
               <Chip
                 active={timeMode === 'preset'}
                 onClick={() => setTimeMode('preset')}
-                className="h-9 text-[12px] px-3"
               >
                 Presets
               </Chip>
               <Chip
                 active={timeMode === 'wheel'}
                 onClick={() => setTimeMode('wheel')}
-                className="h-9 text-[12px] px-3"
               >
                 Hora exacta
               </Chip>
@@ -375,20 +388,20 @@ export function DoseConfirmSheet({
                 >
                   <button
                     type="button"
-                    className={`${btnRow} ${isPunctual ? 'bg-primary text-primary-foreground shadow-glow' : 'border border-teal/50 text-teal'}`}
+                    className={`${btnRow} ${isPunctual ? btnPri : btnAlt}`}
                     onClick={() => logWithTime(nowTs)}
                   >
                     <span className="text-[16px]">Ahora mismo</span>
-                    <span className="font-mono text-[12px] opacity-80">{fmtTime(new Date(nowTs))}</span>
+                    <span className="font-mono text-[12px] tabular-nums opacity-80">{fmtTime(new Date(nowTs))}</span>
                   </button>
                   {!isPunctual && (
                     <button
                       type="button"
-                      className={`${btnRow} bg-primary text-primary-foreground shadow-glow`}
+                      className={`${btnRow} ${btnPri}`}
                       onClick={() => logWithTime(scheduledTs)}
                     >
                       <span className="text-[16px]">A mi hora programada</span>
-                      <span className="font-mono text-[12px] opacity-80">{fmtTime(new Date(scheduledTs))}</span>
+                      <span className="font-mono text-[12px] tabular-nums opacity-80">{fmtTime(new Date(scheduledTs))}</span>
                     </button>
                   )}
                 </motion.div>
@@ -407,7 +420,7 @@ export function DoseConfirmSheet({
                   />
                   <button
                     type="button"
-                    className={`${btnRow} bg-primary text-primary-foreground shadow-glow`}
+                    className={`${btnRow} ${btnPri}`}
                     onClick={() => logWithTime(wheelTs)}
                   >
                     <span className="text-[16px]">
@@ -426,14 +439,14 @@ export function DoseConfirmSheet({
         ) : (
           <motion.div key="step-effect" {...slideProps} className="flex flex-col gap-4">
 
-            {/* Cabecera del paso: subtítulo + X cierre siempre visible */}
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{stepSubtitle}</p>
+            {/* Cabecera del paso (el cierre vive en el header del Sheet) */}
+            <p className={KICKER}>{stepSubtitle}</p>
 
-            <p className="text-[14px] text-foreground">
+            <p className="text-[15px] text-ink">
               Dosis registrada.{' '}
-              <span className="text-muted-foreground">¿Cómo te sientes?</span>
+              <span className="text-ink-2">¿Cómo te sientes?</span>
             </p>
-            <p className="text-[12px] text-muted-foreground/70 -mt-2">
+            <p className="-mt-2 text-[12px] text-ink-2">
               Dato personal observacional — no es una promesa de resultado.
             </p>
 
@@ -464,7 +477,7 @@ export function DoseConfirmSheet({
             {effect && effect !== 'Sin efectos' && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>
+                  <span className="shrink-0 text-[12px] text-ink-2">Intensidad</span>
                   <input
                     type="range"
                     min={0}
@@ -473,9 +486,9 @@ export function DoseConfirmSheet({
                     value={effectIntensity}
                     onChange={(e) => setEffectIntensity(Number(e.target.value))}
                     aria-label="Intensidad del efecto, de 0 a 100"
-                    className="h-1.5 flex-1 cursor-pointer accent-teal"
+                    className="h-1.5 flex-1 cursor-pointer accent-blue"
                   />
-                  <span className="w-7 text-right font-mono text-[12px] font-semibold tabular-nums text-teal">{effectIntensity}</span>
+                  <span className="w-7 text-right font-mono text-[13px] font-semibold tabular-nums text-blue">{effectIntensity}</span>
                 </div>
                 <Button variant="primary" size="full" onClick={() => commitEffect(effect, effectIntensity)}>
                   Guardar
@@ -502,11 +515,11 @@ export function DoseConfirmSheet({
                       placeholder="Describe cómo te sientes…"
                       aria-label="Efecto personalizado"
                       autoFocus
-                      className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                      className={`h-11 w-full ${FIELD}`}
                     />
                     {customEffect.trim() && (
                       <div className="flex items-center gap-3">
-                        <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>
+                        <span className="shrink-0 text-[12px] text-ink-2">Intensidad</span>
                         <input
                           type="range"
                           min={0}
@@ -515,9 +528,9 @@ export function DoseConfirmSheet({
                           value={effectIntensity}
                           onChange={(e) => setEffectIntensity(Number(e.target.value))}
                           aria-label="Intensidad del efecto, de 0 a 100"
-                          className="h-1.5 flex-1 cursor-pointer accent-teal"
+                          className="h-1.5 flex-1 cursor-pointer accent-blue"
                         />
-                        <span className="w-7 text-right font-mono text-[12px] font-semibold tabular-nums text-teal">{effectIntensity}</span>
+                        <span className="w-7 text-right font-mono text-[13px] font-semibold tabular-nums text-blue">{effectIntensity}</span>
                       </div>
                     )}
                     <Button

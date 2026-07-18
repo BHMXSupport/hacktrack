@@ -31,8 +31,12 @@ function loadState(): AppState {
       deletedLogBuffer: null,
       todayTs: fresh.todayTs,
     } as AppState
-    const TABS = ['inicio', 'diario', 'protocolo', 'vida', 'comida', 'semana']
-    if (!TABS.includes((merged as AppState).tab)) (merged as AppState).tab = 'inicio'
+    // Migración IA 6→5 pestañas: estados persistidos con ids legados aterrizan en su
+    // pestaña nueva (protocolo/comida→cuerpo, semana→diario); desconocidos → inicio.
+    const TAB_MIGRATE: Record<string, AppState['tab']> = { protocolo: 'cuerpo', comida: 'cuerpo', semana: 'diario' }
+    const TABS = ['inicio', 'vida', 'diario', 'cuerpo']
+    const t = (merged as AppState).tab as string
+    ;(merged as AppState).tab = TAB_MIGRATE[t] ?? (TABS.includes(t) ? (t as AppState['tab']) : 'inicio')
     return hydrate(merged)
   } catch {
     return fresh
@@ -119,12 +123,14 @@ export function AppProviderV2({ children }: { children: ReactNode }) {
     const routeTag = (tag: string) => {
       if (tag.startsWith('hacktrack-measure-')) dispatch({ t: 'sheet', sheet: 'medida', arg: tag.slice('hacktrack-measure-'.length) })
       else if (/^hacktrack-(dose|pre|rescue)-/.test(tag)) dispatch({ t: 'sheet', sheet: 'registrar', arg: tag.replace(/^hacktrack-(dose|pre|rescue)-/, '') })
+      // 'semana' (legado) → AppV2 la muestra en el hueco de la pestaña Diario (vista Semana)
       else if (tag === 'hacktrack-weekly-summary') dispatch({ t: 'tab', tab: 'semana' })
       else if (tag === 'hacktrack-daily-summary') dispatch({ t: 'tab', tab: 'inicio' })
     }
     const routeGoto = (goto: string) => {
       if (goto.startsWith('medida:')) dispatch({ t: 'sheet', sheet: 'medida', arg: goto.slice('medida:'.length) })
       else if (goto.startsWith('registrar:')) dispatch({ t: 'sheet', sheet: 'registrar', arg: goto.slice('registrar:'.length) })
+      // 'tab:semana' → pestaña Diario mostrando la vista Semana (id legado que AppV2 rutea)
       else if (goto === 'tab:semana') dispatch({ t: 'tab', tab: 'semana' })
     }
     setNotifClickHandler(routeTag)

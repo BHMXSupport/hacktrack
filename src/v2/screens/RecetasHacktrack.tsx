@@ -1,4 +1,5 @@
-// RecetasHacktrack — recetario curado (RAW DATA del catálogo: RECIPES_ENRICHED), diseño v2.
+// RecetasHacktrack — recetario curado (RAW DATA del catálogo: RECIPES_ENRICHED), vestido "Bitácora":
+// fichas editoriales sobre papel cálido, kickers mono con tick ámbar, azul = interactivo/destacado.
 // Freemium: 2 recetas visibles por categoría; el teaser abre el sheet de Plus, que durante la beta
 // desbloquea todo gratis (sin venta fingida — ver PaywallSheet).
 import { useMemo, useState } from 'react'
@@ -7,6 +8,7 @@ import { Plus, ChevronDown, ChevronUp, Clock, Lock, Sparkles } from 'lucide-reac
 import { useApp } from '../../lib/store'
 import { RECIPES_ENRICHED, PEPTIDE_NUTRITION_HINT } from '../../lib/catalog'
 import type { Recipe, RecipeMeal, RecipeTag } from '../../lib/catalog'
+import { Chip } from '../ui/Chip'
 
 const MEAL_LABEL: Record<RecipeMeal, string> = {
   desayuno: 'Desayuno',
@@ -20,26 +22,25 @@ const FREE_PER_MEAL = 2
 function RecipeCard({ r, onAdd }: { r: Recipe; onAdd: (r: Recipe) => void }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="overflow-hidden rounded-xl border border-white/8 bg-raised">
-      <div className="flex items-start gap-3 px-4 pt-3 pb-2">
+    <div className="overflow-hidden rounded-sm border border-hairline bg-raised">
+      <div className="flex items-start gap-3 px-4 pb-2 pt-3">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-foreground">{r.name}</p>
-          <p className="mt-0.5 font-mono text-[13px] tabular-nums text-[var(--teal-bright)]">
-            {r.kcal} kcal
-            <span className="ml-2 text-[11px] text-muted-foreground">
-              <span style={{ color: 'var(--teal-bright)' }}>P {Math.round(r.protein)}g</span>{' · '}
-              <span style={{ color: '#D97706' }}>C {Math.round(r.carbs)}g</span>{' · '}
-              <span style={{ color: '#6B7BE8' }}>G {Math.round(r.fat)}g</span>
+          <p className="text-[15px] font-semibold text-ink">{r.name}</p>
+          {/* Readout editorial: valores en tinta mono, sin arcoíris de macros */}
+          <p className="mt-0.5 font-mono text-[13px] font-medium tabular-nums text-ink">
+            {r.kcal} <span className="font-normal text-ink-3">kcal</span>
+            <span className="ml-2 font-normal text-[12px] text-ink-2">
+              P {Math.round(r.protein)}g{' · '}C {Math.round(r.carbs)}g{' · '}G {Math.round(r.fat)}g
             </span>
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {r.prepMin != null && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/6 px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full border border-hairline bg-surface px-2 py-0.5 font-mono text-[11px] font-medium text-ink-2">
                 <Clock size={10} /> {r.prepMin} min
               </span>
             )}
             {r.tags.slice(0, 2).map((t) => (
-              <span key={t} className="rounded-full border border-teal/25 bg-teal/8 px-2 py-0.5 text-[10px] font-semibold text-teal">
+              <span key={t} className="rounded-full border border-hairline px-2 py-0.5 font-mono text-[11px] font-medium text-ink-2">
                 {t}
               </span>
             ))}
@@ -49,7 +50,7 @@ function RecipeCard({ r, onAdd }: { r: Recipe; onAdd: (r: Recipe) => void }) {
           type="button"
           aria-label={`Agregar ${r.name} a hoy`}
           onClick={() => onAdd(r)}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground active:scale-95 transition-transform"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_1px_2px_rgba(26,23,18,.20)] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <Plus size={18} />
         </button>
@@ -58,7 +59,7 @@ function RecipeCard({ r, onAdd }: { r: Recipe; onAdd: (r: Recipe) => void }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex h-9 w-full items-center justify-center gap-1 border-t border-white/6 text-[12px] text-muted-foreground hover:bg-white/4"
+        className="flex h-11 w-full items-center justify-center gap-1 border-t border-hairline text-[13px] text-ink-2 transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       >
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         {open ? 'Ocultar' : 'Ver receta'}
@@ -72,20 +73,20 @@ function RecipeCard({ r, onAdd }: { r: Recipe; onAdd: (r: Recipe) => void }) {
             transition={{ duration: 0.18 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-col gap-2 border-t border-white/6 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex flex-col gap-2 border-t border-hairline px-4 py-3">
+              <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2">
                 Ingredientes ({r.servings} {r.servings === 1 ? 'porción' : 'porciones'})
               </p>
               <ul className="flex flex-col gap-0.5">
                 {r.ingredients.map((ing, i) => (
-                  <li key={i} className="flex justify-between text-[13px] text-secondary-foreground">
+                  <li key={i} className="flex justify-between text-[14px] text-ink-2">
                     <span>{ing.name}</span>
-                    <span className="font-mono text-muted-foreground">{ing.grams} g</span>
+                    <span className="font-mono tabular-nums text-ink-3">{ing.grams} g</span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Preparación</p>
-              <p className="text-[13px] leading-relaxed text-secondary-foreground">{r.prep}</p>
+              <p className="mt-1 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2">Preparación</p>
+              <p className="text-[14px] leading-relaxed text-ink-2">{r.prep}</p>
             </div>
           </motion.div>
         )}
@@ -128,45 +129,42 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* #110: banner péptido activo */}
+      {/* #110: banner péptido activo — nota editorial al margen (hairline, sin claims) */}
       {peptideHint && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-teal/20 bg-teal/6 px-3 py-2.5">
-          <p className="text-[12px] leading-relaxed text-secondary-foreground">
-            <span className="font-semibold text-foreground">{state.activeProduct}:</span>{' '}
+        <div className="rounded-sm border border-hairline bg-raised px-3.5 py-3">
+          <p className="text-[13px] leading-relaxed text-ink-2">
+            <span className="font-semibold text-ink">{state.activeProduct}:</span>{' '}
             {peptideHint}{' '}
-            <span className="text-muted-foreground">Observacional. No es consejo médico.</span>
+            <span className="text-ink-3">Observacional. No es consejo médico.</span>
           </p>
         </div>
       )}
 
       {!premium && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-teal/25 bg-teal/8 px-3 py-2.5">
-          <Sparkles size={15} className="mt-0.5 shrink-0 text-teal" aria-hidden />
-          <p className="text-[12px] leading-relaxed text-secondary-foreground">
-            Te mostramos <span className="font-semibold text-foreground">2 recetas por categoría</span>. El recetario
-            completo <span className="font-semibold text-teal">está desbloqueado gratis durante la beta</span> — toca
+        <div className="flex items-start gap-2.5 rounded-sm border border-hairline bg-amber-soft px-3.5 py-3">
+          <Sparkles size={15} className="mt-0.5 shrink-0 text-amber" aria-hidden />
+          <p className="text-[13px] leading-relaxed text-ink-2">
+            Te mostramos <span className="font-semibold text-ink">2 recetas por categoría</span>. El recetario
+            completo <span className="font-semibold text-blue">está desbloqueado gratis durante la beta</span> — toca
             cualquier sección bloqueada para abrirlo.
           </p>
         </div>
       )}
 
-      {/* Filtros: categoría + subcategoría */}
+      {/* Filtros: categoría + subcategoría (chips mono píldora, tap ≥44px) */}
       <div className="flex flex-col gap-2">
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar por categoría">
           {([null, ...MEAL_ORDER] as (RecipeMeal | null)[]).map((m) => {
             const on = mealFilter === m
             return (
-              <button
+              <Chip
                 key={m ?? '__all__'}
-                type="button"
+                active={on}
                 onClick={() => setMealFilter(m)}
-                aria-pressed={on}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                  on ? 'border-teal bg-teal/15 text-teal' : 'border-white/12 bg-transparent text-secondary-foreground hover:bg-white/6'
-                }`}
+                className="shrink-0"
               >
                 {m ? MEAL_LABEL[m] : 'Todas'}
-              </button>
+              </Chip>
             )
           })}
         </div>
@@ -174,17 +172,14 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
           {([null, ...allTags] as (RecipeTag | null)[]).map((t) => {
             const on = tagFilter === t
             return (
-              <button
+              <Chip
                 key={t ?? '__alltags__'}
-                type="button"
+                active={on}
                 onClick={() => setTagFilter(t)}
-                aria-pressed={on}
-                className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
-                  on ? 'border-teal bg-teal/15 text-teal' : 'border-white/10 bg-transparent text-muted-foreground hover:bg-white/6'
-                }`}
+                className="shrink-0 px-3 text-[12px]"
               >
                 {t ?? 'Todas las etiquetas'}
-              </button>
+              </Chip>
             )
           })}
         </div>
@@ -197,9 +192,14 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
         const locked = all.length - visible.length
         return (
           <section key={meal} className="flex flex-col gap-2.5">
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-[13px] font-bold uppercase tracking-wider text-foreground">{MEAL_LABEL[meal]}</h3>
-              <span className="text-[11px] text-muted-foreground">{all.length} recetas</span>
+            {/* Kicker de sección con tick ámbar + regla (la firma editorial) */}
+            <div className="flex items-baseline gap-2.5">
+              <h3 className="flex items-center gap-2.5 font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">
+                <span aria-hidden className="h-1.5 w-1.5 shrink-0 bg-amber" />
+                {MEAL_LABEL[meal]}
+              </h3>
+              <span aria-hidden className="h-px min-w-4 flex-1 self-center bg-[color-mix(in_srgb,var(--ink-3)_45%,transparent)]" />
+              <span className="font-mono text-[12px] tabular-nums text-ink-3">{all.length} recetas</span>
             </div>
             {visible.map((r) => (
               <RecipeCard key={r.name} r={r} onAdd={addRecipe} />
@@ -208,16 +208,16 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={openPaywall}
-                className="flex items-center gap-3 rounded-xl border border-dashed border-teal/40 bg-teal/[0.06] px-4 py-3 text-left transition-colors hover:bg-teal/10"
+                className="flex min-h-[44px] items-center gap-3 rounded-sm border border-dashed border-[color-mix(in_srgb,var(--blue)_45%,transparent)] bg-[color-mix(in_srgb,var(--blue)_6%,transparent)] px-4 py-3 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal/15 text-teal">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--blue)_12%,transparent)] text-blue">
                   <Lock size={16} />
                 </span>
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[13px] font-semibold text-foreground">
+                  <span className="text-[14px] font-semibold text-ink">
                     +{locked} recetas de {MEAL_LABEL[meal].toLowerCase()}
                   </span>
-                  <span className="text-[12px] text-teal">Gratis durante la beta — toca para desbloquear</span>
+                  <span className="text-[13px] font-medium text-blue">Gratis durante la beta — toca para desbloquear</span>
                 </span>
               </button>
             )}
@@ -230,11 +230,11 @@ export function RecetasHacktrack({ onClose }: { onClose: () => void }) {
         byMeal[m].some((r) => !tagFilter || r.tags.includes(tagFilter)),
       ) && (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <p className="text-[14px] text-muted-foreground">Sin recetas con ese filtro.</p>
+          <p className="text-[15px] text-ink-2">Sin recetas con ese filtro.</p>
           <button
             type="button"
             onClick={() => { setMealFilter(null); setTagFilter(null) }}
-            className="rounded-full border border-teal/40 px-4 py-2 text-[13px] font-semibold text-teal hover:bg-teal/10"
+            className="h-11 rounded-full border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-4 text-[13px] font-semibold text-blue transition-colors hover:bg-[color-mix(in_srgb,var(--blue)_14%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             Limpiar filtros
           </button>

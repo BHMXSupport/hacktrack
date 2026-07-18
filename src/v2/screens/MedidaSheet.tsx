@@ -1,4 +1,4 @@
-// MedidaSheet v2 — design system "Precision × Accessible"
+// MedidaSheet v2 — design system "Bitácora" (papel-y-tinta editorial)
 // Registra un KPI/medida (escala 1–100 o numérica).
 // Si `measure` es null/undefined, muestra selector para elegir cuál registrar.
 // Compliance: sin claims médicos, privacidad local, es-MX.
@@ -12,6 +12,14 @@ import { Stepper } from '../ui/Stepper'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
 import { DataPlate } from '../ui/DataPlate'
+import { StatNumber } from '../ui/StatNumber'
+
+// ── Clases compartidas "Bitácora" (solo presentación) ─────────────────────────
+// Kicker de sección: mono 12 UPPER (piso de label) sobre tinta secundaria (AA).
+const KICKER = 'font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2'
+// Campo cálido: pozo de papel + hairline; foco azul-tinta (color-mix: el alfa sobre var() no se emite).
+const FIELD =
+  'rounded-[8px] border border-hairline bg-raised px-3 text-[15px] text-ink placeholder:text-ink-3 focus:outline-none focus:border-blue focus:ring-2 focus:ring-[color-mix(in_srgb,var(--blue)_30%,transparent)]'
 
 // ── Etiquetas semánticas por KPI (5 niveles) ─────────────────────────────────
 
@@ -216,7 +224,7 @@ export function MedidaSheet({
         {/* ── Selector de KPI ── */}
         {(!name || showSelector) && (
           <div className="flex flex-col gap-3">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className={KICKER}>
               ¿Qué deseas registrar?
             </p>
             <div className="flex flex-wrap gap-2">
@@ -243,20 +251,20 @@ export function MedidaSheet({
         {/* ── Si ya hay nombre seleccionado, mostrar el formulario ── */}
         {name && !showSelector && (
           <>
-            {/* Botón para cambiar de medida */}
+            {/* Botón para cambiar de medida — el nombre en SERIF (la voz editorial) */}
             <button
               type="button"
               onClick={() => { setShowSelector(true); setInputMode('buttons') }}
-              className="flex min-h-[44px] items-center justify-between rounded-lg border border-white/10 bg-raised px-4 py-3 text-left active:scale-[.99]"
+              className="flex min-h-[44px] items-center justify-between rounded-[8px] border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99]"
             >
-              <span className="font-medium text-foreground">{name}</span>
-              <span className="text-[13px] font-semibold text-teal">Cambiar</span>
+              <span className="font-serif text-[19px] leading-tight text-ink">{name}</span>
+              <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.08em] text-blue">Cambiar</span>
             </button>
 
             {/* Último valor registrado */}
             {prevMeasure && (
-              <p className="text-[12px] text-muted-foreground">
-                Último: <span className="font-mono font-semibold text-foreground">
+              <p className="text-[13px] text-ink-2">
+                Último: <span className="font-mono font-semibold tabular-nums text-ink">
                   {prevMeasure.value}{meta?.unit ? ` ${meta.unit}` : ''}
                 </span>
               </p>
@@ -265,7 +273,7 @@ export function MedidaSheet({
             {/* ── NUMÉRICA ── */}
             {isNum ? (
               <div className="flex flex-col gap-3">
-                <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className={KICKER}>
                   Valor{meta?.unit ? ` (${meta.unit})` : ''}
                 </p>
                 <Stepper
@@ -285,6 +293,7 @@ export function MedidaSheet({
                   incLabel={`Aumentar ${name}`}
                 >
                   <DataPlate className="flex items-center justify-center px-4 py-5">
+                    {/* Numeral SERIF de instrumento (Fraunces, peso 400) — hereda el blanco cálido de la placa. */}
                     <input
                       type="text"
                       inputMode="decimal"
@@ -297,31 +306,24 @@ export function MedidaSheet({
                       }}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
                       autoFocus
-                      className="w-full bg-transparent text-center font-mono text-[42px] font-bold tabular-nums text-[var(--teal-bright)] placeholder:text-muted-foreground focus:outline-none"
+                      className="w-full bg-transparent text-center font-serif text-[42px] font-normal tabular-nums tracking-[-0.02em] placeholder:text-[#8A8272] focus:outline-none"
                     />
                   </DataPlate>
                 </Stepper>
                 {meta?.unit && (
-                  <p className="text-center text-[13px] text-muted-foreground">{meta.unit}</p>
+                  <p className="text-center font-mono text-[13px] text-ink-2">{meta.unit}</p>
                 )}
               </div>
             ) : (
               /* ── ESCALA 1–100 ── */
               <div className="flex flex-col gap-4">
-                {/* Número hero con etiqueta semántica */}
+                {/* Numeral hero serif con count-up (StatNumber) + etiqueta semántica */}
                 <motion.div
                   initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col items-center gap-2 py-2"
                 >
-                  <DataPlate className="flex w-full items-center justify-center px-4 py-5">
-                    <span className="font-mono text-[52px] font-bold tabular-nums text-[var(--teal-bright)]">
-                      {value}
-                    </span>
-                    <span className="ml-2 self-end pb-3 text-[18px] text-muted-foreground">
-                      / {maxVal}
-                    </span>
-                  </DataPlate>
+                  <StatNumber value={value} decimals={0} size={64} unit={`/ ${maxVal}`} align="center" />
                   <AnimatePresence>
                     {touched && (
                       <motion.span
@@ -329,7 +331,7 @@ export function MedidaSheet({
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0 }}
-                        className="rounded-full border border-white/10 bg-card px-3 py-1 text-[12px] font-semibold uppercase tracking-wider text-secondary-foreground"
+                        className="rounded-full border border-hairline bg-raised px-3 py-1 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2"
                       >
                         {(() => {
                           const qi = QUICK_VALUES.indexOf(value)
@@ -348,7 +350,7 @@ export function MedidaSheet({
                   <button
                     type="button"
                     onClick={() => setInputMode((m) => m === 'buttons' ? 'stepper' : 'buttons')}
-                    className="min-h-[44px] px-3 text-[13px] font-semibold text-teal"
+                    className="min-h-[44px] px-3 text-[13px] font-semibold text-blue"
                   >
                     Modo: {inputMode === 'buttons' ? '5 niveles' : 'Stepper'} · cambiar
                   </button>
@@ -364,14 +366,14 @@ export function MedidaSheet({
                         aria-pressed={value === v && touched}
                         onClick={() => { setValue(v); setTouched(true) }}
                         className={[
-                          'flex flex-1 flex-col items-center gap-1 rounded-xl border py-3 transition-colors',
+                          'flex flex-1 flex-col items-center gap-1 rounded-[8px] border py-3 transition-colors',
                           value === v && touched
-                            ? 'border-teal/60 bg-teal/10 text-teal'
-                            : 'border-white/10 bg-raised text-secondary-foreground',
+                            ? 'border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] text-blue'
+                            : 'border-hairline bg-raised text-ink-2',
                         ].join(' ')}
                       >
-                        <span className="font-mono text-[15px] font-bold tabular-nums">{v}</span>
-                        <span className="text-[9px] font-semibold uppercase leading-tight opacity-80 text-center px-0.5">
+                        <span className="font-serif text-[17px] font-normal leading-none tabular-nums">{v}</span>
+                        <span className="px-0.5 text-center text-[12px] font-medium leading-tight">
                           {labels[i]}
                         </span>
                       </button>
@@ -404,9 +406,9 @@ export function MedidaSheet({
                           }
                         }}
                         onBlur={() => setScaleNumStr('')}
-                        className="w-20 bg-transparent text-center font-mono text-[36px] font-bold tabular-nums text-[var(--teal-bright)] placeholder:text-muted-foreground focus:outline-none"
+                        className="w-20 bg-transparent text-center font-serif text-[36px] font-normal tabular-nums tracking-[-0.02em] text-ink placeholder:text-ink-3 focus:outline-none"
                       />
-                      <span className="text-[16px] text-muted-foreground self-end pb-1">/ {maxVal}</span>
+                      <span className="self-end pb-1 font-mono text-[13px] text-ink-2">/ {maxVal}</span>
                     </div>
                   </Stepper>
                 )}
@@ -415,8 +417,8 @@ export function MedidaSheet({
 
             {/* ── Nota opcional ── */}
             <div className="flex flex-col gap-2">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Nota <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
+              <p className={KICKER}>
+                Nota <span className="font-normal normal-case tracking-normal text-ink-3">· opcional</span>
               </p>
               <textarea
                 rows={2}
@@ -425,17 +427,17 @@ export function MedidaSheet({
                 placeholder="Observación libre sobre este registro…"
                 value={nota}
                 onChange={(e) => setNota(e.target.value)}
-                className="w-full resize-none rounded-lg border border-white/10 bg-raised px-3 py-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                className={`w-full resize-none py-3 ${FIELD}`}
               />
             </div>
 
             {/* ── Recordarme medir cada N días (recordatorio periódico de ESTA medida) ── */}
             {name && (
               <div className="flex flex-col gap-2">
-                <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Recordarme medir <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
+                <p className={KICKER}>
+                  Recordarme medir <span className="font-normal normal-case tracking-normal text-ink-3">· opcional</span>
                 </p>
-                <div role="group" aria-label={`Recordatorio para medir ${name}`} className="flex overflow-hidden rounded-lg border border-white/10">
+                <div role="group" aria-label={`Recordatorio para medir ${name}`} className="flex overflow-hidden rounded-[8px] border border-hairline">
                   {([{ k: null, l: 'No' }, { k: 3, l: 'Cada 3d' }, { k: 7, l: 'Cada 7d' }, { k: 14, l: 'Cada 14d' }, { k: 30, l: 'Cada 30d' }] as const).map(({ k, l }) => {
                     const active = ((state.measureReminders?.[name] ?? null) as number | null) === k
                     return (
@@ -446,8 +448,8 @@ export function MedidaSheet({
                         aria-label={k === null ? 'Sin recordatorio' : `Recordar cada ${k} días`}
                         onClick={() => dispatch({ t: 'setMeasureReminder', name, intervalDays: k })}
                         className={[
-                          'h-10 flex-1 border-l border-white/10 text-[12px] font-semibold transition-colors first:border-l-0',
-                          active ? 'bg-teal text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                          'h-11 flex-1 border-l border-hairline font-mono text-[12px] font-medium transition-colors first:border-l-0',
+                          active ? 'bg-blue text-primary-foreground' : 'text-ink-2 hover:text-ink',
                         ].join(' ')}
                       >
                         {l}
@@ -455,7 +457,7 @@ export function MedidaSheet({
                     )
                   })}
                 </div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                <p className="text-[12px] leading-relaxed text-ink-2">
                   Te avisamos cuando toque volver a medir tu {name.toLowerCase()} (desde tu último registro).
                 </p>
               </div>
@@ -475,14 +477,19 @@ export function MedidaSheet({
               )}
             </AnimatePresence>
 
-            {/* ── Delta / primera medida feedback ── */}
+            {/* ── Delta / primera medida feedback — chip de delta (mono, píldora, unidad incluida) ── */}
             <AnimatePresence>
               {savedDelta && (
                 <motion.p
                   initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="text-center text-[13px] font-semibold text-teal"
+                  className={[
+                    'mx-auto inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-[12px] font-medium tabular-nums text-ink',
+                    savedDelta.includes('peor')
+                      ? 'border-[color-mix(in_srgb,var(--warn)_40%,transparent)] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)]'
+                      : 'border-[color-mix(in_srgb,var(--ok)_35%,transparent)] bg-[color-mix(in_srgb,var(--ok)_10%,transparent)]',
+                  ].join(' ')}
                 >
                   {savedDelta}
                 </motion.p>
@@ -508,7 +515,7 @@ export function MedidaSheet({
         )}
 
         {/* ── Privacidad ── */}
-        <p className="flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
+        <p className="flex items-center justify-center gap-1.5 font-mono text-[12px] text-ink-2">
           <Shield size={12} className="shrink-0" />
           Tu historial se guarda solo en tu dispositivo
         </p>

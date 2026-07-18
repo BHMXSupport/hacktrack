@@ -109,7 +109,7 @@ export function Sheet({
             // pointer-events-auto SIEMPRE (también en entrada) → taps rápidos al botón cerrar funcionan;
             // el exit fija pointerEvents:'none' (anti-huérfano) y el panel no es full-screen, así que aunque
             // quedara vivo no bloquea toda la pantalla (el backdrop sí es full-screen y ese sí va a none).
-            className={`${moving ? 'sheet-solid' : 'glass'} pointer-events-auto relative z-10 max-h-[92vh] max-h-[92dvh] w-full max-w-[412px] overflow-x-hidden overflow-y-auto rounded-t-[24px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none${moving ? ' will-change-transform' : ''}`}
+            className={`${moving ? 'sheet-solid' : 'glass'} pointer-events-auto relative z-10 max-h-[92vh] max-h-[92dvh] w-full max-w-[412px] overflow-x-hidden overflow-y-auto rounded-t-[26px] p-5 pb-[max(24px,env(safe-area-inset-bottom))] outline-none${moving ? ' will-change-transform' : ''}`}
             initial={reduce ? { opacity: 0 } : { y: hideY }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: hideY, pointerEvents: 'none', transition: { type: 'spring', stiffness: 280, damping: 32, mass: 1 } }}
@@ -117,13 +117,14 @@ export function Sheet({
             onAnimationStart={() => setSettled(false)}
             onAnimationComplete={() => { if (openRef.current) setSettled(true) }}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-3" />
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[18px] font-bold text-foreground">{title}</h2>
+              {/* Título serif = la voz editorial "Bitácora" (Fraunces). */}
+              <h2 className="font-serif text-[20px] font-medium tracking-tight text-ink">{title}</h2>
               <button
                 aria-label="Cerrar"
                 onClick={onClose}
-                className="grid h-11 w-11 place-items-center rounded-full bg-white/8 text-secondary-foreground"
+                className="grid h-11 w-11 place-items-center rounded-full bg-raised text-ink-2"
               >
                 <X size={18} />
               </button>

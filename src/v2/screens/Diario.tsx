@@ -1,3 +1,9 @@
+// Diario — la bitácora cronológica, restyle "Bitácora" (LOCKED 2026-07-17).
+// Log editorial: masthead + secciones con §-folios, numerales serif en horas/fechas,
+// tarjetas de registro como "columna impresa" (hairlines, jerarquía tipográfica),
+// filtros como chips mono, sheet de edición sobre primitivas. Overhaul ESTÉTICO:
+// dispatches, semántica de adherencia y copy de cumplimiento intactos.
+// Semana es alcanzable desde aquí vía el segmentado "Registro | Semana".
 import { useState, useMemo, useEffect, useDeferredValue, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion, PanInfo } from 'framer-motion'
 import {
@@ -17,7 +23,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react'
-import { useApp, isoKey, adherenceMonth } from '../../lib/store'
+import { useApp, adherenceMonth } from '../../lib/store'
 import { dayLabel, cyclePhaseInfo } from '../../lib/cadence'
 import {
   productStreak,
@@ -25,7 +31,7 @@ import {
   phaseForDate,
 } from '../../lib/calendar'
 import { presenceNow } from '../../lib/pharma'
-import { PEPTIDES, CATEGORY_COLOR, MON, WD, MEASURE_META } from '../../lib/catalog'
+import { MON, WD, MEASURE_META } from '../../lib/catalog'
 import { rachaLabel } from '../../lib/buildFlags'
 import type { LogItem, RangeFilter, AdverseSeverity } from '../../lib/types'
 import { Glass } from '../ui/Glass'
@@ -33,7 +39,11 @@ import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
 import { Sheet } from '../ui/Sheet'
 import { SectionHero } from '../ui/SectionHero'
-import { HEROES } from '../lib/heroes'
+import { SegmentedTabs } from '../ui/SegmentedTabs'
+import { FolioLabel } from '../ui/FolioLabel'
+import { TermInfo } from '../ui/TermInfo'
+import { staggerContainer, staggerItem } from '../lib/motion'
+import { Semana } from './Semana'
 
 // ── helpers de fecha ─────────────────────────────────────────────────────────
 
@@ -125,6 +135,13 @@ function readFilters(): { typeFilter: TypeFilter; rangeFilter: RangeFilter; prod
   }
 }
 
+// ── clases compartidas (Bitácora) ────────────────────────────────────────────
+// Alfa sobre var() no se emite en este setup (ver Button.tsx) → tintes vía color-mix
+// en clases arbitrarias LITERALES (el JIT necesita verlas escritas).
+
+const LABEL_CLS = 'block font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2 mb-2'
+const INPUT_CLS = 'h-11 w-full rounded-[8px] border border-hairline bg-raised px-3 text-[15px] text-ink placeholder:text-ink-3 focus:outline-none focus:border-blue'
+
 // ── iconos por tipo de registro ──────────────────────────────────────────────
 
 function ItemIcon({ item }: { item: LogItem }) {
@@ -133,80 +150,73 @@ function ItemIcon({ item }: { item: LogItem }) {
 
   if (item.type === 'dose') {
     return (
-      <span className={`${base} ${size} bg-teal/12 border border-teal/25`}>
-        <Droplet size={16} className="text-teal" />
+      <span className={`${base} ${size} bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] border border-[color-mix(in_srgb,var(--blue)_25%,transparent)]`}>
+        <Droplet size={16} className="text-blue" />
       </span>
     )
   }
   if (item.type === 'skip') {
     return (
-      <span className={`${base} ${size} bg-warn/12 border border-warn/25`}>
+      <span className={`${base} ${size} bg-[color-mix(in_srgb,var(--warn)_12%,transparent)] border border-[color-mix(in_srgb,var(--warn)_28%,transparent)]`}>
         <SkipForward size={16} className="text-warn" />
       </span>
     )
   }
   if (item.type === 'efecto-adverso') {
     return (
-      <span className={`${base} ${size} bg-alert/12 border border-alert/25`}>
+      <span className={`${base} ${size} bg-[color-mix(in_srgb,var(--alert)_12%,transparent)] border border-[color-mix(in_srgb,var(--alert)_28%,transparent)]`}>
         <AlertTriangle size={16} className="text-alert" />
       </span>
     )
   }
   // medida, ayuno, otros
   return (
-    <span className={`${base} ${size} bg-white/8 border border-white/15`}>
-      <Activity size={16} className="text-secondary-foreground" />
+    <span className={`${base} ${size} bg-raised border border-hairline`}>
+      <Activity size={16} className="text-ink-2" />
     </span>
   )
 }
 
-// ── badge de estado (ícono + texto + color) ──────────────────────────────────
+// ── badge de estado (ícono + texto + color — nunca color solo) ───────────────
 
 function StatusBadge({ item }: { item: LogItem }) {
+  const base = 'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[12px] font-medium border'
   if (item.type === 'dose') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-teal/12 px-2.5 py-0.5 text-[11px] font-semibold text-teal border border-teal/20">
+      <span className={`${base} bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] border-[color-mix(in_srgb,var(--blue)_25%,transparent)] text-blue`}>
         <Check size={10} strokeWidth={3} /> Dosis
       </span>
     )
   }
   if (item.type === 'skip') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-warn/12 px-2.5 py-0.5 text-[11px] font-semibold text-warn border border-warn/20">
+      <span className={`${base} bg-[color-mix(in_srgb,var(--warn)_12%,transparent)] border-[color-mix(in_srgb,var(--warn)_28%,transparent)] text-warn`}>
         <SkipForward size={10} /> Saltada
       </span>
     )
   }
   if (item.type === 'efecto-adverso') {
     const sev = item.severity
-    const color = sev === 'severo' ? 'text-alert bg-alert/12 border-alert/20' : sev === 'moderado' ? 'text-warn bg-warn/12 border-warn/20' : 'text-muted-foreground bg-white/8 border-white/12'
+    const color = sev === 'severo'
+      ? 'text-alert bg-[color-mix(in_srgb,var(--alert)_12%,transparent)] border-[color-mix(in_srgb,var(--alert)_28%,transparent)]'
+      : sev === 'moderado'
+        ? 'text-warn bg-[color-mix(in_srgb,var(--warn)_12%,transparent)] border-[color-mix(in_srgb,var(--warn)_28%,transparent)]'
+        : 'text-ink-2 bg-raised border-hairline'
     const label = sev === 'severo' ? 'Severo' : sev === 'moderado' ? 'Moderado' : 'Leve'
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${color}`}>
+      <span className={`${base} ${color}`}>
         <AlertTriangle size={10} /> {label}
       </span>
     )
   }
   if (item.type === 'medida') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-white/8 px-2.5 py-0.5 text-[11px] font-semibold text-secondary-foreground border border-white/12">
+      <span className={`${base} bg-raised border-hairline text-ink-2`}>
         <Activity size={10} /> Medida
       </span>
     )
   }
   return null
-}
-
-// ── animaciones ──────────────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0, 0, 0.2, 1] as [number, number, number, number] } },
 }
 
 // ── sheet de edición inline (R51) ────────────────────────────────────────────
@@ -308,21 +318,21 @@ function EditLogSheet({
       <div className="flex flex-col gap-5 px-1">
         {/* hora (siempre editable) */}
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          <label className={LABEL_CLS}>
             Hora
           </label>
           <input
             type="time"
             value={timeStr}
             onChange={(e) => setTimeStr(e.target.value)}
-            className="h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 focus:outline-none focus:border-teal/40 w-full"
+            className={`${INPUT_CLS} font-mono tabular-nums`}
           />
         </div>
 
         {/* valor numérico (dosis/medida) */}
         {canEdit && (
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <label className={LABEL_CLS}>
               {item.type === 'dose' ? 'Dosis' : 'Valor'}
             </label>
             <div className="flex gap-2">
@@ -334,7 +344,7 @@ function EditLogSheet({
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder="0"
-                className="flex-1 h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 font-mono tabular-nums focus:outline-none focus:border-teal/40"
+                className={`${INPUT_CLS} flex-1 font-mono tabular-nums`}
               />
               {/* unidad — solo dosis; SELECT restringido a las unidades del sistema (no texto libre) */}
               {item.type === 'dose' && (
@@ -342,7 +352,7 @@ function EditLogSheet({
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                   aria-label="Unidad de dosis"
-                  className="w-20 h-11 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-2 font-mono focus:outline-none focus:border-teal/40"
+                  className="w-20 h-11 rounded-[8px] border border-hairline bg-raised px-2 font-mono text-[14px] text-ink focus:outline-none focus:border-blue"
                 >
                   {DOSE_UNITS.map((u) => (
                     <option key={u} value={u}>{u}</option>
@@ -351,7 +361,7 @@ function EditLogSheet({
               )}
               {/* medida: unidad fija del meta */}
               {item.type === 'medida' && measureMeta && (
-                <span className="flex items-center px-3 text-[13px] text-muted-foreground font-mono shrink-0">
+                <span className="flex items-center px-3 font-mono text-[13px] text-ink-2 shrink-0">
                   {measureMeta.unit ?? ''}
                 </span>
               )}
@@ -360,15 +370,15 @@ function EditLogSheet({
         )}
 
         {isComposite && (
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
-            Este registro agrupa varias medidas. Edita sus valores desde <span className="font-semibold text-teal">Inicio → Cambio de medidas</span>; aquí puedes ajustar la hora o la nota.
+          <p className="text-[13px] leading-relaxed text-ink-2">
+            Este registro agrupa varias medidas. Edita sus valores desde <span className="font-semibold text-blue">Inicio → Cambio de medidas</span>; aquí puedes ajustar la hora o la nota.
           </p>
         )}
 
         {/* severidad — solo efectos adversos (#122) */}
         {item.type === 'efecto-adverso' && (
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <label className={LABEL_CLS}>
               Severidad
             </label>
             <div className="flex gap-2" role="radiogroup" aria-label="Severidad del efecto">
@@ -376,10 +386,10 @@ function EditLogSheet({
                 const active = severity === s
                 const label = s === 'leve' ? 'Leve' : s === 'moderado' ? 'Moderado' : 'Severo'
                 const activeCls = s === 'severo'
-                  ? 'bg-alert/15 border-alert/40 text-alert'
+                  ? 'bg-[color-mix(in_srgb,var(--alert)_12%,transparent)] border-alert text-alert'
                   : s === 'moderado'
-                    ? 'bg-warn/15 border-warn/40 text-warn'
-                    : 'bg-teal/12 border-teal/40 text-teal'
+                    ? 'bg-[color-mix(in_srgb,var(--warn)_14%,transparent)] border-warn text-warn'
+                    : 'bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] border-blue text-blue'
                 return (
                   <button
                     key={s}
@@ -387,8 +397,8 @@ function EditLogSheet({
                     role="radio"
                     aria-checked={active}
                     onClick={() => setSeverity(s)}
-                    className={`flex-1 h-11 rounded-lg border text-[13px] font-semibold transition-colors ${
-                      active ? activeCls : 'bg-white/6 border-white/10 text-muted-foreground'
+                    className={`flex-1 h-11 rounded-[8px] border text-[13px] font-semibold transition-colors ${
+                      active ? activeCls : 'bg-transparent border-hairline text-ink-2 hover:bg-raised'
                     }`}
                   >
                     {label}
@@ -401,8 +411,8 @@ function EditLogSheet({
 
         {/* nota (siempre editable) */}
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Nota <span className="text-muted-foreground font-normal">(opcional)</span>
+          <label className={LABEL_CLS}>
+            Nota <span className="normal-case tracking-normal text-ink-3">(opcional)</span>
           </label>
           <textarea
             value={note}
@@ -410,9 +420,9 @@ function EditLogSheet({
             maxLength={120}
             rows={2}
             placeholder="Observación personal…"
-            className="w-full rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] px-3 py-2.5 focus:outline-none focus:border-teal/40 resize-none leading-snug placeholder:text-muted-foreground"
+            className="w-full rounded-[8px] border border-hairline bg-raised px-3 py-2.5 text-[15px] text-ink placeholder:text-ink-3 focus:outline-none focus:border-blue resize-none leading-snug"
           />
-          <p className="text-[10px] text-muted-foreground text-right mt-1">{note.length}/120</p>
+          <p className="mt-1 text-right font-mono text-[11px] tabular-nums text-ink-3">{note.length}/120</p>
         </div>
 
         <div className="flex gap-3 pt-1">
@@ -424,7 +434,7 @@ function EditLogSheet({
           </Button>
         </div>
 
-        <p className="text-[10px] text-muted-foreground text-center pb-1">
+        <p className="pb-1 text-center text-[12px] text-ink-3">
           Tu historial se guarda solo en tu dispositivo
         </p>
       </div>
@@ -502,7 +512,7 @@ function TimelineRow({
   return (
     <>
       <motion.div
-        variants={itemVariants}
+        variants={staggerItem}
         className="relative overflow-hidden"
         style={{ borderRadius: 8 }}
       >
@@ -515,63 +525,63 @@ function TimelineRow({
           <Trash2 size={18} className="text-white" />
         </div>
 
-        {/* card deslizable */}
+        {/* card deslizable — superficie OPACA (columna impresa) para cubrir el panel rojo */}
         <motion.div
           drag={reduce ? false : 'x'}
           dragConstraints={{ left: -80, right: 0 }}
           dragElastic={0.08}
           onDrag={(_e, info) => setDragX(info.offset.x)}
           onDragEnd={handleDragEnd}
-          className={`flex items-start gap-3 px-3 py-3 min-h-[44px] bg-background transition-opacity ${isSkip ? 'opacity-60' : ''}`}
+          className={`flex items-start gap-3 px-3 py-3 min-h-[44px] bg-surface transition-opacity ${isSkip ? 'opacity-60' : ''}`}
           style={{ position: 'relative', zIndex: 1, touchAction: 'pan-y' }}
         >
           <ItemIcon item={item} />
 
           <div className="flex-1 min-w-0">
             {/* nombre */}
-            <p className={`text-[14px] font-semibold leading-snug ${isSkip ? 'text-muted-foreground' : 'text-foreground'}`}>
+            <p className={`text-[15px] font-semibold leading-snug ${isSkip ? 'text-ink-2' : 'text-ink'}`}>
               {isSkip ? 'Dosis saltada (intencional)' : item.n}
             </p>
 
-            {/* valor */}
-            <p className="text-[12px] text-muted-foreground font-mono tabular-nums mt-0.5">
+            {/* valor — readout mono (instrumento) */}
+            <p className="mt-0.5 font-mono text-[12px] tabular-nums text-ink-2">
               {item.u}
             </p>
 
             {/* nota */}
             {item.note && (
-              <p className="text-[11px] text-muted-foreground italic mt-1 leading-snug">"{item.note}"</p>
+              <p className="mt-1 text-[12px] italic leading-snug text-ink-3">"{item.note}"</p>
             )}
 
             {/* efecto observado (dose) + intensidad 0–100 si la registró */}
             {item.type === 'dose' && item.effect && (
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-teal/8 border border-teal/18 px-2 py-0.5 text-[10px] font-medium text-teal">
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] border border-[color-mix(in_srgb,var(--blue)_20%,transparent)] px-2 py-0.5 font-mono text-[11px] font-medium text-blue">
                 {item.effect}
-                {item.effectIntensity != null && <span className="font-mono tabular-nums opacity-80">· {item.effectIntensity}</span>}
+                {item.effectIntensity != null && <span className="tabular-nums opacity-80">· {item.effectIntensity}</span>}
               </span>
             )}
 
             {/* barra de presencia farmacológica */}
             {item.type === 'dose' && typeof presencePct === 'number' && presencePct > 0 && (
               <div className="mt-1.5">
-                <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-wide">Presencia estimada</p>
-                <div className="h-1 bg-white/10 rounded-full overflow-hidden w-24">
-                  <div className="h-full rounded-full bg-teal" style={{ width: `${presencePct}%` }} />
+                <p className="mb-1 font-mono text-[11px] uppercase tracking-[0.1em] text-ink-3">Presencia estimada</p>
+                <div className="h-1 w-24 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--ink)_8%,transparent)]">
+                  <div className="h-full rounded-full bg-blue" style={{ width: `${presencePct}%` }} />
                 </div>
               </div>
             )}
 
             {/* fase de titulación */}
             {item.type === 'dose' && phaseIndex != null && (
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-teal/8 border border-teal/18 px-2 py-0.5 text-[10px] font-medium text-teal">
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] border border-[color-mix(in_srgb,var(--blue)_20%,transparent)] px-2 py-0.5 font-mono text-[11px] font-medium text-blue">
                 Fase {phaseIndex + 1}
               </span>
             )}
           </div>
 
-          {/* hora + estado — columna derecha */}
+          {/* hora + estado — columna derecha; la hora es numeral SERIF (la voz) */}
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{item.t}</span>
+            <span className="font-serif text-[16px] font-normal tabular-nums leading-none text-ink">{item.t}</span>
             <StatusBadge item={item} />
           </div>
 
@@ -583,7 +593,7 @@ function TimelineRow({
                 type="button"
                 aria-label={`Editar ${isSkip ? 'dosis saltada' : item.n}`}
                 onClick={() => setEditOpen(true)}
-                className="h-11 w-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-teal transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                className="h-11 w-11 flex items-center justify-center rounded-md text-ink-3 hover:text-blue transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <Pencil size={13} />
               </button>
@@ -593,7 +603,7 @@ function TimelineRow({
               type="button"
               aria-label={trashArmed ? `Confirmar eliminación de ${isSkip ? 'dosis saltada' : item.n}` : `Eliminar ${isSkip ? 'dosis saltada de ' + item.u : item.n}`}
               onClick={handleTrashClick}
-              className={`h-11 w-11 flex items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${trashArmed ? 'text-alert bg-alert/12' : 'text-muted-foreground hover:text-alert'}`}
+              className={`h-11 w-11 flex items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${trashArmed ? 'text-alert bg-[color-mix(in_srgb,var(--alert)_12%,transparent)]' : 'text-ink-3 hover:text-alert'}`}
             >
               {trashArmed ? <Check size={13} strokeWidth={3} /> : <Trash2 size={13} />}
             </button>
@@ -629,7 +639,7 @@ function EmptyDiario({
   onClearProduct: () => void
   dispatch: ReturnType<typeof useApp>['dispatch']
 }) {
-  let icon = <Droplet size={32} className="text-teal/50" />
+  let icon = <Droplet size={32} className="text-blue opacity-60" />
   let title = 'Tu diario está vacío'
   let sub = 'Cada dosis y medida que registres aparecerá aquí.'
   let ctaLabel = 'Registrar dosis'
@@ -644,7 +654,7 @@ function EmptyDiario({
     title = 'Sin dosis en este rango'
     sub = 'Cambia el período o registra algo nuevo.'
   } else if (typeFilter === 'medida') {
-    icon = <Activity size={32} className="text-secondary-foreground/40" />
+    icon = <Activity size={32} className="text-ink-3" />
     title = 'Sin medidas en este rango'
     sub = 'Cambia el período o registra una medida nueva.'
     ctaLabel = 'Registrar medida'
@@ -657,19 +667,19 @@ function EmptyDiario({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center gap-4 py-12 text-center"
     >
-      <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 grid place-items-center">
+      <div className="grid h-16 w-16 place-items-center rounded-full border border-hairline bg-raised">
         {icon}
       </div>
       <div>
-        <p className="text-[16px] font-semibold text-foreground">{title}</p>
-        <p className="text-[13px] text-muted-foreground mt-1">{sub}</p>
+        <p className="font-serif text-[20px] font-normal text-ink">{title}</p>
+        <p className="mt-1 text-[13px] text-ink-2">{sub}</p>
       </div>
       <Button variant="outline" size="sm" onClick={ctaAction}>{ctaLabel}</Button>
       {rangeFilter === 7 && productFilter === 'todos' && (
         <button
           type="button"
           onClick={onExpandRange}
-          className="text-[13px] text-muted-foreground underline underline-offset-2 min-h-[44px] flex items-center"
+          className="flex min-h-[44px] items-center text-[13px] text-blue underline underline-offset-2"
         >
           Ampliar a 30 días
         </button>
@@ -682,8 +692,10 @@ function EmptyDiario({
 
 function MeasureSummary({
   filtered,
+  folioN,
 }: {
   filtered: { dateKey: string; items: LogItem[] }[]
+  folioN?: number // número § del folio (la secuencia la decide el padre)
 }) {
   const stats = useMemo(() => {
     const byName: Record<string, { first: number; last: number; firstTs: number; lastTs: number }> = {}
@@ -720,30 +732,33 @@ function MeasureSummary({
   if (stats.length === 0) return null
 
   return (
-    <Glass className="p-4 mb-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Resumen del período</p>
-      <div className="flex flex-col gap-2">
-        {stats.map((s) => (
-          <div key={s.name} className="flex items-center gap-2">
-            <span className="flex-1 min-w-0 text-[13px] font-medium text-secondary-foreground truncate">{s.name}</span>
-            {s.neutral ? (
-              // Sin cambio en el período (o una sola muestra): solo el valor actual, sin flecha ni delta
-              <span className="font-mono text-[12px] text-muted-foreground tabular-nums shrink-0">{s.last}</span>
-            ) : (
-              <>
-                <span className="font-mono text-[12px] text-muted-foreground tabular-nums shrink-0">
-                  {s.first} → {s.last}
-                </span>
-                <span className={`font-mono text-[12px] font-bold tabular-nums shrink-0 inline-flex items-center gap-0.5 ${s.positive ? 'text-ok' : 'text-alert'}`}>
-                  {s.delta > 0 ? '+' : ''}{s.delta.toFixed(1)}
-                  {s.positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                </span>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-    </Glass>
+    <div className="mb-4 flex flex-col gap-3">
+      <FolioLabel n={folioN}>Resumen del período</FolioLabel>
+      <Glass className="p-4">
+        <div className="flex flex-col gap-2">
+          {stats.map((s) => (
+            <div key={s.name} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-ink-2">{s.name}</span>
+              {s.neutral ? (
+                // Sin cambio en el período (o una sola muestra): solo el valor actual, sin flecha ni delta
+                <span className="shrink-0 font-mono text-[13px] tabular-nums text-ink-2">{s.last}</span>
+              ) : (
+                <>
+                  <span className="shrink-0 font-mono text-[13px] tabular-nums text-ink-3">
+                    {s.first} → {s.last}
+                  </span>
+                  {/* estado nunca color-solo: flecha + signo acompañan al color */}
+                  <span className={`inline-flex shrink-0 items-center gap-0.5 font-mono text-[13px] font-bold tabular-nums ${s.positive ? 'text-ok' : 'text-alert'}`}>
+                    {s.delta > 0 ? '+' : ''}{s.delta.toFixed(1)}
+                    {s.positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                  </span>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </Glass>
+    </div>
   )
 }
 
@@ -755,6 +770,10 @@ export function Diario() {
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
+
+  // vista interna: Registro (la bitácora) | Semana (resumen semanal embebido).
+  // Solo presentación — la pantalla Semana sigue existiendo como destino propio en AppV2.
+  const [view, setView] = useState<'registro' | 'semana'>('registro')
 
   // filtros (persistidos en localStorage)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(() => readFilters()?.typeFilter ?? 'todo')
@@ -809,6 +828,21 @@ export function Diario() {
   const deferredFiltered = useDeferredValue(filtered)
   const isEmpty = deferredFiltered.length === 0
   const totalRecords = deferredFiltered.reduce((acc, g) => acc + g.items.length, 0)
+
+  // Grupos del rango para "Resumen del período" (mismo filtro que recibe MeasureSummary) y si la
+  // sección existirá — de eso depende la numeración § de las secciones siguientes (Cronología).
+  const summaryGroups = useMemo(
+    () =>
+      state.log.filter((g) => {
+        const ts = new Date(g.dateKey + 'T00:00:00').getTime()
+        return ts >= cutoff
+      }),
+    [state.log, cutoff],
+  )
+  const hasResumen =
+    (typeFilter === 'medida' || typeFilter === 'todo') &&
+    !isEmpty &&
+    summaryGroups.some((g) => g.items.some((it) => it.type === 'medida'))
 
   // conteos por tipo (para badges en el header)
   const doseCount = useMemo(() => deferredFiltered.reduce((a, g) => a + g.items.filter((it) => it.type === 'dose').length, 0), [deferredFiltered])
@@ -920,315 +954,335 @@ export function Diario() {
       className="flex flex-col gap-4 px-4 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
       initial={reduce ? false : 'hidden'}
       animate="show"
-      variants={containerVariants}
+      variants={staggerContainer}
     >
-      {/* ── hero ── */}
-      <motion.div variants={itemVariants}>
+      {/* ── masthead editorial ── */}
+      <motion.div variants={staggerItem}>
         <SectionHero
-          {...HEROES.diario}
+          eyebrow="Bitácora · Registro"
+          meta={todayLabel(state.todayTs)}
+          metaClear
           title="Tu diario"
           subtitle={totalRecords > 0 ? `${totalRecords} registro${totalRecords !== 1 ? 's' : ''}` : undefined}
         />
       </motion.div>
 
-      {/* ── cabecera ── */}
-      <motion.div variants={itemVariants}>
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-[13px] text-muted-foreground">{todayLabel(state.todayTs)}</p>
-            {/* badges de conteo */}
-            {typeFilter === 'todo' && !isEmpty && (
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold">
-                {doseCount > 0 && (
-                  <span className="rounded-full bg-teal/10 border border-teal/20 text-teal px-2 py-0.5">{doseCount} dosis</span>
-                )}
-                {medCount > 0 && (
-                  <span className="rounded-full bg-white/8 border border-white/12 text-secondary-foreground px-2 py-0.5">{medCount} medidas</span>
+      {/* ── host de vistas: Registro | Semana ── */}
+      <motion.div variants={staggerItem}>
+        <SegmentedTabs
+          options={[
+            { value: 'registro', label: 'Registro' },
+            { value: 'semana', label: 'Semana' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </motion.div>
+
+      {view === 'semana' ? (
+        <Semana embedded />
+      ) : (
+        <>
+          {/* ── cabecera: conteos + acciones ── */}
+          <motion.div variants={staggerItem}>
+            <div className="flex items-start justify-between gap-2">
+              {/* badges de conteo */}
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                {typeFilter === 'todo' && !isEmpty && (
+                  <>
+                    {doseCount > 0 && (
+                      <span className="rounded-full border border-[color-mix(in_srgb,var(--blue)_25%,transparent)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-2.5 py-0.5 font-mono text-[12px] font-medium text-blue">{doseCount} dosis</span>
+                    )}
+                    {medCount > 0 && (
+                      <span className="rounded-full border border-hairline bg-raised px-2.5 py-0.5 font-mono text-[12px] font-medium text-ink-2">{medCount} medidas</span>
+                    )}
+                  </>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* acciones: buscar + exportar */}
-          <div className="flex items-center gap-2 mt-1">
-            {!isEmpty && (
-              <button
-                type="button"
-                aria-label="Exportar diario como CSV"
-                onClick={handleExport}
-                className="h-11 flex items-center justify-center gap-1.5 rounded-md border border-white/10 px-3 text-[13px] font-semibold text-secondary-foreground hover:text-foreground transition-colors"
-              >
-                <Download size={16} />
-                <span>CSV</span>
-              </button>
-            )}
-            <button
-              type="button"
-              aria-label={showSearch ? 'Cerrar búsqueda' : 'Buscar en el diario'}
-              onClick={() => { setShowSearch((v) => !v); if (showSearch) setSearchQuery('') }}
-              className={`h-11 w-11 flex items-center justify-center rounded-md border transition-colors ${showSearch ? 'border-teal/40 bg-teal/10 text-teal' : 'border-white/10 text-muted-foreground hover:text-foreground'}`}
-            >
-              {showSearch ? <X size={16} /> : <Search size={16} />}
-            </button>
-          </div>
-        </div>
-
-        {/* campo de búsqueda */}
-        <AnimatePresence>
-          {showSearch && (
-            <motion.div
-              key="search"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden mt-3"
-            >
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <input
-                  autoFocus
-                  type="search"
-                  placeholder="Buscar en el diario…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-11 pl-9 pr-10 rounded-lg bg-white/6 border border-white/10 text-foreground text-[14px] placeholder:text-muted-foreground focus:outline-none focus:border-teal/40"
-                />
-                {searchQuery && (
+              {/* acciones: exportar + buscar */}
+              <div className="flex shrink-0 items-center gap-2">
+                {!isEmpty && (
                   <button
                     type="button"
-                    aria-label="Limpiar búsqueda"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground h-8 w-8 flex items-center justify-center"
+                    aria-label="Exportar diario como CSV"
+                    onClick={handleExport}
+                    className="flex h-11 items-center justify-center gap-1.5 rounded-[8px] border border-hairline px-3 font-mono text-[13px] font-medium text-ink-2 transition-colors hover:bg-raised hover:text-ink"
                   >
-                    <X size={14} />
+                    <Download size={16} />
+                    <span>CSV</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  aria-label={showSearch ? 'Cerrar búsqueda' : 'Buscar en el diario'}
+                  onClick={() => { setShowSearch((v) => !v); if (showSearch) setSearchQuery('') }}
+                  className={`flex h-11 w-11 items-center justify-center rounded-[8px] border transition-colors ${showSearch ? 'border-blue bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] text-blue' : 'border-hairline text-ink-3 hover:bg-raised hover:text-ink'}`}
+                >
+                  {showSearch ? <X size={16} /> : <Search size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {/* campo de búsqueda */}
+            <AnimatePresence>
+              {showSearch && (
+                <motion.div
+                  key="search"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden mt-3"
+                >
+                  <div className="relative">
+                    <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+                    <input
+                      autoFocus
+                      type="search"
+                      placeholder="Buscar en el diario…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-11 w-full rounded-[8px] border border-hairline bg-surface pl-9 pr-10 text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        aria-label="Limpiar búsqueda"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-ink-3 hover:text-ink"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* ── § 01 · filtros ── */}
+          <motion.div variants={staggerItem}>
+            <FolioLabel n={1}>Filtros</FolioLabel>
+          </motion.div>
+
+          {/* ── filtros de tipo ── */}
+          <motion.div variants={staggerItem} className="flex gap-2 flex-wrap">
+            {TYPE_OPTIONS.map((o) => (
+              <Chip key={o.value} active={typeFilter === o.value} onClick={() => setTypeFilter(o.value)}>
+                {o.label}
+              </Chip>
+            ))}
+          </motion.div>
+
+          {/* ── filtro de producto ── */}
+          {showProductFilter && (
+            <motion.div variants={staggerItem} className="flex gap-2 flex-wrap">
+              <Chip active={productFilter === 'todos'} onClick={() => setProductFilter('todos')}>Todos</Chip>
+              {products.map((p) => (
+                <Chip key={p} active={productFilter === p} onClick={() => setProductFilter(p)}>
+                  {p}
+                </Chip>
+              ))}
+            </motion.div>
+          )}
+
+          {/* ── rango de tiempo ── */}
+          <motion.div variants={staggerItem} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {RANGE_OPTIONS.map((o) => (
+                <Chip key={String(o.value)} active={rangeFilter === o.value} onClick={() => setRangeFilter(o.value)}>
+                  {o.label}
+                </Chip>
+              ))}
+              {!isEmpty && (
+                <span className="ml-1 shrink-0 font-mono text-[12px] tabular-nums text-ink-3">
+                  {totalRecords} registro{totalRecords !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            {/* toggle día/semana en rangos amplios */}
+            {(rangeFilter === 30 || rangeFilter === 90 || rangeFilter === 'all') && !isEmpty && (
+              <div className="flex gap-2">
+                {(['dia', 'semana'] as const).map((v) => (
+                  <Chip key={v} active={groupBy === v} onClick={() => setGroupBy(v)}>
+                    {v === 'dia' ? 'Día' : 'Semana'}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </motion.div>
+
+          {/* ── racha + adherencia (estado siempre ícono + texto + color) ── */}
+          {!isEmpty && (currentStreak > 0 || periodAdherence !== null) && (
+            <motion.div variants={staggerItem} className="flex items-center gap-2 flex-wrap">
+              {currentStreak > 0 && (
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[12px] font-medium ${currentStreak >= 7 ? 'text-ok border-[color-mix(in_srgb,var(--ok)_25%,transparent)] bg-[color-mix(in_srgb,var(--ok)_10%,transparent)]' : 'text-warn border-[color-mix(in_srgb,var(--warn)_28%,transparent)] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)]'}`}>
+                  <Flame size={12} />
+                  {/* rachaLabel: en tienda dice "Racha de registro" (Apple 1.4.3); PWA sin cambio */}
+                  {rachaLabel('Racha')} {currentStreak} día{currentStreak !== 1 ? 's' : ''}
+                </span>
+              )}
+              {periodAdherence !== null && (
+                /* Chip + "?" agrupados en un solo hijo flex: el TermInfo NO puede envolver huérfano
+                   a su propia línea bajo los chips (defecto visto en la captura de verificación). */
+                <span className="inline-flex items-center gap-1.5">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[12px] font-medium ${periodAdherence >= 70 ? 'text-ok border-[color-mix(in_srgb,var(--ok)_25%,transparent)] bg-[color-mix(in_srgb,var(--ok)_10%,transparent)]' : 'text-warn border-[color-mix(in_srgb,var(--warn)_28%,transparent)] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)]'}`}>
+                    <Check size={12} />
+                    {periodAdherence}% adherencia este mes
+                  </span>
+                  {/* jerga a la mano (Ley 2): adherencia explicada en una línea */}
+                  <TermInfo term="adherencia">Qué tanto vas al día con las tomas de tu protocolo este mes.</TermInfo>
+                </span>
+              )}
+            </motion.div>
+          )}
+
+          {/* ── banner ciclo off ── */}
+          {productCycleOff && (
+            <motion.div variants={staggerItem}>
+              <div className="flex items-center gap-2 rounded-sm border border-hairline bg-raised px-4 py-3 text-[13px] text-ink-2">
+                <Clock size={14} className="shrink-0 text-ink-3" />
+                Día de descanso ({productCycleOff.day}/{productCycleOff.total}) — período off activo
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </motion.div>
 
-      {/* ── filtros de tipo ── */}
-      <motion.div variants={itemVariants} className="flex gap-2 flex-wrap">
-        {TYPE_OPTIONS.map((o) => (
-          <Chip key={o.value} active={typeFilter === o.value} onClick={() => setTypeFilter(o.value)}>
-            {o.label}
-          </Chip>
-        ))}
-      </motion.div>
-
-      {/* ── filtro de producto ── */}
-      {showProductFilter && (
-        <motion.div variants={itemVariants} className="flex gap-2 flex-wrap">
-          <Chip active={productFilter === 'todos'} onClick={() => setProductFilter('todos')}>Todos</Chip>
-          {products.map((p) => (
-            <Chip
-              key={p}
-              active={productFilter === p}
-              onClick={() => setProductFilter(p)}
-              style={productFilter === p ? {} : { '--chip-bg': `${CATEGORY_COLOR[PEPTIDES[p]?.cat ?? 'Explorar']}18` } as React.CSSProperties}
-            >
-              {p}
-            </Chip>
-          ))}
-        </motion.div>
-      )}
-
-      {/* ── rango de tiempo ── */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          {RANGE_OPTIONS.map((o) => (
-            <Chip key={String(o.value)} active={rangeFilter === o.value} onClick={() => setRangeFilter(o.value)}>
-              {o.label}
-            </Chip>
-          ))}
-          {!isEmpty && (
-            <span className="text-[12px] text-muted-foreground shrink-0 ml-1">
-              {totalRecords} registro{totalRecords !== 1 ? 's' : ''}
-            </span>
+          {/* ── § 02 · resumen de medidas ── */}
+          {(typeFilter === 'medida' || typeFilter === 'todo') && !isEmpty && (
+            <motion.div variants={staggerItem}>
+              <MeasureSummary filtered={summaryGroups} folioN={2} />
+            </motion.div>
           )}
-        </div>
 
-        {/* toggle día/semana en rangos amplios */}
-        {(rangeFilter === 30 || rangeFilter === 90 || rangeFilter === 'all') && !isEmpty && (
-          <div className="flex gap-2">
-            {(['dia', 'semana'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setGroupBy(v)}
-                className={`h-9 px-3 rounded-md text-[12px] font-semibold border transition-colors ${groupBy === v ? 'border-white/20 bg-raised text-foreground' : 'border-white/8 text-muted-foreground'}`}
-              >
-                {v === 'dia' ? 'Día' : 'Semana'}
-              </button>
-            ))}
+          {/* ── aria-live para anunciar cambios de filtro ── */}
+          <div aria-live="polite" aria-atomic="true" className="sr-only">
+            {isEmpty ? 'Sin registros con el filtro actual' : `${totalRecords} registro${totalRecords !== 1 ? 's' : ''} mostrado${totalRecords !== 1 ? 's' : ''}`}
           </div>
-        )}
-      </motion.div>
 
-      {/* ── racha + adherencia ── */}
-      {!isEmpty && (currentStreak > 0 || periodAdherence !== null) && (
-        <motion.div variants={itemVariants} className="flex gap-2 flex-wrap">
-          {currentStreak > 0 && (
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold border ${currentStreak >= 7 ? 'text-ok bg-ok/10 border-ok/20' : 'text-warn bg-warn/10 border-warn/20'}`}>
-              <Flame size={12} />
-              {/* rachaLabel: en tienda dice "Racha de registro" (Apple 1.4.3); PWA sin cambio */}
-              {rachaLabel('Racha')} {currentStreak} día{currentStreak !== 1 ? 's' : ''}
-            </span>
-          )}
-          {periodAdherence !== null && (
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold border ${periodAdherence >= 70 ? 'text-ok bg-ok/10 border-ok/20' : 'text-warn bg-warn/10 border-warn/20'}`}>
-              <Check size={12} />
-              {periodAdherence}% adherencia este mes
-            </span>
-          )}
-        </motion.div>
-      )}
-
-      {/* ── banner ciclo off ── */}
-      {productCycleOff && (
-        <motion.div variants={itemVariants}>
-          <div className="rounded-lg border border-white/10 bg-raised px-4 py-3 text-[13px] text-muted-foreground flex items-center gap-2">
-            <Clock size={14} className="text-muted-foreground shrink-0" />
-            Día de descanso ({productCycleOff.day}/{productCycleOff.total}) — período off activo
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── resumen de medidas ── */}
-      {(typeFilter === 'medida' || typeFilter === 'todo') && !isEmpty && (
-        <motion.div variants={itemVariants}>
-          <MeasureSummary filtered={state.log.filter((g) => {
-            const ts = new Date(g.dateKey + 'T00:00:00').getTime()
-            return ts >= cutoff
-          })} />
-        </motion.div>
-      )}
-
-      {/* ── aria-live para anunciar cambios de filtro ── */}
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {isEmpty ? 'Sin registros con el filtro actual' : `${totalRecords} registro${totalRecords !== 1 ? 's' : ''} mostrado${totalRecords !== 1 ? 's' : ''}`}
-      </div>
-
-      {/* ── vacío / timeline ── */}
-      <AnimatePresence mode="wait">
-        {!mounted ? null : isEmpty ? (
-          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <EmptyDiario
-              typeFilter={typeFilter}
-              productFilter={pf}
-              rangeFilter={rangeFilter}
-              onExpandRange={() => setRangeFilter(30)}
-              onClearProduct={() => setProductFilter('todos')}
-              dispatch={dispatch}
-            />
+          {/* ── cronología: § 03 tras el resumen, § 02 si el rango no trae medidas ── */}
+          <motion.div variants={staggerItem}>
+            <FolioLabel n={hasResumen ? 3 : 2}>Cronología</FolioLabel>
           </motion.div>
-        ) : (
-          <motion.div
-            key="timeline"
-            initial={reduce ? false : 'hidden'}
-            animate="show"
-            variants={containerVariants}
-            role="list"
-            aria-label={rangeFilter === 'all' ? 'Todos los registros' : `Registros de los últimos ${rangeFilter} días`}
-          >
-            {groupBy === 'semana' && groupedBySemana ? (
-              groupedBySemana.map((week) => (
-                <motion.div key={week.weekKey} variants={itemVariants} className="mb-6">
-                  {/* encabezado de semana */}
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
-                    {week.weekKey}
-                    <span className="font-normal ml-1">· {week.items.length} registros</span>
-                  </p>
-                  <Glass className="p-0 overflow-hidden">
-                    <div className="divide-y divide-white/5">
-                      {week.items.map((it) => (
-                        <TimelineRow
-                          key={it.id}
-                          item={it}
-                          onDelete={handleDelete}
-                          dispatch={dispatch}
-                        />
-                      ))}
-                    </div>
-                  </Glass>
-                </motion.div>
-              ))
+
+          {/* ── vacío / timeline ── */}
+          <AnimatePresence mode="wait">
+            {!mounted ? null : isEmpty ? (
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <EmptyDiario
+                  typeFilter={typeFilter}
+                  productFilter={pf}
+                  rangeFilter={rangeFilter}
+                  onExpandRange={() => setRangeFilter(30)}
+                  onClearProduct={() => setProductFilter('todos')}
+                  dispatch={dispatch}
+                />
+              </motion.div>
             ) : (
-              timelineEntries.map((entry, idx) => {
-                if (entry.type === 'gap') {
-                  return (
-                    <div key={`gap-${idx}`} className="flex items-center gap-3 my-2 mb-4 px-1">
-                      <div className="flex-1 h-px bg-white/6" />
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {entry.days} día{entry.days !== 1 ? 's' : ''} sin registros
-                      </span>
-                      <div className="flex-1 h-px bg-white/6" />
-                    </div>
-                  )
-                }
-
-                const { group } = entry
-                const label = groupLabel(group.dateKey, state.todayTs)
-
-                return (
-                  <motion.div key={group.dateKey} variants={itemVariants} className="mb-6">
-                    {/* encabezado de día */}
-                    <div className="flex items-center justify-between mb-2 px-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {label}
-                        <span className="font-normal ml-1">· {group.items.length}</span>
-                      </p>
-                      <button
-                        type="button"
-                        aria-label={`Agregar dosis al día ${label}`}
-                        onClick={() => {
-                          // #72: precargar la FECHA del día histórico (mediodía) vía draftDose.ts,
-                          // sin contaminar el producto (sheetArg se usa como producto en RegistrarSheet).
-                          dispatch({ t: 'setDraftDose', draft: { ts: new Date(group.dateKey + 'T12:00:00').getTime() } })
-                          dispatch({ t: 'sheet', sheet: 'registrar' })
-                        }}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal rounded-full bg-teal/8 border border-teal/18 px-2.5 py-1 min-h-11"
-                      >
-                        + Dosis
-                      </button>
-                    </div>
-
-                    <Glass className="p-0 overflow-hidden" role="listitem">
-                      <div className="divide-y divide-white/5">
-                        {group.items.map((it) => {
-                          const phaseIdx = it.type === 'dose' && it.product
-                            ? phaseForDate(state, new Date(it.ts), it.product)
-                            : null
-                          const pct = it.type === 'dose' && it.product
-                            ? (presenceData.find((p) => p.product === it.product)?.pct ?? 0)
-                            : 0
-                          return (
+              <motion.div
+                key="timeline"
+                initial={reduce ? false : 'hidden'}
+                animate="show"
+                variants={staggerContainer}
+                role="list"
+                aria-label={rangeFilter === 'all' ? 'Todos los registros' : `Registros de los últimos ${rangeFilter} días`}
+              >
+                {groupBy === 'semana' && groupedBySemana ? (
+                  groupedBySemana.map((week) => (
+                    <motion.div key={week.weekKey} variants={staggerItem} className="mb-6">
+                      {/* encabezado de semana — folio editorial */}
+                      <FolioLabel className="mb-2">
+                        {week.weekKey} · {week.items.length}
+                      </FolioLabel>
+                      <Glass className="p-0 overflow-hidden">
+                        <div className="divide-y divide-hairline">
+                          {week.items.map((it) => (
                             <TimelineRow
                               key={it.id}
                               item={it}
                               onDelete={handleDelete}
-                              phaseIndex={phaseIdx}
-                              presencePct={pct > 0 ? pct : undefined}
                               dispatch={dispatch}
                             />
-                          )
-                        })}
-                      </div>
-                    </Glass>
-                  </motion.div>
-                )
-              })
+                          ))}
+                        </div>
+                      </Glass>
+                    </motion.div>
+                  ))
+                ) : (
+                  timelineEntries.map((entry, idx) => {
+                    if (entry.type === 'gap') {
+                      return (
+                        <div key={`gap-${idx}`} className="my-2 mb-4 flex items-center gap-3 px-1">
+                          <div className="h-px flex-1 bg-hairline" />
+                          <span className="shrink-0 font-mono text-[11px] text-ink-3">
+                            {entry.days} día{entry.days !== 1 ? 's' : ''} sin registros
+                          </span>
+                          <div className="h-px flex-1 bg-hairline" />
+                        </div>
+                      )
+                    }
+
+                    const { group } = entry
+                    const label = groupLabel(group.dateKey, state.todayTs)
+
+                    return (
+                      <motion.div key={group.dateKey} variants={staggerItem} className="mb-6">
+                        {/* encabezado de día — folio + acción */}
+                        <div className="mb-2 flex items-center gap-3">
+                          <FolioLabel className="min-w-0 flex-1">
+                            {label} · {group.items.length}
+                          </FolioLabel>
+                          <button
+                            type="button"
+                            aria-label={`Agregar dosis al día ${label}`}
+                            onClick={() => {
+                              // #72: precargar la FECHA del día histórico (mediodía) vía draftDose.ts,
+                              // sin contaminar el producto (sheetArg se usa como producto en RegistrarSheet).
+                              dispatch({ t: 'setDraftDose', draft: { ts: new Date(group.dateKey + 'T12:00:00').getTime() } })
+                              dispatch({ t: 'sheet', sheet: 'registrar' })
+                            }}
+                            className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-3 font-mono text-[12px] font-medium text-blue"
+                          >
+                            + Dosis
+                          </button>
+                        </div>
+
+                        <Glass className="p-0 overflow-hidden" role="listitem">
+                          <div className="divide-y divide-hairline">
+                            {group.items.map((it) => {
+                              const phaseIdx = it.type === 'dose' && it.product
+                                ? phaseForDate(state, new Date(it.ts), it.product)
+                                : null
+                              const pct = it.type === 'dose' && it.product
+                                ? (presenceData.find((p) => p.product === it.product)?.pct ?? 0)
+                                : 0
+                              return (
+                                <TimelineRow
+                                  key={it.id}
+                                  item={it}
+                                  onDelete={handleDelete}
+                                  phaseIndex={phaseIdx}
+                                  presencePct={pct > 0 ? pct : undefined}
+                                  dispatch={dispatch}
+                                />
+                              )
+                            })}
+                          </div>
+                        </Glass>
+                      </motion.div>
+                    )
+                  })
+                )}
+              </motion.div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
+        </>
+      )}
 
       {/* ── microcopy de privacidad ── */}
-      <motion.div variants={itemVariants} className="flex items-center justify-center gap-1.5 py-4">
-        <Shield size={12} className="text-muted-foreground" />
-        <p className="text-[11px] text-muted-foreground text-center">
+      <motion.div variants={staggerItem} className="flex items-center justify-center gap-1.5 py-4">
+        <Shield size={12} className="text-ink-3" />
+        <p className="text-center text-[12px] text-ink-3">
           Tu historial se guarda solo en tu dispositivo
         </p>
       </motion.div>

@@ -3,8 +3,34 @@
 // Las vidas medias son APROXIMADAS (literatura científica) — esto es una estimación educativa,
 // no farmacocinética individual ni consejo médico. (Investigador PK del equipo multiagente.)
 import type { AppState } from './store'
-import { PEPTIDES, CATEGORY_COLOR } from './catalog'
+import { PEPTIDES } from './catalog'
 import { doseToMg } from './calc'
+
+// ── Colores de serie (presentación, sin lógica) — ref canónica docs/design-refs:
+// azul / oro / violeta por PRODUCTO (no por categoría), theme-aware vía tokens CSS.
+// Asignación ESTABLE: orden de creación de protocolo y después primera dosis cronológica —
+// así un producto conserva su color entre ventanas, pantallas y sesiones.
+const SERIES_COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'] as const
+
+export function seriesColorMap(s: AppState): Map<string, string> {
+  const order: string[] = []
+  const seen = new Set<string>()
+  const push = (p: string) => { if (!seen.has(p)) { seen.add(p); order.push(p) } }
+  Object.keys(s.protocols ?? {}).forEach(push)
+  // productos sin protocolo: por ts de su primera dosis (estable — la primera dosis no cambia)
+  const firstTs = new Map<string, number>()
+  for (const g of s.log) {
+    for (const it of g.items) {
+      if (it.type !== 'dose' || it.product == null) continue
+      const t = firstTs.get(it.product)
+      if (t == null || it.ts < t) firstTs.set(it.product, it.ts)
+    }
+  }
+  ;[...firstTs.entries()].sort((a, b) => a[1] - b[1]).forEach(([p]) => push(p))
+  const m = new Map<string, string>()
+  order.forEach((p, i) => m.set(p, SERIES_COLORS[i % SERIES_COLORS.length]))
+  return m
+}
 
 const H = 3_600_000 // ms por hora
 
@@ -204,6 +230,7 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
   const { now, windowMs, mode } = opts
 
   const byProduct = collectDosesByProduct(s)
+  const seriesColors = seriesColorMap(s)
 
   const hasAnyDose = byProduct.size > 0
   // Ventana CENTRADA en "ahora": windowMs es el ANCHO TOTAL → mitad atrás, mitad adelante.
@@ -263,7 +290,7 @@ export function buildPharmaSeries(s: AppState, opts: BuildOpts): PharmaData {
     }
     maxMg = Math.max(maxMg, peakMg)
 
-    const color = CATEGORY_COLOR[PEPTIDES[r.product]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
+    const color = seriesColors.get(r.product) ?? 'var(--series-1)'
     // #26: en modo "%" normalizar al pico DE LA VENTANA (no al histórico global) para que la curva
     // use todo el alto; antes, si hubo una dosis mayor fuera de la ventana, nunca llegaba a 100%.
     const pctPeak = maxRawWin > 0 ? maxRawWin : peakMg
@@ -311,6 +338,7 @@ export interface Presence { product: string; color: string; currentMg: number; p
 // Solo productos con vida media conocida y presencia > 0. Ordenado desc por presencia.
 export function presenceNow(s: AppState, now: number): Presence[] {
   const byProduct = collectDosesByProduct(s)
+  const seriesColors = seriesColorMap(s)
   const out: Presence[] = []
   for (const [product, doses] of byProduct) {
     const halfLifeH = HALF_LIFE_H[product]
@@ -320,7 +348,7 @@ export function presenceNow(s: AppState, now: number): Presence[] {
     if (currentMg <= 0) continue
     const peakMg = peakOf(doses, product, halfMs)
     if (peakMg <= 0) continue
-    const color = CATEGORY_COLOR[PEPTIDES[product]?.cat ?? 'Explorar'] ?? 'var(--brand-700)'
+    const color = seriesColors.get(product) ?? 'var(--series-1)'
     out.push({ product, color, currentMg, pct: Math.min(100, (currentMg / peakMg) * 100) })
   }
   return out.sort((a, b) => b.pct - a.pct)

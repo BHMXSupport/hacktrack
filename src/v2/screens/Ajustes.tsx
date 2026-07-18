@@ -1,14 +1,16 @@
-// Hacktrack v2 — Ajustes. Precision × Accessible.
+// Hacktrack v2 — Ajustes. Design system "Bitácora" (LOCKED): filas editoriales de papel-y-tinta,
+// §-folios por sección, hairlines en vez de vidrio, azul = interactivo, ámbar solo energía.
 // R48: PIN de acceso, segundo recordatorio, avisos por correo, alias de productos.
 // R50: cerrar sesión (go 's-login').
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
-  Bell, Clock, Moon, Sun, Ruler, ChevronRight, User, ShieldCheck,
+  Bell, Clock, Ruler, ChevronRight, User, ShieldCheck,
   Mail, Tag, LogOut, ListChecks, Download, Contrast, LayoutGrid, Calculator, CreditCard,
 } from 'lucide-react'
 import { Sheet } from '../ui/Sheet'
+import { FolioLabel } from '../ui/FolioLabel'
 import { useModalStack } from '../ui/modalStack'
 import { NOTIF_PROMPT_DISMISSED_KEY } from '../ui/NotifPermissionPrompt'
 import { Switch } from '../ui/Switch'
@@ -89,19 +91,19 @@ function Row({ children, className = '' }: { children: React.ReactNode; classNam
   )
 }
 
-// ── label de sección ──────────────────────────────────────────────────────────
-function SectionLabel({ children }: { children: React.ReactNode }) {
+// ── label de sección — §-folio editorial (graft del veredicto v2) ─────────────
+function SectionLabel({ n, children }: { n?: number; children: React.ReactNode }) {
   return (
-    <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <FolioLabel n={n} className="px-1 pb-2.5">
       {children}
-    </p>
+    </FolioLabel>
   )
 }
 
-// ── card contenedor de filas ──────────────────────────────────────────────────
+// ── card contenedor de filas — pozo cálido con hairlines (reglas, no sombras) ─
 function RowCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col divide-y divide-white/6 rounded-xl bg-raised">
+    <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-[10px] border border-hairline bg-raised">
       {children}
     </div>
   )
@@ -111,7 +113,7 @@ function RowCard({ children }: { children: React.ReactNode }) {
 
 // ── chevron decorativo ────────────────────────────────────────────────────────
 function Chevron() {
-  return <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+  return <ChevronRight size={16} className="shrink-0 text-ink-3" />
 }
 
 // ── sub-Sheet de confirmación de borrado de datos ─────────────────────────────
@@ -143,7 +145,7 @@ function DeleteConfirmDialog({
           <motion.div
             role="alertdialog" aria-modal="true"
             aria-label="Confirmar borrado de cuenta"
-            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[26px] border-t border-hairline bg-paper p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
@@ -154,9 +156,9 @@ function DeleteConfirmDialog({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
-            <h3 className="mb-1 text-[18px] font-bold text-foreground">¿Borrar todos mis datos?</h3>
-            <p className="mb-5 text-[13px] leading-relaxed text-muted-foreground">
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-3" />
+            <h3 className="mb-1 font-serif text-[20px] font-medium tracking-tight text-ink">¿Borrar todos mis datos?</h3>
+            <p className="mb-5 text-[14px] leading-relaxed text-ink-2">
               Esta acción eliminará permanentemente tu historial, protocolos y configuración de este
               dispositivo. No se puede deshacer.
             </p>
@@ -210,7 +212,7 @@ function LogoutConfirmDialog({
           <motion.div
             role="alertdialog" aria-modal="true"
             aria-label="Confirmar cierre de sesión"
-            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[26px] border-t border-hairline bg-paper p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
@@ -221,13 +223,13 @@ function LogoutConfirmDialog({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-3" />
             <div className="mb-4 flex flex-col items-center gap-2 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/8">
-                <LogOut size={22} className="text-foreground" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-[10px] border border-hairline bg-raised">
+                <LogOut size={22} className="text-ink" strokeWidth={1.6} />
               </div>
-              <h3 className="text-[18px] font-bold text-foreground">¿Cerrar sesión?</h3>
-              <p className="max-w-[300px] text-[13px] leading-relaxed text-muted-foreground">
+              <h3 className="font-serif text-[20px] font-medium tracking-tight text-ink">¿Cerrar sesión?</h3>
+              <p className="max-w-[300px] text-[14px] leading-relaxed text-ink-2">
                 Tus datos quedan guardados en este dispositivo. Podrás volver a acceder en cualquier
                 momento.
               </p>
@@ -279,7 +281,7 @@ function ReplaceCloudConfirmDialog({
           <motion.div
             role="alertdialog" aria-modal="true"
             aria-label="Confirmar reemplazo con la copia de la nube"
-            className="pointer-events-auto relative w-full rounded-t-[24px] bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
+            className="pointer-events-auto relative w-full rounded-t-[26px] border-t border-hairline bg-paper p-5 pb-[max(24px,env(safe-area-inset-bottom))]"
             initial={reduce ? { opacity: 0 } : { y: '100%' }}
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0, pointerEvents: 'none' } : { y: '100%', pointerEvents: 'none' }}
@@ -290,9 +292,9 @@ function ReplaceCloudConfirmDialog({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
-            <h3 className="mb-1 text-[18px] font-bold text-foreground">¿Reemplazar todo con la nube?</h3>
-            <p className="mb-5 text-[13px] leading-relaxed text-muted-foreground">
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-ink-3" />
+            <h3 className="mb-1 font-serif text-[20px] font-medium tracking-tight text-ink">¿Reemplazar todo con la nube?</h3>
+            <p className="mb-5 text-[14px] leading-relaxed text-ink-2">
               Esto descartará lo que solo exista en este dispositivo y dejará exactamente la copia de la
               nube. Tu PIN, tu consentimiento y el modo solo local no cambian. No se puede deshacer. Si
               solo quieres traer lo que falta, usa «Restaurar de la nube» — esa combina sin borrar nada.
@@ -368,12 +370,12 @@ function AliasSheet({
   return (
     <Sheet open={open} onClose={onClose} title="Nombres privados">
       <div className="flex flex-col gap-4 pb-2">
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-[14px] leading-relaxed text-ink-2">
           Asigna un alias personalizado a cada producto. Solo tú lo verás en la app.
         </p>
 
         {products.length === 0 ? (
-          <p className="italic text-[13px] text-muted-foreground">
+          <p className="italic text-[13px] text-ink-3">
             Sin productos en protocolo.
           </p>
         ) : (
@@ -386,15 +388,15 @@ function AliasSheet({
               placeholder="Buscar producto…"
               aria-label="Filtrar productos por nombre"
               className={[
-                'h-[44px] w-full rounded-xl border border-white/10 bg-raised px-3',
-                'text-[14px] text-foreground placeholder:text-muted-foreground',
-                'focus:outline-none focus-visible:ring-1 focus-visible:ring-teal',
+                'h-[44px] w-full rounded-[8px] border border-hairline bg-raised px-3',
+                'text-[15px] text-ink placeholder:text-ink-3',
+                'focus:outline-none focus-visible:ring-1 focus-visible:ring-blue',
               ].join(' ')}
             />
 
             <div className="flex flex-col gap-3">
               {filteredProducts.length === 0 && (
-                <p className="italic text-[13px] text-muted-foreground">
+                <p className="italic text-[13px] text-ink-3">
                   Sin resultados para "{search}".
                 </p>
               )}
@@ -404,13 +406,13 @@ function AliasSheet({
                   <div key={product} className="flex flex-col gap-1">
                     <label
                       htmlFor={`alias-${product}`}
-                      className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground"
+                      className="flex items-center gap-1.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2"
                     >
                       {product}
-                      {/* Feedback de guardado */}
+                      {/* Feedback de guardado — estado ok con texto (nunca solo color) */}
                       {isSaved && (
-                        <span className="text-teal text-[11px] font-semibold">
-                          Guardado
+                        <span className="text-[11px] font-semibold normal-case tracking-normal text-ok">
+                          ✓ Guardado
                         </span>
                       )}
                     </label>
@@ -425,10 +427,10 @@ function AliasSheet({
                       }
                       onBlur={() => save(product)}
                       className={[
-                        'h-[44px] w-full rounded-xl border bg-raised px-3 transition-colors duration-200',
-                        'text-[14px] text-foreground placeholder:text-muted-foreground',
-                        'focus:outline-none focus-visible:ring-1 focus-visible:ring-teal',
-                        isSaved ? 'border-teal/60' : 'border-white/10',
+                        'h-[44px] w-full rounded-[8px] border bg-raised px-3 transition-colors duration-200',
+                        'text-[15px] text-ink placeholder:text-ink-3',
+                        'focus:outline-none focus-visible:ring-1 focus-visible:ring-blue',
+                        isSaved ? 'border-ok' : 'border-hairline',
                       ].join(' ')}
                     />
                   </div>
@@ -445,6 +447,43 @@ function AliasSheet({
         )}
       </div>
     </Sheet>
+  )
+}
+
+// ── selector de tema Papel / Tinta con vista previa ──────────────────────────
+// La preview usa los colores FIJOS de cada tema (muestra lo que elegirías, no el tema
+// actual): mini-página con numeral serif, tick ámbar y hairline — la firma Bitácora en
+// miniatura. Auto = mitad Papel / mitad Tinta. Misma acción de siempre (setThemeMode).
+const THEME_OPTIONS: { value: ThemeMode; name: string; sub: string }[] = [
+  // 'auto' es por HORARIO (Tinta 19–7 h, provider.tsx), no por ajuste del sistema — el sub lo dice tal cual.
+  { value: 'auto', name: 'Auto', sub: 'noche 19–7 h' },
+  { value: 'light', name: 'Papel', sub: 'claro' },
+  { value: 'dark', name: 'Tinta', sub: 'oscuro' },
+]
+
+function ThemeSwatch({ mode }: { mode: ThemeMode }) {
+  const halves = mode === 'auto' ? (['light', 'dark'] as const) : ([mode] as const)
+  return (
+    <span aria-hidden className="flex h-11 w-full overflow-hidden rounded-[7px] border border-hairline">
+      {halves.map((h) => {
+        const t =
+          h === 'light'
+            ? { bg: '#F4F1EA', ink: '#1A1712', amber: '#C9761F', rule: 'rgba(26,23,18,.25)' }
+            : { bg: '#14110C', ink: '#F2EDE3', amber: '#F0A63C', rule: 'rgba(255,255,255,.18)' }
+        return (
+          <span key={h} className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-2" style={{ background: t.bg }}>
+            {/* Numeral serif en miniatura — "el número serif gigante es sagrado" */}
+            <span className="font-serif leading-none tabular-nums" style={{ color: t.ink, fontSize: 14 }}>
+              92<span style={{ fontSize: 9 }}>%</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1 w-1 shrink-0 rounded-full" style={{ background: t.amber }} />
+              <span className="h-px min-w-0 flex-1" style={{ background: t.rule }} />
+            </span>
+          </span>
+        )
+      })}
+    </span>
   )
 }
 
@@ -585,6 +624,15 @@ export function Ajustes({
   // tema actual
   const currentTheme: ThemeMode = settings.themeMode ?? (settings.darkMode ? 'dark' : 'auto')
 
+  // Tema RESUELTO (espejo de applyTheme del provider) — solo para el chrome nativo del
+  // picker de hora (color-scheme): antes iba clavado a oscuro y en Papel pintaba el
+  // control nativo oscuro sobre fondo claro.
+  const _hour = new Date().getHours()
+  const nativeScheme: 'dark' | 'light' =
+    currentTheme === 'light' ? 'light'
+    : currentTheme === 'auto' ? (_hour >= 19 || _hour < 7 ? 'dark' : 'light')
+    : 'dark'
+
   // unidades
   const currentUnit: UnitSystem = settings.unitSystem ?? 'metric'
 
@@ -685,27 +733,30 @@ export function Ajustes({
     [dispatch],
   )
 
+  // §-folio incremental: se numera en orden de render (la sección Nube es condicional).
+  let sec = 0
+
   return (
     <>
       <Sheet open={open} onClose={onClose} title="Ajustes">
-        <div className="flex flex-col gap-5 pb-2">
+        <div className="flex flex-col gap-6 pb-2">
 
           {/* ── PERFIL ────────────────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Perfil</SectionLabel>
+            <SectionLabel n={++sec}>Perfil</SectionLabel>
             <RowCard>
               <button
                 type="button"
                 onClick={onOpenPerfil}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                 aria-label="Ver perfil y privacidad"
               >
-                <User size={18} className="shrink-0 text-teal" />
+                <User size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[15px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     {profile.name ?? 'Tu perfil'}
                   </span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[12px] text-ink-3">
                     Perfil y privacidad
                   </span>
                 </span>
@@ -716,79 +767,88 @@ export function Ajustes({
 
           {/* ── PROTOCOLOS ────────────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Protocolos</SectionLabel>
+            <SectionLabel n={++sec}>Protocolos</SectionLabel>
             <RowCard>
               <button
                 type="button"
                 onClick={() => (onOpenProtocolos ? onOpenProtocolos() : dispatch({ t: 'sheet', sheet: 'protocolos' }))}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface"
                 aria-label="Mis protocolos"
               >
-                <ListChecks size={18} className="shrink-0 text-teal" />
+                <ListChecks size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[15px] font-medium text-foreground">Mis protocolos</span>
-                  <span className="text-[12px] text-muted-foreground">Cadencia, días y dosis por producto</span>
+                  <span className="text-[15px] font-medium text-ink">Mis protocolos</span>
+                  <span className="text-[12px] text-ink-3">Cadencia, días y dosis por producto</span>
                 </span>
                 <Chevron />
               </button>
               {IMPORT_ENTRY_ENABLED && (
-                <>
-                  <div className="mx-4 h-px bg-white/[0.06]" />
-                  <button
-                    type="button"
-                    onClick={() => (onOpenImport ? onOpenImport() : dispatch({ t: 'sheet', sheet: 'import' }))}
-                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
-                    aria-label="Importar protocolos"
-                  >
-                    <Download size={18} className="shrink-0 text-teal" />
-                    <span className="flex flex-1 flex-col">
-                      <span className="text-[15px] font-medium text-foreground">Importar protocolos</span>
-                      <span className="text-[12px] text-muted-foreground">Agrega productos a tu seguimiento</span>
-                    </span>
-                    <Chevron />
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => (onOpenImport ? onOpenImport() : dispatch({ t: 'sheet', sheet: 'import' }))}
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface"
+                  aria-label="Importar protocolos"
+                >
+                  <Download size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-[15px] font-medium text-ink">Importar protocolos</span>
+                    <span className="text-[12px] text-ink-3">Agrega productos a tu seguimiento</span>
+                  </span>
+                  <Chevron />
+                </button>
               )}
-              <div className="mx-4 h-px bg-white/[0.06]" />
               <button
                 type="button"
                 onClick={() => (onOpenCalc ? onOpenCalc() : dispatch({ t: 'sheet', sheet: 'calc' }))}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface"
                 aria-label="Calculadora de reconstitución"
               >
-                <Calculator size={18} className="shrink-0 text-teal" />
+                <Calculator size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[15px] font-medium text-foreground">Calculadora de reconstitución</span>
-                  <span className="text-[12px] text-muted-foreground">mg de vial + agua → unidades</span>
+                  <span className="text-[15px] font-medium text-ink">Calculadora de reconstitución</span>
+                  <span className="text-[12px] text-ink-3">mg de vial + agua → unidades</span>
                 </span>
                 <Chevron />
               </button>
             </RowCard>
           </section>
 
-          {/* ── APARIENCIA ────────────────────────────────────────────────── */}
+          {/* ── APARIENCIA — selector Papel / Tinta con vista previa ──────── */}
           <section>
-            <SectionLabel>Apariencia</SectionLabel>
+            <SectionLabel n={++sec}>Apariencia</SectionLabel>
             <RowCard>
               <Row className="px-4 py-3">
-                <span className="flex flex-1 flex-col gap-2">
-                  <span className="flex items-center gap-2">
-                    {currentTheme === 'light' ? (
-                      <Sun size={16} className="text-teal" />
-                    ) : (
-                      <Moon size={16} className="text-teal" />
-                    )}
-                    <span className="text-[14px] font-medium text-foreground">Modo de pantalla</span>
-                  </span>
-                  <SegmentedTabs<ThemeMode>
-                    options={[
-                      { value: 'auto', label: 'Auto' },
-                      { value: 'dark', label: 'Oscuro' },
-                      { value: 'light', label: 'Claro' },
-                    ]}
-                    value={currentTheme}
-                    onChange={(mode) => dispatch({ t: 'setThemeMode', mode })}
-                  />
+                <span className="flex flex-1 flex-col gap-2.5">
+                  <span className="text-[15px] font-medium text-ink">Tema</span>
+                  <div role="group" aria-label="Tema de la app" className="grid grid-cols-3 gap-2">
+                    {THEME_OPTIONS.map((o) => {
+                      const active = currentTheme === o.value
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          aria-pressed={active}
+                          aria-label={`Tema ${o.name} (${o.sub})`}
+                          onClick={() => dispatch({ t: 'setThemeMode', mode: o.value })}
+                          className={[
+                            'flex min-h-[44px] flex-col gap-1.5 rounded-[10px] border p-2 text-left transition-colors',
+                            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
+                            active
+                              ? 'border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)]'
+                              : 'border-hairline bg-surface hover:bg-raised',
+                          ].join(' ')}
+                        >
+                          <ThemeSwatch mode={o.value} />
+                          <span className="flex w-full items-baseline justify-between gap-1">
+                            <span className={['text-[13px] font-semibold', active ? 'text-blue' : 'text-ink'].join(' ')}>
+                              {o.name}
+                            </span>
+                            <span className="font-mono text-[11px] text-ink-3">{o.sub}</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </span>
               </Row>
             </RowCard>
@@ -796,13 +856,13 @@ export function Ajustes({
 
           {/* ── ACCESIBILIDAD ─────────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Accesibilidad</SectionLabel>
+            <SectionLabel n={++sec}>Accesibilidad</SectionLabel>
             <RowCard>
               <Row className="px-4 py-3">
-                <Contrast size={18} className={settings.highContrast ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                <Contrast size={18} strokeWidth={1.6} className={settings.highContrast ? 'shrink-0 text-blue' : 'shrink-0 text-ink-3'} />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">Alto contraste</span>
-                  <span className="text-[12px] text-muted-foreground">Texto más legible (no cambia el tamaño)</span>
+                  <span className="text-[15px] font-medium text-ink">Alto contraste</span>
+                  <span className="text-[12px] text-ink-3">Texto más legible (no cambia el tamaño)</span>
                 </span>
                 <Switch
                   checked={!!settings.highContrast}
@@ -810,12 +870,11 @@ export function Ajustes({
                   label="Activar alto contraste"
                 />
               </Row>
-              <div className="mx-4 h-px bg-white/[0.06]" />
               <Row className="px-4 py-3">
-                <LayoutGrid size={18} className={settings.simpleMode ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                <LayoutGrid size={18} strokeWidth={1.6} className={settings.simpleMode ? 'shrink-0 text-blue' : 'shrink-0 text-ink-3'} />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">Modo simple</span>
-                  <span className="text-[12px] text-muted-foreground">Solo Inicio, Diario y Progreso</span>
+                  <span className="text-[15px] font-medium text-ink">Modo simple</span>
+                  <span className="text-[12px] text-ink-3">Solo Inicio, Diario y Progreso</span>
                 </span>
                 <Switch
                   checked={!!settings.simpleMode}
@@ -833,12 +892,12 @@ export function Ajustes({
 
           {/* ── UNIDADES ──────────────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Unidades</SectionLabel>
+            <SectionLabel n={++sec}>Unidades</SectionLabel>
             <RowCard>
               <Row className="px-4 py-3">
-                <Ruler size={18} className="shrink-0 text-teal" />
+                <Ruler size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col gap-2">
-                  <span className="text-[14px] font-medium text-foreground">Peso y medidas</span>
+                  <span className="text-[15px] font-medium text-ink">Peso y medidas</span>
                   <SegmentedTabs<UnitSystem>
                     options={[
                       { value: 'metric', label: 'kg · cm' },
@@ -850,20 +909,20 @@ export function Ajustes({
                 </span>
               </Row>
             </RowCard>
-            <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
+            <p className="mt-1.5 px-1 text-[12px] text-ink-3">
               Los valores se convierten automáticamente. El almacenamiento siempre es métrico.
             </p>
           </section>
 
           {/* ── SEGURIDAD ─────────────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Seguridad</SectionLabel>
+            <SectionLabel n={++sec}>Seguridad</SectionLabel>
             <RowCard>
               <Row className="px-4">
-                <ShieldCheck size={18} className={settings.pinEnabled ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                <ShieldCheck size={18} strokeWidth={1.6} className={settings.pinEnabled ? 'shrink-0 text-blue' : 'shrink-0 text-ink-3'} />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">Bloqueo con PIN</span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[15px] font-medium text-ink">Bloqueo con PIN</span>
+                  <span className="text-[12px] text-ink-3">
                     {settings.pinEnabled ? 'Se pide al abrir la app' : 'Pide un PIN de 4 dígitos al abrir'}
                   </span>
                 </span>
@@ -883,22 +942,19 @@ export function Ajustes({
                 />
               </Row>
               {settings.pinEnabled && (
-                <>
-                  <div className="mx-4 h-px bg-white/[0.06]" />
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ t: 'sheet', sheet: 'pin-setup' })}
-                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left"
-                    aria-label="Cambiar PIN"
-                  >
-                    <Tag size={18} className="shrink-0 text-teal" />
-                    <span className="flex-1 text-[14px] font-medium text-foreground">Cambiar PIN</span>
-                    <ChevronRight size={16} className="text-muted-foreground" />
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => dispatch({ t: 'sheet', sheet: 'pin-setup' })}
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface"
+                  aria-label="Cambiar PIN"
+                >
+                  <Tag size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
+                  <span className="flex-1 text-[15px] font-medium text-ink">Cambiar PIN</span>
+                  <ChevronRight size={16} className="text-ink-3" />
+                </button>
               )}
             </RowCard>
-            <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 px-1 text-[12px] leading-relaxed text-ink-3">
               Bloqueo casual de privacidad (no cifrado). Si olvidas el PIN tendrás que borrar los datos del dispositivo para entrar — aún no hay recuperación en la nube.
             </p>
           </section>
@@ -906,16 +962,16 @@ export function Ajustes({
           {/* ── NUBE (solo visible si hay backend configurado; en el beta local-first no aparece) ── */}
           {backendEnabled && (
             <section>
-              <SectionLabel>Nube</SectionLabel>
+              <SectionLabel n={++sec}>Nube</SectionLabel>
               <RowCard>
                 <Row className="px-4">
-                  <Download size={18} className={settings.cloudSync ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'} />
+                  <Download size={18} strokeWidth={1.6} className={settings.cloudSync ? 'shrink-0 text-blue' : 'shrink-0 text-ink-3'} />
                   <span className="flex flex-1 flex-col">
-                    <span className="text-[14px] font-medium text-foreground">Respaldo y sincronización</span>
+                    <span className="text-[15px] font-medium text-ink">Respaldo y sincronización</span>
                     <span
                       className={[
                         'text-[12px]',
-                        settings.cloudSync && syncStatus.lastPushFailed ? 'text-alert' : 'text-muted-foreground',
+                        settings.cloudSync && syncStatus.lastPushFailed ? 'text-alert' : 'text-ink-3',
                       ].join(' ')}
                     >
                       {!settings.cloudSync
@@ -933,37 +989,35 @@ export function Ajustes({
                     onChange={(next) => dispatch({ t: 'setSetting', key: 'cloudSync', value: next })}
                   />
                 </Row>
-                <div className="mx-4 h-px bg-white/[0.06]" />
                 {/* Combinar (no destructivo): pull → merge por registro → aplicar. Sin confirmación
                     porque no puede perder datos (leyes de lib/merge.ts). */}
                 <button
                   type="button"
                   disabled={restoreState === 'busy'}
                   onClick={handleRestore}
-                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left disabled:opacity-50"
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface disabled:opacity-50"
                   aria-label="Restaurar desde la nube (combina con lo de este dispositivo)"
                 >
-                  <Download size={18} className="shrink-0 rotate-180 text-teal" />
+                  <Download size={18} strokeWidth={1.6} className="shrink-0 rotate-180 text-blue" />
                   <span className="flex flex-1 flex-col">
-                    <span className="text-[14px] font-medium text-foreground">{restoreState === 'busy' ? 'Restaurando…' : 'Restaurar de la nube'}</span>
-                    <span className="text-[12px] text-muted-foreground">Combina tu respaldo con este dispositivo — no borra nada</span>
+                    <span className="text-[15px] font-medium text-ink">{restoreState === 'busy' ? 'Restaurando…' : 'Restaurar de la nube'}</span>
+                    <span className="text-[12px] text-ink-3">Combina tu respaldo con este dispositivo — no borra nada</span>
                   </span>
-                  <ChevronRight size={16} className="text-muted-foreground" />
+                  <ChevronRight size={16} className="text-ink-3" />
                 </button>
-                <div className="mx-4 h-px bg-white/[0.06]" />
                 {/* Reemplazo destructivo: exige confirmación (diálogo en la pila de modales). */}
                 <button
                   type="button"
                   disabled={replaceBusy}
                   onClick={() => setShowReplaceConfirm(true)}
-                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left disabled:opacity-50"
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface disabled:opacity-50"
                   aria-label="Reemplazar todo con la copia de la nube"
                 >
                   <span className="flex flex-1 flex-col">
-                    <span className="text-[14px] font-medium text-alert">{replaceBusy ? 'Reemplazando…' : 'Reemplazar todo con la nube'}</span>
-                    <span className="text-[12px] text-muted-foreground">Descarta lo de este dispositivo y deja la copia de la nube</span>
+                    <span className="text-[15px] font-medium text-alert">{replaceBusy ? 'Reemplazando…' : 'Reemplazar todo con la nube'}</span>
+                    <span className="text-[12px] text-ink-3">Descarta lo de este dispositivo y deja la copia de la nube</span>
                   </span>
-                  <ChevronRight size={16} className="text-muted-foreground" />
+                  <ChevronRight size={16} className="text-ink-3" />
                 </button>
               </RowCard>
             </section>
@@ -971,26 +1025,27 @@ export function Ajustes({
 
           {/* ── RECORDATORIOS ────────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Recordatorios</SectionLabel>
+            <SectionLabel n={++sec}>Recordatorios</SectionLabel>
             <RowCard>
 
               {/* Toggle principal */}
               <Row className="px-4">
                 <Bell
                   size={18}
+                  strokeWidth={1.6}
                   className={[
                     'shrink-0',
-                    settings.remindersEnabled && perm === 'granted' ? 'text-teal' : 'text-muted-foreground',
+                    settings.remindersEnabled && perm === 'granted' ? 'text-blue' : 'text-ink-3',
                   ].join(' ')}
                 />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     Recordatorio de registro
                   </span>
                   <span
                     className={[
                       'text-[12px]',
-                      perm === 'denied' ? 'text-alert' : 'text-muted-foreground',
+                      perm === 'denied' ? 'text-alert' : 'text-ink-3',
                     ].join(' ')}
                   >
                     {settings.remindersEnabled && perm === 'granted'
@@ -1006,8 +1061,8 @@ export function Ajustes({
               </Row>
 
               {/* Cómo funcionan: por dosis (cada protocolo a su hora) + resumen diario. Nota honesta de iOS. */}
-              <p className="mx-4 mt-0.5 mb-1 text-[11px] leading-relaxed text-muted-foreground">
-                Recibes un aviso <span className="text-foreground">por cada dosis</span>, a la hora de cada protocolo (la configuras en cada uno).
+              <p className="mx-4 mt-0.5 mb-1 border-none pb-2 text-[12px] leading-relaxed text-ink-3">
+                Recibes un aviso <span className="text-ink">por cada dosis</span>, a la hora de cada protocolo (la configuras en cada uno).
                 {isIOS && ' En iPhone los recordatorios funcionan con la app abierta; con la app cerrada llegarán cuando conectemos el servidor de avisos.'}
               </p>
 
@@ -1015,18 +1070,19 @@ export function Ajustes({
               <Row className="px-4">
                 <Clock
                   size={18}
-                  className={hasProtocol ? 'shrink-0 text-teal' : 'shrink-0 text-muted-foreground'}
+                  strokeWidth={1.6}
+                  className={hasProtocol ? 'shrink-0 text-blue' : 'shrink-0 text-ink-3'}
                 />
                 <span className="flex flex-1 flex-col">
                   <span
                     className={[
-                      'text-[14px] font-medium',
-                      hasProtocol ? 'text-foreground' : 'text-muted-foreground',
+                      'text-[15px] font-medium',
+                      hasProtocol ? 'text-ink' : 'text-ink-3',
                     ].join(' ')}
                   >
                     Resumen diario
                   </span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[12px] text-ink-3">
                     {hasProtocol ? 'Un aviso con todo lo de hoy, a esta hora' : 'Configura un protocolo primero'}
                   </span>
                 </span>
@@ -1036,9 +1092,10 @@ export function Ajustes({
                   disabled={!hasProtocol}
                   aria-label="Hora del resumen diario"
                   onChange={handleTimeChange}
+                  style={{ colorScheme: nativeScheme }}
                   className={[
-                    'h-[36px] rounded-md bg-card px-2 font-mono text-[13px] tabular-nums text-foreground',
-                    'border border-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-teal',
+                    'h-[36px] rounded-[8px] bg-surface px-2 font-mono text-[13px] tabular-nums text-ink',
+                    'border border-hairline focus:outline-none focus-visible:ring-1 focus-visible:ring-blue',
                     !hasProtocol ? 'cursor-not-allowed opacity-40' : '',
                   ].join(' ')}
                 />
@@ -1047,8 +1104,8 @@ export function Ajustes({
               {/* Resumen semanal */}
               <Row className="px-4">
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">Resumen semanal</span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[15px] font-medium text-ink">Resumen semanal</span>
+                  <span className="text-[12px] text-ink-3">
                     {perm !== 'granted'
                       ? 'Activa primero los recordatorios'
                       : 'Notificación de adherencia los lunes'}
@@ -1074,14 +1131,14 @@ export function Ajustes({
                 <button
                   type="button"
                   onClick={handleResetNotifPrompt}
-                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                  className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                   aria-label="Volver a mostrar el aviso de permisos"
                 >
                   <span className="flex flex-1 flex-col">
-                    <span className="text-[14px] font-medium text-foreground">
+                    <span className="text-[15px] font-medium text-ink">
                       Volver a mostrar el aviso de permisos
                     </span>
-                    <span className="text-[12px] text-muted-foreground">
+                    <span className="text-[12px] text-ink-3">
                       Lo descartaste con «No volver a preguntar»
                     </span>
                   </span>
@@ -1097,20 +1154,20 @@ export function Ajustes({
                     aria-expanded={showAdvancedReminders}
                     aria-label="Opciones avanzadas de recordatorios"
                     onClick={() => setShowAdvancedReminders((v) => !v)}
-                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                    className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                   >
                     <span className="flex flex-1 flex-col">
-                      <span className="text-[14px] font-medium text-foreground">
+                      <span className="text-[15px] font-medium text-ink">
                         Opciones avanzadas
                       </span>
-                      <span className="text-[12px] text-muted-foreground">
+                      <span className="text-[12px] text-ink-3">
                         Segundo recordatorio y aviso de rescate
                       </span>
                     </span>
                     <ChevronRight
                       size={16}
                       className={[
-                        'shrink-0 text-muted-foreground transition-transform duration-200',
+                        'shrink-0 text-ink-3 transition-transform duration-200',
                         showAdvancedReminders ? 'rotate-90' : '',
                       ].join(' ')}
                     />
@@ -1130,17 +1187,17 @@ export function Ajustes({
                             no era ciclo/cadaN → el usuario no entendía por qué faltaba el bloque. Ahora SIEMPRE
                             se muestra; si no aplica, queda deshabilitado con una nota del porqué. */}
                         <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
-                          <span className="text-[12px] text-muted-foreground">
+                          <span className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2">
                             Pre-aviso antes de la dosis
                           </span>
-                          <span className="-mt-1 text-[11px] text-muted-foreground/80">
+                          <span className="-mt-1 text-[12px] text-ink-3">
                             Recibe un aviso antes de la hora programada para tenerlo listo.
                           </span>
                           <div
                             role="group"
                             aria-label="Pre-aviso antes de la dosis"
                             className={[
-                              'flex overflow-hidden rounded-lg border border-white/10',
+                              'flex overflow-hidden rounded-[8px] border border-hairline bg-surface',
                               supportsSecondReminder ? '' : 'pointer-events-none opacity-40',
                             ].join(' ')}
                           >
@@ -1171,10 +1228,10 @@ export function Ajustes({
                                     })
                                   }
                                   className={[
-                                    'flex-1 py-1.5 text-[12px] font-semibold font-mono tabular-nums transition-colors',
+                                    'min-h-[44px] flex-1 py-1.5 text-[12px] font-semibold font-mono tabular-nums transition-colors',
                                     active
-                                      ? 'bg-teal text-primary-foreground'
-                                      : 'bg-transparent text-muted-foreground hover:bg-white/5',
+                                      ? 'bg-blue text-primary-foreground'
+                                      : 'bg-transparent text-ink-2 hover:bg-raised',
                                   ].join(' ')}
                                 >
                                   {disp}
@@ -1183,7 +1240,7 @@ export function Ajustes({
                             })}
                           </div>
                           {!supportsSecondReminder && (
-                            <span className="text-[11px] text-muted-foreground/70">
+                            <span className="text-[12px] text-ink-3">
                               Solo para protocolos de ciclo o cada N días.
                             </span>
                           )}
@@ -1191,13 +1248,13 @@ export function Ajustes({
 
                         {/* Aviso de rescate */}
                         <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
-                          <span className="text-[12px] text-muted-foreground">
+                          <span className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2">
                             Ventana de rescate — si no registras a tiempo
                           </span>
                           <div
                             role="group"
                             aria-label="Ventana de rescate"
-                            className="flex overflow-hidden rounded-lg border border-white/10"
+                            className="flex overflow-hidden rounded-[8px] border border-hairline bg-surface"
                           >
                             {([
                               { key: 0, label: 'Sin' },
@@ -1223,10 +1280,10 @@ export function Ajustes({
                                     })
                                   }
                                   className={[
-                                    'flex-1 py-1.5 text-[12px] font-semibold font-mono tabular-nums transition-colors',
+                                    'min-h-[44px] flex-1 py-1.5 text-[12px] font-semibold font-mono tabular-nums transition-colors',
                                     active
-                                      ? 'bg-teal text-primary-foreground'
-                                      : 'bg-transparent text-muted-foreground hover:bg-white/5',
+                                      ? 'bg-blue text-primary-foreground'
+                                      : 'bg-transparent text-ink-2 hover:bg-raised',
                                   ].join(' ')}
                                 >
                                   {label}
@@ -1246,18 +1303,19 @@ export function Ajustes({
           {/* ── AVISOS POR CORREO (R48) ───────────────────────────────────── */}
           {/* Interino: no hay backend de correo todavía — switch deshabilitado */}
           <section>
-            <SectionLabel>Comunicaciones</SectionLabel>
+            <SectionLabel n={++sec}>Comunicaciones</SectionLabel>
             <RowCard>
               <Row className="px-4">
                 <Mail
                   size={18}
-                  className="shrink-0 text-muted-foreground opacity-50"
+                  strokeWidth={1.6}
+                  className="shrink-0 text-ink-3 opacity-50"
                 />
                 <span className="flex flex-1 flex-col opacity-50">
-                  <span className="text-[14px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     Avisos por correo · Próximamente
                   </span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[12px] text-ink-3">
                     Disponible cuando conectemos tu cuenta.
                   </span>
                 </span>
@@ -1273,20 +1331,20 @@ export function Ajustes({
 
           {/* ── PRIVACIDAD — alias de productos (R48) ─────────────────────── */}
           <section>
-            <SectionLabel>Privacidad</SectionLabel>
+            <SectionLabel n={++sec}>Privacidad</SectionLabel>
             <RowCard>
               <button
                 type="button"
                 onClick={() => setShowAliasSheet(true)}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                 aria-label="Gestionar nombres privados de productos"
               >
-                <Tag size={18} className="shrink-0 text-teal" />
+                <Tag size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     Nombres privados
                   </span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[12px] text-ink-3">
                     Alias personalizados para cada producto
                   </span>
                 </span>
@@ -1297,18 +1355,18 @@ export function Ajustes({
 
           {/* ── PLAN Y FACTURACIÓN ────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Plan y facturación</SectionLabel>
+            <SectionLabel n={++sec}>Plan y facturación</SectionLabel>
             <RowCard>
               {/* Estado de plan — HONESTO: durante la beta no hay cargos ni suscripción, así que no
                   hay panel de facturación (mostrar "próximo cargo" sería inventar un dato falso).
                   Cuando exista pago real (MercadoPago), esta fila se expande a: método de pago,
                   próximo cargo, historial y CANCELAR — requisito legal (Profeco: cancelar debe ser
                   tan fácil como suscribirse). Spec en el handoff de Auth & Backend, épica C. */}
-              <Row>
-                <CreditCard size={18} className="shrink-0 text-teal" />
+              <Row className="px-4 py-3">
+                <CreditCard size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">Gratis durante la beta</span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[15px] font-medium text-ink">Gratis durante la beta</span>
+                  <span className="text-[12px] leading-relaxed text-ink-3">
                     No tienes cargos ni suscripciones activas. Si Hacktrack Plus llega a tener costo, te
                     avisaremos aquí antes de cualquier cobro y podrás cancelar cuando quieras.
                   </span>
@@ -1319,20 +1377,20 @@ export function Ajustes({
 
           {/* ── CUENTA ─────────────────────────────────────────────────────── */}
           <section>
-            <SectionLabel>Cuenta</SectionLabel>
+            <SectionLabel n={++sec}>Cuenta</SectionLabel>
             <RowCard>
               {/* Respaldo — importar */}
               <button
                 type="button"
                 onClick={() => fileImportRef.current?.click()}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                 aria-label="Importar respaldo JSON"
               >
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     Importar respaldo
                   </span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[12px] text-ink-3">
                     Restaurar datos desde archivo JSON
                   </span>
                 </span>
@@ -1351,15 +1409,15 @@ export function Ajustes({
               <button
                 type="button"
                 onClick={onOpenPerfil}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                 aria-label="Ver perfil y privacidad, derechos ARCO"
               >
-                <ShieldCheck size={18} className="shrink-0 text-teal" />
+                <ShieldCheck size={18} strokeWidth={1.6} className="shrink-0 text-blue" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">
+                  <span className="text-[15px] font-medium text-ink">
                     Privacidad y derechos ARCO
                   </span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[12px] text-ink-3">
                     Exportar, corregir, cancelar y oponerse
                   </span>
                 </span>
@@ -1370,13 +1428,13 @@ export function Ajustes({
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                 aria-label="Cerrar sesión"
               >
-                <LogOut size={18} className="shrink-0 text-muted-foreground" />
+                <LogOut size={18} strokeWidth={1.6} className="shrink-0 text-ink-3" />
                 <span className="flex flex-1 flex-col">
-                  <span className="text-[14px] font-medium text-foreground">Cerrar sesión</span>
-                  <span className="text-[12px] text-muted-foreground">
+                  <span className="text-[15px] font-medium text-ink">Cerrar sesión</span>
+                  <span className="text-[12px] text-ink-3">
                     Tus datos se conservan en este dispositivo
                   </span>
                 </span>
@@ -1391,21 +1449,21 @@ export function Ajustes({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left"
+                className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface"
                 aria-label="Borrar mi cuenta y datos"
               >
-                <span className="flex-1 text-[14px] font-medium text-alert">
+                <span className="flex-1 text-[15px] font-medium text-alert">
                   Borrar mi cuenta
                 </span>
               </button>
             </RowCard>
-            <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
+            <p className="mt-1.5 px-1 text-[12px] text-ink-3">
               Tu historial se guarda solo en tu dispositivo. Al borrar, no hay recuperación.
             </p>
           </section>
 
           {/* Sello de build — para diagnosticar caché: si el hash no coincide con el último deploy, estás en un bundle viejo. */}
-          <p className="px-1 pt-2 text-center font-mono text-[10px] text-muted-foreground/60">
+          <p className="px-1 pt-2 text-center font-mono text-[11px] tracking-[0.04em] text-ink-3">
             build {__BUILD_SHA__} · {__BUILD_TIME__.slice(0, 16).replace('T', ' ')}
           </p>
         </div>

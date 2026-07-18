@@ -1,5 +1,6 @@
 import { type ComponentType, type ReactNode, Suspense, lazy, useEffect, useState } from 'react'
 import { Settings } from 'lucide-react'
+import { SegmentedTabs } from './ui/SegmentedTabs'
 import { AppProviderV2 } from './lib/provider'
 import { useApp } from '../lib/store'
 import type { TabId, SheetId } from '../lib/store'
@@ -65,6 +66,34 @@ const FLOW: Record<string, ComponentType> = {
   's-forgot': Forgot,
 }
 
+// ── Pestaña Cuerpo (IA 5-tab) — anfitrión Progreso | Comida ──────────────────
+// Conmutador de vista sobre el masthead de cada pantalla. El id legado 'comida'
+// aterriza aquí con la vista Comida activa (deep-links y dispatches preservados).
+// El margen negativo compensa el safe-area padding propio de las pantallas (solo
+// presentación); mr-14 despeja el engrane de Ajustes que flota arriba a la derecha.
+function CuerpoTab({ initial }: { initial: 'cuerpo' | 'comida' }) {
+  const [view, setView] = useState<'cuerpo' | 'comida'>(initial)
+  useEffect(() => { setView(initial) }, [initial])
+  return (
+    <>
+      <div className="px-4 pb-1 pt-[max(14px,env(safe-area-inset-top))]">
+        <SegmentedTabs
+          className="mr-14"
+          options={[
+            { value: 'cuerpo', label: 'Cuerpo' },
+            { value: 'comida', label: 'Comida' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </div>
+      <div className="-mt-[env(safe-area-inset-top,0px)]">
+        {view === 'cuerpo' ? <Progreso /> : <Comida />}
+      </div>
+    </>
+  )
+}
+
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="app-frame relative mx-auto h-[100dvh] w-full overflow-hidden bg-precision-grid sm:my-0 md:h-[880px] md:max-w-[412px] md:rounded-[40px]">
@@ -111,26 +140,34 @@ function Shell() {
     )
   }
 
-  const tab = state.tab as TabId
+  // IA 5-tab (LOCKED): inicio · vida · [+] · diario · cuerpo. Los ids legados siguen
+  // siendo estados válidos (dispatches de pantallas hermanas, notificaciones, gotos):
+  // se NORMALIZAN aquí a su pestaña nueva y el id crudo elige la sub-vista —
+  // protocolo→cuerpo (Progreso) · comida→cuerpo (vista Comida) · semana→diario (Semana).
+  const rawTab = state.tab as TabId
+  const tab: TabId =
+    rawTab === 'protocolo' || rawTab === 'comida' ? 'cuerpo'
+    : rawTab === 'semana' ? 'diario'
+    : rawTab
   return (
     <Frame>
+      {/* Ajustes: afford. global de header — engrane flotante visible en TODAS las pestañas
+          (única puerta a Ajustes, sin pestaña propia). Editorial: superficie opaca + hairline. */}
       <button
         aria-label="Ajustes"
         onClick={() => dispatch({ t: 'sheet', sheet: 'ajustes' })}
-        className="absolute right-4 top-[max(14px,env(safe-area-inset-top))] z-40 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-raised/70 text-muted-foreground backdrop-blur"
+        className="absolute right-4 top-[max(14px,env(safe-area-inset-top))] z-40 grid h-11 w-11 place-items-center rounded-full border border-hairline bg-surface text-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
       >
-        <Settings size={18} />
+        <Settings size={19} />
       </button>
 
-      {/* R6 — ErrorBoundary por pestaña (un crash no tumba toda la app); key=tab → resetea al cambiar */}
-      <ErrorBoundary key={tab} scope={tab} allowReset>
+      {/* R6 — ErrorBoundary por pestaña (un crash no tumba toda la app); key=rawTab → resetea al cambiar */}
+      <ErrorBoundary key={rawTab} scope={tab} allowReset>
         <div className="absolute inset-0 overflow-y-auto overflow-x-clip ios-scroll">
           {tab === 'inicio' && <Inicio onRegistrar={openReg} />}
-          {tab === 'diario' && <Diario />}
-          {tab === 'protocolo' && <Progreso />}
+          {tab === 'diario' && (rawTab === 'semana' ? <Semana /> : <Diario />)}
           {tab === 'vida' && <Vida />}
-          {tab === 'comida' && <Comida />}
-          {tab === 'semana' && <Semana />}
+          {tab === 'cuerpo' && <CuerpoTab initial={rawTab === 'comida' ? 'comida' : 'cuerpo'} />}
         </div>
       </ErrorBoundary>
 

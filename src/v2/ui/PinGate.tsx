@@ -10,6 +10,9 @@ import { PinPad } from './PinPad'
 //
 // Anti-lockout: sin backend NO hay recuperación de PIN. El escape honesto es "borrar y empezar de nuevo"
 // (limpia el estado local), con confirmación explícita. (Un 4-dígitos recién puesto rara vez se olvida.)
+//
+// Piel "Bitácora": portada editorial de papel — kicker mono, titular serif (Fraunces), candado en
+// medallón hairline azul (confianza), teclas cálidas del PinPad. Lógica intacta.
 export function PinGate({ onUnlock }: { onUnlock: () => void }) {
   const { state } = useApp()
   const [value, setValue] = useState('')
@@ -42,13 +45,18 @@ export function PinGate({ onUnlock }: { onUnlock: () => void }) {
   }
 
   return (
-    <div className="absolute inset-0 z-[95] flex flex-col items-center justify-center gap-10 bg-void px-8 pb-[max(32px,env(safe-area-inset-bottom))] pt-[max(48px,env(safe-area-inset-top))]">
+    <div className="absolute inset-0 z-[95] flex flex-col items-center justify-center gap-10 bg-paper px-8 pb-[max(32px,env(safe-area-inset-bottom))] pt-[max(48px,env(safe-area-inset-top))]">
       <div className="flex flex-col items-center gap-3">
-        <span className="grid h-14 w-14 place-items-center rounded-full bg-teal/15 text-teal">
-          <Lock size={24} />
+        <span className="grid h-14 w-14 place-items-center rounded-full border border-hairline bg-surface text-blue shadow-[0_1px_2px_rgba(26,23,18,.05)]">
+          <Lock size={24} strokeWidth={1.6} />
         </span>
-        <h1 className="text-[20px] font-bold text-foreground">Hacktrack está bloqueado</h1>
-        <p className="text-[13px] text-muted-foreground">Ingresa tu PIN para continuar</p>
+        <p className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-3">
+          Tu bitácora
+        </p>
+        <h1 className="font-serif text-[26px] font-medium leading-tight tracking-tight text-ink">
+          Hacktrack está bloqueado
+        </h1>
+        <p className="text-[15px] text-ink-2">Ingresa tu PIN para continuar</p>
       </div>
 
       <PinPad value={value} onChange={onChange} shake={shake} disabled={checking} />
@@ -57,27 +65,27 @@ export function PinGate({ onUnlock }: { onUnlock: () => void }) {
         <button
           type="button"
           onClick={() => setForgot(true)}
-          className="text-[13px] font-medium text-muted-foreground underline-offset-2 hover:underline"
+          className="min-h-[44px] text-[14px] font-medium text-blue underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
         >
           Olvidé mi PIN
         </button>
       ) : (
         <div className="flex max-w-[300px] flex-col items-center gap-3 text-center">
-          <p className="text-[12px] leading-relaxed text-muted-foreground">
-            Aún no hay recuperación en la nube. Para entrar sin el PIN hay que <span className="font-semibold text-foreground">borrar los datos de este dispositivo</span> y empezar de nuevo.
+          <p className="text-[13px] leading-relaxed text-ink-2">
+            Aún no hay recuperación en la nube. Para entrar sin el PIN hay que <span className="font-semibold text-ink">borrar los datos de este dispositivo</span> y empezar de nuevo.
           </p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => setForgot(false)}
-              className="rounded-lg border border-white/15 px-4 py-2 text-[13px] font-semibold text-foreground"
+              className="h-11 rounded-[8px] border border-hairline bg-transparent px-4 text-[14px] font-semibold text-ink transition-colors hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={wipeAndRestart}
-              className="rounded-lg bg-alert/90 px-4 py-2 text-[13px] font-semibold text-white"
+              className="h-11 rounded-[8px] bg-alert px-4 text-[14px] font-semibold text-white transition-transform active:scale-[.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
             >
               Borrar y empezar
             </button>

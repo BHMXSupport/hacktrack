@@ -5,6 +5,7 @@
  * el error específico de auth.ts. Sin backend: NO se finge verificación de
  * credenciales — la cuenta es local, se entra directo y la nube se marca
  * "Próximamente" (sin campo de contraseña ni "¿Olvidaste tu contraseña?").
+ * Estética "Bitácora": masthead editorial (kicker mono + titular serif), azul interactivo.
  * Éxito → finishOnboarding + go 's-app'.
  * "Crear cuenta" → go 's-goal' (pasa por TODO el onboarding, igual que un usuario nuevo; no salta a s-account).
  *
@@ -16,32 +17,17 @@
  */
 import { useState, useId } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ChevronLeft, Eye, EyeOff, Droplet, Shield, CloudOff } from 'lucide-react'
+import { ChevronLeft, Eye, EyeOff, Shield, CloudOff } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { backendEnabled } from '../../lib/backend/config'
 import { signIn } from '../../lib/backend/auth'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
+import { fadeUp, staggerContainer } from '../lib/motion'
 
 // ── Validación ────────────────────────────────────────────────────────────────
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-// ── Animación ─────────────────────────────────────────────────────────────────
-
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.07 } },
-}
-
-const fade = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.26, ease: [0, 0, 0.2, 1] as [number, number, number, number] },
-  },
-}
 
 // ── Subcomponente: campo de formulario ────────────────────────────────────────
 
@@ -60,7 +46,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-semibold text-secondary-foreground">
+      <label htmlFor={id} className="text-[13px] font-semibold text-ink-2">
         {label}
       </label>
       {children}
@@ -87,9 +73,9 @@ export function Login() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Input class compartido
+  // Input class compartido — placa de registro editorial
   const inputCls =
-    'h-12 w-full rounded-lg border border-white/10 bg-raised px-4 text-[15px] text-foreground placeholder:text-secondary-foreground/70 focus:border-teal/60 focus:outline-none focus:ring-2 focus:ring-teal/20 transition-colors'
+    'h-12 w-full rounded-[10px] border border-hairline bg-surface px-4 text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--blue)_18%,transparent)] transition-[border-color,box-shadow]'
 
   function handleEmailBlur() {
     setEmailError(email.trim() !== '' && !EMAIL_RE.test(email.trim()))
@@ -129,7 +115,7 @@ export function Login() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-onboarding' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
@@ -139,34 +125,32 @@ export function Login() {
       <motion.div
         initial={reduce ? false : 'hidden'}
         animate="show"
-        variants={stagger}
+        variants={staggerContainer}
         className="flex flex-1 flex-col gap-6 px-5 pt-2"
       >
-        {/* Logo + título */}
-        <motion.div variants={fade} className="flex flex-col items-center gap-3 pt-4 text-center">
-          <span
-            className="flex h-14 w-14 items-center justify-center rounded-2xl"
-            style={{ background: 'color-mix(in srgb, #5FC9B8 14%, transparent)' }}
-          >
-            <Droplet size={28} className="text-teal" aria-hidden="true" />
-          </span>
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
+        {/* Masthead editorial: kicker mono + titular serif + regla */}
+        <motion.div variants={fadeUp} className="flex flex-col items-center gap-2 pt-4 text-center">
+          <p className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">
+            Hacktrack · Tu bitácora
+          </p>
+          <h1 className="font-serif text-[30px] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
             Inicia sesión
           </h1>
-          <p className="text-[14px] text-secondary-foreground">Bienvenido de vuelta</p>
+          <p className="text-[14px] text-ink-2">Bienvenido de vuelta</p>
+          <div aria-hidden className="mt-1 h-[1.5px] w-16 bg-[color-mix(in_srgb,var(--ink)_60%,transparent)]" />
         </motion.div>
 
         {/* Sin backend: la cuenta es local — no se finge verificación de credenciales */}
         {!backendEnabled && (
-          <motion.div variants={fade} className="flex flex-col gap-4">
+          <motion.div variants={fadeUp} className="flex flex-col gap-4">
             <Glass className="flex items-start gap-3 p-4">
-              <CloudOff size={18} className="mt-0.5 shrink-0 text-teal" aria-hidden="true" />
+              <CloudOff size={18} className="mt-0.5 shrink-0 text-blue" aria-hidden="true" />
               <div className="flex flex-col gap-1">
-                <span className="inline-flex w-fit items-center rounded-full border border-teal/25 bg-teal/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal">
+                <span className="inline-flex w-fit items-center rounded-full border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] px-2 py-0.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-blue">
                   Próximamente
                 </span>
-                <p className="text-[14px] font-semibold text-foreground">Cuenta en la nube</p>
-                <p className="text-[13px] leading-relaxed text-secondary-foreground">
+                <p className="text-[14px] font-semibold text-ink">Cuenta en la nube</p>
+                <p className="text-[13px] leading-relaxed text-ink-2">
                   Tu cuenta es local por ahora — la sincronización llega pronto.
                   Entra directo a tus datos guardados en este dispositivo.
                 </p>
@@ -181,7 +165,7 @@ export function Login() {
         {/* Formulario (solo con backend real) */}
         {backendEnabled && (
         <motion.form
-          variants={fade}
+          variants={fadeUp}
           onSubmit={handleSubmit}
           className="flex flex-col gap-4"
           noValidate
@@ -203,7 +187,7 @@ export function Login() {
               onBlur={handleEmailBlur}
               aria-describedby={emailError ? `${uid}-email-error` : undefined}
               aria-invalid={emailError ? 'true' : undefined}
-              className={inputCls + (emailError ? ' border-alert focus:border-alert focus:ring-alert/20' : '')}
+              className={inputCls + (emailError ? ' border-alert focus:border-alert focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--alert)_18%,transparent)]' : '')}
             />
           </Field>
 
@@ -223,7 +207,7 @@ export function Login() {
                 type="button"
                 aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 onClick={() => setShowPw((v) => !v)}
-                className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-secondary-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded text-ink-2 hover:text-ink"
               >
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -234,15 +218,15 @@ export function Login() {
           <button
             type="button"
             onClick={() => dispatch({ t: 'go', screen: 's-forgot' })}
-            className="self-end text-[13px] font-semibold text-teal hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring rounded"
+            className="self-end rounded text-[13px] font-semibold text-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             ¿Olvidaste tu contraseña?
           </button>
 
           {/* Error de login — mensaje específico de mapAuthError */}
           {loginError && (
-            <Glass className="py-3 px-4">
-              <p role="alert" className="text-[13px] text-alert text-center">
+            <Glass className="px-4 py-3">
+              <p role="alert" className="text-center text-[13px] text-alert">
                 {loginError}
               </p>
             </Glass>
@@ -263,14 +247,14 @@ export function Login() {
         )}
 
         {/* Separador */}
-        <motion.div variants={fade} className="flex items-center gap-4" aria-hidden="true">
-          <div className="h-px flex-1 bg-white/8" />
-          <span className="text-[12px] text-secondary-foreground">o</span>
-          <div className="h-px flex-1 bg-white/8" />
+        <motion.div variants={fadeUp} className="flex items-center gap-4" aria-hidden="true">
+          <div className="h-px flex-1 bg-hairline" />
+          <span className="font-mono text-[12px] text-ink-3">o</span>
+          <div className="h-px flex-1 bg-hairline" />
         </motion.div>
 
         {/* Crear cuenta */}
-        <motion.div variants={fade}>
+        <motion.div variants={fadeUp}>
           <Button
             size="full"
             variant="outline"
@@ -281,21 +265,21 @@ export function Login() {
         </motion.div>
 
         {/* Footer */}
-        <motion.div variants={fade} className="mt-auto flex flex-col items-center gap-4 pt-2">
-          {/* Trust badges */}
+        <motion.div variants={fadeUp} className="mt-auto flex flex-col items-center gap-4 pt-2">
+          {/* Trust badges — píldoras de confianza */}
           <div className="flex flex-wrap justify-center gap-3">
             {['Datos locales', 'Sin rastreo', 'Hecho en México'].map((txt) => (
               <span
                 key={txt}
-                className="inline-flex items-center gap-1.5 rounded-full border border-teal/20 bg-teal/8 px-3 py-1 text-[11px] font-medium text-teal"
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-surface px-3 py-1 font-mono text-[12px] font-medium text-ink-2"
               >
-                <Shield size={11} />
+                <Shield size={11} className="text-blue" />
                 {txt}
               </span>
             ))}
           </div>
           {/* Disclaimer */}
-          <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
+          <p className="text-center text-[12px] leading-relaxed text-ink-2">
             Hacktrack es una herramienta de seguimiento personal.
             No reemplaza consejo médico profesional.
           </p>

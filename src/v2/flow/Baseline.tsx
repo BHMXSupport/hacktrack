@@ -2,7 +2,8 @@
  * Baseline.tsx — v2 flow
  *
  * Biométricos de onboarding: peso actual, meta de peso, altura, % grasa.
- * Todos opcionales. Avanza con setBaseline → go 's-measures'.
+ * Estética "Bitácora": campos como placas de registro (numerales serif),
+ * folio editorial de paso. Todos opcionales. Avanza con setBaseline → go 's-measures'.
  * Atrás → 's-goal'.
  *
  * ScreenId: 's-baseline'
@@ -15,19 +16,10 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Scale, Ruler, Target, Info, Percent } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { Button } from '../ui/Button'
+import { FolioLabel } from '../ui/FolioLabel'
+import { fadeUp } from '../lib/motion'
 
-// ── Animación ─────────────────────────────────────────────────────────────────
-
-const fade = {
-  hidden: { opacity: 0, y: 14 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.28, ease: [0, 0, 0.2, 1] as [number, number, number, number] },
-  },
-}
-
-// ── Subcomponente: campo numérico ─────────────────────────────────────────────
+// ── Subcomponente: campo numérico (placa de registro editorial) ───────────────
 
 function NumericField({
   id,
@@ -56,12 +48,13 @@ function NumericField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="flex items-center gap-1.5 text-[13px] font-semibold text-secondary-foreground">
-        <Icon size={14} className="text-teal" aria-hidden="true" />
+      <label htmlFor={id} className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">
+        <Icon size={14} className="text-blue" aria-hidden="true" />
         {label}
-        {optional && <span className="ml-auto text-[11px] font-normal text-secondary-foreground">opcional</span>}
+        {optional && <span className="ml-auto text-[12px] font-normal text-ink-3">opcional</span>}
       </label>
       <div className="relative">
+        {/* Numeral serif tabular — el registro se ve compuesto, no clínico */}
         <input
           id={id}
           type="number"
@@ -73,11 +66,12 @@ function NumericField({
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`h-14 w-full rounded-lg border bg-raised px-4 pr-14 text-[22px] font-bold tabular-nums text-foreground placeholder:text-[16px] placeholder:font-normal placeholder:text-secondary-foreground/70 focus:outline-none focus:ring-2 transition-colors ${error ? 'border-alert/70 focus:border-alert/70 focus:ring-alert/20' : 'border-white/10 focus:border-teal/60 focus:ring-teal/20'}`}
+          className={`h-14 w-full rounded-[10px] border bg-surface px-4 pr-14 font-serif text-[24px] font-normal tabular-nums text-ink placeholder:font-sans placeholder:text-[16px] placeholder:font-normal placeholder:text-ink-3 focus:outline-none transition-[border-color,box-shadow] ${error ? 'border-alert focus:border-alert focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--alert)_18%,transparent)]' : 'border-hairline focus:border-blue focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--blue)_18%,transparent)]'}`}
         />
+        {/* Unidad en mono — el "instrumento" */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-secondary-foreground"
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[12px] font-medium text-ink-2"
         >
           {unit}
         </span>
@@ -153,7 +147,7 @@ export function Baseline() {
       className="relative z-10 flex h-full flex-col overflow-y-auto"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
-      {/* App bar */}
+      {/* App bar — folio editorial */}
       <header
         className="flex flex-shrink-0 items-center gap-4 px-4"
         style={{
@@ -164,16 +158,15 @@ export function Baseline() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-goal' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 2 de 4 */}
-        <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-secondary-foreground">Paso 2 de 5</span>
-          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={2} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 2 de 5">
-            <div className="h-full w-[40%] rounded-full bg-teal" />
+        <div className="flex flex-1 flex-col gap-1.5">
+          <FolioLabel n={2}>Paso 2 de 5</FolioLabel>
+          <div className="h-1 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={2} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 2 de 5">
+            <div className="h-full w-[40%] rounded-full bg-blue" />
           </div>
         </div>
 
@@ -186,18 +179,18 @@ export function Baseline() {
         variants={{ show: { transition: { staggerChildren: 0.07 } } }}
         className="flex flex-1 flex-col gap-6 px-5 pt-2"
       >
-        {/* Título */}
-        <motion.div variants={fade}>
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
+        {/* Título serif */}
+        <motion.div variants={fadeUp}>
+          <h1 className="font-serif text-[28px] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
             Cuéntame sobre ti
           </h1>
-          <p className="mt-2 text-[14px] text-secondary-foreground">
+          <p className="mt-2 text-[14px] text-ink-2">
             Solo para personalizar tu experiencia. Puedes omitir cualquier campo.
           </p>
         </motion.div>
 
         {/* Campos */}
-        <motion.div variants={fade} className="flex flex-col gap-4">
+        <motion.div variants={fadeUp} className="flex flex-col gap-4">
           <NumericField
             id={`${uid}-peso`}
             label="Peso actual"
@@ -246,36 +239,36 @@ export function Baseline() {
             onChange={(v) => { setGrasa(v); setErrors((e) => ({ ...e, grasa: undefined })) }}
             error={errors.grasa}
           />
-          <p className="-mt-2 text-[11px] leading-relaxed text-secondary-foreground">¿No tienes báscula de bioimpedancia? Omítelo — puedes registrarlo después desde Cambio de medidas.</p>
+          <p className="-mt-2 text-[12px] leading-relaxed text-ink-2">¿No tienes báscula de bioimpedancia? Omítelo — puedes registrarlo después desde Cambio de medidas.</p>
         </motion.div>
 
-        {/* IMC preview */}
+        {/* IMC preview — nota impresa con numeral serif */}
         {bmi && (
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.22 }}
           >
-            <div className="rounded-xl border border-white/10 bg-raised/80 p-4 flex items-center gap-3">
-              <Info size={14} className="flex-shrink-0 text-teal" aria-hidden="true" />
-              <p className="text-[13px] text-foreground">
+            <div className="flex items-center gap-3 rounded-sm border border-hairline bg-surface p-4 shadow-[0_1px_2px_rgba(26,23,18,.05)]">
+              <Info size={14} className="flex-shrink-0 text-blue" aria-hidden="true" />
+              <p className="text-[13px] text-ink">
                 IMC estimado:{' '}
-                <span className="font-bold tabular-nums text-foreground">{bmi}</span>
+                <span className="font-serif text-[17px] font-normal tabular-nums text-ink">{bmi}</span>
               </p>
             </div>
           </motion.div>
         )}
 
         {/* Disclaimer */}
-        <motion.div variants={fade}>
-          <p className="text-[11px] leading-relaxed text-secondary-foreground">
+        <motion.div variants={fadeUp}>
+          <p className="text-[12px] leading-relaxed text-ink-2">
             Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
           </p>
         </motion.div>
 
         {/* CTA — sin "usar valores recomendados": son datos personales (peso/altura/%). Los campos son
             opcionales, así que Continuar procede aunque los dejes vacíos. */}
-        <motion.div variants={fade} className="mt-auto flex flex-col gap-2">
+        <motion.div variants={fadeUp} className="mt-auto flex flex-col gap-2">
           <Button
             size="full"
             onClick={handleContinuar}

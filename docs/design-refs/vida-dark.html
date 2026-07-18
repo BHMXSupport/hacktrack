@@ -1,0 +1,304 @@
+<!--
+  Hacktrack — Dirección "Bitácora" — VIDA · tema TINTA (cálido-oscuro)
+  Carbón cálido brown-black. Series luminosas (azul/oro/violeta, nunca menta); el cursor
+  "ahora" es ámbar y glow-ea. MISMA LEY: frase llana + numeral grande + acción arriba; la
+  figura científica ("FIG. 1", "tu estimación personal") debajo del resumen / tras "Ver la curva".
+  Fuentes reales (self-host .woff2, CERO CDN):
+    Display serif → Fraunces (Georgia) · UI → IBM Plex Sans (system-ui) · Mono → IBM Plex Mono (ui-monospace)
+  Archivo único autocontenido · sin requests externos · 390×844.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hacktrack · Vida (Tinta)</title>
+<style>
+  :root{
+    --bg:#17140E; --bg-2:#1E190F; --column:#241E14; --plate:#110E09;
+    --ink:#F3EDDF; --ink-2:#C7BBA4; --ink-3:#98907E; --ink-4:#6C6656;
+    --rule:rgba(243,237,223,.10); --rule-2:rgba(243,237,223,.16);
+    --blue:#7E97FF; --blue-soft:rgba(126,151,255,.14); --gold:#F3B84E; --violet:#B79BF2;
+    --amber:#F3A93C; --amber-soft:rgba(243,169,60,.12); --amber-glow:rgba(243,169,60,.45);
+    --pos:#63C88C; --alert:#F0776A;
+    --serif:Georgia,'Times New Roman',serif;                 /* Fraunces */
+    --sans:system-ui,'Segoe UI','Helvetica Neue',Arial,sans-serif; /* IBM Plex Sans */
+    --mono:ui-monospace,'SF Mono','IBM Plex Mono',Menlo,monospace; /* IBM Plex Mono */
+  }
+  @media (prefers-reduced-motion: reduce){ *{animation:none!important} }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  html,body{height:100%}
+  body{display:grid;place-items:center;font-family:var(--sans);color:var(--ink);
+    background:radial-gradient(120% 90% at 50% 0%,#211B12 0%,#0C0A07 100%)}
+  .frame{width:390px;height:844px;background:var(--bg);position:relative;overflow:hidden;
+    border-radius:44px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 1px 0 rgba(243,237,223,.06) inset;border:1px solid #302a20}
+
+  .status{height:46px;display:flex;align-items:flex-end;justify-content:space-between;
+    padding:0 26px 7px;font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:600}
+  .status .dots{display:flex;gap:5px;align-items:center}
+  .status .bar{width:3px;border-radius:1px;background:var(--ink)}
+  .bat{width:23px;height:12px;border:1.5px solid var(--ink);border-radius:3px;position:relative;opacity:.9}
+  .bat::after{content:"";position:absolute;right:-3px;top:3.5px;width:2px;height:5px;background:var(--ink);border-radius:0 1px 1px 0}
+  .bat i{position:absolute;inset:1.5px;width:72%;background:var(--ink);border-radius:1px;display:block}
+
+  .scroll{height:calc(844px - 46px - 84px);overflow-y:auto;padding:0 20px 34px}
+  .scroll::-webkit-scrollbar{width:0}
+
+  .mast{padding:4px 0 12px;border-bottom:1.5px solid var(--ink)}
+  .mast .top{display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--ink-3);text-transform:uppercase}
+  .mast h1{font-family:var(--serif);font-weight:400;font-size:34px;line-height:1;letter-spacing:-.01em;margin-top:10px}
+  .mast .sb{font-size:14px;color:var(--ink-2);margin-top:6px}
+
+  .q{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.3px solid var(--ink-3);
+    font-family:var(--mono);font-size:10px;color:var(--ink-3);vertical-align:middle;margin-left:4px;cursor:pointer}
+
+  .lead{background:var(--column);border:1px solid var(--rule);border-radius:12px;padding:18px;margin-top:18px;position:relative;overflow:hidden}
+  .lead::before{content:"";position:absolute;right:-40px;top:-40px;width:200px;height:200px;
+    background:radial-gradient(circle,rgba(243,184,78,.08) 0%,transparent 62%);pointer-events:none}
+  .lead .say{font-family:var(--sans);font-size:16px;line-height:1.5;color:var(--ink);position:relative}
+  .lead .say b{font-weight:600}
+  .lead .heroblk{display:flex;align-items:flex-end;gap:14px;margin-top:14px;position:relative}
+  .hero{font-family:var(--serif);font-weight:400;font-size:76px;line-height:.82;letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;color:var(--ink);text-shadow:0 0 26px rgba(243,184,78,.16)}
+  .hero .pct{font-size:30px;color:var(--gold);margin-left:1px}
+  .herolab{padding-bottom:8px}
+  .herolab .p{font-family:var(--serif);font-size:19px;line-height:1.05}
+  .herolab .s{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:4px}
+  .leadacts{display:flex;gap:9px;margin-top:16px;position:relative}
+  .btn{height:46px;border-radius:8px;font-family:var(--sans);font-size:15px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;cursor:pointer}
+  .btn.pri{flex:1;background:var(--blue);color:#141118;box-shadow:0 4px 16px rgba(126,151,255,.28)}
+  .btn.rev{flex:1;background:transparent;color:var(--blue);border-color:var(--rule-2)}
+
+  .sum{margin-top:12px;position:relative}
+  .srow{display:flex;align-items:center;gap:12px;padding:13px 2px;border-top:1px solid var(--rule)}
+  .srow .sw{width:4px;height:36px;border-radius:2px;flex:none}
+  .sname{flex:none;width:88px}
+  .sname .n{font-family:var(--serif);font-size:16px;line-height:1}
+  .sname .h{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:3px}
+  .sbar{flex:1;height:8px;background:var(--plate);border-radius:5px;overflow:hidden}
+  .sbar i{display:block;height:100%;border-radius:5px;transform-origin:left;animation:grow 1s .2s cubic-bezier(0,0,0,1) both}
+  @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .sval{flex:none;width:auto;min-width:64px;text-align:right;font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .washpill{font-family:var(--mono);font-size:12px;color:var(--violet);border:1px solid rgba(183,155,242,.4);
+    background:rgba(183,155,242,.1);border-radius:999px;padding:2px 8px;white-space:nowrap;font-weight:500}
+
+  .reveal{display:flex;align-items:center;gap:10px;margin:26px 0 6px}
+  .reveal .ln{flex:1;height:1.5px;background:var(--ink)}
+  .reveal .t{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);
+    display:inline-flex;align-items:center;gap:6px}
+  .reveal .chev{width:18px;height:18px;border-radius:50%;background:var(--bg-2);display:grid;place-items:center}
+
+  .controls{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px}
+  .pillset{display:flex;gap:6px}
+  .pill{font-family:var(--mono);font-size:12px;padding:7px 12px;border-radius:999px;
+    border:1px solid var(--rule-2);color:var(--ink-2);background:var(--column)}
+  .pill.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .toggle{display:flex;border:1px solid var(--rule-2);border-radius:999px;overflow:hidden;align-items:center}
+  .toggle span{font-family:var(--mono);font-size:12px;padding:7px 11px;color:var(--ink-3)}
+  .toggle span.on{background:var(--blue);color:#141118}
+
+  .fig{background:var(--column);border:1px solid var(--rule);border-radius:12px;padding:16px 14px 12px;margin-top:14px}
+  .fighead{display:flex;justify-content:space-between;align-items:baseline;padding:0 2px 12px;border-bottom:1.5px solid var(--ink);margin-bottom:6px}
+  .fighead .n{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--ink-3);text-transform:uppercase}
+  .fighead .t{font-family:var(--serif);font-size:18px;line-height:1.1}
+  .fighead .u{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  .axlab{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin:6px 2px 0}
+  .curve{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:100;stroke-dashoffset:100;animation:draw 1s cubic-bezier(.2,0,0,1) forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .c1{animation-delay:.15s} .c2{animation-delay:.3s} .c3{animation-delay:.45s}
+  .area{opacity:0;animation:fadein .6s .5s forwards}
+  @keyframes fadein{to{opacity:1}}
+  .nowdot{transform-origin:center;animation:pop .4s .95s both}
+  @keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.3)}100%{transform:scale(1)}}
+
+  .aucwrap{margin-top:8px}
+  .aucrow{display:grid;grid-template-columns:84px 1fr auto;align-items:center;gap:10px;padding:9px 0}
+  .aucrow .lab{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+  .aucbar{height:9px;background:var(--plate);border-radius:5px;overflow:hidden}
+  .aucbar i{display:block;height:100%;border-radius:5px;transform-origin:left;animation:grow 1s .3s both}
+  .aucrow .val{font-family:var(--mono);font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+  .kick{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+    display:flex;align-items:center;gap:9px;margin:24px 0 10px}
+  .kick .ln{flex:1;height:1.5px;background:var(--rule-2);transform-origin:left;animation:wipe .55s cubic-bezier(0,0,0,1) both}
+  @keyframes wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .card{background:var(--column);border:1px solid var(--rule);border-radius:10px;padding:15px 16px}
+
+  .disc{margin-top:16px;padding:12px 14px;background:var(--bg-2);border:1px solid var(--rule);border-radius:10px;display:flex;gap:10px}
+  .disc svg{flex:none;margin-top:1px}
+  .disc p{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink-2)}
+
+  .nav{position:absolute;left:0;right:0;bottom:0;height:84px;background:var(--column);
+    border-top:1.5px solid var(--rule-2);box-shadow:0 -10px 30px rgba(0,0,0,.4);
+    display:flex;align-items:flex-start;padding:11px 12px 0;justify-content:space-between}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--ink-3);
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  .tab.on{color:var(--blue)}
+  .tab .ic{width:23px;height:23px;display:grid;place-items:center}
+  .tab.on .u{width:16px;height:3px;border-radius:2px;background:var(--blue);margin-top:1px}
+  .fab{flex:0 0 58px;height:58px;border-radius:50%;background:var(--amber);color:#1a1206;
+    display:grid;place-items:center;margin-top:-13px;box-shadow:0 6px 20px var(--amber-glow);border:3px solid var(--column)}
+  .homebar{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;width:128px;height:5px;border-radius:3px;background:var(--ink);opacity:.28}
+  /* colofón discreto (nota de motion del mockup, no UI) */
+  .mnote{font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;color:var(--ink-3);
+    text-align:center;margin:26px auto 0;max-width:300px;opacity:.55;line-height:1.6}
+</style>
+
+<div class="frame">
+  <div class="status">
+    <span>14:48</span>
+    <span class="dots">
+      <span class="bar" style="height:6px"></span><span class="bar" style="height:9px"></span><span class="bar" style="height:12px"></span><span class="bar" style="height:15px"></span>
+      <span class="bat"><i></i></span>
+    </span>
+  </div>
+
+  <div class="scroll">
+    <div class="mast">
+      <div class="top"><span>Vida · en tu cuerpo</span><span>Ahora · 14:48</span></div>
+      <h1>Vida</h1>
+      <div class="sb">Lo que sigue activo en tu cuerpo, estimado a partir de tus dosis.</div>
+    </div>
+
+    <div class="lead">
+      <p class="say">Ahora mismo, <b>tres péptidos</b> siguen activos en tu cuerpo. El que más presencia tiene es <b>Retatrutida</b>.</p>
+      <div class="heroblk">
+        <div class="hero">74<span class="pct">%</span></div>
+        <div class="herolab">
+          <div class="p">Retatrutida</div>
+          <div class="s">de su pico estimado<span class="q">?</span></div>
+        </div>
+      </div>
+      <div class="leadacts">
+        <button class="btn pri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#141118" stroke-width="2.3"><path d="M12 5v14M5 12h14"/></svg>Registrar dosis</button>
+        <button class="btn rev">Ver la curva ↓</button>
+      </div>
+
+      <div class="sum">
+        <div class="srow">
+          <span class="sw" style="background:var(--blue)"></span>
+          <div class="sname"><div class="n">BPC-157</div><div class="h">t½ ~4 h<span class="q">?</span></div></div>
+          <div class="sbar"><i style="width:61%;background:var(--blue)"></i></div>
+          <div class="sval">61%</div>
+        </div>
+        <div class="srow">
+          <span class="sw" style="background:var(--gold)"></span>
+          <div class="sname"><div class="n">Retatrutida</div><div class="h">t½ ~6 d · acum.</div></div>
+          <div class="sbar"><i style="width:74%;background:var(--gold)"></i></div>
+          <div class="sval">74%</div>
+        </div>
+        <div class="srow">
+          <span class="sw" style="background:var(--violet)"></span>
+          <div class="sname"><div class="n">NAD+</div><div class="h">t½ ~0.4 h</div></div>
+          <div class="sbar"><i style="width:3%;background:var(--violet)"></i></div>
+          <div class="sval"><span class="washpill">en lavado</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reveal">
+      <span class="t"><span class="chev"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.6"><path d="M6 15l6-6 6 6"/></svg></span>La curva completa</span>
+      <span class="ln"></span>
+    </div>
+
+    <div class="controls">
+      <div class="pillset"><span class="pill">24 h</span><span class="pill on">72 h</span><span class="pill">7 d</span></div>
+      <div class="toggle"><span class="on">% del pico</span><span>mg</span></div>
+    </div>
+
+    <div class="fig">
+      <div class="fighead">
+        <div>
+          <div class="n">Fig. 1 · tu estimación personal</div>
+          <div class="t">Presencia estimada</div>
+        </div>
+        <div class="u">% del pico<span class="q">?</span></div>
+      </div>
+      <div class="axlab">Eje vertical: % del pico estimado — no es un nivel en sangre.</div>
+
+      <svg class="plot" width="100%" viewBox="0 0 350 214" fill="none" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Curva de presencia estimada para BPC-157, Retatrutida y NAD+ en ventana de 72 horas.">
+        <defs>
+          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#B79BF2" stroke-width="1" opacity=".22"/>
+          </pattern>
+          <linearGradient id="a1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7E97FF" stop-opacity=".22"/><stop offset="1" stop-color="#7E97FF" stop-opacity="0"/></linearGradient>
+          <linearGradient id="a2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3B84E" stop-opacity=".2"/><stop offset="1" stop-color="#F3B84E" stop-opacity="0"/></linearGradient>
+        </defs>
+
+        <rect x="250" y="10" width="92" height="168" fill="url(#hatch)"/>
+        <text x="296" y="24" font-family="ui-monospace,monospace" font-size="9" letter-spacing="1.2" fill="#B79BF2" text-anchor="middle" opacity=".85">LAVADO</text>
+
+        <g stroke="rgba(243,237,223,.10)" stroke-width="1">
+          <line x1="26" y1="10" x2="342" y2="10"/><line x1="26" y1="52" x2="342" y2="52"/>
+          <line x1="26" y1="94" x2="342" y2="94"/><line x1="26" y1="136" x2="342" y2="136"/><line x1="26" y1="178" x2="342" y2="178"/>
+        </g>
+        <g font-family="ui-monospace,monospace" font-size="10" fill="#98907E" text-anchor="end">
+          <text x="20" y="14">100</text><text x="20" y="56">75</text><text x="20" y="98">50</text><text x="20" y="140">25</text><text x="20" y="181">0</text>
+        </g>
+
+        <path class="area" d="M26 70 C 80 66 140 70 200 84 C 250 96 300 106 342 114 L342 178 L26 178 Z" fill="url(#a2)"/>
+        <path class="area" d="M26 150 C 56 62 76 44 106 48 C 146 64 186 102 224 120 C 262 138 306 150 342 158 L342 178 L26 178 Z" fill="url(#a1)"/>
+
+        <path pathLength="100" class="curve c2" stroke="#F3B84E" d="M26 70 C 80 66 140 70 200 84 C 250 96 300 106 342 114"/>
+        <path pathLength="100" class="curve c3" stroke="#B79BF2" d="M26 122 C 46 44 60 34 76 38 C 104 48 132 122 160 158 C 210 176 300 178 342 179"/>
+        <path pathLength="100" class="curve c1" stroke="#7E97FF" d="M26 150 C 56 62 76 44 106 48 C 146 64 186 102 224 120 C 262 138 306 150 342 158"/>
+
+        <!-- cursor AHORA ámbar glow -->
+        <line x1="224" y1="6" x2="224" y2="178" stroke="#F3A93C" stroke-width="1.6" stroke-dasharray="2 3" style="filter:drop-shadow(0 0 3px rgba(243,169,60,.5))"/>
+        <text x="224" y="192" font-family="ui-monospace,monospace" font-size="10" letter-spacing="1.4" fill="#F3A93C" text-anchor="middle" font-weight="700">AHORA</text>
+        <circle class="nowdot" cx="224" cy="120" r="5" fill="#7E97FF" stroke="#241E14" stroke-width="2"/>
+
+        <!-- tooltip de scrub (a la izquierda del cursor, con tick hacia el dot) -->
+        <g class="area">
+          <rect x="130" y="82" width="88" height="32" rx="5" fill="#110E09" stroke="rgba(243,237,223,.16)"/>
+          <line x1="218" y1="114" x2="222" y2="118" stroke="rgba(243,237,223,.4)" stroke-width="1.4"/>
+          <text x="138" y="95" font-family="ui-monospace,monospace" font-size="9.5" fill="#F3EDDF">BPC-157</text>
+          <text x="210" y="95" font-family="ui-monospace,monospace" font-size="9.5" fill="#7E97FF" text-anchor="end" font-weight="700">61%</text>
+          <text x="138" y="107" font-family="ui-monospace,monospace" font-size="9" fill="#98907E">≈ 0.18 mg</text>
+        </g>
+
+        <g font-family="ui-monospace,monospace" font-size="10" fill="#98907E" text-anchor="middle">
+          <text x="36" y="192">−72h</text><text x="130" y="192">−36h</text><text x="334" y="192">+24h</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="kick">Carga acumulada (AUC)<span class="q" style="border-color:var(--ink-3)">?</span><span class="ln"></span></div>
+    <div class="card">
+      <div class="aucwrap">
+        <div class="aucrow"><span class="lab">BPC-157</span><div class="aucbar"><i style="width:54%;background:var(--blue)"></i></div><span class="val">7.4 mg·h</span></div>
+        <div class="aucrow"><span class="lab">Retatrutida</span><div class="aucbar"><i style="width:92%;background:var(--gold)"></i></div><span class="val">210 mg·h</span></div>
+        <div class="aucrow"><span class="lab">NAD+</span><div class="aucbar"><i style="width:16%;background:var(--violet)"></i></div><span class="val">2.1 mg·h</span></div>
+      </div>
+      <p style="font-family:var(--sans);font-size:12px;color:var(--ink-3);line-height:1.5;margin-top:10px">Concentración × tiempo en esta ventana. Estimación teórica, no un nivel en sangre.</p>
+    </div>
+
+    <div class="disc">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+      <p>Estimación educativa basada en vidas medias publicadas. <b>No es consejo médico ni indicación de dosis</b>; las curvas son aproximadas y varían por persona. Es tu bitácora, no un dispositivo clínico.</p>
+    </div>
+
+    <div class="mnote">motion · cada curva se traza izq→der como barrido de osciloscopio (pathLength, escalonado); el cursor «ahora» ámbar hace pop y glow-ea; el % re-cuenta con el tiempo. reduced-motion → instantáneo</div>
+  </div>
+
+  <div class="nav">
+    <div class="tab">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg></span>
+      Inicio
+    </div>
+    <div class="tab on">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.9"><path d="M3 12h4l2 6 4-14 2 8h6"/></svg></span>
+      Vida<span class="u"></span>
+    </div>
+    <div class="fab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a1206" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></div>
+    <div class="tab">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M9 9h7M9 13h7M9 17h4"/></svg></span>
+      Diario
+    </div>
+    <div class="tab">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8"><circle cx="12" cy="6" r="3"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg></span>
+      Cuerpo
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>

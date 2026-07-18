@@ -1,74 +1,81 @@
 /**
  * Onboarding.tsx — v2 flow
  *
- * 3 slides de introducción (Ritmo · Datos · Privacidad).
- * Botón "Continuar" avanza; "Saltar" y botón final van a 's-goal'.
+ * 3 slides de introducción (Ritmo · Datos · Privacidad), estética "Bitácora":
+ * ilustraciones como columnas impresas (papel/tinta, serif en numerales, ámbar = energía,
+ * azul = interactivo). Botón "Continuar" avanza; "Saltar" y botón final van a 's-goal'.
  * Soporta swipe horizontal. Respeta prefers-reduced-motion.
  *
  * ScreenId: 's-onboarding'
  * Dispatch: { t: 'go', screen: 's-goal' }
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion, type PanInfo } from 'framer-motion'
 import { Shield, BarChart2, Clock } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
+import { EASE } from '../lib/motion'
 
-// ── Ilustraciones ────────────────────────────────────────────────────────────
+// ── Ilustraciones (columnas impresas de ejemplo) ─────────────────────────────
 
-/** Slide 0 — mini dashboard de adherencia (ritmo/recordatorios) */
+/** Slide 0 — mini reporte de adherencia (ritmo/recordatorios) */
 function IllustrationRitmo() {
   const weekDots = [true, true, false, true, true, true, false]
   // #23: usar las MISMAS abreviaturas que el editor de cadencia (WDS) — evita la confusión 'X' vs 'Mi'
   const dias = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D']
 
   return (
-    <Glass className="w-full max-w-[280px] mx-auto flex flex-col gap-3 p-4">
-      {/* Encabezado */}
+    <Glass className="mx-auto flex w-full max-w-[280px] flex-col gap-3 p-4">
       {/* #20: etiqueta "Ejemplo" para que no parezca progreso real del usuario */}
-      <span className="self-start rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-secondary-foreground">Ejemplo</span>
+      <span className="self-start rounded-full border border-hairline bg-raised px-2 py-0.5 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2">
+        Ejemplo
+      </span>
       <div className="flex items-center gap-2">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal/15">
-          <Clock size={16} className="text-teal" />
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--blue)_12%,transparent)]">
+          <Clock size={16} className="text-blue" />
         </span>
         <div>
-          <p className="text-[13px] font-bold text-foreground">Adherencia</p>
-          <p className="text-[11px] text-secondary-foreground">Este mes · 22/30 días</p>
+          <p className="text-[13px] font-semibold text-ink">Adherencia</p>
+          <p className="text-[12px] text-ink-2">Este mes · 22/30 días</p>
         </div>
-        <span className="ml-auto font-mono text-[18px] font-semibold text-teal tabular-nums">74%</span>
+        {/* Numeral serif — la voz */}
+        <span className="ml-auto font-serif text-[22px] font-normal tabular-nums leading-none text-ink">
+          74<span className="font-mono text-[12px] font-medium text-ink-2">%</span>
+        </span>
       </div>
 
-      {/* Tira semanal */}
+      {/* Tira semanal — el ámbar es la energía del registro */}
       <div className="flex gap-1.5">
         {dias.map((d, i) => (
           <div key={d} className="flex flex-1 flex-col items-center gap-1">
-            <span className="text-[9px] font-semibold text-secondary-foreground">{d}</span>
+            {/* micro 11 — tick de eje decorativo, nunca info clave */}
+            <span className="font-mono text-[11px] font-medium text-ink-3">{d}</span>
             <div
-              className={`aspect-square w-full rounded-sm ${weekDots[i] ? 'bg-teal' : 'bg-white/10'}`}
+              className={`aspect-square w-full rounded-[2px] ${weekDots[i] ? 'bg-amber' : 'border border-hairline bg-raised'}`}
             />
           </div>
         ))}
       </div>
 
-      {/* Seismograma simplificado */}
+      {/* Seismograma simplificado — línea de energía ámbar */}
       <svg viewBox="0 0 244 36" fill="none" className="h-8 w-full" aria-hidden="true">
         <path
           d="M4 18 H40 L52 5 L64 31 L76 12 L88 24 L100 18 H244"
-          stroke="#5FC9B8"
+          stroke="var(--amber)"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <circle cx="52" cy="5" r="3.5" fill="#5FC9B8" opacity="0.8" />
-        <circle cx="64" cy="31" r="3.5" fill="#5FC9B8" opacity="0.8" />
-        <circle cx="76" cy="12" r="3" fill="#5FC9B8" opacity="0.6" />
+        <circle cx="52" cy="5" r="3.5" fill="var(--amber)" opacity="0.8" />
+        <circle cx="64" cy="31" r="3.5" fill="var(--amber)" opacity="0.8" />
+        <circle cx="76" cy="12" r="3" fill="var(--amber)" opacity="0.6" />
       </svg>
 
-      {/* Dosis simulada */}
-      <div className="flex items-center gap-2 rounded-md bg-teal/8 px-3 py-2">
-        <span className="h-2 w-2 flex-shrink-0 rounded-full bg-teal" />
-        <span className="text-[12px] text-foreground">
+      {/* Dosis simulada — fila azul (interactivo) */}
+      <div className="flex items-center gap-2 rounded-[8px] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-3 py-2">
+        <span className="h-2 w-2 flex-shrink-0 rounded-full bg-blue" />
+        <span className="text-[12px] text-ink">
           Dosis de hoy: <strong>08:00</strong>
         </span>
       </div>
@@ -76,46 +83,50 @@ function IllustrationRitmo() {
   )
 }
 
-/** Slide 1 — barras de progreso de KPIs */
+/** Slide 1 — barras de progreso de KPIs (figura editorial) */
 function IllustrationDatos() {
+  // Colores de serie con tokens: ámbar = energía, azul = datos, tinta-2 = tercera serie.
   const kpis = [
-    { label: 'Energía',  pct: 78, color: '#E85D3A' },
-    { label: 'Sueño',    pct: 65, color: '#5FC9B8' },
-    { label: 'Foco',     pct: 88, color: '#6B7BE8' },
+    { label: 'Energía', pct: 78, color: 'var(--amber)' },
+    { label: 'Sueño',   pct: 65, color: 'var(--blue)' },
+    { label: 'Foco',    pct: 88, color: 'var(--ink-2)' },
   ]
 
   return (
-    <Glass className="w-full max-w-[280px] mx-auto flex flex-col gap-4 p-4">
-      <span className="self-start rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-secondary-foreground">Ejemplo</span>
+    <Glass className="mx-auto flex w-full max-w-[280px] flex-col gap-4 p-4">
+      <span className="self-start rounded-full border border-hairline bg-raised px-2 py-0.5 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2">
+        Ejemplo
+      </span>
       <div className="flex items-center gap-2">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal/15">
-          <BarChart2 size={16} className="text-teal" />
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--blue)_12%,transparent)]">
+          <BarChart2 size={16} className="text-blue" />
         </span>
-        <p className="text-[13px] font-bold text-foreground">Tu progreso</p>
+        <p className="text-[13px] font-semibold text-ink">Tu progreso</p>
       </div>
       {kpis.map(({ label, pct, color }) => (
         <div key={label} className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[12px] text-secondary-foreground">{label}</span>
-            <span className="font-mono text-[12px] font-bold tabular-nums" style={{ color }}>
-              {pct}<span className="text-[10px] font-normal text-secondary-foreground">/100</span>
+            <span className="text-[12px] text-ink-2">{label}</span>
+            {/* Numeral en tinta (AA); el color queda en la barra (elemento gráfico ≥3:1) */}
+            <span className="font-mono text-[12px] font-medium tabular-nums text-ink">
+              {pct}<span className="font-normal text-ink-3">/100</span>
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="h-1.5 overflow-hidden rounded-full bg-raised">
             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
           </div>
         </div>
       ))}
-      {/* Curva de tendencia */}
+      {/* Curva de tendencia — azul de datos */}
       <svg viewBox="0 0 244 36" fill="none" className="h-8 w-full opacity-60" aria-hidden="true">
         <path
           d="M4 30 C40 24 80 14 120 8 C160 2 200 14 240 6"
-          stroke="#6B7BE8"
+          stroke="var(--blue)"
           strokeWidth="2"
           strokeLinecap="round"
           strokeDasharray="4 4"
         />
-        <circle cx="120" cy="8" r="4" fill="#6B7BE8" />
+        <circle cx="120" cy="8" r="4" fill="var(--blue)" />
       </svg>
     </Glass>
   )
@@ -124,31 +135,31 @@ function IllustrationDatos() {
 /** Slide 2 — privacidad local-first */
 function IllustrationPrivacidad() {
   return (
-    <div className="flex w-full max-w-[280px] mx-auto flex-col items-center gap-4">
-      {/* Escudo */}
-      <svg viewBox="0 0 120 120" fill="none" className="w-28 h-28" aria-hidden="true">
-        <circle cx="60" cy="60" r="56" fill="#5FC9B8" fillOpacity="0.08" />
+    <div className="mx-auto flex w-full max-w-[280px] flex-col items-center gap-4">
+      {/* Escudo — azul de confianza */}
+      <svg viewBox="0 0 120 120" fill="none" className="h-28 w-28" aria-hidden="true">
+        <circle cx="60" cy="60" r="56" fill="var(--blue)" fillOpacity="0.06" />
         <path
           d="M60 22 L92 36 L92 68 C92 88 60 100 60 100 C60 100 28 88 28 68 L28 36 Z"
-          stroke="#5FC9B8"
+          stroke="var(--blue)"
           strokeWidth="2.5"
           strokeLinejoin="round"
-          fill="#5FC9B8"
-          fillOpacity="0.12"
+          fill="var(--blue)"
+          fillOpacity="0.10"
         />
         <path
           d="M46 60 l10 10 18-20"
-          stroke="#5FC9B8"
+          stroke="var(--blue)"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <circle cx="28" cy="36" r="4" fill="#5FC9B8" opacity="0.3" />
-        <circle cx="98" cy="80" r="5" fill="#5FC9B8" opacity="0.25" />
-        <circle cx="22" cy="84" r="3" fill="#5FC9B8" opacity="0.2" />
+        <circle cx="28" cy="36" r="4" fill="var(--amber)" opacity="0.5" />
+        <circle cx="98" cy="80" r="5" fill="var(--amber)" opacity="0.4" />
+        <circle cx="22" cy="84" r="3" fill="var(--amber)" opacity="0.3" />
       </svg>
 
-      {/* Bullets de privacidad */}
+      {/* Bullets de privacidad — filas impresas */}
       <div className="flex w-full flex-col gap-2">
         {[
           'Tu historial se guarda solo en tu dispositivo',
@@ -157,10 +168,10 @@ function IllustrationPrivacidad() {
         ].map((txt) => (
           <div
             key={txt}
-            className="flex items-start gap-2.5 rounded-md border border-teal/15 bg-teal/6 px-3 py-2.5"
+            className="flex items-start gap-2.5 rounded-[8px] border border-hairline bg-surface px-3 py-2.5"
           >
-            <Shield size={14} className="mt-0.5 flex-shrink-0 text-teal" />
-            <span className="text-[12px] leading-snug text-secondary-foreground">{txt}</span>
+            <Shield size={14} className="mt-0.5 flex-shrink-0 text-blue" />
+            <span className="text-[12px] leading-snug text-ink-2">{txt}</span>
           </div>
         ))}
       </div>
@@ -212,17 +223,18 @@ export function Onboarding() {
     else if (info.offset.x > 50 && slide > 0) goTo(slide - 1)
   }
 
+  // Eje compartido X con la firma de easing editorial (motion.ts).
   const slideVariants = {
     initial: (d: number) => ({ opacity: 0, x: reduce ? 0 : d * 28 }),
-    animate: { opacity: 1, x: 0, transition: { duration: reduce ? 0 : 0.32, ease: [0, 0, 0.2, 1] as [number, number, number, number] } },
-    exit: (d: number) => ({ opacity: 0, x: reduce ? 0 : d * -28, transition: { duration: reduce ? 0 : 0.22, ease: [0.4, 0, 1, 1] as [number, number, number, number] } }),
+    animate: { opacity: 1, x: 0, transition: { duration: reduce ? 0 : 0.32, ease: EASE } },
+    exit: (d: number) => ({ opacity: 0, x: reduce ? 0 : d * -28, transition: { duration: reduce ? 0 : 0.22, ease: EASE } }),
   }
 
   const { title, body, Illustration } = SLIDES[slide]
   const isLast = slide === SLIDES.length - 1
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-void overflow-hidden">
+    <div className="absolute inset-0 flex flex-col overflow-hidden bg-paper">
 
       {/* A11y live region */}
       <div
@@ -239,13 +251,13 @@ export function Onboarding() {
       >
         <button
           onClick={() => dispatch({ t: 'go', screen: 's-login' })}
-          className="inline-flex h-11 items-center justify-center rounded-md px-2 text-[13px] font-semibold text-teal hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 items-center justify-center rounded-md px-2 text-[13px] font-semibold text-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           Iniciar sesión
         </button>
         <button
           onClick={toGoal}
-          className="inline-flex h-11 min-w-[44px] items-center justify-center rounded-md px-3 text-[14px] text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 min-w-[44px] items-center justify-center rounded-md px-3 text-[14px] text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           Saltar
         </button>
@@ -257,7 +269,7 @@ export function Onboarding() {
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.12}
         onDragEnd={onSwipe}
-        className="flex-shrink-0 h-[220px] relative overflow-hidden mt-2"
+        className="relative mt-2 h-[220px] flex-shrink-0 overflow-hidden"
         style={{ touchAction: 'pan-y' }}
       >
         <AnimatePresence mode="wait" custom={dir}>
@@ -275,10 +287,10 @@ export function Onboarding() {
         </AnimatePresence>
       </motion.div>
 
-      {/* Indicadores de puntos */}
+      {/* Indicadores de puntos — activo azul (interactivo) */}
       <nav
         aria-label="Pasos del recorrido"
-        className="flex flex-shrink-0 items-center justify-center gap-1.5 mt-5"
+        className="mt-5 flex flex-shrink-0 items-center justify-center gap-1.5"
       >
         {SLIDES.map((s, i) => (
           <button
@@ -289,19 +301,16 @@ export function Onboarding() {
             className="flex h-5 w-5 items-center justify-center"
           >
             <motion.div
-              animate={{
-                width: i === slide ? 22 : 7,
-                backgroundColor: i === slide ? '#5FC9B8' : 'rgba(255,255,255,0.2)',
-              }}
+              animate={{ width: i === slide ? 22 : 7 }}
               transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-              className="h-1.5 rounded-full"
+              className={`h-1.5 rounded-full transition-colors ${i === slide ? 'bg-blue' : 'bg-[color-mix(in_srgb,var(--ink-3)_45%,transparent)]'}`}
             />
           </button>
         ))}
       </nav>
 
-      {/* Copy */}
-      <div className="relative flex-1 overflow-hidden mt-6 px-6">
+      {/* Copy — titular serif (la voz editorial) */}
+      <div className="relative mt-6 flex-1 overflow-hidden px-6">
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={`copy-${slide}`}
@@ -312,10 +321,10 @@ export function Onboarding() {
             exit="exit"
             className="absolute inset-0 px-6"
           >
-            <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground mb-3">
+            <h1 className="mb-3 font-serif text-[28px] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
               {title}
             </h1>
-            <p className="text-[15px] leading-relaxed text-secondary-foreground">
+            <p className="text-[15px] leading-relaxed text-ink-2">
               {body}
             </p>
           </motion.div>

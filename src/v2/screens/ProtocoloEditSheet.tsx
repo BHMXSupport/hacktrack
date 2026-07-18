@@ -1,4 +1,6 @@
-// ProtocoloEditSheet v2 — design system "Precision × Accessible"
+// ProtocoloEditSheet v2 — design system "Bitácora" (LOCKED): campos cálidos de papel
+// (hairline + pozos), chips de fase/preset en azul-tinta, numerales serif en las placas,
+// labels mono de instrumento. Toda la lógica de guardado/validación queda intacta.
 // Editar cadencia, titulación, fechas, recordatorio y stock de vial por producto.
 // Items R8,R9,R10,R11,R13,R14,M1,M2 (protocolo & cadencia).
 // Compliance: sin claims médicos, sin dosis precargada, es-MX, tap targets ≥44px.
@@ -106,15 +108,16 @@ const MODE_OPTIONS: { value: EditableMode; label: string }[] = [
 // ── Subcomponente: chip de cadencia (para que Inicio lo reutilice)
 // M2: Inicio debería montar <CadenciaChip cad={state.protocol?.cadence} />
 // SheetId: 'protocolo-edit' → abrir con dispatch({ t:'sheet', sheet:'protocolo-edit', arg: product })
+// Píldora mono azul-tinta (interactivo/dato) con gota Droplet — metáfora segura, nunca jeringa.
 export function CadenciaChip({ cad }: { cad: UserCadence | undefined | null }) {
   if (!cad) return null
   const label = cadenceLabel(cad)
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[12px] font-semibold text-teal"
+      className="inline-flex items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-3 py-1 font-mono text-[12px] font-medium text-blue"
       aria-label={`Cadencia activa: ${label}`}
     >
-      <Droplet size={12} aria-hidden className="shrink-0" />
+      <Droplet size={12} strokeWidth={1.6} aria-hidden className="shrink-0" />
       {label}
     </span>
   )
@@ -133,6 +136,16 @@ export function ProtocoloEditSheet({
 }) {
   const { state, dispatch } = useApp()
   const reduce = useReducedMotion()
+
+  // Tema RESUELTO (espejo de applyTheme del provider) — solo para el chrome nativo de los
+  // pickers de fecha/hora (color-scheme): antes iba clavado a 'dark' y en Papel pintaba
+  // los controles nativos oscuros sobre fondo claro.
+  const _themeMode = state.settings.themeMode
+  const _hour = new Date().getHours()
+  const nativeScheme: 'dark' | 'light' =
+    _themeMode === 'light' ? 'light'
+    : _themeMode === 'auto' ? (_hour >= 19 || _hour < 7 ? 'dark' : 'light')
+    : 'dark'
 
   // Producto a editar: prop > sheetArg > activeProduct
   const editProduct =
@@ -205,9 +218,9 @@ export function ProtocoloEditSheet({
   if (!p || !editProduct) {
     return (
       <Sheet open={open} onClose={onClose} title="Protocolo">
-        <div className="flex flex-col items-center gap-4 py-8 text-secondary-foreground">
-          <Info size={32} aria-hidden />
-          <p className="text-[14px]">No hay protocolo activo. Agrega un producto primero.</p>
+        <div className="flex flex-col items-center gap-4 py-8 text-ink-2">
+          <Info size={32} strokeWidth={1.6} aria-hidden />
+          <p className="text-[15px]">No hay protocolo activo. Agrega un producto primero.</p>
           <Button variant="ghost" size="sm" onClick={onClose}>Cerrar</Button>
         </div>
       </Sheet>
@@ -368,27 +381,27 @@ export function ProtocoloEditSheet({
 
         {/* ── M1: aviso si cadencia es sugerencia (sin confirmar) ─────────── */}
         {isFreshCadence && (
-          <div className="flex gap-3 rounded-xl border border-teal/20 bg-teal/8 px-4 py-3">
-            <Info size={16} aria-hidden className="mt-0.5 shrink-0 text-teal" />
-            <p className="text-[13px] leading-snug text-secondary-foreground">
+          <div className="flex gap-3 rounded-[10px] border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_7%,transparent)] px-4 py-3">
+            <Info size={16} strokeWidth={1.8} aria-hidden className="mt-0.5 shrink-0 text-blue" />
+            <p className="text-[13px] leading-snug text-ink-2">
               Cadencia sugerida por Hacktrack — basada en el catálogo.
-              <strong className="text-foreground"> Ajústala a lo que tú haces.</strong>
+              <strong className="text-ink"> Ajústala a lo que tú haces.</strong>
             </p>
           </div>
         )}
 
         {/* ── Chip de cadencia en edición (preview activo) ─────────────── */}
         <div className="flex items-center gap-2">
-          <span className="text-[13px] text-secondary-foreground">Cadencia actual:</span>
+          <span className="text-[13px] text-ink-2">Cadencia actual:</span>
           <CadenciaChip cad={cad} />
         </div>
 
         {/* ── Selector de modo ─────────────────────────────────────────── */}
         <section aria-labelledby="proto-mode-label">
-          <p id="proto-mode-label" className="mb-2 text-[13px] font-semibold text-foreground">
+          <p id="proto-mode-label" className="mb-2 font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">
             Ritmo
             {recomendado && (
-              <span className="ml-2 font-normal text-muted-foreground">
+              <span className="ml-2 font-normal normal-case tracking-normal text-ink-3">
                 (catálogo: {recomendado})
               </span>
             )}
@@ -405,9 +418,10 @@ export function ProtocoloEditSheet({
                 />
               </div>
             </div>
-            {/* Gradiente derecho: insinúa scroll horizontal sin romper funcionalidad */}
+            {/* Gradiente derecho: insinúa scroll horizontal sin romper funcionalidad.
+                to-surface = el panel del Sheet (antes to-background, que ya no coincide). */}
             <div
-              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-background"
+              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-surface"
               aria-hidden
             />
           </div>
@@ -425,7 +439,7 @@ export function ProtocoloEditSheet({
           >
             {mode === 'dia' && (
               <div className="flex flex-col gap-2">
-                <p className="text-[13px] text-secondary-foreground">Días de la semana</p>
+                <p className="text-[13px] text-ink-2">Días de la semana</p>
                 <div className="flex flex-wrap gap-2" role="group" aria-label="Días activos">
                   {WDS.map(([lbl], i) => (
                     <Chip
@@ -449,23 +463,22 @@ export function ProtocoloEditSheet({
             {mode === 'sem' && (
               <div className="flex flex-col gap-3">
                 <div>
-                  <p className="mb-2 text-[13px] text-secondary-foreground">Cada cuántas semanas</p>
+                  <p className="mb-2 text-[13px] text-ink-2">Cada cuántas semanas</p>
                   <Stepper
                     onDec={() => setCad((c) => ({ ...c, every: Math.max(1, c.every - 1) }))}
                     onInc={() => setCad((c) => ({ ...c, every: Math.min(12, c.every + 1) }))}
                     decLabel="Menos semanas"
                     incLabel="Más semanas"
                   >
-                    <DataPlate className="flex items-center justify-center rounded-lg px-4 py-2">
-                      <span className="font-mono text-[22px] font-bold text-foreground tabular-nums">
-                        {cad.every}
-                      </span>
-                      <span className="ml-2 text-[13px] text-secondary-foreground">sem</span>
+                    {/* Placa de instrumento: numeral SERIF (DataPlate ya pone Fraunces tabular) */}
+                    <DataPlate className="flex items-baseline justify-center px-4 py-2">
+                      <span className="text-[24px] leading-none">{cad.every}</span>
+                      <span className="ml-2 font-mono text-[12px] font-medium opacity-70">sem</span>
                     </DataPlate>
                   </Stepper>
                 </div>
                 <div>
-                  <p className="mb-2 text-[13px] text-secondary-foreground">Días en esas semanas</p>
+                  <p className="mb-2 text-[13px] text-ink-2">Días en esas semanas</p>
                   <div className="flex flex-wrap gap-2" role="group" aria-label="Días de la semana activos">
                     {WDS.map(([lbl], i) => (
                       <Chip
@@ -489,7 +502,7 @@ export function ProtocoloEditSheet({
 
             {mode === 'mes' && (
               <div>
-                <p className="mb-2 text-[13px] text-secondary-foreground">
+                <p className="mb-2 text-[13px] text-ink-2">
                   Cada cuántos meses (el mismo día del mes que la fecha de inicio)
                 </p>
                 <Stepper
@@ -498,11 +511,9 @@ export function ProtocoloEditSheet({
                   decLabel="Menos meses"
                   incLabel="Más meses"
                 >
-                  <DataPlate className="flex items-center justify-center rounded-lg px-4 py-2">
-                    <span className="font-mono text-[22px] font-bold text-foreground tabular-nums">
-                      {cad.every}
-                    </span>
-                    <span className="ml-2 text-[13px] text-secondary-foreground">mes</span>
+                  <DataPlate className="flex items-baseline justify-center px-4 py-2">
+                    <span className="text-[24px] leading-none">{cad.every}</span>
+                    <span className="ml-2 font-mono text-[12px] font-medium opacity-70">mes</span>
                   </DataPlate>
                 </Stepper>
               </div>
@@ -510,7 +521,7 @@ export function ProtocoloEditSheet({
 
             {mode === 'cadaN' && (
               <div>
-                <p className="mb-2 text-[13px] text-secondary-foreground">
+                <p className="mb-2 text-[13px] text-ink-2">
                   Tomar cada N días (contando desde la fecha de inicio)
                 </p>
                 <Stepper
@@ -519,11 +530,9 @@ export function ProtocoloEditSheet({
                   decLabel="Menos días"
                   incLabel="Más días"
                 >
-                  <DataPlate className="flex items-center justify-center rounded-lg px-4 py-2">
-                    <span className="font-mono text-[22px] font-bold text-foreground tabular-nums">
-                      {cad.n ?? 3}
-                    </span>
-                    <span className="ml-2 text-[13px] text-secondary-foreground">días</span>
+                  <DataPlate className="flex items-baseline justify-center px-4 py-2">
+                    <span className="text-[24px] leading-none">{cad.n ?? 3}</span>
+                    <span className="ml-2 font-mono text-[12px] font-medium opacity-70">días</span>
                   </DataPlate>
                 </Stepper>
               </div>
@@ -532,46 +541,43 @@ export function ProtocoloEditSheet({
             {mode === 'ciclo' && (
               <div className="flex flex-col gap-4">
                 <div>
-                  <p className="mb-2 text-[13px] text-secondary-foreground">Días ON (activo)</p>
+                  <p className="mb-2 text-[13px] text-ink-2">Días ON (activo)</p>
                   <Stepper
                     onDec={() => setCad((c) => ({ ...c, on: Math.max(1, (c.on ?? 5) - 1) }))}
                     onInc={() => setCad((c) => ({ ...c, on: Math.min(90, (c.on ?? 5) + 1) }))}
                     decLabel="Menos días on"
                     incLabel="Más días on"
                   >
-                    <DataPlate className="flex items-center justify-center rounded-lg px-4 py-2">
-                      <span className="font-mono text-[22px] font-bold text-teal tabular-nums">
-                        {cad.on ?? 5}
-                      </span>
-                      <span className="ml-2 text-[13px] text-secondary-foreground">on</span>
+                    {/* ON = energía → numeral ámbar (luminoso sobre la placa oscura en ambos temas) */}
+                    <DataPlate className="flex items-baseline justify-center px-4 py-2">
+                      <span className="text-[24px] leading-none text-amber">{cad.on ?? 5}</span>
+                      <span className="ml-2 font-mono text-[12px] font-medium opacity-70">on</span>
                     </DataPlate>
                   </Stepper>
                 </div>
                 <div>
-                  <p className="mb-2 text-[13px] text-secondary-foreground">Días OFF (descanso)</p>
+                  <p className="mb-2 text-[13px] text-ink-2">Días OFF (descanso)</p>
                   <Stepper
                     onDec={() => setCad((c) => ({ ...c, off: Math.max(0, (c.off ?? 2) - 1) }))}
                     onInc={() => setCad((c) => ({ ...c, off: Math.min(90, (c.off ?? 2) + 1) }))}
                     decLabel="Menos días off"
                     incLabel="Más días off"
                   >
-                    <DataPlate className="flex items-center justify-center rounded-lg px-4 py-2">
-                      <span className="font-mono text-[22px] font-bold text-secondary-foreground tabular-nums">
-                        {cad.off ?? 2}
-                      </span>
-                      <span className="ml-2 text-[13px] text-secondary-foreground">off</span>
+                    <DataPlate className="flex items-baseline justify-center px-4 py-2">
+                      <span className="text-[24px] leading-none opacity-80">{cad.off ?? 2}</span>
+                      <span className="ml-2 font-mono text-[12px] font-medium opacity-70">off</span>
                     </DataPlate>
                   </Stepper>
                 </div>
-                <p className="text-[12px] text-muted-foreground">
+                <p className="text-[12px] text-ink-3">
                   Ciclo total: {(cad.on ?? 5) + (cad.off ?? 2)} días
                 </p>
               </div>
             )}
 
             {mode === 'uso' && (
-              <div className="rounded-xl border border-white/8 bg-raised px-4 py-3">
-                <p className="text-[13px] text-secondary-foreground">
+              <div className="rounded-[10px] border border-hairline bg-raised px-4 py-3">
+                <p className="text-[13px] text-ink-2">
                   Sin horario fijo — registras cuando lo usas. Hacktrack no programa días.
                 </p>
               </div>
@@ -582,14 +588,14 @@ export function ProtocoloEditSheet({
         {/* ── Preview próximas tomas (item R11) ────────────────────────── */}
         {proximas.length > 0 && (
           <div>
-            <p className="mb-2 text-[12px] text-muted-foreground">
+            <p className="mb-2 text-[12px] text-ink-3">
               Próximas tomas con esta cadencia:
             </p>
             <div className="flex flex-wrap gap-2">
               {proximas.map((d, i) => (
                 <span
                   key={i}
-                  className="rounded-full border border-teal/30 bg-teal/10 px-3 py-1 text-[12px] font-semibold text-teal"
+                  className="rounded-full border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-3 py-1 font-mono text-[12px] font-medium text-blue"
                 >
                   {fmtShortDate(d)}
                 </span>
@@ -602,10 +608,10 @@ export function ProtocoloEditSheet({
         <div className="flex flex-col gap-2">
           <label
             htmlFor="proto-reminder"
-            className="text-[13px] font-semibold text-foreground"
+            className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2"
           >
             Hora de recordatorio
-            <span className="ml-2 font-normal text-muted-foreground">
+            <span className="ml-2 font-normal normal-case tracking-normal text-ink-3">
               (solo para {p.product})
             </span>
           </label>
@@ -615,8 +621,8 @@ export function ProtocoloEditSheet({
             value={reminderTime}
             onChange={(e) => setReminderTime(e.target.value)}
             aria-label={`Hora del recordatorio para ${p.product}`}
-            style={{ colorScheme: 'dark' }}
-            className="h-12 w-full rounded-xl border border-white/12 bg-raised px-4 font-mono text-[15px] text-foreground focus:outline focus:outline-2 focus:outline-ring"
+            style={{ colorScheme: nativeScheme }}
+            className="h-12 w-full rounded-[8px] border border-hairline bg-raised px-4 font-mono text-[15px] tabular-nums text-ink focus:outline focus:outline-2 focus:outline-ring"
           />
           {/* #20: presets rápidos (incl. tomas nocturnas de primera clase) */}
           <div className="flex flex-wrap gap-2">
@@ -630,13 +636,13 @@ export function ProtocoloEditSheet({
                 type="button"
                 onClick={() => setReminderTime(preset.value)}
                 aria-pressed={reminderTime === preset.value}
-                className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold transition-colors ${
+                className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 font-mono text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
                   reminderTime === preset.value
-                    ? 'border-teal bg-teal/15 text-teal'
-                    : 'border-white/12 bg-transparent text-secondary-foreground hover:bg-white/6'
+                    ? 'border-blue bg-[color-mix(in_srgb,var(--blue)_12%,transparent)] text-blue'
+                    : 'border-hairline bg-transparent text-ink-2 hover:bg-raised'
                 }`}
               >
-                <preset.Icon size={13} aria-hidden /> {preset.label}
+                <preset.Icon size={13} strokeWidth={1.6} aria-hidden /> {preset.label}
               </button>
             ))}
           </div>
@@ -644,23 +650,23 @@ export function ProtocoloEditSheet({
 
         {/* ── Vigencia (fechas) (item R10) ─────────────────────────────── */}
         <div className="flex flex-col gap-2">
-          <p className="text-[13px] font-semibold text-foreground">Vigencia</p>
+          <p className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">Vigencia</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <span className="text-[12px] text-muted-foreground">Empieza</span>
+              <span className="text-[12px] text-ink-3">Empieza</span>
               <input
                 type="date"
                 value={startStr}
                 onChange={(e) => setStartStr(e.target.value)}
                 aria-label="Fecha de inicio del protocolo"
-                style={{ colorScheme: 'dark' }}
-                className="h-12 w-full rounded-xl border border-white/12 bg-raised px-3 text-[14px] text-foreground focus:outline focus:outline-2 focus:outline-ring"
+                style={{ colorScheme: nativeScheme }}
+                className="h-12 w-full rounded-[8px] border border-hairline bg-raised px-3 font-mono text-[14px] tabular-nums text-ink focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[12px] text-muted-foreground">
+              <span className="text-[12px] text-ink-3">
                 Termina{' '}
-                <span className="text-muted-foreground/60">(opcional)</span>
+                <span className="opacity-70">(opcional)</span>
               </span>
               <input
                 type="date"
@@ -668,8 +674,8 @@ export function ProtocoloEditSheet({
                 min={startStr}
                 onChange={(e) => setEndStr(e.target.value)}
                 aria-label="Fecha de fin del protocolo (opcional)"
-                style={{ colorScheme: 'dark' }}
-                className="h-12 w-full rounded-xl border border-white/12 bg-raised px-3 text-[14px] text-foreground focus:outline focus:outline-2 focus:outline-ring"
+                style={{ colorScheme: nativeScheme }}
+                className="h-12 w-full rounded-[8px] border border-hairline bg-raised px-3 font-mono text-[14px] tabular-nums text-ink focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>
           </div>
@@ -677,7 +683,7 @@ export function ProtocoloEditSheet({
             <button
               type="button"
               onClick={() => setEndStr('')}
-              className="self-start rounded-full border border-white/10 bg-transparent px-3 py-1 text-[12px] text-secondary-foreground hover:bg-white/5"
+              className="min-h-[36px] self-start rounded-full border border-hairline bg-transparent px-3 py-1 text-[12px] text-ink-2 transition-colors hover:bg-raised"
             >
               Quitar fecha de fin
             </button>
@@ -688,8 +694,9 @@ export function ProtocoloEditSheet({
         <Glass className="flex flex-col gap-4 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[14px] font-semibold text-foreground">Titulación por fases</p>
-              <p className="text-[12px] text-muted-foreground">
+              {/* Título de card en serif — la voz editorial */}
+              <p className="font-serif text-[17px] font-medium tracking-tight text-ink">Titulación por fases</p>
+              <p className="text-[12px] text-ink-3">
                 Sube la dosis por etapas que tú defines
               </p>
             </div>
@@ -699,22 +706,20 @@ export function ProtocoloEditSheet({
           {progOn && (
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <p className="text-[13px] text-secondary-foreground">Número de fases</p>
+                <p className="text-[13px] text-ink-2">Número de fases</p>
                 <Stepper
                   onDec={() => setProgN((n) => Math.max(2, n - 1))}
                   onInc={() => setProgN((n) => Math.min(8, n + 1))}
                   decLabel="Menos fases"
                   incLabel="Más fases"
                 >
-                  <DataPlate className="flex items-center justify-center rounded-lg px-4 py-1.5">
-                    <span className="font-mono text-[20px] font-bold text-foreground tabular-nums">
-                      {progN}
-                    </span>
+                  <DataPlate className="flex items-baseline justify-center px-4 py-1.5">
+                    <span className="text-[22px] leading-none">{progN}</span>
                   </DataPlate>
                 </Stepper>
               </div>
 
-              <p className="text-[13px] font-semibold text-foreground">Dosis por fase</p>
+              <p className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">Dosis por fase</p>
               <div className="flex flex-col gap-3">
                 {Array.from({ length: progN }, (_, i) => {
                   const avg = avgDoseForPhase(
@@ -729,7 +734,8 @@ export function ProtocoloEditSheet({
                   return (
                     <div key={i} className="flex flex-col gap-1">
                       <div className="flex items-center gap-3">
-                        <span className="w-14 shrink-0 text-[12px] text-muted-foreground">
+                        {/* Chip de fase — mono de instrumento, numerado */}
+                        <span className="inline-flex w-16 shrink-0 items-center justify-center rounded-full border border-hairline bg-raised px-2 py-1 font-mono text-[12px] font-medium tabular-nums text-ink-2">
                           Fase {i + 1}
                         </span>
                         <input
@@ -745,26 +751,26 @@ export function ProtocoloEditSheet({
                             setPhaseDose(i, e.target.value)
                             if (phaseDoseErrors[i]) setPhaseDoseErrors((err) => { const next = err.slice(); next[i] = false; return next })
                           }}
-                          className={`h-11 flex-1 rounded-xl border bg-raised px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring ${phaseDoseErrors[i] ? 'border-alert/60' : 'border-white/12'}`}
+                          className={`h-11 flex-1 rounded-[8px] border bg-raised px-3 font-mono text-[15px] tabular-nums text-ink placeholder:text-ink-3 focus:outline focus:outline-2 focus:outline-ring ${phaseDoseErrors[i] ? 'border-alert' : 'border-hairline'}`}
                         />
                         {/* #38: unidad dinámica derivada de las dosis del log */}
-                        <span className="shrink-0 text-[12px] text-muted-foreground">{doseUnit}</span>
+                        <span className="shrink-0 font-mono text-[12px] text-ink-3">{doseUnit}</span>
                       </div>
                       {phaseDoseErrors[i] && (
-                        <p className="ml-[68px] text-[11px] text-alert" role="alert">
+                        <p className="ml-[76px] text-[12px] text-alert" role="alert">
                           Ingresa un valor mayor a 0
                         </p>
                       )}
                       {/* item R14: promedio real vs planeado */}
                       {avg != null && (
-                        <div className="ml-[68px] flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground">
+                        <div className="ml-[76px] flex items-center gap-2">
+                          <span className="text-[12px] text-ink-3">
                             Promedio real:{' '}
-                            <strong className="text-foreground">{avg.toFixed(2)} {doseUnit}</strong>
+                            <strong className="font-mono font-medium tabular-nums text-ink">{avg.toFixed(2)} {doseUnit}</strong>
                           </span>
                           {!isNaN(planned) && planned > 0 && (
                             <span
-                              className={`text-[11px] font-semibold ${
+                              className={`font-mono text-[12px] font-medium tabular-nums ${
                                 Math.abs(avg - planned) < 0.05
                                   ? 'text-ok'
                                   : 'text-warn'
@@ -782,10 +788,10 @@ export function ProtocoloEditSheet({
                   )
                 })}
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[12px] text-ink-3">
                 Tú defines la dosis de cada fase. Hacktrack no la prescribe.
               </p>
-              <p className="text-[11px] text-muted-foreground/70">
+              <p className="text-[12px] text-ink-3">
                 Usa la misma unidad que en tus registros ({doseUnit}).
               </p>
             </div>
@@ -793,21 +799,21 @@ export function ProtocoloEditSheet({
         </Glass>
 
         {/* ── Stock de vial (item R13) ──────────────────────────────────── */}
-        <div className="flex flex-col gap-3 rounded-xl border border-white/8 bg-raised p-4">
-          <p className="text-[13px] font-semibold text-foreground">Stock de vial</p>
+        <div className="flex flex-col gap-3 rounded-[10px] border border-hairline bg-raised p-4">
+          <p className="font-serif text-[17px] font-medium tracking-tight text-ink">Stock de vial</p>
           {p.vialStock && vialTotal > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-secondary-foreground">
-                  Usado: <strong className="text-foreground font-mono">{vialUsed.toFixed(1)} mg</strong>
+                <span className="text-ink-2">
+                  Usado: <strong className="font-mono font-medium tabular-nums text-ink">{vialUsed.toFixed(1)} mg</strong>
                 </span>
-                <span className="text-secondary-foreground">
-                  Total: <strong className="text-foreground font-mono">{vialTotal} mg</strong>
+                <span className="text-ink-2">
+                  Total: <strong className="font-mono font-medium tabular-nums text-ink">{vialTotal} mg</strong>
                 </span>
               </div>
-              {/* Barra de progreso accesible */}
+              {/* Barra de progreso accesible — pista de papel + relleno azul (dato) */}
               <div
-                className="h-2 w-full overflow-hidden rounded-full bg-white/8"
+                className="h-2 w-full overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--ink-3)_28%,transparent)]"
                 role="progressbar"
                 aria-valuenow={Math.round(vialPct * 100)}
                 aria-valuemin={0}
@@ -815,7 +821,7 @@ export function ProtocoloEditSheet({
                 aria-label={`Vial ${Math.round(vialPct * 100)}% usado`}
               >
                 <div
-                  className="h-full rounded-full bg-teal transition-all"
+                  className="h-full rounded-full bg-blue transition-all"
                   style={{ width: `${vialPct * 100}%` }}
                 />
               </div>
@@ -824,7 +830,7 @@ export function ProtocoloEditSheet({
           <div className="flex flex-col gap-1">
             <label
               htmlFor="proto-vial-total"
-              className="text-[12px] text-muted-foreground"
+              className="text-[12px] text-ink-3"
             >
               mg totales del nuevo vial
             </label>
@@ -838,10 +844,10 @@ export function ProtocoloEditSheet({
               value={totalMgStr}
               onChange={(e) => { setTotalMgStr(e.target.value); setVialOverwriteConfirm(false) }}
               aria-label="Miligramos totales del vial"
-              className="h-11 w-full rounded-xl border border-white/12 bg-card px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
+              className="h-11 w-full rounded-[8px] border border-hairline bg-surface px-3 font-mono text-[15px] tabular-nums text-ink placeholder:text-ink-3 focus:outline focus:outline-2 focus:outline-ring"
             />
             {vialOverwriteConfirm && p.vialStock && (
-              <p className="mt-1 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-[12px] leading-snug text-yellow-400" role="alert">
+              <p className="mt-1 rounded-[8px] border border-[color-mix(in_srgb,var(--warn)_45%,transparent)] bg-[color-mix(in_srgb,var(--warn)_12%,transparent)] px-3 py-2 text-[12px] leading-snug text-ink" role="alert">
                 Esto abre un vial nuevo: el actual lleva {vialUsed.toFixed(1)} mg usados y aún le
                 quedan {(vialTotal - vialUsed).toFixed(1)} mg — su registro se descartará. Toca
                 "Guardar cambios" otra vez para confirmar, o borra el campo para conservarlo.
@@ -850,10 +856,10 @@ export function ProtocoloEditSheet({
           </div>
 
           {/* Build de tienda: léxico neutro sin verbos de comercio (Google escanea strings del APK) */}
-          <p className="text-[13px] font-semibold text-foreground">{STORE_BUILD ? 'Registrar gasto del lote' : 'Registrar compra'}</p>
+          <p className="font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2">{STORE_BUILD ? 'Registrar gasto del lote' : 'Registrar compra'}</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label htmlFor="proto-purchase-mg" className="text-[12px] text-muted-foreground">
+              <label htmlFor="proto-purchase-mg" className="text-[12px] text-ink-3">
                 {STORE_BUILD ? 'mg del lote' : 'mg comprados'}
               </label>
               <input
@@ -866,11 +872,11 @@ export function ProtocoloEditSheet({
                 value={purchaseMgStr}
                 onChange={(e) => setPurchaseMgStr(e.target.value)}
                 aria-label={STORE_BUILD ? 'Miligramos del lote' : 'Miligramos comprados'}
-                className="h-11 rounded-xl border border-white/12 bg-card px-3 font-mono text-[14px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
+                className="h-11 rounded-[8px] border border-hairline bg-surface px-3 font-mono text-[14px] tabular-nums text-ink placeholder:text-ink-3 focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="proto-purchase-cost" className="text-[12px] text-muted-foreground">
+              <label htmlFor="proto-purchase-cost" className="text-[12px] text-ink-3">
                 Costo (MXN)
               </label>
               <input
@@ -883,7 +889,7 @@ export function ProtocoloEditSheet({
                 value={purchaseCostStr}
                 onChange={(e) => setPurchaseCostStr(e.target.value)}
                 aria-label={STORE_BUILD ? 'Costo del lote en pesos' : 'Costo de la compra en pesos'}
-                className="h-11 rounded-xl border border-white/12 bg-card px-3 font-mono text-[14px] text-foreground placeholder:text-muted-foreground focus:outline focus:outline-2 focus:outline-ring"
+                className="h-11 rounded-[8px] border border-hairline bg-surface px-3 font-mono text-[14px] tabular-nums text-ink placeholder:text-ink-3 focus:outline focus:outline-2 focus:outline-ring"
               />
             </div>
           </div>
@@ -894,7 +900,7 @@ export function ProtocoloEditSheet({
           <button
             type="button"
             onClick={() => setShowHistory((v) => !v)}
-            className="flex h-11 items-center gap-2 rounded-full bg-transparent px-1 text-[13px] font-semibold text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex h-11 items-center gap-2 rounded-full bg-transparent px-1 font-mono text-[13px] font-medium text-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             aria-expanded={showHistory}
             aria-controls="proto-historial"
           >
@@ -919,13 +925,13 @@ export function ProtocoloEditSheet({
                 className="overflow-hidden"
               >
                 {historial.length > 0 ? (
-                  <div className="mt-2 flex flex-col gap-2">
+                  <div className="mt-2 flex flex-col divide-y divide-hairline overflow-hidden rounded-[10px] border border-hairline bg-raised">
                     {historial.map((d, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between rounded-xl border border-white/8 bg-raised px-4 py-2.5"
+                        className="flex items-center justify-between px-4 py-2.5"
                       >
-                        <span className="font-mono text-[12px] text-muted-foreground">
+                        <span className="font-mono text-[12px] tabular-nums text-ink-3">
                           {new Date(d.ts).toLocaleDateString('es-MX', {
                             weekday: 'short',
                             day: 'numeric',
@@ -933,14 +939,16 @@ export function ProtocoloEditSheet({
                           })}{' '}
                           {fmtTime12(d.ts)}
                         </span>
-                        <span className="font-mono text-[13px] font-semibold text-foreground">
-                          {d.value != null ? `${d.value} ${d.unit}` : '—'}
+                        {/* El valor registrado en serif — el numeral es la voz */}
+                        <span className="font-serif text-[16px] font-normal tabular-nums text-ink">
+                          {d.value != null ? d.value : '—'}
+                          {d.value != null && <span className="ml-1 font-mono text-[11px] font-medium text-ink-3">{d.unit}</span>}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-[12px] text-muted-foreground">
+                  <p className="mt-2 text-[12px] text-ink-3">
                     Sin dosis registradas aún.
                   </p>
                 )}
@@ -976,15 +984,15 @@ export function ProtocoloEditSheet({
             variant="ghost"
             size="full"
             onClick={handleArchive}
-            className="gap-2 text-muted-foreground"
+            className="gap-2 text-ink-3"
           >
-            <Archive size={16} aria-hidden />
+            <Archive size={16} strokeWidth={1.6} aria-hidden />
             Archivar protocolo
           </Button>
         )}
 
         {/* ── Disclaimer (datos personales, sin consejo médico) ────────── */}
-        <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-center text-[12px] leading-relaxed text-ink-3">
           Tu historial se guarda solo en tu dispositivo. Hacktrack no prescribe dosis ni
           cadencias — la información que ingresas es tuya y solo tuya.
         </p>

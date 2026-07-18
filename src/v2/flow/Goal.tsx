@@ -1,7 +1,8 @@
 /**
  * Goal.tsx — v2 flow
  *
- * Selección de objetivo(s) de onboarding (hasta 3 categorías).
+ * Selección de objetivo(s) de onboarding (hasta 3 categorías), estética "Bitácora":
+ * folio editorial de paso, titular serif, selección en azul (interactivo).
  * NO precarga producto (P0-4).
  * Avanza a 's-baseline' vía dispatch setGoals + go.
  *
@@ -12,10 +13,12 @@ import { useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, Check, Flame, HeartPulse, Zap, Sparkles, Hourglass, Dumbbell, Flower2, Compass, Circle, type LucideIcon } from 'lucide-react'
 import { useApp } from '../../lib/store'
-import { GOALS, CATEGORY_COLOR } from '../../lib/catalog'
+import { GOALS } from '../../lib/catalog'
 import type { Category } from '../../lib/types'
 import { Button } from '../ui/Button'
 import { Glass } from '../ui/Glass'
+import { FolioLabel } from '../ui/FolioLabel'
+import { fadeUp, staggerContainer } from '../lib/motion'
 
 // Íconos de categoría (lucide SVG — sin emojis en la app)
 const CAT_ICON: Record<string, LucideIcon> = {
@@ -30,15 +33,6 @@ const CAT_ICON: Record<string, LucideIcon> = {
 }
 
 const MAX_GOALS = 3
-
-const fade = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.28, ease: [0, 0, 0.2, 1] as [number, number, number, number] },
-  },
-}
 
 export function Goal() {
   const { dispatch } = useApp()
@@ -72,7 +66,7 @@ export function Goal() {
       className="relative z-10 flex h-full flex-col"
       style={{ paddingBottom: 'max(40px, calc(32px + env(safe-area-inset-bottom)))' }}
     >
-      {/* App bar */}
+      {/* App bar — folio editorial de paso + barra de progreso */}
       <header
         className="flex flex-shrink-0 items-center gap-4 px-4"
         style={{
@@ -83,19 +77,16 @@ export function Goal() {
         <button
           aria-label="Atrás"
           onClick={() => dispatch({ t: 'go', screen: 's-onboarding' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-secondary-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <ChevronLeft size={22} />
         </button>
 
-        {/* Barra de progreso — paso 1 de 4 */}
-        <div className="flex-1 flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-secondary-foreground">Paso 1 de 5</span>
-            <span className="text-[11px] text-secondary-foreground">Configúralo en 2–3 min</span>
-          </div>
-          <div className="h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={1} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 1 de 5">
-            <div className="h-full w-[20%] rounded-full bg-teal" />
+        {/* Folio "§ 01 · Paso 1 de 5" + regla de avance */}
+        <div className="flex flex-1 flex-col gap-1.5">
+          <FolioLabel n={1}>Paso 1 de 5 · 2–3 min</FolioLabel>
+          <div className="h-1 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={1} aria-valuemin={1} aria-valuemax={5} aria-label="Paso 1 de 5">
+            <div className="h-full w-[20%] rounded-full bg-blue" />
           </div>
         </div>
 
@@ -107,22 +98,22 @@ export function Goal() {
       <motion.div
         initial={reduce ? false : 'hidden'}
         animate="show"
-        variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+        variants={staggerContainer}
         className="px-5 pb-5 pt-3 text-center"
       >
         <motion.h1
-          variants={fade}
-          className="text-[26px] font-bold leading-tight tracking-tight text-foreground"
+          variants={fadeUp}
+          className="font-serif text-[28px] font-normal leading-[1.1] tracking-[-0.01em] text-ink"
         >
           ¿Qué quieres lograr?
         </motion.h1>
-        <motion.p variants={fade} className="mt-2 text-[14px] text-secondary-foreground">
+        <motion.p variants={fadeUp} className="mt-2 text-[14px] text-ink-2">
           Elige tu enfoque principal para personalizar tu experiencia.{' '}
-          <span className="text-secondary-foreground">(Elige hasta {MAX_GOALS})</span>
+          <span className="text-ink-2">(Elige hasta {MAX_GOALS})</span>
         </motion.p>
       </motion.div>
 
-      {/* Lista de objetivos */}
+      {/* Lista de objetivos — filas de columna impresa; seleccionado = azul interactivo */}
       <motion.div
         initial={reduce ? false : 'hidden'}
         animate="show"
@@ -130,12 +121,11 @@ export function Goal() {
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4"
       >
         {GOALS.map((g) => {
-          const color = CATEGORY_COLOR[g.cat] ?? '#5FC9B8'
           const isActive = selected.has(g.cat)
           const CatIcon = CAT_ICON[g.cat] ?? Circle
 
           return (
-            <motion.div key={g.cat} variants={fade}>
+            <motion.div key={g.cat} variants={fadeUp}>
               <button
                 type="button"
                 aria-pressed={isActive}
@@ -144,40 +134,27 @@ export function Goal() {
               >
                 <Glass
                   className={[
-                    'flex items-center gap-4 p-4 transition-[border-color,box-shadow] duration-150',
+                    'flex items-center gap-4 p-4 transition-[border-color,box-shadow,background-color] duration-150',
                     isActive
-                      ? 'ring-2 ring-inset'
-                      : 'ring-0',
+                      ? 'border-blue bg-[color-mix(in_srgb,var(--blue)_7%,var(--surface))] shadow-[0_0_0_1px_var(--blue)]'
+                      : '',
                   ].join(' ')}
-                  style={
-                    isActive
-                      ? {
-                          borderColor: color,
-                          boxShadow: `0 0 0 1px ${color}33`,
-                          // subtle background tint
-                          background: `color-mix(in srgb, ${color} 6%, var(--glass-bg, rgba(30,41,59,0.72)))`,
-                        }
-                      : {}
-                  }
                 >
-                  {/* Ícono */}
+                  {/* Ícono — pozo cálido; activo pasa a azul */}
                   <span
-                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full"
-                    style={{
-                      background: `color-mix(in srgb, ${color} 14%, transparent)`,
-                    }}
+                    className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-hairline ${isActive ? 'bg-[color-mix(in_srgb,var(--blue)_12%,transparent)]' : 'bg-raised'}`}
                     aria-hidden="true"
                   >
-                    <CatIcon size={22} style={{ color }} />
+                    <CatIcon size={22} className={isActive ? 'text-blue' : 'text-ink-2'} />
                   </span>
 
                   {/* Texto */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground">{g.label}</p>
-                    <p className="text-[13px] text-secondary-foreground">{g.sub}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink">{g.label}</p>
+                    <p className="text-[13px] text-ink-2">{g.sub}</p>
                   </div>
 
-                  {/* Check animado */}
+                  {/* Check animado — azul interactivo */}
                   <AnimatePresence>
                     {isActive && (
                       <motion.span
@@ -186,10 +163,9 @@ export function Goal() {
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 340, damping: 24 }}
-                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
-                        style={{ background: color }}
+                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue text-primary-foreground"
                       >
-                        <Check size={14} strokeWidth={3} color="#fff" />
+                        <Check size={14} strokeWidth={3} />
                       </motion.span>
                     )}
                   </AnimatePresence>
@@ -214,7 +190,7 @@ export function Goal() {
         <p
           role="status"
           aria-live="polite"
-          className="min-h-[20px] text-[13px] text-secondary-foreground"
+          className="min-h-[20px] text-[13px] text-ink-2"
         >
           {selected.size > 0
             ? `${selected.size} objetivo${selected.size > 1 ? 's' : ''} elegido${selected.size > 1 ? 's' : ''}. Podrás ajustar esto más adelante.`
@@ -222,7 +198,7 @@ export function Goal() {
         </p>
 
         {/* Disclaimer de investigación */}
-        <p className="text-center text-[11px] leading-relaxed text-secondary-foreground">
+        <p className="text-center text-[12px] leading-relaxed text-ink-2">
           Hacktrack es una herramienta de seguimiento personal. No reemplaza consejo médico.
         </p>
       </div>

@@ -1,4 +1,4 @@
-// RecetarioSheet v2 — design system "Precision × Accessible"
+// RecetarioSheet — "Bitácora": biblioteca de platillos como fichas editoriales (papel + hairline).
 // R37: EDITAR platillos (editFav) + initialView prop ('list'|'create') para abrir directo en crear.
 // Biblioteca de platillos frecuentes (FoodFav): ver, agregar 1-tap, crear y editar.
 // Compliance: sin claims médicos, privacidad local, es-MX, tap targets ≥44px.
@@ -14,7 +14,13 @@ import { DataPlate } from '../ui/DataPlate'
 import { IngredientBuilder } from './IngredientBuilder'
 import { RecetasHacktrack } from './RecetasHacktrack'
 
-// ── Sub-componente: tarjeta de platillo favorito ──────────────────────────────
+// Clases compartidas del vestido editorial (inputs = pozo cálido + hairline; foco azul vía
+// color-mix porque el alfa sobre var(--x) no se emite en este setup).
+const INPUT_CLS =
+  'h-11 rounded-[8px] border border-hairline bg-raised px-3 text-[15px] text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--blue)_45%,transparent)]'
+const LABEL_CLS = 'font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2'
+
+// ── Sub-componente: ficha de platillo favorito ───────────────────────────────
 
 interface FavCardProps {
   fav: FoodFav
@@ -25,23 +31,23 @@ interface FavCardProps {
 
 function FavCard({ fav, onAdd, onDelete, onEdit }: FavCardProps) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-white/8 bg-raised px-4 py-4">
+    <div className="flex items-start gap-3 rounded-sm border border-hairline bg-raised px-4 py-4">
       {/* Info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-foreground">{fav.label}</p>
-        <p className="mt-0.5 font-mono text-[13px] tabular-nums text-[var(--teal-bright)]">
-          {fav.kcal} kcal
+        <p className="truncate text-[15px] font-semibold text-ink">{fav.label}</p>
+        <p className="mt-0.5 font-mono text-[13px] font-medium tabular-nums text-ink">
+          {fav.kcal} <span className="font-normal text-ink-3">kcal</span>
         </p>
-        {/* Macros opcionales */}
+        {/* Macros opcionales — valores en tinta, sin arcoíris (editorial) */}
         {(fav.protein != null || fav.carbs != null || fav.fat != null) && (
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 font-mono text-[12px] tabular-nums text-ink-2">
             {fav.protein != null && <span className="mr-2">P {fav.protein} g</span>}
             {fav.carbs != null && <span className="mr-2">C {fav.carbs} g</span>}
             {fav.fat != null && <span>G {fav.fat} g</span>}
           </p>
         )}
         {fav.usoCount > 0 && (
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-[12px] text-ink-3">
             Usado {fav.usoCount} {fav.usoCount === 1 ? 'vez' : 'veces'}
           </p>
         )}
@@ -49,30 +55,30 @@ function FavCard({ fav, onAdd, onDelete, onEdit }: FavCardProps) {
 
       {/* Acciones */}
       <div className="flex shrink-0 flex-col gap-2">
-        {/* Agregar 1-tap */}
+        {/* Agregar 1-tap — acción primaria en azul (interactivo) */}
         <button
           type="button"
           aria-label={`Agregar ${fav.label}`}
           onClick={() => onAdd(fav.id)}
-          className="grid h-11 w-11 place-items-center rounded-full bg-primary text-primary-foreground active:scale-95 transition-transform"
+          className="grid h-11 w-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_1px_2px_rgba(26,23,18,.20)] transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <Plus size={18} />
         </button>
-        {/* R37: Editar platillo */}
+        {/* R37: Editar platillo — contorno azul con tinte */}
         <button
           type="button"
           aria-label={`Editar ${fav.label}`}
           onClick={() => onEdit(fav)}
-          className="grid h-11 w-11 place-items-center rounded-full bg-teal/15 text-teal active:scale-95 transition-transform"
+          className="grid h-11 w-11 place-items-center rounded-full border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] text-blue transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <Pencil size={15} />
         </button>
-        {/* Eliminar favorito */}
+        {/* Eliminar favorito — silencioso, hairline */}
         <button
           type="button"
           aria-label={`Eliminar ${fav.label} de favoritos`}
           onClick={() => onDelete(fav.id)}
-          className="grid h-11 w-11 place-items-center rounded-full bg-white/6 text-muted-foreground active:scale-95 transition-transform hover:text-alert"
+          className="grid h-11 w-11 place-items-center rounded-full border border-hairline bg-surface text-ink-3 transition-[transform,color] active:scale-95 hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           <X size={16} />
         </button>
@@ -137,13 +143,10 @@ function DishFormView({ initial, editingFav, onSave, onCancel }: DishFormViewPro
   ) {
     return (
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={`rf-${key}`}
-          className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground"
-        >
+        <label htmlFor={`rf-${key}`} className={LABEL_CLS}>
           {label}
           {!required && (
-            <span className="ml-1 font-normal normal-case text-muted-foreground/70">
+            <span className="ml-1 font-sans font-normal normal-case tracking-normal text-ink-3">
               · opcional
             </span>
           )}
@@ -158,7 +161,7 @@ function DishFormView({ initial, editingFav, onSave, onCancel }: DishFormViewPro
             const v = e.target.value.replace(',', '.')
             if (/^\d*\.?\d*$/.test(v)) setForm((f) => ({ ...f, [key]: v }))
           }}
-          className="h-11 rounded-lg border border-white/10 bg-raised px-3 text-[14px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+          className={`${INPUT_CLS} font-mono tabular-nums`}
         />
       </div>
     )
@@ -176,8 +179,8 @@ function DishFormView({ initial, editingFav, onSave, onCancel }: DishFormViewPro
       {/* Título contextual */}
       {editingFav && (
         <div className="flex items-center gap-2">
-          <Pencil size={15} className="text-teal shrink-0" />
-          <p className="text-[14px] font-semibold text-foreground truncate">
+          <Pencil size={15} className="shrink-0 text-blue" />
+          <p className="truncate font-serif text-[17px] font-medium tracking-tight text-ink">
             Editar: {editingFav.label}
           </p>
         </div>
@@ -185,10 +188,7 @@ function DishFormView({ initial, editingFav, onSave, onCancel }: DishFormViewPro
 
       {/* Nombre del platillo */}
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="rf-label"
-          className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground"
-        >
+        <label htmlFor="rf-label" className={LABEL_CLS}>
           Nombre del platillo
         </label>
         <input
@@ -199,15 +199,13 @@ function DishFormView({ initial, editingFav, onSave, onCancel }: DishFormViewPro
           value={form.label}
           onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
           autoFocus={!editingFav}
-          className="h-11 rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+          className={INPUT_CLS}
         />
       </div>
 
-      {/* kcal — requerido */}
+      {/* kcal — requerido; placa de instrumento con numeral serif ámbar (energía) */}
       <div className="flex flex-col gap-2">
-        <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Calorías
-        </p>
+        <p className={LABEL_CLS}>Calorías</p>
         <DataPlate className="flex items-center justify-center px-4 py-4">
           <input
             type="text"
@@ -219,10 +217,10 @@ function DishFormView({ initial, editingFav, onSave, onCancel }: DishFormViewPro
               const v = e.target.value.replace(',', '.')
               if (/^\d*\.?\d*$/.test(v)) setForm((f) => ({ ...f, kcalStr: v }))
             }}
-            className="w-full bg-transparent text-center font-mono text-[36px] font-bold tabular-nums text-[var(--teal-bright)] placeholder:text-muted-foreground focus:outline-none"
+            className="w-full bg-transparent text-center font-serif text-[38px] font-normal tabular-nums text-amber placeholder:text-[#8A8272] focus:outline-none"
           />
         </DataPlate>
-        <p className="text-center text-[12px] text-muted-foreground">kcal</p>
+        <p className="text-center font-mono text-[12px] uppercase tracking-[0.12em] text-ink-3">kcal</p>
       </div>
 
       {/* Macros opcionales */}
@@ -407,9 +405,9 @@ export function RecetarioSheet({
       {/* Alto FIJO para el sheet: no cambia de tamaño entre tabs (antes hacía fit-to-content). */}
       <div className="flex h-[68dvh] flex-col gap-4">
 
-        {/* ── Tabs: Mis platillos / Crear (ocultos en modo edición) ── */}
+        {/* ── Tabs: Mis platillos / Crear (ocultos en modo edición) — píldora hairline mono ── */}
         {view !== 'edit' && (
-          <div className="flex gap-1 rounded-full bg-white/6 p-1">
+          <div className="flex gap-1 rounded-full border border-hairline bg-raised p-1">
             {(['list', 'recetas', 'create'] as const).map((v) => {
               const active = view === v
               return (
@@ -423,11 +421,11 @@ export function RecetarioSheet({
                     setFormKey(EMPTY_FORM)
                   }}
                   className={[
-                    'relative flex h-10 flex-1 items-center justify-center rounded-full text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
-                    // "Recetas" resalta: outline + texto teal siempre (es la sección premium destacada)
+                    'relative flex h-10 flex-1 items-center justify-center rounded-full font-mono text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
+                    // "Recetas" resalta en azul (interactivo/destacado) siempre
                     v === 'recetas'
-                      ? 'text-teal ring-1 ring-inset ring-teal/50'
-                      : active ? 'text-foreground' : 'text-muted-foreground',
+                      ? 'text-blue ring-1 ring-inset ring-[color-mix(in_srgb,var(--blue)_45%,transparent)]'
+                      : active ? 'text-ink' : 'text-ink-2',
                   ].join(' ')}
                 >
                   {active && (
@@ -438,7 +436,11 @@ export function RecetarioSheet({
                           ? { duration: 0 }
                           : { type: 'spring', stiffness: 320, damping: 30 }
                       }
-                      className={`absolute inset-0 rounded-full shadow-[0_1px_0_rgba(255,255,255,.06)_inset,0_8px_20px_rgba(0,0,0,.4)] ${v === 'recetas' ? 'bg-teal/15' : 'bg-card'}`}
+                      className={`absolute inset-0 rounded-full shadow-[0_1px_2px_rgba(26,23,18,.10)] ${
+                        v === 'recetas'
+                          ? 'bg-[color-mix(in_srgb,var(--blue)_12%,transparent)]'
+                          : 'bg-surface'
+                      }`}
                     />
                   )}
                   <span className="relative flex items-center gap-1">
@@ -473,14 +475,14 @@ export function RecetarioSheet({
                     placeholder="Buscar platillo…"
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                    className={`${INPUT_CLS} w-full`}
                   />
                   {q && (
                     <button
                       type="button"
                       aria-label="Limpiar búsqueda"
                       onClick={() => setQ('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3"
                     >
                       <X size={14} />
                     </button>
@@ -491,8 +493,8 @@ export function RecetarioSheet({
               {/* Lista */}
               {filtered.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-10 text-center">
-                  <UtensilsCrossed size={32} className="text-muted-foreground/40" />
-                  <p className="text-[14px] text-muted-foreground">
+                  <UtensilsCrossed size={32} className="text-ink-3 opacity-50" />
+                  <p className="text-[15px] text-ink-2">
                     {q
                       ? `Sin resultados para "${q}"`
                       : 'Aún no tienes platillos guardados'}
@@ -547,7 +549,7 @@ export function RecetarioSheet({
               className="flex flex-col gap-4"
             >
               {/* Sub-toggle */}
-              <div className="flex gap-1 rounded-full bg-white/6 p-1">
+              <div className="flex gap-1 rounded-full border border-hairline bg-raised p-1">
                 {(['facil', 'ingredientes'] as const).map((m) => {
                   const active = createMode === m
                   return (
@@ -556,8 +558,8 @@ export function RecetarioSheet({
                       type="button"
                       aria-pressed={active}
                       onClick={() => setCreateMode(m)}
-                      className={`flex h-9 flex-1 items-center justify-center rounded-full text-[13px] font-semibold transition-colors ${
-                        active ? 'bg-card text-foreground shadow-[0_1px_0_rgba(255,255,255,.06)_inset,0_8px_20px_rgba(0,0,0,.4)]' : 'text-muted-foreground'
+                      className={`flex h-9 flex-1 items-center justify-center rounded-full font-mono text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+                        active ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(26,23,18,.10)]' : 'text-ink-2'
                       }`}
                     >
                       {m === 'facil' ? 'Fácil' : 'Por ingredientes'}
@@ -594,7 +596,7 @@ export function RecetarioSheet({
         </AnimatePresence>
 
         {/* ── Privacidad ── */}
-        <p className="flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
+        <p className="flex items-center justify-center gap-1.5 text-[12px] text-ink-3">
           <Shield size={12} className="shrink-0" />
           Tu historial se guarda solo en tu dispositivo
         </p>

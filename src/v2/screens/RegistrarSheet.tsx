@@ -1,4 +1,4 @@
-// RegistrarSheet v2 — design system "Precision × Accessible"
+// RegistrarSheet v2 — design system "Bitácora" (papel-y-tinta editorial)
 // Compliance: sin dosis precargada, sin vía de administración, sin claims médicos.
 // Privacidad: historial local only.
 // R16/R17: reconstitución del vial + doseMg/recon en logDose.
@@ -6,7 +6,7 @@
 // R22: selector de hora (v2 time-input) en vez de Date.now().
 //       Unidades: 'mg' | 'mcg' | 'UI' | 'mL'  (clics == UI → no se registra por separado)
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Shield, Clock, ChevronDown, ChevronUp, Sparkles, Loader2, Check } from 'lucide-react'
+import { Shield, Clock, ChevronDown, ChevronUp, Sparkles, Loader2, Check, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '../../lib/store'
 import { PEPTIDES, EFFECT_OPTIONS } from '../../lib/catalog'
@@ -17,6 +17,7 @@ import { Stepper } from '../ui/Stepper'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
 import { DataPlate } from '../ui/DataPlate'
+import { TermInfo } from '../ui/TermInfo'
 import { InjectionMap } from '../ui/InjectionMap'
 import type { InjectionSite } from '../../lib/types'
 
@@ -42,6 +43,15 @@ const UNIT_STEP: Record<DoseUnit, number> = {
 // 'clics' es lo mismo que UI (pluma/jeringa de insulina) → normaliza datos viejos a 'UI'.
 const normUnit = (u: string | null | undefined): DoseUnit =>
   u === 'clics' ? 'UI' : ((u as DoseUnit) ?? 'mg')
+
+// ── Clases compartidas "Bitácora" (solo presentación) ─────────────────────────
+const KICKER = 'font-mono text-[12px] font-medium uppercase tracking-[0.16em] text-ink-2'
+const LABEL = 'font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2'
+// Campo cálido; foco azul-tinta (color-mix porque el alfa sobre var() no se emite en este setup).
+const FIELD =
+  'rounded-[8px] border border-hairline bg-raised px-3 text-[15px] text-ink placeholder:text-ink-3 focus:outline-none focus:border-blue focus:ring-2 focus:ring-[color-mix(in_srgb,var(--blue)_30%,transparent)]'
+// El "instrumento" (time-wheel) va en mono; activo azul-tinta, inactivos tinta terciaria.
+const WHEEL_MONO = "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace"
 
 // ── Time-wheel inline ligero (v2, autocontenido) ──────────────────────────────
 
@@ -121,10 +131,11 @@ function WheelCol({
             height: ITEM_H,
             lineHeight: `${ITEM_H}px`,
             scrollSnapAlign: 'center',
-            fontFamily: 'var(--font-mono, monospace)',
+            fontFamily: WHEEL_MONO,
+            fontVariantNumeric: 'tabular-nums',
             fontSize: i === index ? 20 : 15,
-            fontWeight: i === index ? 700 : 400,
-            color: i === index ? 'var(--teal, #5FC9B8)' : 'rgba(255,255,255,0.3)',
+            fontWeight: i === index ? 600 : 400,
+            color: i === index ? 'var(--blue)' : 'var(--ink-3)',
             transition: 'font-size .1s, color .1s',
           }}
         >
@@ -171,25 +182,22 @@ function TimeWheelV2({
   }, [])
 
   return (
-    <div
-      className="relative flex gap-1 rounded-2xl bg-raised/60 px-3"
-      style={{ border: '1px solid rgba(255,255,255,0.08)' }}
-    >
-      {/* banda de selección */}
+    <div className="relative flex gap-1 rounded-sm border border-hairline bg-raised px-3">
+      {/* banda de selección — azul-tinta (interactivo), theme-aware vía color-mix */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-2"
         style={{
           top: ITEM_H,
           height: ITEM_H,
-          borderTop: '1px solid rgba(95,201,184,0.35)',
-          borderBottom: '1px solid rgba(95,201,184,0.35)',
+          borderTop: '1px solid color-mix(in srgb, var(--blue) 35%, transparent)',
+          borderBottom: '1px solid color-mix(in srgb, var(--blue) 35%, transparent)',
         }}
       />
       <WheelCol items={HOURS} index={hi} onIndex={setHi} label="Hora" />
       <div
-        className="self-center text-muted-foreground"
-        style={{ lineHeight: `${ITEM_H * 3}px`, fontFamily: 'monospace', fontWeight: 700 }}
+        className="self-center text-ink-3"
+        style={{ lineHeight: `${ITEM_H * 3}px`, fontFamily: WHEEL_MONO, fontWeight: 600 }}
       >
         :
       </div>
@@ -594,11 +602,11 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         // PASO 2 — la dosis YA quedó registrada en SU día programado (con el sitio). Aquí, por separado,
         // ofrecemos ajustar el protocolo si el horario cambió. Pantalla aparte para no romper el flujo (Jan).
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 rounded-xl border border-teal/25 bg-teal/[0.07] p-3.5">
-            <Check size={18} className="mt-0.5 shrink-0 text-teal" aria-hidden />
-            <p className="text-[13px] leading-relaxed text-secondary-foreground">
-              Registré tu <span className="font-semibold text-foreground">{protocolAdjustPrompt.product}</span> hoy y
-              dejé tu dosis del <span className="font-semibold capitalize text-foreground">{fecha}</span> como tomada tarde. ¿Cambió tu horario?
+          <div className="flex items-start gap-3 rounded-sm border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] p-3.5">
+            <Check size={18} className="mt-0.5 shrink-0 text-blue" aria-hidden />
+            <p className="text-[14px] leading-relaxed text-ink-2">
+              Registré tu <span className="font-serif font-medium text-ink">{protocolAdjustPrompt.product}</span> hoy y
+              dejé tu dosis del <span className="font-semibold capitalize text-ink">{fecha}</span> como tomada tarde. ¿Cambió tu horario?
             </p>
           </div>
           <div className="flex flex-col gap-2.5">
@@ -606,18 +614,18 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               type="button"
               autoFocus
               onClick={() => { const p = protocolAdjustPrompt.product; setProtocolAdjustPrompt(null); dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: p }) }}
-              className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
+              className="flex flex-col gap-0.5 rounded-sm border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-4 py-3 text-left active:scale-[.99] transition-transform"
             >
-              <span className="text-[14px] font-semibold text-teal">Sí, ajustar mi protocolo</span>
-              <span className="text-[12px] text-muted-foreground">Abre tu protocolo para actualizar días/hora. Tu dosis ya quedó registrada.</span>
+              <span className="text-[15px] font-semibold text-blue">Sí, ajustar mi protocolo</span>
+              <span className="text-[12px] text-ink-2">Abre tu protocolo para actualizar días/hora. Tu dosis ya quedó registrada.</span>
             </button>
             <button
               type="button"
               onClick={() => { setProtocolAdjustPrompt(null); onClose() }}
-              className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+              className="flex flex-col gap-0.5 rounded-sm border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99] transition-transform"
             >
-              <span className="text-[14px] font-semibold text-foreground">No, mi protocolo sigue igual</span>
-              <span className="text-[12px] text-muted-foreground">Listo, nada más.</span>
+              <span className="text-[15px] font-semibold text-ink">No, mi protocolo sigue igual</span>
+              <span className="text-[12px] text-ink-2">Listo, nada más.</span>
             </button>
           </div>
         </div>
@@ -627,11 +635,11 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         const m = dateChoice
         return (
           <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-3 rounded-xl border border-warn/25 bg-warn/[0.07] p-3.5">
+            <div className="flex items-start gap-3 rounded-sm border border-[color-mix(in_srgb,var(--warn)_35%,transparent)] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)] p-3.5">
               <Clock size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-              <p className="text-[13px] leading-relaxed text-secondary-foreground">
-                Tu <span className="font-semibold text-foreground">{m.product}</span> estaba programado para el{' '}
-                <span className="font-semibold capitalize text-foreground">{fechaProg}</span>. ¿Cuándo te la pusiste?
+              <p className="text-[14px] leading-relaxed text-ink-2">
+                Tu <span className="font-serif font-medium text-ink">{m.product}</span> estaba programado para el{' '}
+                <span className="font-semibold capitalize text-ink">{fechaProg}</span>. ¿Cuándo te la pusiste?
               </p>
             </div>
             <div className="flex flex-col gap-2.5">
@@ -641,10 +649,10 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 autoFocus
                 disabled={saving}
                 onClick={() => { setSaving(true); doLog(m.scheduledTs); onClose() }}
-                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+                className="flex flex-col gap-0.5 rounded-sm border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
-                <span className="text-[14px] font-semibold capitalize text-foreground">Me la puse el {fechaProg}</span>
-                <span className="text-[12px] text-muted-foreground">Cuando tocaba; solo la registro ahora. Se guarda en su día.</span>
+                <span className="text-[15px] font-semibold capitalize text-ink">Me la puse el {fechaProg}</span>
+                <span className="text-[12px] text-ink-2">Cuando tocaba; solo la registro ahora. Se guarda en su día.</span>
               </button>
               {/* Ahora → la dosis va a HOY (con el sitio) y la ocurrencia programada queda "tomada tarde"
                   (neutral, no "saltada"). Limpia el pendiente. Pasa al paso 2 (¿ajustar protocolo?). */}
@@ -652,12 +660,12 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 type="button"
                 disabled={saving}
                 onClick={() => { setSaving(true); doLog(Date.now()); dispatch({ t: 'logSkip', product: m.product, ts: m.scheduledTs, keepSheet: true, late: true }); setDateChoice(null); setProtocolAdjustPrompt({ product: m.product, scheduledTs: m.scheduledTs }) }}
-                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+                className="flex flex-col gap-0.5 rounded-sm border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
-                <span className="text-[14px] font-semibold text-foreground">Me la estoy poniendo ahora</span>
-                <span className="text-[12px] text-muted-foreground">Se guarda hoy; tu dosis del {fechaProg} queda como tomada tarde.</span>
+                <span className="text-[15px] font-semibold text-ink">Me la estoy poniendo ahora</span>
+                <span className="text-[12px] text-ink-2">Se guarda hoy; tu dosis del {fechaProg} queda como tomada tarde.</span>
               </button>
-              <button type="button" onClick={() => setDateChoice(null)} className="self-center px-4 py-2 text-[13px] text-muted-foreground">Cancelar</button>
+              <button type="button" onClick={() => setDateChoice(null)} className="flex min-h-[44px] items-center self-center px-4 text-[13px] font-medium text-ink-2">Cancelar</button>
             </div>
           </div>
         )
@@ -667,12 +675,12 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         const m = timeMismatch
         return (
           <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-3 rounded-xl border border-warn/25 bg-warn/[0.07] p-3.5">
+            <div className="flex items-start gap-3 rounded-sm border border-[color-mix(in_srgb,var(--warn)_35%,transparent)] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)] p-3.5">
               <Clock size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-              <p className="text-[13px] leading-relaxed text-secondary-foreground">
-                Tu protocolo de <span className="font-semibold text-foreground">{m.product}</span> está programado a las{' '}
-                <span className="font-mono font-semibold text-foreground">{schedHora}</span>, pero estás registrando a las{' '}
-                <span className="font-mono font-semibold text-foreground">{logHora}</span>. ¿Qué pasó?
+              <p className="text-[14px] leading-relaxed text-ink-2">
+                Tu protocolo de <span className="font-serif font-medium text-ink">{m.product}</span> está programado a las{' '}
+                <span className="font-mono font-semibold tabular-nums text-ink">{schedHora}</span>, pero estás registrando a las{' '}
+                <span className="font-mono font-semibold tabular-nums text-ink">{logHora}</span>. ¿Qué pasó?
               </p>
             </div>
             <div className="flex flex-col gap-2.5">
@@ -682,36 +690,36 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 onClick={() => { setSaving(true); doLog(m.scheduledTs); onClose() }}
                 disabled={saving}
                 autoFocus
-                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+                className="flex flex-col gap-0.5 rounded-sm border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
-                <span className="text-[14px] font-semibold text-foreground">Mi dosis fue a las {schedHora}</span>
-                <span className="text-[12px] text-muted-foreground">A la hora programada; solo lo registro hasta ahora. Se guarda a las {schedHora}.</span>
+                <span className="text-[15px] font-semibold text-ink">Mi dosis fue a las {schedHora}</span>
+                <span className="text-[12px] text-ink-2">A la hora programada; solo lo registro hasta ahora. Se guarda a las {schedHora}.</span>
               </button>
               {/* Opción B — hoy fue a otra hora, deja el protocolo igual → guarda a la hora real del registro */}
               <button
                 type="button"
                 onClick={() => { setSaving(true); doLog(m.logTs); onClose() }}
                 disabled={saving}
-                className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+                className="flex flex-col gap-0.5 rounded-sm border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
-                <span className="text-[14px] font-semibold text-foreground">Mi dosis fue a las {logHora} solo hoy</span>
-                <span className="text-[12px] text-muted-foreground">Mi protocolo sigue igual; hoy fue a otra hora. Se guarda a las {logHora}.</span>
+                <span className="text-[15px] font-semibold text-ink">Mi dosis fue a las {logHora} solo hoy</span>
+                <span className="text-[12px] text-ink-2">Mi protocolo sigue igual; hoy fue a otra hora. Se guarda a las {logHora}.</span>
               </button>
               {/* Opción A — cambiar el recordatorio → guarda a la hora real y RUTEA a la pantalla (no lo cambia solo) */}
               <button
                 type="button"
                 onClick={() => { setSaving(true); doLog(m.logTs); dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: m.product }) }}
                 disabled={saving}
-                className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
+                className="flex flex-col gap-0.5 rounded-sm border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-4 py-3 text-left active:scale-[.99] transition-transform"
               >
-                <span className="text-[14px] font-semibold text-teal">Cambiar mi recordatorio a las {logHora}</span>
-                <span className="text-[12px] text-muted-foreground">Ahora mi dosis es a esta hora. Se guarda a las {logHora} y te llevo a ajustar tu protocolo.</span>
+                <span className="text-[15px] font-semibold text-blue">Cambiar mi recordatorio a las {logHora}</span>
+                <span className="text-[12px] text-ink-2">Ahora mi dosis es a esta hora. Se guarda a las {logHora} y te llevo a ajustar tu protocolo.</span>
               </button>
             </div>
             <button
               type="button"
               onClick={() => setTimeMismatch(null)}
-              className="mx-auto mt-1 flex min-h-[44px] items-center justify-center px-4 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+              className="mx-auto mt-1 flex min-h-[44px] items-center justify-center px-4 text-[13px] font-medium text-ink-2 hover:text-ink"
             >
               Volver
             </button>
@@ -719,10 +727,10 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         )
       })() : newProductPrompt ? (
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 rounded-xl border border-teal/25 bg-teal/[0.07] p-3.5">
-            <Sparkles size={18} className="mt-0.5 shrink-0 text-teal" aria-hidden />
-            <p className="text-[13px] leading-relaxed text-secondary-foreground">
-              Ya registré tu dosis de <span className="font-semibold text-foreground">{newProductPrompt.product}</span>.
+          <div className="flex items-start gap-3 rounded-sm border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] p-3.5">
+            <Sparkles size={18} className="mt-0.5 shrink-0 text-blue" aria-hidden />
+            <p className="text-[14px] leading-relaxed text-ink-2">
+              Ya registré tu dosis de <span className="font-serif font-medium text-ink">{newProductPrompt.product}</span>.
               No lo habías usado antes — ¿quieres empezar un protocolo para darle seguimiento?
             </p>
           </div>
@@ -735,19 +743,19 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 dispatch({ t: 'setProtocol', product: prod })
                 dispatch({ t: 'sheet', sheet: 'protocolo-edit', arg: prod })
               }}
-              className="flex flex-col gap-0.5 rounded-xl border border-teal/40 bg-teal/[0.08] px-4 py-3 text-left active:scale-[.99] transition-transform"
+              className="flex flex-col gap-0.5 rounded-sm border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-4 py-3 text-left active:scale-[.99] transition-transform"
             >
-              <span className="text-[14px] font-semibold text-teal">Sí, empezar un protocolo</span>
-              <span className="text-[12px] text-muted-foreground">Le doy seguimiento: cadencia, recordatorios y adherencia. Te llevo a configurarlo.</span>
+              <span className="text-[15px] font-semibold text-blue">Sí, empezar un protocolo</span>
+              <span className="text-[12px] text-ink-2">Le doy seguimiento: cadencia, recordatorios y adherencia. Te llevo a configurarlo.</span>
             </button>
             {/* NO → la dosis queda como registro único; no se crea protocolo en ningún lado */}
             <button
               type="button"
               onClick={() => onClose()}
-              className="flex flex-col gap-0.5 rounded-xl border border-white/12 bg-raised/60 px-4 py-3 text-left active:scale-[.99] transition-transform"
+              className="flex flex-col gap-0.5 rounded-sm border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99] transition-transform"
             >
-              <span className="text-[14px] font-semibold text-foreground">No, fue un solo uso</span>
-              <span className="text-[12px] text-muted-foreground">Se queda solo como esta dosis (la verás en tu diario y en el calendario de ese día), sin protocolo.</span>
+              <span className="text-[15px] font-semibold text-ink">No, fue un solo uso</span>
+              <span className="text-[12px] text-ink-2">Se queda solo como esta dosis (la verás en tu diario y en el calendario de ese día), sin protocolo.</span>
             </button>
           </div>
         </div>
@@ -756,7 +764,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
         {/* ── Selector de producto ── */}
         <div className="flex flex-col gap-2">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className={KICKER}>
             Producto
           </p>
           <button
@@ -764,19 +772,22 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             onClick={() => setShowPicker((v) => !v)}
             aria-expanded={showPicker}
             aria-haspopup="listbox"
-            className="flex min-h-[44px] items-center justify-between rounded-lg border border-white/10 bg-raised px-4 py-3 text-left active:scale-[.99]"
+            className="flex min-h-[44px] items-center justify-between rounded-[8px] border border-hairline bg-raised px-4 py-3 text-left active:scale-[.99]"
           >
-            <span className="font-medium text-foreground">
-              {product || 'Selecciona un producto'}
-            </span>
-            <span className="text-[13px] font-semibold text-teal">
+            {/* Nombre del producto en SERIF — la voz editorial (Fraunces), como la ref canónica */}
+            {product ? (
+              <span className="font-serif text-[19px] leading-tight text-ink">{product}</span>
+            ) : (
+              <span className="text-[15px] font-medium text-ink-3">Selecciona un producto</span>
+            )}
+            <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.08em] text-blue">
               {showPicker ? 'Cerrar' : 'Cambiar'}
             </span>
           </button>
 
           {/* Error inline — producto no seleccionado */}
           {tried && !product.trim() && (
-            <p className="text-[12px] font-medium text-alert" role="alert">
+            <p className="text-[13px] font-medium text-alert" role="alert">
               Selecciona un producto
             </p>
           )}
@@ -789,19 +800,19 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
                 transition={{ duration: 0.15 }}
-                className="flex flex-col gap-3 rounded-lg border border-white/10 bg-void p-3"
+                className="flex flex-col gap-3 rounded-sm border border-hairline bg-paper p-3"
               >
                 <input
                   type="search"
                   placeholder="Buscar producto…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-11 w-full rounded-md border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                  className={`h-11 w-full ${FIELD}`}
                 />
 
                 {!searchQuery && recentProducts.length > 0 && (
                   <div className="flex flex-col gap-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className={LABEL}>
                       Recientes
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -816,7 +827,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
                 <div className="flex flex-col gap-1.5">
                   {!searchQuery && (
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className={LABEL}>
                       Catálogo
                     </p>
                   )}
@@ -827,7 +838,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                       </Chip>
                     ))}
                     {filteredProducts.length === 0 && (
-                      <p className="text-[13px] text-muted-foreground">Sin resultados</p>
+                      <p className="text-[13px] text-ink-2">Sin resultados</p>
                     )}
                     <Chip active={pickingCustom} onClick={() => setPickingCustom(true)}>
                       Otro
@@ -843,12 +854,12 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                       value={customProduct}
                       onChange={(e) => setCustomProduct(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && confirmCustom()}
-                      className="h-11 flex-1 rounded-md border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                      className={`h-11 flex-1 ${FIELD}`}
                     />
                     <button
                       type="button"
                       onClick={confirmCustom}
-                      className="h-11 rounded-md bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
+                      className="h-11 rounded-[8px] bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
                     >
                       Listo
                     </button>
@@ -861,7 +872,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
         {/* ── Dosis — DataPlate + Stepper + unidades ── */}
         <div className="flex flex-col gap-4">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className={KICKER}>
             Dosis
           </p>
 
@@ -882,14 +893,14 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                   const v = e.target.value.replace(',', '.')
                   if (/^\d*\.?\d*$/.test(v)) setDose(v)
                 }}
-                className="w-full bg-transparent text-center font-mono text-[42px] font-bold tabular-nums text-[var(--teal-bright)] placeholder:text-muted-foreground/50 focus:outline-none"
+                className="w-full bg-transparent text-center font-serif text-[44px] font-normal tabular-nums tracking-[-0.02em] placeholder:text-[#8A8272] focus:outline-none"
               />
             </DataPlate>
           </Stepper>
 
           {/* Error inline — dosis vacía o cero */}
           {(tried || dose !== '') && !(parseFloat(dose) > 0) && (
-            <p className="text-[12px] font-medium text-alert" role="alert">
+            <p className="text-[13px] font-medium text-alert" role="alert">
               Ingresa al menos 0.1 {unit}
             </p>
           )}
@@ -901,7 +912,9 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             if (mean === null) return null
             if (parseFloat(dose) <= mean * 5) return null
             return (
-              <p className="text-warn text-[12px]" role="status" aria-live="polite">
+              // Estado nunca solo-color: ícono (forma) + texto en tinta AA; el ámbar queda en el ícono.
+              <p className="flex items-center gap-1.5 text-[13px] text-ink-2" role="status" aria-live="polite">
+                <AlertTriangle size={14} aria-hidden className="shrink-0 text-warn" />
                 Eso es bastante más alto de lo habitual (~{mean % 1 === 0 ? mean : parseFloat(mean.toFixed(2))} {unit}). ¿Seguro?
               </p>
             )
@@ -920,7 +933,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             ))}
           </div>
 
-          <p className="text-center text-[12px] text-muted-foreground">
+          <p className="text-center font-mono text-[12px] tabular-nums text-ink-2">
             Paso: {UNIT_STEP[unit]} {unit}
             <span> · mantén ± para rampa</span>
           </p>
@@ -928,7 +941,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           {/* "Usadas antes" */}
           {doseChips.length > 0 && (
             <div className="flex flex-col gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className={LABEL}>
                 Usadas antes
               </p>
               <div className="flex flex-wrap gap-2">
@@ -952,7 +965,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         {/* ── R16/R17: Reconstitución del vial — para toda unidad que lo requiere (UI, clics, mL) ── */}
         {needsRecon(unit) && (
         <div
-          className="rounded-xl border border-white/10 bg-raised/50 overflow-hidden"
+          className="overflow-hidden rounded-sm border border-hairline"
           aria-label="Panel de reconstitución"
         >
           <button
@@ -961,19 +974,20 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
             className="flex w-full min-h-[44px] items-center justify-between px-4 py-3 text-left"
           >
             <div className="flex flex-col">
-              <span className="text-[13px] font-semibold text-foreground">
+              <span className="text-[14px] font-semibold text-ink">
                 Reconstitución del vial
               </span>
               {vialMg > 0 && aguaMl > 0 && (
-                <span className="text-[11px] text-muted-foreground font-mono">
+                <span className="font-mono text-[12px] tabular-nums text-ink-2">
                   {vialMg} mg / {aguaMl} mL · {(vialMg / aguaMl).toFixed(2)} mg/mL
                 </span>
               )}
             </div>
-            {reconOpen ? <ChevronUp size={16} className="text-muted-foreground shrink-0" /> : <ChevronDown size={16} className="text-muted-foreground shrink-0" />}
+            {reconOpen ? <ChevronUp size={16} className="shrink-0 text-ink-2" /> : <ChevronDown size={16} className="shrink-0 text-ink-2" />}
           </button>
-          <p className="px-4 pb-2 text-[12px] text-muted-foreground">
+          <p className="flex items-center gap-1.5 px-4 pb-2 text-[13px] text-ink-2">
             Ingresa vial y agua para el cálculo automático · opcional
+            <TermInfo term="reconstitución">Mezclar el polvo del vial con agua: así se sabe cuántos mg lleva cada mL.</TermInfo>
           </p>
 
           <AnimatePresence initial={false}>
@@ -987,12 +1001,12 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 style={{ overflow: 'hidden' }}
               >
                 <div className="flex flex-col gap-3 px-4 pb-4">
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="text-[13px] text-ink-2">
                     Ingresa el vial y el agua para calcular mg canónicos automáticamente.
                   </p>
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1" htmlFor="reg-vial">
+                      <label className={`mb-1 block ${LABEL}`} htmlFor="reg-vial">
                         Vial (mg)
                       </label>
                       <input
@@ -1003,11 +1017,11 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                         placeholder="ej. 10"
                         value={vialStr}
                         onChange={(e) => setVialStr(e.target.value)}
-                        className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 font-mono text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                        className={`h-11 w-full font-mono tabular-nums ${FIELD}`}
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1" htmlFor="reg-agua">
+                      <label className={`mb-1 block ${LABEL}`} htmlFor="reg-agua">
                         Agua (mL)
                       </label>
                       <input
@@ -1018,26 +1032,29 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                         placeholder="ej. 2"
                         value={aguaStr}
                         onChange={(e) => setAguaStr(e.target.value)}
-                        className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 font-mono text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                        className={`h-11 w-full font-mono tabular-nums ${FIELD}`}
                       />
                     </div>
                   </div>
 
                   {/* Resultado de conversión */}
                   {derivedMg != null ? (
-                    <div className="rounded-lg bg-teal/10 border border-teal/25 px-3 py-2 text-center">
-                      <span className="font-mono text-[15px] font-bold text-teal">
+                    <div className="flex items-center justify-center gap-2 rounded-[8px] border border-[color-mix(in_srgb,var(--blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-3 py-2 text-center">
+                      <span className="font-serif text-[17px] font-medium tabular-nums text-blue">
                         {derivedMg < 1 ? derivedMg.toFixed(3) : derivedMg < 10 ? derivedMg.toFixed(2) : derivedMg.toFixed(1)} mg
                       </span>
-                      <span className="ml-2 text-[12px] text-muted-foreground">canónicos</span>
+                      <span className="flex items-center gap-1.5 text-[12px] text-ink-2">
+                        canónicos
+                        <TermInfo term="mg canónicos">Los miligramos que corresponden a lo que marcaste, según tu mezcla de vial y agua.</TermInfo>
+                      </span>
                     </div>
                   ) : (vialStr && aguaStr) ? (
-                    <p className="text-center text-[12px] text-muted-foreground">
+                    <p className="text-center text-[12px] text-ink-2">
                       Ingresa también una dosis para ver la conversión
                     </p>
                   ) : null}
 
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[12px] text-ink-2">
                     Dato orientativo. No es consejo médico.
                   </p>
                 </div>
@@ -1049,10 +1066,10 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
         {/* ── Zona de inyección (mapa interactivo) ── */}
         <div className="flex flex-col gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Zona de inyección <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
+          <p className={KICKER}>
+            Zona de inyección <span className="font-normal normal-case tracking-normal text-ink-3">· opcional</span>
           </p>
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-[13px] text-ink-2">
             Toca un área para recordar dónde la aplicaste (opcional)
           </p>
           {showHeavyMap ? (
@@ -1060,15 +1077,15 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           ) : (
             // Placeholder del MISMO tamaño (sin layout shift) mientras se difiere el mapa pesado.
             <div className="relative mx-auto w-full" style={{ maxWidth: 360 }}>
-              <div className="relative w-full rounded-lg border border-white/10 bg-raised" style={{ aspectRatio: '1200 / 896' }} />
+              <div className="relative w-full rounded-sm border border-hairline bg-raised" style={{ aspectRatio: '1200 / 896' }} />
             </div>
           )}
         </div>
 
         {/* ── Calculadora de reconstitución ── */}
-        <button
-          type="button"
-          className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-teal/40 text-teal text-[13px] font-semibold active:scale-[.98] transition-transform"
+        <Button
+          variant="outline"
+          size="full"
           onClick={() => {
             // Parquear el form ANTES de ir a la calc: al cerrar (open=false) el reset borra estos campos,
             // y draftDose solo restaura dosis/unidad/sitio. Sin esto se perdían nota/efecto/hora al volver.
@@ -1077,12 +1094,12 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           }}
         >
           Calculadora de unidades
-        </button>
+        </Button>
 
         {/* ── R22: Hora de registro ── */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <p className={`${KICKER} flex items-center gap-1.5`}>
               <Clock size={13} className="opacity-70" />
               Hora de registro
             </p>
@@ -1092,7 +1109,6 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 setUseNow(true)
                 setShowTimePicker(false)
               }}
-              className="h-8 text-[12px] px-3"
             >
               Ahora
             </Chip>
@@ -1104,9 +1120,9 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
               setUseNow(false)
               setShowTimePicker((v) => !v)
             }}
-            className="flex min-h-[44px] items-center justify-between rounded-lg border border-white/10 bg-raised/60 px-4 py-2.5 text-left active:scale-[.99]"
+            className="flex min-h-[44px] items-center justify-between rounded-[8px] border border-hairline bg-raised px-4 py-2.5 text-left active:scale-[.99]"
           >
-            <span className={`text-[13px] font-medium ${!useNow ? 'text-teal' : 'text-muted-foreground'}`}>
+            <span className={`font-mono text-[13px] font-medium tabular-nums ${!useNow ? 'text-blue' : 'text-ink-2'}`}>
               {!useNow && wheelTs
                 ? (() => {
                     const d = new Date(wheelTs)
@@ -1115,8 +1131,8 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 : 'Elegir hora exacta'}
             </span>
             {showTimePicker && !useNow
-              ? <ChevronUp size={15} className="text-muted-foreground" />
-              : <ChevronDown size={15} className="text-muted-foreground" />}
+              ? <ChevronUp size={15} className="text-ink-2" />
+              : <ChevronDown size={15} className="text-ink-2" />}
           </button>
 
           <AnimatePresence initial={false}>
@@ -1144,7 +1160,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            className="flex min-h-[44px] items-center gap-2 text-[13px] text-muted-foreground font-medium"
+            className="flex min-h-[44px] items-center gap-2 text-[13px] font-medium text-ink-2"
             onClick={() => setShowNota((v) => !v)}
           >
             {showNota ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -1168,10 +1184,10 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                     value={nota}
                     onChange={(e) => setNota(e.target.value)}
                     aria-label="Nota opcional (máx. 200 caracteres)"
-                    className="w-full resize-none rounded-lg border border-white/10 bg-raised px-3 py-2.5 pb-6 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50 box-border"
+                    className={`box-border w-full resize-none py-2.5 pb-6 ${FIELD}`}
                     style={{ fontFamily: 'inherit' }}
                   />
-                  <span className="absolute bottom-2 right-3 text-[11px] text-muted-foreground pointer-events-none">
+                  <span className="pointer-events-none absolute bottom-2 right-3 font-mono text-[12px] tabular-nums text-ink-2">
                     {nota.length}/200
                   </span>
                 </div>
@@ -1182,8 +1198,8 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
 
         {/* ── R19: Efecto/síntoma post-dosis ── */}
         <div className="flex flex-col gap-2">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-            ¿Cómo te sientes? <span className="font-normal normal-case text-muted-foreground/70">· opcional</span>
+          <p className={KICKER}>
+            ¿Cómo te sientes? <span className="font-normal normal-case tracking-normal text-ink-3">· opcional</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {EFFECT_OPTIONS.filter((o) => o !== 'Otro').map((opt) => (
@@ -1225,7 +1241,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                   onChange={(e) => setCustomEffect(e.target.value)}
                   placeholder="Describe cómo te sientes…"
                   aria-label="Efecto personalizado"
-                  className="h-11 w-full rounded-lg border border-white/10 bg-raised px-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal/50"
+                  className={`h-11 w-full ${FIELD}`}
                 />
               </motion.div>
             )}
@@ -1233,7 +1249,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           {/* Slider de intensidad 0–100 — compacto, solo cuando ya elegiste un efecto */}
           {((effect && effect !== 'Sin efectos') || (showCustomEffect && customEffect.trim())) && (
             <div className="flex items-center gap-3 pt-0.5">
-              <span className="shrink-0 text-[11px] text-muted-foreground">Intensidad</span>
+              <span className="shrink-0 text-[12px] text-ink-2">Intensidad</span>
               <input
                 type="range"
                 min={0}
@@ -1242,17 +1258,17 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
                 value={effectIntensity}
                 onChange={(e) => setEffectIntensity(Number(e.target.value))}
                 aria-label="Intensidad del efecto, de 0 a 100"
-                className="h-1.5 flex-1 cursor-pointer accent-teal"
+                className="h-1.5 flex-1 cursor-pointer accent-blue"
               />
-              <span className="w-7 text-right font-mono text-[12px] font-semibold tabular-nums text-teal">{effectIntensity}</span>
+              <span className="w-7 text-right font-mono text-[13px] font-semibold tabular-nums text-blue">{effectIntensity}</span>
             </div>
           )}
         </div>
 
         {/* ── #14: Advertencia permanente de embarazo/lactancia (no colapsable, siempre visible) ── */}
-        <div className="flex items-start gap-2 rounded-lg border border-warn/25 bg-warn/[0.07] px-3 py-2.5">
+        <div className="flex items-start gap-2 rounded-[8px] border border-[color-mix(in_srgb,var(--warn)_35%,transparent)] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)] px-3 py-2.5">
           <Shield size={14} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-          <p className="text-[12px] leading-relaxed text-secondary-foreground">
+          <p className="text-[13px] leading-relaxed text-ink-2">
             Muchos péptidos de investigación no han sido evaluados en embarazo ni lactancia.
             Consulta a tu médico antes de usarlos.
           </p>
@@ -1279,7 +1295,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
         </Button>
 
         {/* ── Nota de privacidad ── */}
-        <p className="flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
+        <p className="flex items-center justify-center gap-1.5 font-mono text-[12px] text-ink-2">
           <Shield size={12} className="shrink-0" />
           Tu historial se guarda solo en tu dispositivo
         </p>

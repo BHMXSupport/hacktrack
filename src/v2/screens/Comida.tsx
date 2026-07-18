@@ -1,13 +1,14 @@
-// Comida v2 — resumen nutricional del día con diseño "Precision × Accessible".
-// R35: tap-to-edit + borrar con undo via toast.
-// R38: electrolitos Na/K/Mg con ± y barras + ventana de ayuno.
-// R39: editores de meta kcal/macros + selector de tamaño de vaso.
-// Superficies: Glass para contenido/analítica, bg-raised para médicas/operativas.
-// Motion: fade+y stagger solo en opacity/transform; respeta useReducedMotion().
+// Comida v2 — resumen nutricional del día, restyled al Design System "Bitácora" (LOCKED 2026-07-17).
+// R35: tap-to-edit + borrar con undo via toast. R38: electrolitos Na/K/Mg con ± y barras + ventana
+// de ayuno. R39: editores de meta kcal/macros + selector de tamaño de vaso.
+// Bitácora: kcal = gauge ÁMBAR (Ring) + numeral serif; hidratación = azul (ref inicio: kcal ámbar /
+// agua azul); superficies = columna impresa (Glass) para contenido y pozo cálido (raised) para lo
+// médico/operativo. Motion: fade+y stagger solo opacity/transform; respeta useReducedMotion().
+// Overhaul ESTÉTICO: dispatches, semántica y validaciones intactos.
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
-  Droplet, Utensils, Star, Activity, ChevronRight, Plus, Minus,
+  Droplet, Utensils, Star, ChevronRight, Plus, Minus,
   Pencil, Trash2, Check, X, Timer, Flame, ChevronDown, ChevronUp, Download,
 } from 'lucide-react'
 import { useApp, isoKey } from '../../lib/store'
@@ -25,24 +26,29 @@ import type { FoodFav, Meal } from '../../lib/types'
 import { Glass } from '../ui/Glass'
 import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
+import { Ring } from '../ui/Ring'
+import { StatNumber } from '../ui/StatNumber'
+import { FolioLabel } from '../ui/FolioLabel'
+import { TermInfo } from '../ui/TermInfo'
 import { SectionHero } from '../ui/SectionHero'
+import { EASE } from '../lib/motion'
 import { HEROES } from '../lib/heroes'
 
-// ── Variante de animación compartida ─────────────────────────────────────────
+// ── Variante de animación compartida (easing firma Bitácora) ─────────────────
 const fade = {
   hidden: { opacity: 0, y: 12 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, ease: [0, 0, 0, 1] as [number, number, number, number] },
+    transition: { duration: 0.35, ease: EASE },
   },
 }
 
-// ── Barra de progreso genérica ────────────────────────────────────────────────
+// ── Barra de progreso genérica (pista = pozo cálido, nunca blanco/alpha) ─────
 function ProgressBar({
   value,
   max,
-  color = 'bg-teal',
+  color = 'bg-blue',
 }: {
   value: number
   max: number
@@ -55,7 +61,7 @@ function ProgressBar({
       aria-valuenow={value}
       aria-valuemin={0}
       aria-valuemax={max}
-      className="h-1.5 overflow-hidden rounded-full bg-white/10"
+      className="h-1.5 overflow-hidden rounded-full bg-raised"
     >
       <div
         className={`h-full rounded-full transition-[width] duration-300 ${color}`}
@@ -82,13 +88,13 @@ function MacroRow({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[12px] text-muted-foreground">{label}</span>
-        <span className="font-mono text-[13px] tabular-nums text-foreground">
+        <span className="text-[13px] text-ink-2">{label}</span>
+        <span className="font-mono text-[13px] tabular-nums text-ink">
           {value}
           {goal != null && (
-            <span className="text-muted-foreground"> / {goal} {unit}</span>
+            <span className="text-ink-3"> / {goal} {unit}</span>
           )}
-          {goal == null && <span className="text-muted-foreground"> {unit}</span>}
+          {goal == null && <span className="text-ink-3"> {unit}</span>}
         </span>
       </div>
       {goal != null && <ProgressBar value={value} max={goal} color={color} />}
@@ -108,10 +114,10 @@ function FoodChip({
     <button
       type="button"
       onClick={() => onTap(fav)}
-      className="flex min-h-[44px] flex-col items-start justify-center gap-0.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left transition-colors active:bg-white/10"
+      className="flex min-h-[44px] flex-col items-start justify-center gap-0.5 rounded-[8px] border border-hairline bg-surface px-3 py-2 text-left transition-colors active:bg-raised"
     >
-      <span className="text-[13px] font-semibold text-foreground leading-tight">{fav.label}</span>
-      <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+      <span className="text-[13px] font-semibold leading-tight text-ink">{fav.label}</span>
+      <span className="font-mono text-[12px] tabular-nums text-ink-3">
         {fav.kcal} kcal
         {fav.protein != null && ` · P: ${fav.protein} g`}
       </span>
@@ -159,12 +165,12 @@ function MealEditRow({
         const v = e.target.value.replace(',', '.')
         if (/^\d*\.?\d*$/.test(v)) setter(v)
       }}
-      className="h-9 w-full rounded-md border border-white/10 bg-void px-2 font-mono text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-teal/50"
+      className="h-11 w-full rounded-[8px] border border-hairline bg-surface px-2 font-mono text-[13px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none"
     />
   )
 
   return (
-    <div className="flex flex-col gap-2 px-4 py-3 bg-white/4">
+    <div className="flex flex-col gap-2 bg-raised px-4 py-3">
       <input
         type="text"
         placeholder="Nombre"
@@ -173,7 +179,7 @@ function MealEditRow({
         onChange={(e) => setLabel(e.target.value)}
         maxLength={80}
         autoFocus
-        className="h-9 w-full rounded-md border border-white/10 bg-void px-2 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-teal/50"
+        className="h-11 w-full rounded-[8px] border border-hairline bg-surface px-2 text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none"
       />
       <div className="grid grid-cols-4 gap-2">
         {numInput(kcalStr, setKcalStr, 'kcal *', 'Calorías kcal')}
@@ -181,7 +187,7 @@ function MealEditRow({
         {numInput(carbsStr, setCarbsStr, 'C (g)', 'Carbos g')}
         {numInput(fatStr, setFatStr, 'G (g)', 'Grasa g')}
       </div>
-      <div className="flex gap-2 justify-end">
+      <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={onCancel}>
           <X size={14} /> Cancelar
         </Button>
@@ -230,19 +236,20 @@ function MealRow({
   }
 
   return (
-    <div className="flex min-h-[52px] items-center gap-3 px-4 py-3 group">
-      <div className="flex-1 min-w-0">
-        <p className="truncate text-[14px] font-medium text-foreground">
+    <div className="group flex min-h-[52px] items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[15px] font-medium text-ink">
           {meal.label ?? 'Comida'}
         </p>
-        <p className="text-[12px] text-muted-foreground">
+        <p className="font-mono text-[12px] text-ink-3">
           {fmtTime(meal.ts)}
           {meal.protein != null && ` · P: ${meal.protein} g`}
         </p>
       </div>
-      <span className="font-mono text-[14px] font-semibold tabular-nums text-foreground shrink-0">
+      {/* kcal en serif — el numeral es la voz */}
+      <span className="shrink-0 font-serif text-[17px] font-normal tabular-nums text-ink">
         {meal.kcal}
-        <span className="text-[11px] font-normal text-muted-foreground"> kcal</span>
+        <span className="font-mono text-[11px] font-normal text-ink-3"> kcal</span>
       </span>
       {/* Acciones — siempre visibles para accesibilidad AA */}
       <div className="flex shrink-0 gap-1">
@@ -250,7 +257,7 @@ function MealRow({
           type="button"
           aria-label={`Editar ${meal.label ?? 'comida'}`}
           onClick={() => onEdit(meal.id)}
-          className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-white/10 hover:text-teal"
+          className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-ink-3 transition-colors hover:text-blue active:bg-raised"
         >
           <Pencil size={15} />
         </button>
@@ -258,7 +265,7 @@ function MealRow({
           type="button"
           aria-label={`Borrar ${meal.label ?? 'comida'}`}
           onClick={() => onDelete(meal.id)}
-          className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-white/10 hover:text-alert"
+          className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-ink-3 transition-colors hover:text-alert active:bg-raised"
         >
           <Trash2 size={15} />
         </button>
@@ -290,23 +297,22 @@ function ElectrolyteRow({
   step: number
 }) {
   const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0
-  const status = pct >= 100 ? 'ok' : pct >= 60 ? 'teal' : 'warn'
-  const statusColor = status === 'ok' ? 'bg-ok' : status === 'teal' ? 'bg-teal' : 'bg-warn'
+  // Misma semántica de umbrales que el legado (>=100 ok, >=60 medio, si no warn);
+  // el color medio pasa de teal→azul (datos). El estado nunca va solo: valor/meta al lado.
+  const status = pct >= 100 ? 'ok' : pct >= 60 ? 'mid' : 'warn'
+  const statusColor = status === 'ok' ? 'bg-ok' : status === 'mid' ? 'bg-blue' : 'bg-warn'
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3">
-        <span
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-            status === 'ok' ? 'bg-ok/20 text-ok' : status === 'teal' ? 'bg-teal/20 text-teal' : 'bg-warn/20 text-warn'
-          }`}
-        >
+        {/* Símbolo químico como insignia mono neutra (instrumento, no semáforo) */}
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline bg-raised font-mono text-[11px] font-semibold text-ink-2">
           {symbol}
         </span>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-1">
-            <span className="text-[13px] font-medium text-foreground">{label}</span>
-            <span className="font-mono text-[13px] tabular-nums text-muted-foreground shrink-0">
+            <span className="text-[13px] font-medium text-ink">{label}</span>
+            <span className="shrink-0 font-mono text-[13px] tabular-nums text-ink-2">
               {value} / {goal} {unit}
             </span>
           </div>
@@ -320,7 +326,7 @@ function ElectrolyteRow({
             aria-label={`Restar ${step} ${unit} de ${label}`}
             disabled={value <= 0}
             onClick={onDecrement}
-            className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white/15 bg-white/5 text-foreground transition-colors active:bg-white/10 disabled:opacity-40"
+            className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-hairline bg-surface text-ink transition-colors active:bg-raised disabled:opacity-40"
           >
             <Minus size={14} />
           </button>
@@ -328,7 +334,7 @@ function ElectrolyteRow({
             type="button"
             aria-label={`Agregar ${step} ${unit} de ${label}`}
             onClick={onIncrement}
-            className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-teal/20 text-teal transition-opacity active:opacity-70"
+            className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--blue)_12%,transparent)] text-blue transition-opacity active:opacity-70"
           >
             <Plus size={14} />
           </button>
@@ -395,7 +401,7 @@ function GoalsEditor({
     unit: string,
   ) => (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <label className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2">
         {label}
       </label>
       <div className="flex items-center gap-2">
@@ -409,9 +415,9 @@ function GoalsEditor({
             const v = e.target.value.replace(',', '.')
             if (/^\d*\.?\d*$/.test(v)) setter(v)
           }}
-          className="h-11 flex-1 rounded-lg border border-white/10 bg-void px-3 font-mono text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-teal/50"
+          className="h-11 flex-1 rounded-[8px] border border-hairline bg-surface px-3 font-mono text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none"
         />
-        <span className="text-[12px] text-muted-foreground shrink-0">{unit}</span>
+        <span className="shrink-0 font-mono text-[12px] text-ink-3">{unit}</span>
       </div>
     </div>
   )
@@ -419,19 +425,19 @@ function GoalsEditor({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-semibold text-foreground">Editar metas</p>
+        <p className="font-serif text-[17px] font-normal text-ink">Editar metas</p>
         <button
           type="button"
           aria-label="Cerrar editor de metas"
           onClick={onClose}
-          className="flex h-[44px] w-[44px] items-center justify-center text-muted-foreground"
+          className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-raised hover:text-ink"
         >
           <X size={16} />
         </button>
       </div>
       <div className="flex flex-col gap-3">
         {numField('Meta calórica', kcalStr, setKcalStr, 'Ej. 2000', 'Meta calórica en kcal', 'kcal')}
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mt-1">
+        <p className="mt-1 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-3">
           Macros (opcional — deja vacío para desactivar)
         </p>
         {numField('Proteína', protStr, (v) => { setProtStr(v); setMacroError('') }, 'Ej. 150', 'Meta proteína en g', 'g')}
@@ -460,7 +466,7 @@ function GlassSizeSelector({
   const SIZES = [150, 200, 250, 300, 350, 500]
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-3">
         Tamaño de vaso
       </p>
       <div className="flex flex-wrap gap-2">
@@ -471,10 +477,10 @@ function GlassSizeSelector({
             aria-pressed={current === ml}
             onClick={() => onChange(ml)}
             className={[
-              'h-11 min-w-[56px] rounded-lg px-3 text-[13px] font-semibold transition-colors',
+              'h-11 min-w-[56px] rounded-full px-3 font-mono text-[13px] font-medium transition-colors',
               current === ml
-                ? 'bg-teal/20 text-teal border border-teal/30'
-                : 'bg-white/6 text-muted-foreground border border-white/10',
+                ? 'bg-blue text-primary-foreground'
+                : 'border border-hairline bg-surface text-ink-2 hover:bg-raised',
             ].join(' ')}
           >
             {ml} ml
@@ -511,10 +517,10 @@ function CustomGlassInput({
           setTimeout(() => inputRef.current?.focus(), 0)
         }}
         className={[
-          'h-11 min-w-[56px] rounded-lg border px-3 text-[13px] font-semibold transition-colors',
+          'h-11 min-w-[56px] rounded-full px-3 font-mono text-[13px] font-medium transition-colors',
           isCustom
-            ? 'bg-teal/20 text-teal border-teal/30'
-            : 'bg-white/6 text-muted-foreground border-white/10',
+            ? 'bg-blue text-primary-foreground'
+            : 'border border-hairline bg-surface text-ink-2 hover:bg-raised',
         ].join(' ')}
       >
         {isCustom ? `${current} ml` : 'Otro…'}
@@ -541,7 +547,7 @@ function CustomGlassInput({
           }
           if (e.key === 'Escape') setEditing(false)
         }}
-        className="h-11 w-[72px] rounded-lg border border-teal/40 bg-void px-2 font-mono text-[13px] text-foreground focus:outline-none"
+        className="h-11 w-[72px] rounded-[8px] border border-blue bg-surface px-2 font-mono text-[13px] text-ink focus:outline-none"
       />
       <button
         type="button"
@@ -551,7 +557,7 @@ function CustomGlassInput({
           if (n >= 50 && n <= 2000) onChange(n)
           setEditing(false)
         }}
-        className="flex h-11 w-11 items-center justify-center rounded-lg bg-teal/20 text-teal"
+        className="flex h-11 w-11 items-center justify-center rounded-[8px] bg-[color-mix(in_srgb,var(--blue)_12%,transparent)] text-blue"
       >
         <Check size={14} />
       </button>
@@ -582,6 +588,9 @@ export function Comida() {
   const goalProtein = state.macroGoals?.protein ?? null
   const goalCarbs = state.macroGoals?.carbs ?? null
   const goalFat = state.macroGoals?.fat ?? null
+
+  // % de la meta para el gauge ámbar (solo presentación; el arco clampa a 100, el numeral es honesto)
+  const kcalPct = goalKcal != null && goalKcal > 0 ? Math.round((kcal / goalKcal) * 100) : null
 
   // ── Hidratación ────────────────────────────────────────────────────────────
   const totalMl = day.water
@@ -761,6 +770,12 @@ export function Comida() {
   // tras 4 h sin comer). A las ≥4 h subimos a un nudge prominente; antes, una entrada discreta pero presente.
   const fastNudge = noFastActive && fastMins != null && fastMins >= FASTING_THRESHOLD_H * 60
 
+  // Kicker-fecha del masthead (coherencia de reloj con la ref) — solo presentación.
+  const metaFecha = new Date(now)
+    .toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+    .replace(/\./g, '')
+    .toUpperCase()
+
   // ── Toast undo inline (para meal) ─────────────────────────────────────────
   // Inyectamos el botón de undo en el toast del store temporalmente.
   // Para mantener compatibilidad sin modificar store, usamos un overlay local.
@@ -786,13 +801,13 @@ export function Comida() {
             role="status"
             aria-live="polite"
           >
-            <div className="glass pointer-events-auto flex max-w-full items-center gap-3 rounded-full px-4 py-2.5 text-[14px] text-foreground shadow-glass">
+            <div className="glass pointer-events-auto flex max-w-full items-center gap-3 rounded-full px-4 py-2.5 text-[14px] text-ink shadow-soft">
               <span className="truncate">
                 "{deletedMealBuffer.label ?? 'Comida'}" eliminada
               </span>
               <button
                 type="button"
-                className="shrink-0 font-semibold text-teal"
+                className="shrink-0 font-semibold text-blue"
                 onClick={handleUndoDelete}
               >
                 Deshacer
@@ -802,16 +817,13 @@ export function Comida() {
         )}
       </AnimatePresence>
 
-      {/* ── Encabezado ──────────────────────────────────────────────────────── */}
+      {/* ── Encabezado — masthead editorial ─────────────────────────────────── */}
       <motion.div variants={fade}>
         <SectionHero
           {...HEROES.comida}
+          eyebrow="Tu bitácora · nutrición"
+          meta={`HOY · ${metaFecha}`}
           title="Alimentación"
-          action={
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-[12px] font-medium text-teal">
-              <Activity size={13} /> Hoy
-            </span>
-          }
         />
       </motion.div>
 
@@ -827,20 +839,20 @@ export function Comida() {
           >
             {fastNudge && fastMins != null ? (
               // Nudge prominente: ya llevas un rato sin comer
-              <div className="flex items-center gap-3 rounded-lg border border-teal/25 bg-teal/8 px-4 py-3">
-                <Timer size={18} className="shrink-0 text-teal" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground">
+              <div className="flex items-center gap-3 rounded-[8px] border border-[color-mix(in_srgb,var(--blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-4 py-3">
+                <Timer size={18} className="shrink-0 text-blue" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-ink">
                     {fastingLabel(fastMins)}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[12px] text-ink-2">
                     ¿Marcar el inicio de tu ventana de ayuno?
                   </p>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="shrink-0 text-teal"
+                  className="shrink-0 text-blue"
                   onClick={() => dispatch({ t: 'startFast' })}
                 >
                   Iniciar ayuno
@@ -851,13 +863,13 @@ export function Comida() {
               <button
                 type="button"
                 onClick={() => dispatch({ t: 'startFast' })}
-                className="flex w-full items-center gap-3 rounded-lg border border-teal/20 bg-teal/[0.06] px-4 py-2.5 text-left transition active:scale-[0.99]"
+                className="flex w-full items-center gap-3 rounded-[8px] border border-hairline bg-surface px-4 py-2.5 text-left transition active:scale-[0.99]"
               >
-                <Timer size={16} className="shrink-0 text-teal" />
-                <span className="flex-1 text-[13px] font-medium text-foreground">
+                <Timer size={16} className="shrink-0 text-blue" />
+                <span className="flex-1 text-[14px] font-medium text-ink">
                   Iniciar ventana de ayuno
                 </span>
-                <span className="shrink-0 text-[12px] font-semibold text-teal">Iniciar</span>
+                <span className="shrink-0 text-[13px] font-semibold text-blue">Iniciar</span>
               </button>
             )}
           </motion.div>
@@ -878,31 +890,32 @@ export function Comida() {
         )}
       </AnimatePresence>
 
-      {/* ── A. Resumen del día (kcal + macros) ──────────────────────────────── */}
+      {/* ── A. Resumen del día (kcal + macros) — gauge ÁMBAR + numeral serif ── */}
       <motion.div variants={fade}>
+        <FolioLabel n={1} className="mb-2">Energía · hoy</FolioLabel>
         <Glass>
-          <div className="mb-3 flex items-baseline justify-between gap-2">
-            <div>
-              <p className="mb-0.5 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Calorías hoy
-              </p>
-              <p className="font-mono text-[32px] font-bold tabular-nums text-foreground leading-none">
-                {kcal}
-                {goalKcal != null && (
-                  <span className="text-[18px] font-normal text-muted-foreground"> / {goalKcal}</span>
-                )}
-                <span className="ml-1 text-[14px] font-normal text-muted-foreground">kcal</span>
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-1.5">
+          <div className="mb-3 flex items-center gap-5">
+            {/* Dial ámbar (la firma) — % de tu meta; el arco clampa, el numeral no miente */}
+            {kcalPct != null && (
+              <div className="shrink-0">
+                <Ring value={kcalPct} goal={100} unit="%" label="Meta" size={116} stroke={10} />
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+              <StatNumber
+                label="Calorías hoy"
+                value={kcal}
+                unit={goalKcal != null ? `/ ${goalKcal} kcal` : 'kcal'}
+                size={34}
+              />
               {goalKcal != null && kcal > 0 && (
                 <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  className={`inline-flex items-center rounded-full border border-hairline px-2.5 py-1 font-mono text-[12px] font-medium text-ink ${
                     kcal > goalKcal * 1.05
-                      ? 'bg-warn/15 text-warn'
+                      ? 'bg-[color-mix(in_srgb,var(--warn)_16%,transparent)]'
                       : kcal >= goalKcal * 0.95
-                      ? 'bg-ok/15 text-ok'
-                      : 'bg-teal/10 text-teal'
+                      ? 'bg-[color-mix(in_srgb,var(--ok)_14%,transparent)]'
+                      : 'bg-[color-mix(in_srgb,var(--blue)_10%,transparent)]'
                   }`}
                 >
                   {kcal > goalKcal * 1.05
@@ -912,14 +925,14 @@ export function Comida() {
                     : `Restan ${goalKcal - kcal} kcal`}
                 </span>
               )}
-              {/* R39: botón editar metas */}
+              {/* R39: botón editar metas (interactivo = azul) */}
               <button
                 type="button"
                 aria-label="Editar metas de calorías y macros"
                 onClick={() => setShowGoalsEditor((v) => !v)}
-                className="flex items-center gap-1 text-[12px] text-muted-foreground underline-offset-2 hover:text-foreground transition-colors"
+                className="flex min-h-[44px] items-center gap-1 text-[13px] font-medium text-blue transition-colors hover:text-blue-press"
               >
-                <Pencil size={11} /> Editar metas
+                <Pencil size={12} /> Editar metas
               </button>
             </div>
           </div>
@@ -935,7 +948,7 @@ export function Comida() {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="border-t border-white/8 pt-4 pb-1">
+                <div className="border-t border-hairline pb-1 pt-4">
                   <GoalsEditor
                     onClose={() => setShowGoalsEditor(false)}
                     kcalGoal={state.kcalGoal}
@@ -948,32 +961,32 @@ export function Comida() {
             )}
           </AnimatePresence>
 
-          {/* Barra de progreso calórico */}
+          {/* Barra de progreso calórico — ÁMBAR (energía), warn al pasarse */}
           {!showGoalsEditor && goalKcal != null && (
             <div className="mb-4">
               <ProgressBar
                 value={kcal}
                 max={goalKcal}
-                color={kcal > goalKcal ? 'bg-warn' : 'bg-teal'}
+                color={kcal > goalKcal ? 'bg-warn' : 'bg-amber'}
               />
             </div>
           )}
 
-          {/* Macros */}
+          {/* Macros — series de datos: P azul · C ámbar · G tinta muda */}
           {!showGoalsEditor && (macros.hasMacros || goalProtein != null || goalCarbs != null || goalFat != null) && (
-            <div className="flex flex-col gap-3 border-t border-white/8 pt-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex flex-col gap-3 border-t border-hairline pt-3">
+              <p className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-3">
                 Macros
               </p>
-              <MacroRow label="Proteína" value={macros.protein} goal={goalProtein} color="bg-teal" />
-              <MacroRow label="Carbohidratos" value={macros.carbs} goal={goalCarbs} color="bg-warn" />
-              <MacroRow label="Grasa" value={macros.fat} goal={goalFat} color="bg-secondary-foreground/40" />
+              <MacroRow label="Proteína" value={macros.protein} goal={goalProtein} color="bg-blue" />
+              <MacroRow label="Carbohidratos" value={macros.carbs} goal={goalCarbs} color="bg-amber" />
+              <MacroRow label="Grasa" value={macros.fat} goal={goalFat} color="bg-ink-3" />
             </div>
           )}
 
           {/* #115: Exportar CSV de los últimos 30 días */}
           {!showGoalsEditor && (
-            <div className="flex justify-end border-t border-white/8 pt-3">
+            <div className="flex justify-end border-t border-hairline pt-3">
               <button
                 type="button"
                 aria-label="Exportar historial nutricional como CSV"
@@ -987,7 +1000,7 @@ export function Comida() {
                   a.click()
                   URL.revokeObjectURL(url)
                 }}
-                className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                className="flex min-h-[44px] items-center gap-1.5 text-[13px] font-medium text-blue transition-colors hover:text-blue-press"
               >
                 <Download size={13} /> Exportar 30 días CSV
               </button>
@@ -998,30 +1011,28 @@ export function Comida() {
 
       {/* ── B. R35: Comidas del día con tap-to-edit y borrar ─────────────────── */}
       <motion.div variants={fade}>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Comidas de hoy
-          </p>
+        <div className="mb-2 flex items-center gap-2">
+          <FolioLabel n={2} className="min-w-0 flex-1">Comidas de hoy</FolioLabel>
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1 text-teal"
+            className="shrink-0 gap-1 text-blue"
             onClick={() => dispatch({ t: 'sheet', sheet: 'recetario' })}
           >
             <Plus size={15} /> Agregar
           </Button>
         </div>
-        <Glass className="p-0 overflow-hidden">
+        <Glass className="overflow-hidden p-0">
           {mealsDesc.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-8 px-4 text-center">
-              <Utensils size={28} className="text-muted-foreground opacity-40" />
-              <p className="text-[14px] font-medium text-muted-foreground">Sin comidas registradas</p>
-              <p className="text-[12px] text-muted-foreground/70">
+            <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+              <Utensils size={28} className="text-ink-3 opacity-50" />
+              <p className="text-[15px] font-medium text-ink-2">Sin comidas registradas</p>
+              <p className="text-[13px] text-ink-3">
                 Usa el recetario o los alimentos frecuentes para registrar rápido.
               </p>
             </div>
           ) : (
-            <div className="flex flex-col divide-y divide-white/6">
+            <div className="flex flex-col divide-y divide-hairline">
               {mealsDesc.map((meal) => (
                 <MealRow
                   key={meal.id}
@@ -1040,9 +1051,7 @@ export function Comida() {
 
       {/* ── C. Recetario / Alimentos frecuentes ─────────────────────────────── */}
       <motion.div variants={fade}>
-        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Recetario y frecuentes
-        </p>
+        <FolioLabel n={3} className="mb-2">Recetario y frecuentes</FolioLabel>
         <Glass className="flex flex-col gap-3">
           {/* Tabs: recientes vs biblioteca */}
           <div className="flex gap-2">
@@ -1063,7 +1072,7 @@ export function Comida() {
           {/* Lista de comidas */}
           {favTab === 'recientes' ? (
             recientes.length === 0 ? (
-              <p className="py-2 text-[13px] text-muted-foreground">
+              <p className="py-2 text-[13px] text-ink-2">
                 Aún no hay registros recientes.
               </p>
             ) : (
@@ -1076,7 +1085,7 @@ export function Comida() {
           ) : (
             biblioteca.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-4 text-center">
-                <p className="text-[13px] text-muted-foreground">
+                <p className="text-[13px] text-ink-2">
                   Tu biblioteca está vacía.
                 </p>
                 {/* R37: abre RecetarioSheet directo en 'create' */}
@@ -1097,11 +1106,11 @@ export function Comida() {
             )
           )}
 
-          {/* CTA recetario completo */}
+          {/* CTA recetario completo — contorno azul (interactivo) */}
           <button
             type="button"
             onClick={() => dispatch({ t: 'sheet', sheet: 'recetario' })}
-            className="flex min-h-[44px] items-center justify-between gap-2 rounded-md border border-teal/25 bg-teal/5 px-4 py-3 text-[14px] font-semibold text-teal transition-colors active:bg-teal/10"
+            className="flex min-h-[48px] items-center justify-between gap-2 rounded-[8px] border border-blue bg-[color-mix(in_srgb,var(--blue)_8%,transparent)] px-4 py-3 text-[15px] font-semibold text-blue transition-colors active:bg-[color-mix(in_srgb,var(--blue)_14%,transparent)]"
           >
             Abrir recetario completo
             <ChevronRight size={16} />
@@ -1109,30 +1118,29 @@ export function Comida() {
         </Glass>
       </motion.div>
 
-      {/* ── D. Hidratación (superficie sólida — médica/operativa) ────────────── */}
+      {/* ── D. Hidratación (pozo cálido — médica/operativa; agua = AZUL) ─────── */}
       <motion.div variants={fade}>
-        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Hidratación
-        </p>
-        <div className="rounded-lg border border-white/8 bg-raised p-4 flex flex-col gap-3">
+        <FolioLabel n={4} className="mb-2">Hidratación</FolioLabel>
+        <div className="flex flex-col gap-3 rounded-sm border border-hairline bg-raised p-4">
           <div className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2 font-medium text-foreground">
-              <Droplet size={16} className="text-teal" />
+            <span className="flex items-center gap-2 text-[15px] font-medium text-ink">
+              <Droplet size={16} className="text-blue" />
               Agua hoy
             </span>
-            <span className="font-mono tabular-nums text-foreground">
+            {/* Readout serif + unidad mono (numeral = la voz) */}
+            <span className="font-serif text-[22px] font-normal tabular-nums leading-none text-ink">
               {totalL}
-              <span className="text-muted-foreground"> / {waterGoalL} L</span>
+              <span className="font-mono text-[12px] font-medium text-ink-2"> / {waterGoalL} L</span>
             </span>
           </div>
 
           <ProgressBar
             value={totalMl}
             max={waterGoalL * 1000}
-            color={totalMl >= waterGoalL * 1000 ? 'bg-ok' : 'bg-teal'}
+            color={totalMl >= waterGoalL * 1000 ? 'bg-ok' : 'bg-blue'}
           />
 
-          <p className="text-[11px] text-muted-foreground">
+          <p className="font-mono text-[12px] text-ink-3">
             ≈ {Math.round(totalMl / glassMl)} vasos de {glassMl} ml
           </p>
 
@@ -1143,12 +1151,12 @@ export function Comida() {
               aria-label="Quitar un vaso"
               disabled={totalMl <= 0}
               onClick={() => addWater(-1)}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-foreground transition-colors active:bg-white/10 disabled:opacity-40"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-hairline bg-surface text-ink transition-colors active:bg-raised disabled:opacity-40"
             >
               <Minus size={16} />
             </button>
             <div className="flex-1 text-center">
-              <p className="text-[13px] font-medium text-foreground">
+              <p className="text-[14px] font-medium text-ink">
                 {totalMl >= waterGoalL * 1000 ? '¡Meta alcanzada!' : `Faltan ${(waterGoalL - totalL).toFixed(1)} L`}
               </p>
             </div>
@@ -1156,18 +1164,18 @@ export function Comida() {
               type="button"
               aria-label="Agregar un vaso"
               onClick={() => addWater(1)}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-teal text-primary-foreground transition-opacity active:opacity-80"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity active:opacity-80"
             >
               <Plus size={16} />
             </button>
           </div>
 
           {/* R39: Selector de tamaño de vaso (colapsable) */}
-          <div className="border-t border-white/8 pt-3">
+          <div className="border-t border-hairline pt-3">
             <button
               type="button"
               onClick={() => setShowGlassEditor((v) => !v)}
-              className="flex w-full items-center justify-between gap-2 text-[12px] text-muted-foreground"
+              className="flex min-h-[44px] w-full items-center justify-between gap-2 font-mono text-[12px] text-ink-2"
               aria-expanded={showGlassEditor}
             >
               <span>Vaso actual: {glassMl} ml</span>
@@ -1192,19 +1200,22 @@ export function Comida() {
         </div>
       </motion.div>
 
-      {/* ── R38: Electrolitos (superficie sólida — médica/operativa) ─────────── */}
+      {/* ── R38: Electrolitos (pozo cálido — médica/operativa) ─────────────── */}
       <motion.div variants={fade}>
-        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Electrolitos
-        </p>
-        <div className="rounded-lg border border-white/8 bg-raised p-4 flex flex-col gap-4">
+        <div className="mb-2 flex items-center gap-2">
+          <FolioLabel n={5} className="min-w-0 flex-1">Electrolitos</FolioLabel>
+          <TermInfo term="electrolitos">
+            Minerales (sodio, potasio, magnesio) que ayudan al balance de líquidos de tu cuerpo.
+          </TermInfo>
+        </div>
+        <div className="flex flex-col gap-4 rounded-sm border border-hairline bg-raised p-4">
           <ElectrolyteRow
             label="Sodio"
             symbol="Na"
             unit="mg"
             value={naMg}
             goal={NA_GOAL}
-            color="bg-teal"
+            color="bg-blue"
             step={200}
             onIncrement={() => addElectro('Sodio diario', 1, 200)}
             onDecrement={() => addElectro('Sodio diario', -1, 200)}
@@ -1231,23 +1242,21 @@ export function Comida() {
             onIncrement={() => addElectro('Magnesio diario', 1, 50)}
             onDecrement={() => addElectro('Magnesio diario', -1, 50)}
           />
-          <p className="text-[11px] leading-snug text-muted-foreground">
+          <p className="text-[12px] leading-snug text-ink-3">
             Referencias orientativas (OMS). Solo informativo — no diagnóstico médico. Datos guardados solo en tu dispositivo.
           </p>
         </div>
       </motion.div>
 
-      {/* ── E. Glucosa (superficie sólida — médica/operativa) ───────────────── */}
+      {/* ── E. Glucosa (pozo cálido — médica/operativa) ─────────────────────── */}
       <motion.div variants={fade}>
-        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Glucosa en ayunas
-        </p>
-        <div className="rounded-lg border border-white/8 bg-raised p-4">
+        <FolioLabel n={6} className="mb-2">Glucosa en ayunas</FolioLabel>
+        <div className="rounded-sm border border-hairline bg-raised p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="font-medium text-foreground">Registro de hoy</span>
+            <span className="text-[15px] font-medium text-ink">Registro de hoy</span>
             {glucosaHoy != null && (
-              <span className="font-mono text-[15px] font-semibold tabular-nums text-teal">
-                {glucosaHoy} <span className="text-[12px] font-normal text-muted-foreground">mg/dL</span>
+              <span className="font-serif text-[20px] font-normal tabular-nums leading-none text-ink">
+                {glucosaHoy} <span className="font-mono text-[12px] font-normal text-ink-3">mg/dL</span>
               </span>
             )}
           </div>
@@ -1261,7 +1270,7 @@ export function Comida() {
               onChange={(e) => { setGlucosaInput(e.target.value); setGlucosaError('') }}
               onKeyDown={(e) => { if (e.key === 'Enter') saveGlucosa() }}
               aria-label="Glucosa en ayunas en mg/dL"
-              className="h-11 flex-1 min-w-0 rounded-md border border-white/15 bg-void px-3 font-mono text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-teal/50"
+              className="h-11 min-w-0 flex-1 rounded-[8px] border border-hairline bg-surface px-3 font-mono text-[15px] text-ink placeholder:text-ink-3 focus:border-blue focus:outline-none"
             />
             <Button
               variant="outline"
@@ -1278,7 +1287,7 @@ export function Comida() {
             <p className="mt-1 text-[12px] text-alert" role="alert">{glucosaError}</p>
           )}
 
-          <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+          <p className="mt-3 text-[12px] leading-snug text-ink-3">
             Solo referencial, no diagnóstico médico. Tu historial se guarda solo en tu dispositivo.
           </p>
         </div>
@@ -1308,13 +1317,13 @@ function FastActiveBanner({
   const label = fastingLabel(mins)
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-ok/25 bg-ok/8 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-[8px] border border-[color-mix(in_srgb,var(--ok)_35%,transparent)] bg-[color-mix(in_srgb,var(--ok)_8%,transparent)] px-4 py-3">
       <Flame size={18} className="shrink-0 text-ok" />
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-foreground">
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold text-ink">
           Ayuno activo — {label}
         </p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[12px] text-ink-2">
           Solo referencial — no sustituye consejo médico.
         </p>
       </div>

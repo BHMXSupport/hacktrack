@@ -1,3 +1,7 @@
+// Progreso → superficie "Cuerpo" (Design System "Bitácora", LOCKED 2026-07-17).
+// Overhaul ESTÉTICO: calendario editorial (numerales serif, dosis en ámbar), adherencia con
+// StatNumber, tendencias con ejes cálidos y líneas azules. TODA la lógica (dayModel, adherencia,
+// dispatches, .ics, CSV) queda intacta — solo cambia presentación. Ref: docs/design-refs.
 import { useState, useMemo, useCallback, useEffect, useId } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
@@ -34,11 +38,15 @@ import { MEASURE_META } from '../../lib/catalog'
 import { rachaLabel } from '../../lib/buildFlags'
 import type { MeasureSample } from '../../lib/types'
 import { Glass } from '../ui/Glass'
-import { DataPlate } from '../ui/DataPlate'
 import { Ring } from '../ui/Ring'
 import { Button } from '../ui/Button'
+import { Chip } from '../ui/Chip'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { SectionHero } from '../ui/SectionHero'
+import { FolioLabel } from '../ui/FolioLabel'
+import { StatNumber } from '../ui/StatNumber'
+import { TermInfo } from '../ui/TermInfo'
+import { DUR, EASE } from '../lib/motion'
 import { HEROES } from '../lib/heroes'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -48,6 +56,11 @@ const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
+
+function fmtDate(ts: number, short = false): string {
+  const d = new Date(ts)
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: short ? 'short' : 'long' })
+}
 
 /** Genera la cuadrícula del mes: semanas de L→D con nulls para días fuera del mes. */
 function buildMonthGrid(year: number, month: number): (Date | null)[][] {
@@ -64,19 +77,14 @@ function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   return weeks
 }
 
-function fmtDate(ts: number, short = false): string {
-  const d = new Date(ts)
-  return d.toLocaleDateString('es-MX', { day: 'numeric', month: short ? 'short' : 'long' })
-}
-
-// ── Animaciones ───────────────────────────────────────────────────────────────
+// ── Animaciones (firma Bitácora: EASE editorial, GPU-only) ───────────────────
 
 const fade = {
   hidden: { opacity: 0, y: 10 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, ease: [0, 0, 0, 1] as [number, number, number, number] },
+    transition: { duration: 0.3, ease: EASE },
   },
 }
 
@@ -114,49 +122,52 @@ function DayCell({
   if (isToday && status !== 'taken') eff = null
   if (isFuture && eff === 'missed') eff = 'scheduled'
 
+  // Semántica de color Bitácora: ÁMBAR = dosis registrada (energía), AZUL = hoy/selección
+  // (interactivo), warn/alert = estados. Numeral SERIF; el estado nunca es solo color:
+  // el marcador usa el MISMO ícono (forma) que la leyenda (reporte de Jan — se conserva).
+  // Ámbar como gráfico ≥3:1 en Papel (tokens.md) — el texto lo carga la tinta.
   let bg = ''
-  let textCls = 'text-muted-foreground'
-  // Marcador del día = MISMO ícono (y color) que la leyenda → forma + color, accesible. Antes era un punto de
-  // color liso que NO coincidía con los íconos de la leyenda (reporte de Jan).
+  let textCls = 'text-ink-3'
   let MarkIcon: typeof CheckCircle2 | null = null
   let markCls = ''
 
   if (isToday) {
-    bg = 'ring-1 ring-[var(--teal)] bg-[var(--teal)]/15'
-    textCls = 'text-teal font-semibold'
+    bg = 'ring-1 ring-[var(--blue)] bg-[color-mix(in_srgb,var(--blue)_8%,transparent)]'
+    textCls = 'text-blue font-semibold'
   }
 
   if (eff === 'taken') {
-    bg = 'bg-teal/20'
-    textCls = 'text-teal font-semibold'
-    MarkIcon = CheckCircle2; markCls = 'text-teal'
+    // hoy + tomada conserva el aro azul de "hoy" (mejora sobre el legado, que lo perdía)
+    bg = `${isToday ? 'ring-1 ring-[var(--blue)] ' : ''}bg-amber-soft`
+    textCls = isToday ? textCls : 'text-ink font-medium'
+    MarkIcon = CheckCircle2; markCls = 'text-amber'
   } else if (eff === 'missed') {
-    bg = 'bg-alert/15'
-    textCls = 'text-alert font-medium'
+    bg = 'bg-[color-mix(in_srgb,var(--alert)_10%,transparent)]'
+    textCls = 'text-ink'
     MarkIcon = XCircle; markCls = 'text-alert'
   } else if (eff === 'scheduled') {
-    bg = isToday ? bg : 'bg-warn/10'
-    textCls = isToday ? textCls : 'text-warn font-medium'
+    bg = isToday ? bg : 'bg-[color-mix(in_srgb,var(--warn)_10%,transparent)]'
+    textCls = isToday ? textCls : 'text-ink'
     MarkIcon = Clock; markCls = 'text-warn'
   } else if (eff === 'skipped') {
     if (lateResolved) {
       // "Tomada tarde": la dosis real se registró otro día; esta ocurrencia se cumplió tarde (neutral, no saltada).
-      bg = 'bg-teal/12'
-      textCls = 'text-teal font-medium'
-      MarkIcon = History; markCls = 'text-teal'
+      bg = 'bg-amber-soft'
+      textCls = 'text-ink'
+      MarkIcon = History; markCls = 'text-amber'
     } else {
-      bg = 'bg-purple-500/10'
-      textCls = 'text-purple-300 font-medium'
-      MarkIcon = Ban; markCls = 'text-purple-300'
+      bg = 'bg-raised'
+      textCls = 'text-ink-2'
+      MarkIcon = Ban; markCls = 'text-ink-3'
     }
   } else if (eff === 'rest') {
-    textCls = 'text-muted-foreground'
+    textCls = 'text-ink-3'
   }
 
   // Dosis registrada off-cadencia / uso único en un día sin estado de protocolo → "Con dosis" (mismo ícono).
   if (!MarkIcon && standalone) {
-    if (!isToday) bg = bg || 'bg-teal/10'
-    MarkIcon = CheckCircle2; markCls = 'text-teal'
+    if (!isToday) bg = bg || 'bg-amber-soft'
+    MarkIcon = CheckCircle2; markCls = 'text-amber'
   }
 
   return (
@@ -165,10 +176,11 @@ function DayCell({
         type="button"
         onClick={() => onSelect?.(date)}
         aria-pressed={isSelected}
-        className={`relative flex h-11 w-full flex-col items-center justify-center rounded-lg transition-colors ${bg} ${isSelected ? 'ring-2 ring-[var(--teal-bright)]' : ''} ${onSelect ? 'cursor-pointer hover:brightness-125 active:scale-95' : ''}`}
+        className={`relative flex h-11 w-full flex-col items-center justify-center rounded-[8px] transition-colors ${bg} ${isSelected ? 'ring-2 ring-[var(--blue)]' : ''} ${onSelect ? 'cursor-pointer active:scale-95' : ''}`}
         aria-label={`${date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}${isToday ? ', hoy' : ''}${eff === 'taken' ? ', dosis tomada' : eff === 'missed' ? ', dosis omitida' : eff === 'scheduled' ? ', dosis programada' : eff === 'skipped' ? ', dosis saltada' : ''}. Toca para ver el detalle del día.`}
       >
-        <span className={`text-[13px] leading-none ${textCls}`}>{label}</span>
+        {/* Numeral serif: la voz editorial también en el calendario. */}
+        <span className={`font-serif text-[14px] tabular-nums leading-none ${textCls}`}>{label}</span>
         {MarkIcon && (
           <MarkIcon size={11} strokeWidth={2.5} className={`mt-0.5 ${markCls}`} aria-hidden />
         )}
@@ -253,6 +265,9 @@ function CalendarioTab() {
       animate="show"
       className="flex flex-col gap-4"
     >
+      {/* §-folio del graft editorial (VEREDICTO v2) */}
+      <FolioLabel n={1}>Calendario de dosis</FolioLabel>
+
       {/* R29: botón exportar .ics */}
       {hasProtocol && (
         <motion.div variants={reduce ? {} : fade}>
@@ -270,32 +285,33 @@ function CalendarioTab() {
         </motion.div>
       )}
 
-      {/* Navegación de mes */}
+      {/* Navegación de mes — columna impresa */}
       <Glass>
         <div className="mb-3 flex items-center justify-between">
           <button
             onClick={prevMonth}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/6 text-secondary-foreground transition-colors hover:bg-white/10 active:scale-95"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-hairline bg-surface text-ink-2 transition-colors hover:bg-raised active:scale-95"
             aria-label="Mes anterior"
           >
             <ChevronLeft size={18} />
           </button>
-          <h2 className="font-semibold text-foreground">
-            {MESES[viewMonth]} {viewYear}
+          {/* Título de mes en serif — cabecera de figura editorial */}
+          <h2 className="font-serif text-[20px] font-normal text-ink">
+            {MESES[viewMonth]} <span className="text-ink-2">{viewYear}</span>
           </h2>
           <button
             onClick={nextMonth}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/6 text-secondary-foreground transition-colors hover:bg-white/10 active:scale-95"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-hairline bg-surface text-ink-2 transition-colors hover:bg-raised active:scale-95"
             aria-label="Mes siguiente"
           >
             <ChevronRight size={18} />
           </button>
         </div>
 
-        {/* Cabecera días de semana */}
+        {/* Cabecera días de semana — labels mono de instrumento (piso 12px) */}
         <div role="row" className="mb-1 grid grid-cols-7 gap-1">
           {DIAS_CORTOS.map((d) => (
-            <div key={d} role="columnheader" aria-label={d} className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div key={d} role="columnheader" aria-label={d} className="text-center font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-3">
               {d}
             </div>
           ))}
@@ -310,7 +326,7 @@ function CalendarioTab() {
             initial={reduce ? false : { opacity: 0, x: 8 }}
             animate={{ opacity: 1, x: 0 }}
             exit={reduce ? {} : { opacity: 0, x: -8 }}
-            transition={{ duration: 0.2, ease: [0, 0, 0, 1] }}
+            transition={{ duration: 0.2, ease: EASE }}
             className="flex flex-col gap-1"
           >
             {grid.map((week, wi) => (
@@ -357,18 +373,19 @@ function CalendarioTab() {
           <motion.div variants={reduce ? {} : fade}>
             <Glass className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-semibold capitalize text-foreground">{fecha}</p>
+                {/* Fecha en serif — título de la nota del día */}
+                <p className="font-serif text-[17px] font-normal capitalize text-ink">{fecha}</p>
                 <button
                   type="button"
                   onClick={() => setSelectedDay(null)}
                   aria-label="Cerrar detalle del día"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-white/8 hover:text-foreground"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-raised hover:text-ink"
                 >
                   <X size={16} />
                 </button>
               </div>
               {dm.visibleProducts.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">Sin dosis programadas este día.</p>
+                <p className="text-[13px] text-ink-2">Sin dosis programadas este día.</p>
               ) : (
                 <div className="flex flex-col gap-2">
                   {dm.events.map((e) => {
@@ -382,25 +399,30 @@ function CalendarioTab() {
                     const hora = (realTs != null ? new Date(realTs) : dueT)
                       .toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
                     const isStandalone = !state.protocols[p] // dosis de uso único (sin protocolo)
+                    // Estado = dot de color + label de texto (nunca color solo). El texto va en tinta
+                    // neutra AA; el warn/amber en Papel no alcanza AA como texto (tokens.md).
                     const st = isStandalone
-                      ? { label: 'Registro único', cls: 'text-secondary-foreground bg-white/8', dot: 'bg-teal' }
+                      ? { label: 'Registro único', dot: 'bg-amber' }
                       : taken
-                      ? { label: 'Tomada', cls: 'text-teal bg-teal/12', dot: 'bg-teal' }
+                      ? { label: 'Tomada', dot: 'bg-amber' }
                       : skipped
                         ? (e.lateResolved
-                            ? { label: 'Tomada tarde', cls: 'text-teal bg-teal/12', dot: 'bg-teal' }
-                            : { label: 'Saltada', cls: 'text-purple-300 bg-purple-500/12', dot: 'bg-purple-400' })
+                            ? { label: 'Tomada tarde', dot: 'bg-amber' }
+                            : { label: 'Saltada', dot: 'bg-ink-3' })
                         : dueT.getTime() < nowMs
-                          ? { label: 'Omitida', cls: 'text-alert bg-alert/12', dot: 'bg-alert' }
-                          : { label: 'Programada', cls: 'text-warn bg-warn/12', dot: 'bg-warn' }
+                          ? { label: 'Omitida', dot: 'bg-alert' }
+                          : { label: 'Programada', dot: 'bg-warn' }
                     return (
-                      <div key={p} className="flex items-center gap-3 rounded-lg border border-white/[0.07] bg-raised/40 px-3 py-2.5">
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${st.dot}`} aria-hidden />
-                        <div className="flex min-w-0 flex-1 flex-col">
-                          <span className="truncate text-[13px] font-medium text-foreground">{p}</span>
-                          <span className="font-mono text-[11px] text-muted-foreground">{realTs != null ? `Registrada a las ${hora}` : e.lateResolved ? 'Registrada en otra fecha' : `Inyectar a las ${hora}`}</span>
+                      <div key={p} className="flex items-center gap-3 rounded-[8px] border border-hairline bg-raised px-3 py-2.5">
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          {/* Nombre de producto en serif (la voz — como "BPC-157" en la ref) */}
+                          <span className="truncate font-serif text-[15px] font-normal text-ink">{p}</span>
+                          <span className="font-mono text-[12px] text-ink-3">{realTs != null ? `Registrada a las ${hora}` : e.lateResolved ? 'Registrada en otra fecha' : `Inyectar a las ${hora}`}</span>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline bg-surface px-2.5 py-1 font-mono text-[12px] font-medium text-ink-2">
+                          <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} aria-hidden />
+                          {st.label}
+                        </span>
                       </div>
                     )
                   })}
@@ -413,16 +435,16 @@ function CalendarioTab() {
 
       {/* Leyenda — color + ÍCONO (forma) para no depender solo del color (#24, accesibilidad) */}
       <Glass className="flex flex-col gap-2 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Leyenda</p>
+        <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-3">Leyenda</p>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <LegendItem color="bg-teal" icon={<CheckCircle2 size={15} strokeWidth={2.5} className="text-teal" />} label="Con dosis" />
+          <LegendItem color="bg-amber" icon={<CheckCircle2 size={15} strokeWidth={2.5} className="text-amber" />} label="Con dosis" />
           <LegendItem color="bg-warn" icon={<Clock size={15} strokeWidth={2.5} className="text-warn" />} label="Programada" />
           <LegendItem color="bg-alert" icon={<XCircle size={15} strokeWidth={2.5} className="text-alert" />} label="Omitida" />
-          <LegendItem color="bg-purple-400" icon={<Ban size={15} strokeWidth={2.5} className="text-purple-300" />} label="Saltada" />
-          <LegendItem color="bg-teal" icon={<History size={15} strokeWidth={2.5} className="text-teal" />} label="Tomada tarde" />
+          <LegendItem color="bg-ink-3" icon={<Ban size={15} strokeWidth={2.5} className="text-ink-3" />} label="Saltada" />
+          <LegendItem color="bg-amber" icon={<History size={15} strokeWidth={2.5} className="text-amber" />} label="Tomada tarde" />
           <LegendItem
-            color="bg-teal/60"
-            icon={<span className="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-[var(--teal)]" />}
+            color="bg-blue"
+            icon={<span className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-[var(--blue)]" />}
             label="Hoy"
           />
         </div>
@@ -431,9 +453,9 @@ function CalendarioTab() {
       {/* Empty state */}
       {!hasProtocol && (
         <motion.div variants={fade} className="flex flex-col items-center gap-2 py-6 text-center">
-          <Calendar size={32} className="text-muted-foreground/40" />
-          <p className="text-[14px] font-medium text-secondary-foreground">Sin protocolo activo</p>
-          <p className="text-[13px] text-muted-foreground">Agrega un producto en Protocolo para ver tu historial de dosis aquí.</p>
+          <Calendar size={32} className="text-ink-3 opacity-50" />
+          <p className="text-[15px] font-medium text-ink">Sin protocolo activo</p>
+          <p className="text-[13px] text-ink-2">Agrega un producto en Protocolo para ver tu historial de dosis aquí.</p>
         </motion.div>
       )}
     </motion.div>
@@ -442,7 +464,7 @@ function CalendarioTab() {
 
 function LegendItem({ color: _color, icon, label }: { color: string; icon: React.ReactNode; label: string }) {
   return (
-    <span className="flex items-center gap-1.5 text-[12px] text-secondary-foreground">
+    <span className="flex items-center gap-1.5 text-[12px] text-ink-2">
       {icon}
       {label}
     </span>
@@ -475,13 +497,17 @@ interface LineGraphProps {
   showDots?: boolean
 }
 
-function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height = 100, showDots = true }: LineGraphProps) {
+// Figura editorial: ejes/retícula cálidos (hairline + ink-3 mono) y línea de datos AZUL
+// (tinta = datos). La curva se traza izq→der (pathLength, barrido de osciloscopio) y el
+// área hace fade-in detrás; reduced-motion → asentado al instante.
+function LineGraph({ samples, color = 'var(--blue)', down: _down = false, height = 100, showDots = true }: LineGraphProps) {
   // #66: cada instancia obtiene un id único para el linearGradient, evitando colisiones entre múltiples KpiChartCards
   const gradId = useId()
+  const reduce = useReducedMotion()
 
   if (samples.length < 2) {
     return (
-      <div className="flex items-center justify-center py-4 text-[12px] text-muted-foreground" style={{ height }}>
+      <div className="flex items-center justify-center py-4 text-[12px] text-ink-3" style={{ height }}>
         Mínimo 2 registros para mostrar gráfica
       </div>
     )
@@ -525,12 +551,12 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+          <stop offset="0%" stopColor={color} stopOpacity={0.16} />
           <stop offset="100%" stopColor={color} stopOpacity={0.02} />
         </linearGradient>
       </defs>
 
-      {/* Grid lines */}
+      {/* Retícula cálida (hairline) + etiquetas mono de eje */}
       {gridVals.map((v, i) => {
         const y = toY(v)
         return (
@@ -540,14 +566,14 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
               y1={y}
               x2={W - PAD_X}
               y2={y}
-              stroke="rgba(255,255,255,0.06)"
+              stroke="var(--hairline)"
               strokeWidth={1}
             />
             <text
               x={PAD_X}
               y={y - 3}
-              fontSize={9}
-              fill="var(--ink-400)"
+              fontSize={10}
+              fill="var(--ink-3)"
               fontFamily="var(--font-mono, monospace)"
             >
               {Number.isInteger(v) ? v : v.toFixed(1)}
@@ -556,17 +582,26 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
         )
       })}
 
-      {/* Area fill */}
-      <path d={areaD} fill={`url(#${gradId})`} />
+      {/* Area fill — fade-in detrás de la curva */}
+      <motion.path
+        d={areaD}
+        fill={`url(#${gradId})`}
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: reduce ? 0 : 0.25 }}
+      />
 
-      {/* Line */}
-      <path
+      {/* Línea de datos azul — draw-on izq→der */}
+      <motion.path
         d={pathD}
         fill="none"
         stroke={color}
         strokeWidth={2}
         strokeLinejoin="round"
         strokeLinecap="round"
+        initial={reduce ? false : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: DUR.draw, ease: EASE }}
       />
 
       {/* Dots */}
@@ -584,14 +619,14 @@ function LineGraph({ samples, color = 'var(--teal)', down: _down = false, height
       {/* Time axis labels */}
       {sorted.length >= 2 && (
         <>
-          <text x={PAD_X} y={H - 1} fontSize={9} fill="var(--ink-400)" fontFamily="var(--font-mono, monospace)">
+          <text x={PAD_X} y={H - 1} fontSize={10} fill="var(--ink-3)" fontFamily="var(--font-mono, monospace)">
             {fmtDate(sorted[0].ts, true)}
           </text>
           <text
             x={W - PAD_X}
             y={H - 1}
-            fontSize={9}
-            fill="var(--ink-400)"
+            fontSize={10}
+            fill="var(--ink-3)"
             textAnchor="end"
             fontFamily="var(--font-mono, monospace)"
           >
@@ -650,18 +685,18 @@ function KpiDoseCorrelation({ kpiSamples, doseSeries, kpiName, color }: KpiDoseC
 
   return (
     <div className="mt-3">
-      <p className="mb-1.5 text-[11px] text-muted-foreground">
-        Correlación {kpiName} <span className="text-[var(--teal)]">—</span> vs dosis <span className="opacity-60">- -</span>
+      <p className="mb-1.5 text-[12px] text-ink-2">
+        Correlación {kpiName} <span className="text-blue">—</span> vs dosis <span className="text-ink-3">- -</span>
       </p>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H, display: 'block' }}>
-        {/* KPI line */}
+        {/* KPI line (azul = datos) */}
         <path d={toPath(kpiPts)} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
-        {/* Dose line (dashed) */}
-        <path d={toPath(dosePts)} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} strokeDasharray="4 2" strokeLinejoin="round" />
+        {/* Dose line (dashed, tinta muda) */}
+        <path d={toPath(dosePts)} fill="none" stroke="color-mix(in srgb, var(--ink-3) 60%, transparent)" strokeWidth={1.5} strokeDasharray="4 2" strokeLinejoin="round" />
       </svg>
-      <div className="mt-1.5 flex gap-4 text-[10px] text-muted-foreground">
+      <div className="mt-1.5 flex gap-4 font-mono text-[11px] text-ink-3">
         <span style={{ color }}><span className="mr-1">—</span>{kpiName}</span>
-        <span><span className="mr-1 opacity-50">- -</span>Dosis/día</span>
+        <span><span className="mr-1">- -</span>Dosis/día</span>
       </div>
     </div>
   )
@@ -705,7 +740,7 @@ function KpiChartCard({ name, samples, doseSeries }: KpiChartCardProps) {
   const [showCorr, setShowCorr] = useState(false)
 
   const meta = MEASURE_META[name]
-  const color = 'var(--teal)'
+  const color = 'var(--blue)' // línea de datos = azul tinta (serie 1)
 
   const sorted = useMemo(() => [...samples].sort((a, b) => a.ts - b.ts), [samples])
   const filtered = useMemo(() => filterByRange(sorted, range), [sorted, range])
@@ -716,68 +751,61 @@ function KpiChartCard({ name, samples, doseSeries }: KpiChartCardProps) {
   const last = sorted[sorted.length - 1]
   const prev = sorted.length >= 2 ? sorted[sorted.length - 2] : null
   const delta = prev != null ? last.value - prev.value : null
-  const unit = meta?.kind === 'num' && meta.unit ? ` ${meta.unit}` : ''
+  const unit = meta?.kind === 'num' && meta.unit ? meta.unit : ''
   const down = meta?.down ?? false
 
-  const deltaColor =
+  // Tono del delta con la semántica down (bajar peso = bueno) — misma lógica que el legado.
+  const deltaTone: 'ok' | 'alert' | 'neutral' =
     delta == null || delta === 0
-      ? 'text-muted-foreground'
+      ? 'neutral'
       : (down ? delta < 0 : delta > 0)
-        ? 'text-ok'
-        : 'text-alert'
-  const deltaSign = delta != null && delta > 0 ? '+' : ''
+        ? 'ok'
+        : 'alert'
 
   return (
     <Glass className="flex flex-col gap-3">
-      {/* Header */}
+      {/* Header — StatNumber serif (numeral sagrado) con delta CON unidad (regla de microcopy) */}
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-[12px] uppercase tracking-wider text-muted-foreground">{name}</p>
-          <DataPlate className="mt-1 inline-block px-2 py-0.5">
-            <span className="font-mono text-[22px] font-semibold tabular-nums text-foreground">
-              {last.value}{unit}
-            </span>
-            {delta != null && (
-              <span className={`ml-2 text-[12px] font-medium ${deltaColor}`}>
-                {deltaSign}{typeof delta === 'number' ? delta.toFixed(1) : delta}
-              </span>
-            )}
-          </DataPlate>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <div className="min-w-0">
+          <StatNumber
+            label={name}
+            value={last.value}
+            unit={unit || undefined}
+            size={30}
+            delta={delta ?? undefined}
+            deltaTone={deltaTone}
+            deltaLabel={delta != null ? `${unit ? `${unit} ` : ''}vs. anterior` : undefined}
+          />
+          <p className="mt-1 font-mono text-[11px] text-ink-3">
             Último: {fmtDate(last.ts, true)} · {sorted.length} registros
           </p>
         </div>
         {/* Correlación toggle (solo si hay dosis suficientes) */}
         {doseSeries.length >= 3 && (
-          <button
+          <Chip
+            active={showCorr}
             onClick={() => setShowCorr(v => !v)}
-            className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-teal/30 hover:text-teal active:scale-95"
-            aria-pressed={showCorr}
             aria-label={showCorr ? 'Ocultar correlación con dosis' : 'Mostrar correlación con dosis'}
+            className="shrink-0"
           >
             {showCorr ? 'Ocultar corr.' : 'Ver vs dosis'}
-          </button>
+          </Chip>
         )}
       </div>
 
-      {/* Selector de rango */}
+      {/* Selector de rango — chips mono (instrumento) */}
       {sorted.length >= 2 && (
-        <div className="flex gap-1.5" role="group" aria-label="Rango de tiempo">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Rango de tiempo">
           {RANGE_OPTIONS.map(opt => (
-            <button
+            <Chip
               key={opt.value}
+              active={range === opt.value}
               onClick={() => setRange(opt.value)}
-              aria-pressed={range === opt.value}
-              className={`h-7 rounded-full px-3 text-[12px] font-medium transition-colors ${
-                range === opt.value
-                  ? 'bg-teal/20 text-teal'
-                  : 'bg-white/5 text-muted-foreground hover:bg-white/8'
-              }`}
             >
               {opt.label}
-            </button>
+            </Chip>
           ))}
-          <span className="ml-auto self-center text-[11px] text-muted-foreground">
+          <span className="ml-auto self-center font-mono text-[11px] tabular-nums text-ink-3">
             {display.length} pts
           </span>
         </div>
@@ -869,13 +897,13 @@ function AvancesTab() {
         key="avances"
         initial={reduce ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.3, ease: EASE }}
         className="flex flex-col items-center gap-2 py-10 text-center"
       >
-        <TrendingUp size={32} className="text-muted-foreground/40" />
-        <p className="text-[14px] font-medium text-secondary-foreground">Sin datos de avance aún</p>
+        <TrendingUp size={32} className="text-ink-3 opacity-50" />
+        <p className="text-[15px] font-medium text-ink">Sin datos de avance aún</p>
         {/* rachaLabel: en tienda dice "racha de registro" (Apple 1.4.3); PWA sin cambio */}
-        <p className="text-[13px] text-muted-foreground">Registra dosis para ver tu adherencia y {rachaLabel()} aquí.</p>
+        <p className="text-[13px] text-ink-2">Registra dosis para ver tu adherencia y {rachaLabel()} aquí.</p>
       </motion.div>
     )
   }
@@ -888,7 +916,15 @@ function AvancesTab() {
       animate="show"
       className="flex flex-col gap-4"
     >
-      {/* Anillos: adherencia + racha */}
+      {/* §-folio + tap-explain de "adherencia" (jerga a la mano — Ley 2) */}
+      <motion.div variants={reduce ? {} : fade} className="flex items-center gap-2">
+        <FolioLabel n={1} className="min-w-0 flex-1">Adherencia · este mes</FolioLabel>
+        <TermInfo term="adherencia">
+          Porcentaje de las dosis programadas que sí registraste en tu bitácora.
+        </TermInfo>
+      </motion.div>
+
+      {/* Anillos: adherencia + racha (el dial ámbar es LA firma) */}
       <motion.div variants={reduce ? {} : fade}>
         <Glass className="flex items-center justify-around py-5">
           <div className="flex flex-col items-center gap-2">
@@ -902,7 +938,7 @@ function AvancesTab() {
               stroke={10}
             />
           </div>
-          <div className="h-16 w-px bg-white/8" />
+          <div className="h-16 w-px bg-hairline" />
           <div className="flex flex-col items-center gap-2">
             <Ring
               value={streak}
@@ -917,39 +953,43 @@ function AvancesTab() {
         </Glass>
       </motion.div>
 
-      {/* Conteo 30 días */}
+      {/* Conteo del mes — numeral serif (StatNumber) + placa de estado */}
       <motion.div variants={reduce ? {} : fade}>
-        <Glass className="flex items-center justify-between">
-          <div>
-            <p className="text-[12px] uppercase tracking-wider text-muted-foreground">Dosis (este mes)</p>
-            <p className="mt-0.5 font-mono text-[26px] font-semibold tabular-nums text-foreground">
-              {adh30.taken}
-              <span className="text-[16px] text-muted-foreground"> / {adh30.due}</span>
-            </p>
-            <p className="text-[12px] text-secondary-foreground">tomadas de las programadas</p>
+        <Glass className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <StatNumber
+              label="Dosis · este mes"
+              value={adh30.taken}
+              unit={`/ ${adh30.due}`}
+              size={38}
+            />
+            <p className="mt-1 text-[13px] text-ink-2">tomadas de las programadas</p>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {/* Estado: tinte de fondo + texto de estado debajo (nunca color solo; texto en tinta AA) */}
             <span
-              className={`rounded-full px-3 py-1 text-[13px] font-semibold ${
-                adh30.pct >= 75 ? 'bg-ok/15 text-ok' : adh30.pct >= 50 ? 'bg-warn/15 text-warn' : 'bg-alert/15 text-alert'
+              className={`rounded-full border border-hairline px-3 py-1 font-mono text-[13px] font-semibold tabular-nums text-ink ${
+                adh30.pct >= 75
+                  ? 'bg-[color-mix(in_srgb,var(--ok)_14%,transparent)]'
+                  : adh30.pct >= 50
+                  ? 'bg-[color-mix(in_srgb,var(--warn)_16%,transparent)]'
+                  : 'bg-[color-mix(in_srgb,var(--alert)_12%,transparent)]'
               }`}
             >
               {adh30.pct}%
             </span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[12px] text-ink-3">
               {adh30.pct >= 75 ? 'Objetivo alcanzado' : adh30.pct >= 50 ? 'En progreso' : 'Por debajo del objetivo'}
             </span>
           </div>
         </Glass>
       </motion.div>
 
-      {/* Barras semanales (últimas 8 semanas) */}
+      {/* Barras semanales (últimas 8 semanas) — medidores que crecen desde la base */}
       {weekly8.some((v) => v !== null) && (
-        <motion.div variants={reduce ? {} : fade}>
+        <motion.div variants={reduce ? {} : fade} className="flex flex-col gap-3">
+          <FolioLabel n={2}>Adherencia semanal · 8 semanas</FolioLabel>
           <Glass>
-            <p className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Adherencia semanal (8 semanas)
-            </p>
             <div className="flex items-end gap-1.5">
               {[...weekly8].reverse().map((pct, i) => {
                 const h = pct !== null ? Math.max(4, (pct / 100) * 72) : 4
@@ -966,24 +1006,21 @@ function AvancesTab() {
                           className="w-full rounded-t opacity-40"
                           style={{
                             height: 4,
-                            background: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0px, rgba(255,255,255,0.35) 3px, transparent 3px, transparent 7px)',
+                            background: 'repeating-linear-gradient(45deg, color-mix(in srgb, var(--ink-3) 55%, transparent) 0px, color-mix(in srgb, var(--ink-3) 55%, transparent) 3px, transparent 3px, transparent 7px)',
                           }}
                           aria-hidden
                         />
                       ) : (
                         <div
-                          className={`w-full rounded-t transition-all ${
-                            pct >= 75
-                            ? isCurrentWeek ? 'bg-teal' : 'bg-teal/60'
-                            : pct >= 50
-                            ? isCurrentWeek ? 'bg-warn' : 'bg-warn/60'
-                            : isCurrentWeek ? 'bg-alert' : 'bg-alert/60'
-                          }`}
+                          className={`w-full rounded-t ${
+                            pct >= 75 ? 'bg-ok' : pct >= 50 ? 'bg-warn' : 'bg-alert'
+                          }${isCurrentWeek ? '' : ' opacity-60'}`}
                           style={{ height: h }}
                         />
                       )}
                     </div>
-                    <span className="text-[9px] text-muted-foreground">
+                    {/* % por barra — mono tabular (el color nunca va solo) */}
+                    <span className="font-mono text-[11px] tabular-nums text-ink-3">
                       {pct !== null ? `${pct}%` : '—'}
                     </span>
                   </div>
@@ -991,10 +1028,10 @@ function AvancesTab() {
               })}
             </div>
             <div className="mt-2 flex items-center gap-3">
-              <span className="text-[11px] text-muted-foreground">← Hace 8 sem</span>
-              <span className="ml-auto text-[11px] text-muted-foreground">Esta sem →</span>
+              <span className="font-mono text-[11px] text-ink-3">← Hace 8 sem</span>
+              <span className="ml-auto font-mono text-[11px] text-ink-3">Esta sem →</span>
             </div>
-            <p className="mt-2 text-[11px] text-muted-foreground/70">
+            <p className="mt-2 text-[12px] text-ink-3">
               Los días de descanso no cuentan contra tu adherencia.
             </p>
           </Glass>
@@ -1004,24 +1041,22 @@ function AvancesTab() {
       {/* R31: Dashboard de medidas con gráfica seleccionable */}
       {historyKeys.length > 0 && (
         <motion.div variants={reduce ? {} : fade} className="flex flex-col gap-3">
-          {/* Sección header + export CSV */}
-          <div className="flex items-center justify-between">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Tus medidas
-            </p>
+          {/* §-folio + export CSV */}
+          <div className="flex items-center gap-2">
+            <FolioLabel n={3} className="min-w-0 flex-1">Tus medidas</FolioLabel>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => exportCsv(state.history)}
               aria-label="Exportar medidas como CSV"
-              className="h-8 gap-1.5 px-2 text-[12px]"
+              className="shrink-0 gap-1.5 px-3 text-[12px]"
             >
               <FileText size={13} aria-hidden />
               Exportar CSV
             </Button>
           </div>
 
-          {/* Selector de medida activa */}
+          {/* Selector de medida activa — chips mono */}
           {historyKeys.length > 1 && (
             <div
               className="flex flex-wrap gap-1.5"
@@ -1029,18 +1064,13 @@ function AvancesTab() {
               aria-label="Seleccionar medida para ver gráfica"
             >
               {historyKeys.map(k => (
-                <button
+                <Chip
                   key={k}
+                  active={measureForChart === k}
                   onClick={() => setActiveMeasure(k)}
-                  aria-pressed={measureForChart === k}
-                  className={`h-8 rounded-full px-3 text-[12px] font-medium transition-colors ${
-                    measureForChart === k
-                      ? 'bg-teal/20 text-teal ring-1 ring-teal/40'
-                      : 'bg-white/5 text-muted-foreground hover:bg-white/8'
-                  }`}
                 >
                   {k}
-                </button>
+                </Chip>
               ))}
             </div>
           )}
@@ -1054,7 +1084,7 @@ function AvancesTab() {
             />
           )}
 
-          {/* Grilla de resumen de KPIs (últimos valores de las otras medidas) */}
+          {/* Grilla de resumen de KPIs — tiles tipo "TUS SEÑALES" de la ref (serif + mono + meta azul) */}
           {historyKeys.length > 1 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {historyKeys
@@ -1067,11 +1097,11 @@ function AvancesTab() {
                   const prev = sorted.length >= 2 ? sorted[sorted.length - 2] : null
                   const delta = prev != null ? last.value - prev.value : null
                   const meta = MEASURE_META[k]
-                  const unit = meta?.kind === 'num' && meta.unit ? ` ${meta.unit}` : ''
+                  const unit = meta?.kind === 'num' && meta.unit ? meta.unit : ''
                   const down = meta?.down ?? false
                   const deltaColor =
                     delta == null || delta === 0
-                      ? 'text-muted-foreground'
+                      ? 'text-ink-3'
                       : (down ? delta < 0 : delta > 0) ? 'text-ok' : 'text-alert'
                   const goal = state.measureGoals?.[k]
                   const goalPct = goal != null && goal > 0
@@ -1081,30 +1111,33 @@ function AvancesTab() {
                     <button
                       key={k}
                       onClick={() => setActiveMeasure(k)}
-                      className="group relative flex flex-col rounded-xl border border-white/8 bg-white/4 p-4 text-left transition-colors hover:border-teal/20 hover:bg-white/6 active:scale-[.98]"
+                      className="glass group relative flex flex-col rounded-sm p-4 text-left transition-colors hover:border-[var(--blue)] active:scale-[.98]"
                       aria-label={`Ver gráfica de ${k}`}
                     >
-                      <p className="text-[12px] text-muted-foreground">{k}</p>
-                      <p className="mt-1 font-mono text-[20px] font-semibold tabular-nums text-foreground">
-                        {last.value}{unit}
+                      <p className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-3">{k}</p>
+                      {/* Numeral serif con unidad mono (tile de señal de la ref) */}
+                      <p className="mt-1 flex items-baseline font-serif text-[22px] font-normal tabular-nums leading-none text-ink">
+                        {last.value}
+                        {unit && <span className="ml-0.5 font-mono text-[11px] font-medium text-ink-2">{unit}</span>}
                       </p>
+                      {/* Delta SIEMPRE con unidad (regla de microcopy — nunca "▼ 0.6 7 d") */}
                       {delta != null && (
-                        <p className={`mt-0.5 text-[11px] font-medium ${deltaColor}`}>
-                          {delta > 0 ? '+' : ''}{delta.toFixed(1)} vs anterior
+                        <p className={`mt-1 font-mono text-[11px] font-medium tabular-nums ${deltaColor}`}>
+                          {delta === 0 ? '→' : delta > 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}{unit ? ` ${unit}` : ''}
                         </p>
                       )}
                       {goal != null && (
                         <div className="mt-2 flex flex-col gap-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground">meta: {goal}{unit}</span>
+                            <span className="font-mono text-[11px] uppercase text-ink-3">meta: {goal}{unit ? ` ${unit}` : ''}</span>
                             {goalPct != null && (
-                              <span className="text-[10px] font-medium text-[#5FC9B8]">{goalPct}%</span>
+                              <span className="font-mono text-[11px] font-medium tabular-nums text-blue">{goalPct}%</span>
                             )}
                           </div>
                           {goalPct != null && (
-                            <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+                            <div className="h-1 w-full overflow-hidden rounded-full bg-raised">
                               <div
-                                className="h-full rounded-full bg-[#5FC9B8]/70"
+                                className="h-full rounded-full bg-blue"
                                 style={{ width: `${goalPct}%` }}
                                 aria-hidden
                               />
@@ -1113,7 +1146,7 @@ function AvancesTab() {
                         </div>
                       )}
                       <span className="absolute right-3 top-3 opacity-0 transition-opacity group-hover:opacity-100">
-                        <TrendingUp size={12} className="text-teal" aria-hidden />
+                        <TrendingUp size={12} className="text-blue" aria-hidden />
                       </span>
                     </button>
                   )
@@ -1125,7 +1158,7 @@ function AvancesTab() {
 
       {/* Aviso de privacidad */}
       <motion.div variants={reduce ? {} : fade}>
-        <p className="text-center text-[11px] text-muted-foreground">
+        <p className="text-center text-[12px] text-ink-3">
           Tu historial se guarda solo en tu dispositivo.
         </p>
       </motion.div>
@@ -1146,6 +1179,12 @@ export function Progreso() {
   const reduce = useReducedMotion()
   const [tab, setTab] = useState<Tab>('calendario')
 
+  // Kicker-fecha del masthead (coherencia de reloj con la ref: "VIE 17 JUL") — solo presentación.
+  const metaFecha = new Date()
+    .toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+    .replace(/\./g, '')
+    .toUpperCase()
+
   return (
     <motion.div
       className="flex flex-col gap-4 px-4 pb-32 pt-[max(20px,env(safe-area-inset-top))]"
@@ -1153,9 +1192,9 @@ export function Progreso() {
       animate="show"
       variants={reduce ? {} : { show: { transition: { staggerChildren: 0.06 } } }}
     >
-      {/* Hero */}
+      {/* Masthead editorial — la tab del nav se llama CUERPO (IA 5-tab de la ref) */}
       <motion.div variants={reduce ? {} : fade}>
-        <SectionHero {...HEROES.progreso} title="Progreso" />
+        <SectionHero {...HEROES.progreso} eyebrow="Tu bitácora · cuerpo" meta={metaFecha} title="Cuerpo" />
       </motion.div>
 
       {/* Pestañas */}
@@ -1172,7 +1211,7 @@ export function Progreso() {
             initial={reduce ? false : { opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
             exit={reduce ? {} : { opacity: 0, x: -12 }}
-            transition={{ duration: 0.22, ease: [0, 0, 0, 1] }}
+            transition={{ duration: 0.22, ease: EASE }}
           >
             <CalendarioTab />
           </motion.div>
@@ -1183,7 +1222,7 @@ export function Progreso() {
             initial={reduce ? false : { opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
             exit={reduce ? {} : { opacity: 0, x: -12 }}
-            transition={{ duration: 0.22, ease: [0, 0, 0, 1] }}
+            transition={{ duration: 0.22, ease: EASE }}
           >
             <AvancesTab />
           </motion.div>
