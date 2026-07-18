@@ -316,7 +316,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
     return saved ? normUnit(saved) : 'mg'
   })
   const [site, setSite] = useState<InjectionSite | null>(null)
-  // Diferir el InjectionMap pesado (SVG + injection-body.webp) hasta DESPUÉS de la animación de entrada:
+  // Diferir el InjectionMap pesado (lámina body-papel/noche.webp + zonas) hasta DESPUÉS de la animación de entrada:
   // montarlo de inmediato bloquea el hilo principal en los mismos frames del slide → contribuye al "sube raro".
   const [showHeavyMap, setShowHeavyMap] = useState(false)
   useEffect(() => {
@@ -1077,7 +1077,7 @@ export function RegistrarSheet({ open, onClose }: { open: boolean; onClose: () =
           ) : (
             // Placeholder del MISMO tamaño (sin layout shift) mientras se difiere el mapa pesado.
             <div className="relative mx-auto w-full" style={{ maxWidth: 360 }}>
-              <div className="relative w-full rounded-sm border border-hairline bg-raised" style={{ aspectRatio: '1200 / 896' }} />
+              <div className="relative w-full rounded-sm border border-hairline bg-raised aspect-[1264/848]" />
             </div>
           )}
         </div>

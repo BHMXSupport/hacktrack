@@ -43,7 +43,10 @@ function loadState(): AppState {
   }
 }
 
-// R3 — aplica el tema al DOM (cockpit oscuro por default; light/auto opcionales).
+// R3 — aplica el tema al DOM. DEFAULT = Obsidiana (oscuro): 'dark' explícito en initialState y
+// también el fallback para estados legados sin themeMode; 'light' (Papel) y 'auto' (noche 19–7 h)
+// son opcionales. Coincide con la guarda anti-flash de globals.css (:root:not([data-theme]) pinta
+// Obsidiana en el primer frame, sin flash claro).
 function applyTheme(mode: string | undefined) {
   let theme: 'dark' | 'light'
   if (mode === 'light') theme = 'light'
@@ -52,6 +55,11 @@ function applyTheme(mode: string | undefined) {
     theme = h >= 19 || h < 7 ? 'dark' : 'light'
   } else theme = 'dark'
   document.documentElement.setAttribute('data-theme', theme)
+  // Cromo del navegador acorde al tema APLICADO: la <meta name="theme-color"> estática de
+  // index.html solo cubre el primer frame (Obsidiana #0C0B09); aquí se corrige si el usuario
+  // eligió Papel (o auto cae en día). Papel usa su paper #F4F1EA de siempre.
+  const metaColor = theme === 'dark' ? '#0C0B09' : '#F4F1EA'
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', metaColor))
 }
 
 export function AppProviderV2({ children }: { children: ReactNode }) {

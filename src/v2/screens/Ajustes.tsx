@@ -450,15 +450,16 @@ function AliasSheet({
   )
 }
 
-// ── selector de tema Papel / Tinta con vista previa ──────────────────────────
+// ── selector de tema Obsidiana / Papel con vista previa ──────────────────────
 // La preview usa los colores FIJOS de cada tema (muestra lo que elegirías, no el tema
-// actual): mini-página con numeral serif, tick ámbar y hairline — la firma Bitácora en
-// miniatura. Auto = mitad Papel / mitad Tinta. Misma acción de siempre (setThemeMode).
+// actual): mini-página con numeral serif, tick oro/ámbar y regla — la firma Bitácora en
+// miniatura. Auto = mitad Papel / mitad Obsidiana. Misma acción de siempre (setThemeMode).
 const THEME_OPTIONS: { value: ThemeMode; name: string; sub: string }[] = [
-  // 'auto' es por HORARIO (Tinta 19–7 h, provider.tsx), no por ajuste del sistema — el sub lo dice tal cual.
-  { value: 'auto', name: 'Auto', sub: 'noche 19–7 h' },
+  // Obsidiana primero: es el DEFAULT de la app (panel de jueces 2026-07-18).
+  // 'auto' es por HORARIO (Obsidiana 19–7 h, provider.tsx), no por ajuste del sistema — el sub lo dice tal cual.
+  { value: 'dark', name: 'Obsidiana', sub: 'oscuro' },
   { value: 'light', name: 'Papel', sub: 'claro' },
-  { value: 'dark', name: 'Tinta', sub: 'oscuro' },
+  { value: 'auto', name: 'Auto', sub: 'noche 19–7 h' },
 ]
 
 function ThemeSwatch({ mode }: { mode: ThemeMode }) {
@@ -469,7 +470,8 @@ function ThemeSwatch({ mode }: { mode: ThemeMode }) {
         const t =
           h === 'light'
             ? { bg: '#F4F1EA', ink: '#1A1712', amber: '#C9761F', rule: 'rgba(26,23,18,.25)' }
-            : { bg: '#14110C', ink: '#F2EDE3', amber: '#F0A63C', rule: 'rgba(255,255,255,.18)' }
+            // Obsidiana: casi-negro, oro-hoja y regla dorada (el "canto de la página" en miniatura)
+            : { bg: '#0C0B09', ink: '#F5F1E8', amber: '#E3B341', rule: 'rgba(227,179,65,.45)' }
         return (
           <span key={h} className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-2" style={{ background: t.bg }}>
             {/* Numeral serif en miniatura — "el número serif gigante es sagrado" */}
@@ -621,8 +623,10 @@ export function Ajustes({
     dispatch({ t: 'toast', msg: 'Listo — verás el aviso la próxima vez que abras la app' })
   }
 
-  // tema actual
-  const currentTheme: ThemeMode = settings.themeMode ?? (settings.darkMode ? 'dark' : 'auto')
+  // tema actual — sin elección persistida el default es Obsidiana (oscuro), igual que en el
+  // provider (applyTheme trata undefined como 'dark'); antes el fallback mostraba 'auto' aunque
+  // la app pintara oscuro. darkMode legado ya no decide: quien lo activó ve 'dark' igual.
+  const currentTheme: ThemeMode = settings.themeMode ?? 'dark'
 
   // Tema RESUELTO (espejo de applyTheme del provider) — solo para el chrome nativo del
   // picker de hora (color-scheme): antes iba clavado a oscuro y en Papel pintaba el
@@ -813,7 +817,7 @@ export function Ajustes({
             </RowCard>
           </section>
 
-          {/* ── APARIENCIA — selector Papel / Tinta con vista previa ──────── */}
+          {/* ── APARIENCIA — selector Obsidiana / Papel con vista previa ──── */}
           <section>
             <SectionLabel n={++sec}>Apariencia</SectionLabel>
             <RowCard>
@@ -839,7 +843,9 @@ export function Ajustes({
                           ].join(' ')}
                         >
                           <ThemeSwatch mode={o.value} />
-                          <span className="flex w-full items-baseline justify-between gap-1">
+                          {/* flex-wrap: "Obsidiana" + "oscuro" no caben en un tile de ~96px — el sub
+                              baja a su propia línea en vez de desbordar sobre el tile vecino. */}
+                          <span className="flex w-full min-w-0 flex-wrap items-baseline justify-between gap-x-1 gap-y-0.5">
                             <span className={['text-[13px] font-semibold', active ? 'text-blue' : 'text-ink'].join(' ')}>
                               {o.name}
                             </span>

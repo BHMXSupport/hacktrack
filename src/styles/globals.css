@@ -3,16 +3,17 @@
 @tailwind utilities;
 
 /* ============================================================
-   Hacktrack — Design System "Bitácora" (LOCKED 2026-07-17).
+   Hacktrack — Design System "Bitácora" (LOCKED 2026-07-17;
+   tema oscuro reemplazado por OBSIDIANA 2026-07-18, panel de jueces).
    Reporte editorial de papel-y-tinta sobre tu cuerpo. Dos temas
-   de primera clase: Papel (claro, :root) y Tinta (oscuro).
-   Tipografía self-hosted (Fraunces / Inter / JetBrains Mono) — se
-   importa vía @fontsource en src/main.tsx (NO CDN de Google: es un
-   anti-patrón PWA + riesgo de CSP).
+   de primera clase: Papel (claro, :root) y Obsidiana (oscuro, DEFAULT
+   de la app). Tipografía self-hosted (Fraunces / Inter / JetBrains
+   Mono) — se importa vía @fontsource en src/main.tsx (NO CDN de
+   Google: es un anti-patrón PWA + riesgo de CSP).
 
    Mecanismo de tema (sin cambios): el provider pone
    document.documentElement[data-theme="dark"|"light"] y
-   [data-contrast="high"]. :root = Papel; [data-theme="dark"] = Tinta.
+   [data-contrast="high"]. :root = Papel; [data-theme="dark"] = Obsidiana.
 
    Contraste (AA es PISO en ambos temas; ratios medidos vs. su fondo):
      Papel  ink #1A1712 / paper #F4F1EA ....... ~15.9:1
@@ -20,12 +21,14 @@
             ink-3 #6E6656 / paper ............... ~5.0:1  (AA texto normal; ≥4.5 también en surface/raised)
             blue #2A3F8F / paper ................ ~8.4:1  (interactivo/enlaces)
             blanco / blue (botón) ............... ~9.5:1
-            amber #C9761F / paper ............... ~3.0:1  (SOLO gráfico: anillo, realces grandes)
-     Tinta  ink #F2EDE3 / paper #14110C ........ ~16.1:1
-            ink-2 #B4AC9B / paper ............... ~8.4:1
-            ink-3 #8A8272 / paper ............... ~5.0:1  (AA texto normal)
-            blue #8AA6FF / paper ................ ~8.1:1
-            amber #F0A63C / paper ............... ~9.2:1
+            amber #C9761F / paper ................ ~3.0:1  (SOLO gráfico: anillo, realces grandes)
+     Obsidiana  ink #F5F1E8 / paper #0C0B09 .... ~17.5:1
+            ink-2 #C4BCAD / paper ............... ~10.4:1
+            ink-3 #9A9182 / paper ............... ~6.3:1  (AA texto normal, holgado a 12px)
+            blue #93A9FF / paper ................ ~8.8:1
+            amber #E3B341 / paper ............... ~10.1:1 (oro-hoja: YA es texto AA en oscuro)
+            ok #57C690 ~9.3 · warn #E0B75C ~10.4 · alert #F2836F ~7.7
+            series-2 #EAC25C ~11.6 · series-3 #BFA8F5 ~9.5
    Alto contraste sube muted/secondary a ≥AA (≥4.5:1) y hairline a 0.20.
    ============================================================ */
 @layer base {
@@ -94,56 +97,60 @@
     --brand-500:            var(--blue);
   }
 
-  /* ── Tinta (oscuro) — tinta cálida, NO azul-negro. Solo overrides canónicos:
-     los alias legados los siguen automáticamente (var() se resuelve por tema). ── */
+  /* ── Obsidiana (oscuro) — casi-negro con susurro cálido; calidez SOLO en texto/acentos.
+     Oro-hoja = energía ganada · azul-tinta brillante = interactivo. Solo overrides canónicos:
+     los alias legados los siguen automáticamente (var() se resuelve por tema).
+     Ajuste de jueces #1 (opción B): las superficies de obsidiana quedan INTACTAS (el negro ES la
+     dirección); la separación de panel a bajo brillo la dan la ARISTA (hairline 0.10→0.12) y la
+     faceta superior de .glass (.045→.06), no un lift de fondo. ── */
   [data-theme="dark"] {
-    --paper:      #14110C;   /* cuerpo de tinta cálida */
-    --surface:    #1E1A13;   /* panel cálido */
-    --raised:     #262019;
-    --ink:        #F2EDE3;   /* blanco cálido */
-    --ink-2:      #B4AC9B;
-    --ink-3:      #8A8272;   /* AA sobre tinta */
-    --hairline:   rgba(255,255,255,0.09);
-    --blue:       #8AA6FF;   /* interactivo/datos — brillante para AA sobre tinta */
-    --blue-press: #6E8DF0;
-    --amber:      #F0A63C;   /* EL glow: anillo/racha/energía — luminoso */
-    --amber-soft: rgba(240,166,60,0.14);
-    --amber-ink:  var(--amber);  /* en Tinta el ámbar YA es texto AA (~9.2:1) */
-    --ok:         #4AC98E;
-    --warn:       #E8B24A;
-    --alert:      #F0705C;
-    --plate:      #262019;
-    --primary-foreground: #14110C;
-    /* Series de péptidos — luminosas sobre tinta (ref canónica), nunca menta. */
-    --series-2:   #F3B84E;
-    --series-3:   #B79BF2;
+    --paper:      #0C0B09;   /* lee negro, no café — obsidiana pulida */
+    --surface:    #141310;   /* cards apenas levantadas */
+    --raised:     #1B1915;
+    --ink:        #F5F1E8;   /* blanco cálido (~17.5:1) */
+    --ink-2:      #C4BCAD;   /* ~10.4:1 */
+    --ink-3:      #9A9182;   /* ~6.3:1 — AA holgado a 12px */
+    --hairline:   rgba(255,255,255,0.12);  /* jueces #1: arista legible al 10 % de brillo */
+    --blue:       #93A9FF;   /* interactivo/datos — azul-tinta brillante (~8.8:1) */
+    --blue-press: #7B93F5;
+    --amber:      #E3B341;   /* oro-hoja: anillo/racha/energía (~10.1:1) */
+    --amber-soft: rgba(227,179,65,0.12);
+    --amber-ink:  var(--amber);  /* en Obsidiana el oro YA es texto AA */
+    --ok:         #57C690;
+    --warn:       #E0B75C;
+    --alert:      #F2836F;
+    --plate:      #070605;   /* placa de instrumento, más honda que el papel */
+    --primary-foreground: #0C0B09;
+    /* Series de péptidos — luminosas sobre obsidiana, cero menta. */
+    --series-2:   #EAC25C;
+    --series-3:   #BFA8F5;
   }
 
-  /* Guarda anti-flash SOLO pre-montaje (antes de que el provider ponga data-theme):
-     respeta prefers-color-scheme del SO para el primer frame. Debe reflejar el bloque
-     [data-theme="dark"] de arriba; una vez montado, [data-theme] gana. */
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-      --paper:      #14110C;
-      --surface:    #1E1A13;
-      --raised:     #262019;
-      --ink:        #F2EDE3;
-      --ink-2:      #B4AC9B;
-      --ink-3:      #8A8272;
-      --hairline:   rgba(255,255,255,0.09);
-      --blue:       #8AA6FF;
-      --blue-press: #6E8DF0;
-      --amber:      #F0A63C;
-      --amber-soft: rgba(240,166,60,0.14);
-      --amber-ink:  #F0A63C;
-      --ok:         #4AC98E;
-      --warn:       #E8B24A;
-      --alert:      #F0705C;
-      --plate:      #262019;
-      --primary-foreground: #14110C;
-      --series-2:   #F3B84E;
-      --series-3:   #B79BF2;
-    }
+  /* Guarda anti-flash SOLO pre-montaje (antes de que el provider ponga data-theme).
+     El DEFAULT de la app ahora es OSCURO (Obsidiana): sin elección guardada el primer frame
+     pinta oscuro SIEMPRE — sin flash claro — sea cual sea el esquema del SO (antes esta guarda
+     vivía bajo prefers-color-scheme: dark). Debe reflejar el bloque [data-theme="dark"] de
+     arriba; una vez montado, [data-theme] gana (este selector deja de aplicar). */
+  :root:not([data-theme]) {
+    --paper:      #0C0B09;
+    --surface:    #141310;
+    --raised:     #1B1915;
+    --ink:        #F5F1E8;
+    --ink-2:      #C4BCAD;
+    --ink-3:      #9A9182;
+    --hairline:   rgba(255,255,255,0.12);
+    --blue:       #93A9FF;
+    --blue-press: #7B93F5;
+    --amber:      #E3B341;
+    --amber-soft: rgba(227,179,65,0.12);
+    --amber-ink:  #E3B341;
+    --ok:         #57C690;
+    --warn:       #E0B75C;
+    --alert:      #F2836F;
+    --plate:      #070605;
+    --primary-foreground: #0C0B09;
+    --series-2:   #EAC25C;
+    --series-3:   #BFA8F5;
   }
 
   /* #12 — Alto contraste (accesibilidad): sube muted/secondary a ≥AA y hairline a 0.20,
@@ -155,8 +162,8 @@
     --hairline: rgba(26,23,18,0.20);
   }
   [data-theme="dark"][data-contrast="high"] {
-    --ink-2:    #CFC6B4;
-    --ink-3:    #A9A090;   /* ~7.3:1 sobre tinta (sube desde ~5:1) */
+    --ink-2:    #D5CEC0;   /* ~12.6:1 sobre obsidiana */
+    --ink-3:    #ABA393;   /* ~7.9:1 (sube desde ~6.3:1) */
     --hairline: rgba(255,255,255,0.20);
   }
 
@@ -227,10 +234,11 @@
     animation: ambient-drift 24s ease-in-out infinite alternate;
     will-change: transform, opacity;
   }
+  /* Obsidiana: radiales más tenues (oro-hoja + azul-tinta) — el fondo debe seguir leyendo negro. */
   [data-theme="dark"] .ambient-drift {
     background:
-      radial-gradient(42% 34% at 26% 28%, rgba(240,166,60,.14), transparent 70%),
-      radial-gradient(38% 32% at 78% 74%, rgba(138,166,255,.12), transparent 70%);
+      radial-gradient(42% 34% at 26% 28%, rgba(227,179,65,.10), transparent 70%),
+      radial-gradient(38% 32% at 78% 74%, rgba(147,169,255,.09), transparent 70%);
   }
   @keyframes ambient-drift {
     0%   { transform: translate3d(-3%, -2%, 0) scale(1.06); opacity: .55; }
@@ -251,8 +259,9 @@
 @layer components {
   /* Card primitiva = "columna impresa" (ref canónica docs/design-refs): superficie OPACA
      + hairline + sombra susurro. Sin backdrop-filter decorativo (elevación = reglas, no vidrio);
-     el blur queda reservado al backdrop del Sheet asentado. Tinta: panel cálido + realce superior
-     + medio-pixel de glow ámbar (inner-glow del graft Tactile Depth), sin sombrón negro. */
+     el blur queda reservado al backdrop del Sheet asentado. Obsidiana: panel casi-negro cuya
+     separación vive en la ARISTA — faceta superior inset (brillo de obsidiana pulida, jueces #1
+     opción B: .045→.06) + hairline 0.12 + medio-pixel de oro-hoja. Sin sombrón negro. */
   .glass {
     background: var(--surface);
     border: 1px solid var(--hairline);
@@ -261,8 +270,12 @@
   [data-theme="dark"] .glass {
     background: var(--surface);
     border: 1px solid var(--hairline);
-    border-top-color: rgba(255,255,255,0.10);
-    box-shadow: var(--tw-shadow, inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 .5px rgba(240,166,60,.05));
+    /* Faceta y oro-hoja FUERA del var(): Tailwind define --tw-shadow: 0 0 #0000 en * (defaults
+       universales del compilado), así que un fallback dentro de var(--tw-shadow, …) NUNCA aplica
+       — la faceta del Tinta original jamás llegó a pintarse (el realce venía del border-top, hoy
+       sustituido por esta faceta). El var() al final conserva el mecanismo: una utility shadow-*
+       (Toast/TermInfo flotantes) SUMA su elevación en vez de perderse. */
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 .5px rgba(227,179,65,.05), var(--tw-shadow, 0 0 #0000);
   }
 
   /* Placa de instrumento para readouts críticos (superficie oscura cálida en ambos temas).
@@ -271,12 +284,13 @@
     background: var(--plate);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 10px;
-    color: #F2EDE3;
+    color: #F5F1E8;   /* blanco cálido fijo — 17.96:1 sobre plate Obsidiana, ~16:1 sobre plate Papel */
   }
 
-  /* FAB de captura universal [+] — decisión por tema de la ref canónica: Papel = azul tinta
-     (todo lo interactivo en un color); Tinta = ÁMBAR luminoso con glifo de tinta (el único
-     glow de la pantalla vive en la captura y el dial). Borde de la superficie para "recortarlo". */
+  /* FAB de captura universal [+] — decisión por tema: Papel = azul tinta (todo lo interactivo
+     en un color); Obsidiana = ORO-HOJA con glifo de obsidiana. Jueces #3 (un solo glow ganado
+     por pantalla): el glow queda en el anillo del dial; el FAB proyecta sombra NEGRA, no halo
+     dorado. Borde de la superficie para "recortarlo". */
   .fab-capture {
     background: var(--blue);
     color: var(--primary-foreground);
@@ -285,8 +299,21 @@
   }
   [data-theme="dark"] .fab-capture {
     background: var(--amber);
-    color: #1A1206;
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--amber) 45%, transparent);
+    color: #0C0B09;   /* glifo sobre oro = 10.1:1 (hoja de tokens) */
+    box-shadow: 0 8px 22px rgba(0,0,0,.6);
+  }
+
+  /* Regla de masthead — la firma editorial de 1.5px bajo "Hola, {nombre}" y los títulos de
+     pantalla. Papel: tinta (var(--ink)), sin cambio. Obsidiana (jueces #2): "el canto dorado
+     de la página" — oro-hoja al 45 %, SOLO en oscuro. SectionHero usa .masthead-rule; Inicio
+     renderiza su masthead con la clase Tailwind border-b-ink en línea → el override de tema
+     la cubre sin tocar la pantalla ((0,2,0) gana a la utility (0,1,0)). */
+  .masthead-rule {
+    border-bottom: 1.5px solid var(--ink);
+  }
+  [data-theme="dark"] .masthead-rule,
+  [data-theme="dark"] .border-b-ink {
+    border-bottom-color: rgba(227,179,65,0.45);
   }
 
   /* Variante SÓLIDA del vidrio MIENTRAS el sheet se desliza (anti-jank): sin backdrop-filter,
@@ -300,7 +327,6 @@
   }
   [data-theme="dark"] .sheet-solid {
     background: color-mix(in srgb, var(--surface) 94%, transparent);
-    border-top-color: rgba(255,255,255,0.10);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 14px 36px rgba(0,0,0,.45), 0 0 0 .5px rgba(240,166,60,.06);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 14px 36px rgba(0,0,0,.45), 0 0 0 .5px rgba(227,179,65,.06);
   }
 }

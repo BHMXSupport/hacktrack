@@ -17,7 +17,9 @@ export function SectionHero(props: {
 }) {
   const { eyebrow, meta, metaClear, title, subtitle, action } = props
   return (
-    <header className="pb-3" style={{ borderBottom: '1.5px solid var(--ink)' }}>
+    // .masthead-rule (globals.css): 1.5px de tinta en Papel; canto dorado en Obsidiana (jueces).
+    // Antes era style inline — un style no puede cambiar por tema sin JS; la clase sí.
+    <header className="masthead-rule pb-3">
       {(eyebrow || meta) && (
         <div className={`flex items-center justify-between gap-3 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-ink-2${metaClear ? ' pr-14' : ''}`}>
           <span className="truncate">{eyebrow}</span>

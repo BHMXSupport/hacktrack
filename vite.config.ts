@@ -107,8 +107,9 @@ export default defineConfig({
         short_name: 'Hacktrack',
         description: 'Tu progreso, en una sola pantalla.',
         lang: 'es-MX',
-        theme_color: '#0E5A52',
-        background_color: '#0B1220',
+        // Obsidiana (dark default) — el teal viejo violaba la separación de marca (BiohackMX)
+        theme_color: '#0C0B09',
+        background_color: '#0C0B09',
         display: 'standalone',
         orientation: 'portrait',
         id: BASE,

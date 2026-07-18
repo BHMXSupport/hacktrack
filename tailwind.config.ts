@@ -56,12 +56,13 @@ export default {
       // Escala de radios ÚNICA (se eliminó la duplicada de globals.css). 2xl/full = defaults de Tailwind.
       borderRadius: { xl: '26px', lg: '20px', md: '14px', sm: '10px' },
       boxShadow: {
-        // Papel: sombra cálida suave. Tinta: panel + inner-glow. glow = ámbar (energía/anillo activo).
+        // Papel: sombra cálida suave. Obsidiana: panel (faceta + medio-pixel de oro-hoja).
+        // glow sigue a var(--amber) (oro #E3B341 en oscuro) — antes clavaba el ámbar viejo de Tinta.
         soft: '0 1px 2px rgba(26,23,18,.04), 0 8px 24px rgba(26,23,18,.07)',
-        panel: 'inset 0 1px 0 rgba(255,255,255,.04), 0 14px 36px rgba(0,0,0,.5), 0 0 0 .5px rgba(240,166,60,.06)',
+        panel: 'inset 0 1px 0 rgba(255,255,255,.06), 0 14px 36px rgba(0,0,0,.5), 0 0 0 .5px rgba(227,179,65,.06)',
         glass: '0 1px 2px rgba(26,23,18,.04), 0 8px 24px rgba(26,23,18,.07)',
         nav: '0 8px 30px rgba(26,23,18,.10), 0 0 0 .5px rgba(26,23,18,.06)',
-        glow: '0 0 22px rgba(240,166,60,.35)',
+        glow: '0 0 22px color-mix(in srgb, var(--amber) 35%, transparent)',
       },
       // Reservado para nav + sheet-asentado únicamente (no "vidrio en todas partes").
       backdropBlur: { sheet: '20px', nav: '28px' },

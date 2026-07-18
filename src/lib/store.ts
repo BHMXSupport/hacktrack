@@ -123,6 +123,10 @@ export const initialState: AppState = {
   settings: {
     pinEnabled: false,
     darkMode: false,
+    // DEFAULT de tema = Obsidiana (oscuro) para usuarios nuevos/sin elección (panel de jueces
+    // 2026-07-18). Quien ya eligió un modo lo conserva: su themeMode persistido pisa este valor
+    // al hidratar; 'auto' (noche 19–7 h) y 'light' (Papel) siguen disponibles en Ajustes.
+    themeMode: 'dark',
     // Recordatorios ACTIVADOS por default (per-dosis + resumen diario + semanal). El permiso del SO se
     // pide al entrar (NotifPermissionPrompt). El usuario puede ajustarlos/apagarlos en Ajustes.
     remindersEnabled: true,
