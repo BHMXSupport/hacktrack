@@ -26,6 +26,9 @@ import { Button } from '../ui/Button'
 import { InjectionMap } from '../ui/InjectionMap'
 import { FolioLabel } from '../ui/FolioLabel'
 import { TrustChip } from '../ui/TrustChip'
+import { AutoVideo } from '../ui/AutoVideo'
+import heroVideo from '../../assets/rebuild/hero-precision.mp4'
+import heroPoster from '../../assets/rebuild/hero-poster.webp'
 import { StatNumber } from '../ui/StatNumber'
 import { TermInfo } from '../ui/TermInfo'
 import { useCountUp } from '../lib/useCountUp'
@@ -423,6 +426,15 @@ export function Inicio({ onRegistrar }: { onRegistrar: () => void }) {
         </div>
         {/* Graft del veredicto: señal de confianza → abre Perfil y privacidad (el resumen ARCO vive ahí) */}
         <TrustChip className="mt-1.5 self-start" onOpen={() => dispatch({ t: 'sheet', sheet: 'perfil' })} />
+        {/* Hero de fondo restaurado (Jan 2026-07-18) como placa editorial, re-coloreado a oro
+            vía .hero-media (filtro estático). Reduced-motion → solo el poster. */}
+        <figure className="mt-3 overflow-hidden rounded-sm border border-hairline" aria-hidden>
+          {reduce ? (
+            <img src={heroPoster} alt="" loading="lazy" decoding="async" className="hero-media block h-auto w-full" />
+          ) : (
+            <AutoVideo src={heroVideo} poster={heroPoster} className="hero-media block h-auto w-full" />
+          )}
+        </figure>
       </motion.header>
 
       {/* ── § Adherencia — dial ámbar + numeral serif héroe. #4: sin nada que medir, bienvenida (no "0% fracaso") ── */}

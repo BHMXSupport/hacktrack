@@ -311,6 +311,14 @@
   .masthead-rule {
     border-bottom: 1.5px solid var(--ink);
   }
+
+  /* Placa de hero (video/poster) — re-color teal→ORO-HOJA por filtro ESTÁTICO (la ley del
+     sistema prohíbe ANIMAR filtros, no filtros fijos; capa GPU propia). grayscale primero →
+     el mismo filtro dora cualquier asset sin importar su tinte original (decisión de Jan
+     2026-07-18: los heroes vuelven, en color ad-hoc a Obsidiana/Papel). */
+  .hero-media {
+    filter: grayscale(1) sepia(0.85) hue-rotate(-8deg) saturate(1.6) brightness(0.85);
+  }
   [data-theme="dark"] .masthead-rule,
   [data-theme="dark"] .border-b-ink {
     border-bottom-color: rgba(227,179,65,0.45);

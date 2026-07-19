@@ -39,6 +39,7 @@ import { Chip } from '../ui/Chip'
 import { Button } from '../ui/Button'
 import { Sheet } from '../ui/Sheet'
 import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 import { SegmentedTabs } from '../ui/SegmentedTabs'
 import { FolioLabel } from '../ui/FolioLabel'
 import { TermInfo } from '../ui/TermInfo'
@@ -959,6 +960,7 @@ export function Diario() {
       {/* ── masthead editorial ── */}
       <motion.div variants={staggerItem}>
         <SectionHero
+          {...HEROES.diario}
           eyebrow="Bitácora · Registro"
           meta={todayLabel(state.todayTs)}
           metaClear

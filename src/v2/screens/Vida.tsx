@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Eye, EyeOff, Activity, Info, Plus } from 'lucide-react'
 import { useApp } from '../../lib/store'
 import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 import {
   buildPharmaSeries,
   fmtApproxMg,
@@ -676,6 +677,7 @@ export function Vida() {
       {/* Cabecera — masthead editorial (kicker + reloj coherente con "now") */}
       <motion.div variants={fade}>
         <SectionHero
+          {...HEROES.vida}
           eyebrow="Vida · en tu cuerpo"
           meta={`Ahora · ${clock}`}
           metaClear

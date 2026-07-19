@@ -28,6 +28,7 @@ import {
   Activity,
 } from 'lucide-react'
 import { SectionHero } from '../ui/SectionHero'
+import { HEROES } from '../lib/heroes'
 import { useApp, adherence, isoKey } from '../../lib/store'
 import { weekAdherencePct } from '../../lib/calendar'
 import { startOfDay } from '../../lib/cadence'
@@ -792,6 +793,7 @@ export function Semana({ embedded = false }: { embedded?: boolean } = {}) {
       ) : (
         <motion.div variants={staggerItem}>
           <SectionHero
+            {...HEROES.semana}
             eyebrow="Bitácora · Semana"
             title="Tu semana"
             subtitle="Últimos 7 días"
