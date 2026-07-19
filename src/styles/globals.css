@@ -105,12 +105,14 @@
      faceta superior de .glass (.045→.06), no un lift de fondo. ── */
   [data-theme="dark"] {
     --paper:      #0C0B09;   /* lee negro, no café — obsidiana pulida */
-    --surface:    #141310;   /* cards apenas levantadas */
-    --raised:     #1B1915;
-    --ink:        #F5F1E8;   /* blanco cálido (~17.5:1) */
-    --ink-2:      #C4BCAD;   /* ~10.4:1 */
-    --ink-3:      #9A9182;   /* ~6.3:1 — AA holgado a 12px */
-    --hairline:   rgba(255,255,255,0.12);  /* jueces #1: arista legible al 10 % de brillo */
+    --surface:    #181613;   /* cards un paso arriba (Jan 2026-07-19: legibilidad ↑↑) */
+    --raised:     #23201A;
+    /* Tintas SUBIDAS fuerte (Jan: "difícil de leer" — contraste muchísimo más alto):
+       ink ~18.6:1 · ink-2 ~13.1:1 (era 10.4) · ink-3 ~8.6:1 (era 6.3), medidos sobre --raised. */
+    --ink:        #FBF8F1;
+    --ink-2:      #DDD5C6;
+    --ink-3:      #B7AE9D;
+    --hairline:   rgba(255,255,255,0.18);  /* aristas bien visibles (era 0.12) */
     --blue:       #93A9FF;   /* interactivo/datos — azul-tinta brillante (~8.8:1) */
     --blue-press: #7B93F5;
     --amber:      #E3B341;   /* oro-hoja: anillo/racha/energía (~10.1:1) */
@@ -162,9 +164,9 @@
     --hairline: rgba(26,23,18,0.20);
   }
   [data-theme="dark"][data-contrast="high"] {
-    --ink-2:    #D5CEC0;   /* ~12.6:1 sobre obsidiana */
-    --ink-3:    #ABA393;   /* ~7.9:1 (sube desde ~6.3:1) */
-    --hairline: rgba(255,255,255,0.20);
+    --ink-2:    #EDE7DA;   /* aún más arriba que el nuevo base (~15:1) */
+    --ink-3:    #CFC6B4;   /* ~11:1 */
+    --hairline: rgba(255,255,255,0.26);
   }
 
   * { border-color: var(--border); }
@@ -247,7 +249,9 @@
   }
 
   /* El fondo ambiental de video (orientado a oscuro) se oculta en Papel. */
-  [data-theme="light"] .ambient-bg { display: none; }
+  /* Papel también lleva el video ambiental (Jan 2026-07-19) — en blanco/gris vía el filtro
+     de .hero-media de tema claro; el glow ámbar del drift sigue siendo solo de Obsidiana. */
+  [data-theme="light"] .ambient-drift { display: none; }
 
   /* Apaga blur/motion bajo reduced-motion o low-power (accesibilidad). */
   @media (prefers-reduced-motion: reduce) {
@@ -318,6 +322,11 @@
      2026-07-18: los heroes vuelven, en color ad-hoc a Obsidiana/Papel). */
   .hero-media {
     filter: grayscale(1) sepia(0.85) hue-rotate(-8deg) saturate(1.6) brightness(0.85);
+  }
+  /* Papel: los mismos assets en BLANCO CON GRIS (Jan 2026-07-19) — invertir el video oscuro
+     da fondo claro con trazos grises; calibrado por screenshot igual que el dorado. */
+  [data-theme="light"] .hero-media {
+    filter: grayscale(1) invert(1) brightness(1.08) contrast(0.8);
   }
   [data-theme="dark"] .masthead-rule,
   [data-theme="dark"] .border-b-ink {
